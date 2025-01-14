@@ -26,7 +26,7 @@ const CustomModal = ({
   padding = 15,
   position = 'center',
 }) => {
-  // Dynamic positioning styles
+  // Dynamic positioning
   const getPositionStyle = () => {
     switch (position) {
       case 'top':
@@ -53,9 +53,6 @@ const CustomModal = ({
 
   const headerStyleCombined = [
     styles.modalHeader,
-    {
-      borderBottomWidth: showHeader ? 1 : 0,
-    },
     headerStyle,
   ];
 
@@ -66,32 +63,49 @@ const CustomModal = ({
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={[styles.modalOverlay, { backgroundColor: overlayColor }, getPositionStyle()]}>
+      <View
+        style={[
+          styles.modalOverlay,
+          { backgroundColor: overlayColor },
+          getPositionStyle(),
+        ]}
+      >
         <View style={modalContentStyle}>
           {showHeader && (
             <View style={headerStyleCombined}>
-              <Text style={[styles.modalTitle, { color: titleColor, fontSize: titleSize }]}>
+              <Text
+                style={[
+                  styles.modalTitle,
+                  { color: titleColor, fontSize: titleSize },
+                ]}
+              >
                 {title}
               </Text>
+
               {customCloseButton || (
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Text style={[styles.closeButtonText, { color: closeButtonColor, fontSize: closeButtonSize }]}>
+                <TouchableOpacity 
+                  onPress={onClose} 
+                  style={styles.closeButton}
+                >
+                  <Text
+                    style={[
+                      styles.closeButtonText,
+                      { color: closeButtonColor, fontSize: closeButtonSize },
+                    ]}
+                  >
                     ✕
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
-          <View style={styles.modalBody}>
-            {children}
-          </View>
+          <View style={styles.modalBody}>{children}</View>
         </View>
       </View>
     </Modal>
   );
 };
 
-// Styles included in the same file
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -99,82 +113,36 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
   modalHeader: {
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 15,
+    justifyContent: 'space-between',
     borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 15,  // Added horizontal padding
+    marginHorizontal: -15,  // Compensate for parent padding
   },
   modalTitle: {
     fontWeight: 'bold',
+    flex: 1,  // Added flex: 1 to the title itself
   },
   closeButton: {
     padding: 5,
+    marginLeft: 'auto',  // Added marginLeft: 'auto'
   },
   closeButtonText: {
     fontWeight: '500',
   },
   modalBody: {
-    marginTop: 15,
+    marginTop: 10,
   },
 });
-
-// Usage Example
-const ExampleUsage = () => {
-  const [modalVisible, setModalVisible] = useState(false);
-
-  return (
-    <>
-      {/* Basic Usage */}
-      <CustomModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        title="Basic Modal"
-      >
-        <Text>Basic modal content</Text>
-      </CustomModal>
-
-      {/* Customized Modal */}
-      <CustomModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        title="Custom Modal"
-        backgroundColor="#f5f5f5"
-        overlayColor="rgba(0, 0, 0, 0.7)"
-        borderRadius={10}
-        titleColor="#007AFF"
-        titleSize={20}
-        closeButtonColor="#007AFF"
-        animation="fade"
-        position="bottom"
-        modalWidth={width * 0.9}
-        headerStyle={{
-          backgroundColor: '#fff',
-          borderBottomColor: '#007AFF',
-          borderBottomWidth: 2,
-        }}
-        contentStyle={{
-          paddingHorizontal: 20,
-        }}
-        customCloseButton={
-          <TouchableOpacity onPress={() => setModalVisible(false)}>
-            <Text style={{color: '#007AFF'}}>Done</Text>
-          </TouchableOpacity>
-        }
-      >
-        <Text>Customized modal content</Text>
-      </CustomModal>
-    </>
-  );
-};
 
 export default CustomModal;

@@ -1,143 +1,213 @@
-// screens/HomeScreen.js
+// HomeScreen.js
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  ScrollView, 
-  StatusBar 
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Alert,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { AddDeviceForm, DeviceDetailsView } from '../components/components/ModalComponents';
 import CustomModal from '../components/Modal';
-import TabBar from '../components/TabBar';
-import {
-  NFCLock,
-  NFCRead,
-  NFCWrite,
-  NFCPassword,
-  NFCRemovePassword,
-} from '../components/NFCComponents';
 
-const HomeScreen = () => {
-  const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('read');
-  const [modalVisible, setModalVisible] = useState(false);
+const MOCK_DEVICES = [
+  {
+    id: 1,
+    identifier: 'DRL-2000',
+    name: 'Drill XR-2000',
+    type: 'Power Tool',
+    description: 'Heavy duty drill for construction work',
+    make: 'DeWalt',
+    model: 'XR-2000',
+    device_type: 'Drill',
+    serial_number: 'DW123456',
+    maintenance_interval: 90,
+    next_maintenance: '2024-04-14',
+    assignedDate: '2024-01-10',
+    location: 'Workshop A',
+    status: 'active',
+  },
+  {
+    id: 2,
+    identifier: 'BAT-V12',
+    name: 'Battery Pack V12',
+    type: 'Battery',
+    description: '12V battery pack for power tools',
+    make: 'DeWalt',
+    model: 'V12',
+    device_type: 'Battery',
+    serial_number: 'BAT789012',
+    maintenance_interval: 180,
+    next_maintenance: '2024-07-12',
+    assignedDate: '2024-01-12',
+    location: 'Main Storage',
+    status: 'active',
+  },
+];
 
-  // Function to render the active NFC component
-  const renderNFCComponent = () => {
-    switch (activeTab) {
-      case 'read':
-        return <NFCRead onRead={() => console.log('Reading NFC')} />;
-      case 'write':
-        return <NFCWrite onWrite={(msg) => console.log('Writing:', msg)} />;
-      case 'lock':
-        return <NFCLock onLock={() => console.log('Locking NFC')} />;
-      case 'protect':
-        return <NFCPassword onProtect={(pwd) => console.log('Protecting:', pwd)} />;
-      case 'remove':
-        return <NFCRemovePassword onRemove={(pwd) => console.log('Removing protection:', pwd)} />;
-      default:
-        return null;
-    }
+const HomeScreen = ({ navigation }) => {
+  const [addDeviceModalVisible, setAddDeviceModalVisible] = useState(false);
+  const [assignDeviceModalVisible, setAssignDeviceModalVisible] = useState(false);
+  const [deviceDetailsModalVisible, setDeviceDetailsModalVisible] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+
+  const handleAddDevice = (deviceData) => {
+    console.log('Adding device:', deviceData);
+    Alert.alert(
+      'Success',
+      'Device added successfully',
+      [{ text: 'OK', onPress: () => setAddDeviceModalVisible(false) }]
+    );
   };
+
+  const handleDevicePress = (device) => {
+    setSelectedDevice(device);
+    setDeviceDetailsModalVisible(true);
+  };
+
+  const handleDeviceReturn = (device) => {
+    setSelectedDevice(device);
+    setDeviceDetailsModalVisible(true);
+  };
+
+  const renderDeviceCard = (device) => (
+    <Card
+      key={device.id}
+      title={device.name}
+      subtitle={device.type}
+      onPress={() => handleDevicePress(device)}
+      style={styles.deviceCard}
+    >
+      <View style={styles.cardContent}>
+        <View style={styles.cardInfo}>
+          <Text style={styles.infoText}>Assigned: {device.assignedDate}</Text>
+          <Text style={styles.infoText}>Location: {device.location}</Text>
+          <Text style={styles.infoText}>Status: {device.status}</Text>
+        </View>
+        <View style={styles.cardActions}>
+          <Button
+            title="Return"
+            variant="outlined"
+            size="small"
+            onPress={() => handleDeviceReturn(device)}
+          />
+        </View>
+      </View>
+    </Card>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Device Management</Text>
-      </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Button Showcase */}
-        <Card title="Button Variants">
-          <Button 
-            title="Primary Button" 
-            onPress={() => setModalVisible(true)} 
-          />
-          <Button 
-            title="Outlined Button" 
-            variant="outlined" 
-            backgroundColor="#4CAF50"
-          />
-          <Button 
-            title="Ghost Button" 
-            variant="ghost" 
-            backgroundColor="#FF9800"
-          />
-          <Button 
-            title="Loading Button" 
-            loading={true} 
-            backgroundColor="#9C27B0"
+      {/* Header Section */}
+      <View style={styles.header}>
+        <Text style={styles.welcomeText}>
+          Welcome{'\n'}User
+        </Text>
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Add Device"
+            onPress={() => setAddDeviceModalVisible(true)}
+            size="small"
+            style={styles.headerButtonLeft}
           />
           <Button
-            title="Logout"
-            onPress={logout}
-            variant="outlined"
-            backgroundColor="#FF3B30"
-            style={styles.logoutButton}
+            title="Assign Device"
+            onPress={() => setAssignDeviceModalVisible(true)}
+            size="small"
+            style={styles.headerButtonRight}
           />
-        </Card>
+        </View>
+      </View>
 
-        {/* Card Showcase */}
-        <Card
-          title="Interactive Card"
-          subtitle="With custom styling"
-          headerContent={
-            <Text style={styles.cardHeader}>Featured</Text>
-          }
-          footerContent={
-            <Button 
-              title="Learn More" 
-              size="small" 
-              variant="outlined"
-            />
-          }
-          onPress={() => console.log('Card pressed')}
-        >
-          <Text style={styles.cardText}>
-            This is an example of a card with header, footer, and interactive elements.
-          </Text>
-        </Card>
-
-        {/* Active NFC Component */}
-        <View style={styles.nfcContainer}>
-          {renderNFCComponent()}
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Devices Assigned</Text>
+          <View style={styles.devicesGrid}>
+            {MOCK_DEVICES.map(renderDeviceCard)}
+          </View>
+          <TouchableOpacity
+            style={styles.viewAllButton}
+            onPress={() => navigation?.navigate('AllDevices')}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Modal */}
+      {/* Bottom Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigation?.navigate('Home')}
+        >
+          <Text>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => navigation?.navigate('Reports')}
+        >
+          <Text>Reports</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => {
+            // Handle logout here
+          }}
+        >
+          <Text>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Add Device Modal */}
       <CustomModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        title="Component Demo"
+        visible={addDeviceModalVisible}
+        onClose={() => setAddDeviceModalVisible(false)}
+        title="Add Device"
+        headerStyle={styles.modalHeaderOverride}
       >
-        <Text style={styles.modalText}>
-          This is a custom modal that can be used to display any content.
-          It supports custom styling and animations.
-        </Text>
-        <Button 
-          title="Close Modal" 
-          onPress={() => setModalVisible(false)}
-          variant="outlined"
-          size="small"
+        <AddDeviceForm
+          onSubmit={handleAddDevice}
+          onCancel={() => setAddDeviceModalVisible(false)}
         />
       </CustomModal>
 
-      {/* Tab Bar */}
-      <TabBar
-        activeTab={activeTab}
-        onTabPress={setActiveTab}
-        backgroundColor="#FFFFFF"
-        activeColor="#007AFF"
-        showIcons={true}
-        showLabels={true}
-      />
+      {/* Assign Device Modal */}
+      <CustomModal
+        visible={assignDeviceModalVisible}
+        onClose={() => setAssignDeviceModalVisible(false)}
+        title="Assign Device"
+        headerStyle={styles.modalHeaderOverride}
+      >
+        <Text>Assign Device Modal Content</Text>
+        <Button
+          title="Close"
+          onPress={() => setAssignDeviceModalVisible(false)}
+          variant="outlined"
+        />
+      </CustomModal>
+
+      {/* Device Details Modal */}
+      <CustomModal
+        visible={deviceDetailsModalVisible}
+        onClose={() => setDeviceDetailsModalVisible(false)}
+        title="Device Details"
+        headerStyle={styles.modalHeaderOverride}
+      >
+        {selectedDevice && (
+          <DeviceDetailsView
+            device={selectedDevice}
+            onClose={() => setDeviceDetailsModalVisible(false)}
+          />
+        )}
+      </CustomModal>
     </SafeAreaView>
   );
 };
@@ -152,42 +222,85 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerTitle: {
+  welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButtonLeft: {
+    marginRight: 10,
+  },
   scrollView: {
     flex: 1,
   },
-  content: {
+  section: {
     padding: 15,
-    paddingBottom: 100, // Extra padding for tab bar
   },
-  nfcContainer: {
-    marginVertical: 15,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
   },
-  cardHeader: {
-    fontSize: 12,
-    color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  devicesGrid: {
+    marginBottom: 15,
   },
-  cardText: {
+  deviceCard: {
+    marginBottom: 10,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  infoText: {
     fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
+    color: '#666',
+    marginBottom: 4,
   },
-  modalText: {
+  cardActions: {
+    justifyContent: 'flex-end',
+  },
+  viewAllButton: {
+    padding: 10,
+    alignItems: 'center',
+  },
+  viewAllText: {
+    color: '#007AFF',
     fontSize: 16,
-    color: '#333',
-    marginBottom: 20,
-    lineHeight: 24,
   },
-  logoutButton: {
-    marginTop: 10,
-  }
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    backgroundColor: '#FFFFFF',
+  },
+  tabItem: {
+    flex: 1,
+    padding: 15,
+    alignItems: 'center',
+  },
+  modalHeaderOverride: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    paddingVertical: 15,
+  },
 });
 
 export default HomeScreen;
