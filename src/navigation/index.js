@@ -1,73 +1,130 @@
-// navigation/index.js
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useAuth } from '../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  NavigationContainer 
+} from '@react-navigation/native';
+import { 
+  createStackNavigator 
+} from '@react-navigation/stack';
+import { 
+  useAuth 
+} from '../context/AuthContext';
+import { 
+  ActivityIndicator, 
+  View
+} from 'react-native';
 
 // Import screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
+import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
 import HomeScreen from '../screens/HomeScreen';
+import ReportsScreen from '../screens/ReportsScreen';
+import AllReportsScreen from '../screens/AllReportsScreen';
+import AllDevicesScreen from '../screens/AllDevicesScreen';
+import AddDeviceScreen from '../screens/AddDeviceScreen'; // Add this import
 
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
 
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen 
+      name="ForgotPassword" 
+      component={ForgotPasswordPage}
+      options={{
+        headerShown: true,
+        headerTitle: 'Reset Password',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
   </Stack.Navigator>
 );
 
-const MainTab = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName;
-
-        if (route.name === 'Home') {
-          iconName = focused ? 'home' : 'home-outline';
-        }
-        // Add more icons for other tabs as needed
-
-        return <Ionicons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: '#007AFF',
-      tabBarInactiveTintColor: 'gray',
-      headerStyle: {
-        backgroundColor: '#fff',
-        elevation: 0,
-        shadowOpacity: 0,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f4f4f4',
-      },
-      headerTitleStyle: {
-        fontWeight: 'bold',
-      },
-    })}
-  >
-    <Tab.Screen 
-      name="Home" 
+const MainStack = () => (
+  <Stack.Navigator>
+    <Stack.Screen
+      name="Dashboard"
       component={HomeScreen}
-      options={{
-        title: 'Dashboard',
-        headerTitle: 'Device Management'
+      options={{ 
+        headerShown: false
       }}
     />
-  </Tab.Navigator>
+    <Stack.Screen
+      name="Reports"
+      component={ReportsScreen}
+      options={{ 
+        headerTitle: 'Reports',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+    <Stack.Screen
+      name="AllReports"
+      component={AllReportsScreen}
+      options={{
+        headerShown: false
+      }}
+    />
+    <Stack.Screen
+      name="AllDevices"
+      component={AllDevicesScreen}
+      options={{
+        headerShown: false
+      }}
+    />
+    <Stack.Screen
+      name="AddDevice"
+      component={AddDeviceScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Add New Device',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+  </Stack.Navigator>
+);
+
+const LoadingScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <ActivityIndicator size="large" color="#007AFF" />
+  </View>
 );
 
 export const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    // You can create a loading screen component
-    return null;
+    return <LoadingScreen />;
   }
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <MainTab /> : <AuthStack />}
+      {isAuthenticated ? <MainStack /> : <AuthStack />}
     </NavigationContainer>
   );
 };

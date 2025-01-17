@@ -47,7 +47,7 @@
         "exclude": [
           "react-native-nfc-manager"
         ],
-        "listUnknownPackages": true
+        "listUnknownPackages": false
       }
     }
   }

@@ -4,7 +4,7 @@ import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 
 // Base TextInput Component
-const BaseTextInput = ({
+const BaseTextInput = React.forwardRef(({
   value,
   onChangeText,
   placeholder,
@@ -19,7 +19,9 @@ const BaseTextInput = ({
   onBlur,
   onFocus,
   testID,
-}) => {
+  returnKeyType,
+  onSubmitEditing
+}, ref) => {
   const [isFocused, setIsFocused] = useState(false);
 
   const handleFocus = (e) => {
@@ -43,6 +45,7 @@ const BaseTextInput = ({
         ]}
       >
         <TextInput
+          ref={ref}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -54,25 +57,28 @@ const BaseTextInput = ({
           onFocus={handleFocus}
           onBlur={handleBlur}
           testID={testID}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
         />
         {rightComponent}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+});
 
 // Email Input Component
-const EmailInput = ({
+const EmailInput = React.forwardRef(({
   value,
   onChangeText,
   error,
   label = 'Email',
   containerStyle,
   ...props
-}) => {
+}, ref) => {
   return (
     <BaseTextInput
+      ref={ref}
       value={value}
       onChangeText={onChangeText}
       placeholder="Enter your email"
@@ -93,10 +99,10 @@ const EmailInput = ({
       {...props}
     />
   );
-};
+});
 
 // Password Input Component
-const PasswordInput = ({
+const PasswordInput = React.forwardRef(({
   value,
   onChangeText,
   error,
@@ -104,11 +110,12 @@ const PasswordInput = ({
   containerStyle,
   placeholder = "Enter your password",
   ...props
-}) => {
+}, ref) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   return (
     <BaseTextInput
+      ref={ref}
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
@@ -133,7 +140,7 @@ const PasswordInput = ({
       {...props}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -181,15 +188,14 @@ const styles = StyleSheet.create({
   },
 });
 
-export { BaseTextInput, EmailInput, PasswordInput };
-
-// Usage Example:
+// Usage Example (commented out):
 /*
 import { EmailInput, PasswordInput } from './components/TextInput';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const passwordRef = useRef(null);
   
   return (
     <View>
@@ -197,14 +203,21 @@ const LoginForm = () => {
         value={email}
         onChangeText={setEmail}
         error={emailError}
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
       />
       
       <PasswordInput
+        ref={passwordRef}
         value={password}
         onChangeText={setPassword}
         error={passwordError}
+        returnKeyType="done"
+        onSubmitEditing={handleSubmit}
       />
     </View>
   );
 };
 */
+
+export { BaseTextInput, EmailInput, PasswordInput };

@@ -1,17 +1,12 @@
+// components/TabBar/TabBar.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const TabBar = ({
-  // Tab configuration
-  tabs = [
-    { key: 'read', title: 'Read', icon: '📖' },
-    { key: 'write', title: 'Write', icon: '✏️' },
-    { key: 'lock', title: 'Lock', icon: '🔒' },
-    { key: 'protect', title: 'Protect', icon: '🛡️' },
-    { key: 'remove', title: 'Remove', icon: '🗑️' }
-  ],
+  // Required props
+  tabs = [], // Provide empty array as default
   activeTab,
   onTabPress,
   
@@ -38,6 +33,12 @@ const TabBar = ({
   const [indicatorAnim] = React.useState(new Animated.Value(0));
   const [tabWidths, setTabWidths] = React.useState({});
 
+  // Guard against empty tabs
+  if (!tabs || tabs.length === 0) {
+    console.warn('TabBar: No tabs provided');
+    return null;
+  }
+
   // Handle tab press with animation
   const handleTabPress = (tab, index) => {
     if (animated) {
@@ -47,13 +48,15 @@ const TabBar = ({
         useNativeDriver: true,
       }).start();
     }
-    onTabPress(tab.key);
+    if (onTabPress) {
+      onTabPress(tab.key);
+    }
   };
 
   // Calculate indicator position
   const translateX = indicatorAnim.interpolate({
-    inputRange: [0, tabs.length - 1],
-    outputRange: [0, width - (width / tabs.length)],
+    inputRange: [0, Math.max(tabs.length - 1, 1)],
+    outputRange: [0, width - (width / Math.max(tabs.length, 1))],
   });
 
   // Get position styles
@@ -102,10 +105,18 @@ const TabBar = ({
               setTabWidths(prev => ({ ...prev, [tab.key]: width }));
             }}
           >
-            {showIcons && (
-              <Text style={[styles.icon, { color }, iconStyle]}>
-                {tab.icon}
-              </Text>
+            {showIcons && tab.icon && (
+              typeof tab.icon === 'string' ? (
+                <Text style={[styles.icon, { color }, iconStyle]}>
+                  {tab.icon}
+                </Text>
+              ) : (
+                React.cloneElement(tab.icon, { 
+                  color,
+                  style: [styles.icon, iconStyle, tab.icon.props.style],
+                  size: iconStyle?.fontSize || 24
+                })
+              )
             )}
             {showLabels && (
               <Text style={[
@@ -168,56 +179,5 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
   },
 });
-
-// Usage Example
-const ExampleUsage = () => {
-  const [activeTab, setActiveTab] = React.useState('read');
-
-  return (
-    <View style={{ flex: 1 }}>
-      {/* Basic Usage */}
-      <TabBar
-        activeTab={activeTab}
-        onTabPress={setActiveTab}
-      />
-
-      {/* Customized Usage */}
-      <TabBar
-        activeTab={activeTab}
-        onTabPress={setActiveTab}
-        backgroundColor="#F8F8F8"
-        activeColor="#4CAF50"
-        inactiveColor="#999999"
-        showIcons={true}
-        showLabels={true}
-        position="bottom"
-        height={70}
-        animated={true}
-        containerStyle={{
-          borderTopWidth: 0,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: -5,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 6,
-          elevation: 15,
-        }}
-        indicatorStyle={{
-          backgroundColor: '#4CAF50',
-          height: 4,
-        }}
-        labelStyle={{
-          fontSize: 13,
-          fontWeight: '500',
-        }}
-        iconStyle={{
-          fontSize: 24,
-        }}
-      />
-    </View>
-  );
-};
 
 export default TabBar;

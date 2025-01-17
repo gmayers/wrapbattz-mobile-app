@@ -9,13 +9,16 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmailInput } from '../../components/TextInput';
+import Button from '../../components/Button';
 
 const ForgotPasswordPage = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateEmail = () => {
     if (!email) {
@@ -30,13 +33,41 @@ const ForgotPasswordPage = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    if (validateEmail()) {
-      try {
-        // Add your password reset logic here
-        console.log('Requesting password reset for:', email);
-      } catch (error) {
-        console.error('Password reset error:', error);
+    if (!validateEmail()) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://test.gmayersservices.com/api/auth/password/reset/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to send reset instructions');
       }
+
+      // Show success message
+      Alert.alert(
+        'Success',
+        'If an account exists with this email, you will receive password reset instructions shortly.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error.message || 'An error occurred while sending reset instructions. Please try again.',
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -61,7 +92,7 @@ const ForgotPasswordPage = ({ navigation }) => {
           <View style={styles.content}>
             <View style={styles.logoContainer}>
               <Image
-                source={require('../assets/logo.png')}
+                source={require('../../../assets/logo.jpg')}
                 style={styles.logo}
                 resizeMode="contain"
               />
@@ -82,16 +113,16 @@ const ForgotPasswordPage = ({ navigation }) => {
                 error={emailError}
                 returnKeyType="send"
                 onSubmitEditing={handleSubmit}
+                editable={!isLoading}
               />
 
-              <TouchableOpacity 
-                style={styles.submitButton}
+              <Button
+                title="Send Reset Instructions"
                 onPress={handleSubmit}
-              >
-                <Text style={styles.submitButtonText}>
-                  Send Reset Instructions
-                </Text>
-              </TouchableOpacity>
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.submitButton}
+              />
             </View>
           </View>
         </ScrollView>
@@ -141,39 +172,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  loginButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
     marginTop: 20,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  forgotButton: {
-    alignItems: 'center',
-    marginTop: 16,
-    padding: 8,
-  },
-  forgotButtonText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '500',
   },
   closeButton: {
     position: 'absolute',
@@ -183,3 +183,5 @@ const styles = StyleSheet.create({
     padding: 8,
   },
 });
+
+export default ForgotPasswordPage;

@@ -53,7 +53,7 @@ const CustomModal = ({
 
   const headerStyleCombined = [
     styles.modalHeader,
-    headerStyle,
+    headerStyle, // let custom style override or add to defaults
   ];
 
   return (
@@ -73,6 +73,7 @@ const CustomModal = ({
         <View style={modalContentStyle}>
           {showHeader && (
             <View style={headerStyleCombined}>
+              {/* Title on the far left */}
               <Text
                 style={[
                   styles.modalTitle,
@@ -82,11 +83,9 @@ const CustomModal = ({
                 {title}
               </Text>
 
+              {/* Close button on the far right */}
               {customCloseButton || (
-                <TouchableOpacity 
-                  onPress={onClose} 
-                  style={styles.closeButton}
-                >
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                   <Text
                     style={[
                       styles.closeButtonText,
@@ -119,23 +118,26 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalHeader: {
+    // Ensure we use the full width and keep items on one line
     width: '100%',
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+
+    // Optional border under header
     borderBottomColor: '#eee',
     borderBottomWidth: 1,
+
+    // Vertical spacing for the header
     paddingVertical: 15,
-    paddingHorizontal: 15,  // Added horizontal padding
-    marginHorizontal: -15,  // Compensate for parent padding
   },
   modalTitle: {
     fontWeight: 'bold',
-    flex: 1,  // Added flex: 1 to the title itself
+    // left-aligned by default
   },
   closeButton: {
     padding: 5,
-    marginLeft: 'auto',  // Added marginLeft: 'auto'
   },
   closeButtonText: {
     fontWeight: '500',

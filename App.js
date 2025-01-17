@@ -1,12 +1,12 @@
 import 'expo-dev-client';
 import React from 'react';
-import { View } from 'react-native';
-import HomeScreen from './src/screens/HomeScreen';
+import { AuthProvider } from './src/context/AuthContext';
+import { AppNavigator } from './src/navigation/index';
 
 export default function App() {
   return (
-    <View style={{ flex: 1 }}>
-      <HomeScreen />
-    </View>
+    <AuthProvider>
+      <AppNavigator />
+    </AuthProvider>
   );
 }
