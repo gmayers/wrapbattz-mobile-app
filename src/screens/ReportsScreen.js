@@ -26,7 +26,6 @@ import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
-// Type definitions with tooltips
 const REPORT_TYPES = {
   DAMAGED: "Device is physically damaged or broken",
   STOLEN: "Device has been stolen or is missing under suspicious circumstances",
@@ -36,7 +35,6 @@ const REPORT_TYPES = {
   OTHER: "Other issues not covered by other categories"
 };
 
-// Report Form Component
 const ReportForm = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     device_id: '',
@@ -141,6 +139,7 @@ const ReportForm = ({ onSubmit, onCancel }) => {
       setIsSubmitting(false);
     }
   };
+
   const renderTypeButton = (type, description) => (
     <TouchableOpacity
       key={type}
@@ -167,6 +166,7 @@ const ReportForm = ({ onSubmit, onCancel }) => {
       />
     </TouchableOpacity>
   );
+
   return (
     <ScrollView style={styles.formContainer}>
       <View style={styles.formGroup}>
@@ -177,7 +177,7 @@ const ReportForm = ({ onSubmit, onCancel }) => {
       <View style={styles.formGroup}>
         <Text style={styles.formLabel}>Report Type</Text>
         <View style={styles.typeGrid}>
-          {Object.entries(REPORT_TYPES).map(([type, description], index) => (
+          {Object.entries(REPORT_TYPES).map(([type, description]) => (
             <View key={type} style={styles.typeGridItem}>
               {renderTypeButton(type, description)}
             </View>
@@ -225,13 +225,26 @@ const ReportForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-// Main ReportsScreen Component
 const ReportsScreen = ({ navigation }) => {
   const { logout, refreshToken, getAccessToken } = useAuth();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('reports');
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setActiveTab('reports');
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     fetchReports();
@@ -289,6 +302,8 @@ const ReportsScreen = ({ navigation }) => {
   };
 
   const handleTabPress = (key) => {
+    if (key === activeTab) return;
+    
     setActiveTab(key);
     switch (key) {
       case 'dashboard':
@@ -299,7 +314,7 @@ const ReportsScreen = ({ navigation }) => {
           'Logout',
           'Are you sure you want to logout?',
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: 'Cancel', style: 'cancel', onPress: () => setActiveTab('reports') },
             { 
               text: 'Logout', 
               style: 'destructive',
@@ -424,199 +439,195 @@ const ReportsScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    // Container and Layout Styles
-    container: {
-      flex: 1,
-      backgroundColor: '#F5F5F5',
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  header: {
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  section: {
+    padding: 15,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+  },
+  reportCard: {
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
     },
-    contentContainer: {
-      flex: 1,
-      position: 'relative',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  reportContent: {
+    gap: 4,
+    padding: 15,
+    flex: 0.8,
+  },
+  reportText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+ 
+  // View All Button Styles
+  viewAllButton: {
+    flex: 0.2,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  viewAllText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+ 
+  // Modal Styles
+  modalHeaderOverride: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
+    paddingVertical: 15,
+  },
+ 
+  // Form Styles
+  formContainer: {
+    padding: 20,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  formInput: {
+    fontSize: 16,
+  },
+ 
+  // Type Grid Styles
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    marginHorizontal: -4,
+  },
+  typeGridItem: {
+    width: '33.33%',
+    padding: 4,
+  },
+  typeButtonGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F5F5F5',
+    height: 60,
+    minWidth: '100%',
+  },
+  typeButtonSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#E3F2FD',
+  },
+  typeButtonText: {
+    fontSize: 10,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 16,
+  },
+  typeButtonTextSelected: {
+    color: '#007AFF',
+  },
+  typeButtonIcon: {
+    marginLeft: 2,
+  },
+ 
+  // Photo Section Styles
+  photoSection: {
+    marginVertical: 20,
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+ 
+  // Button Container Styles
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 20,
+    paddingBottom: 20,
+  },
+  buttonMargin: {
+    marginRight: 10,
+  },
+ 
+  // Utility Styles
+  loader: {
+    marginVertical: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginVertical: 20,
+  },
+ 
+  // Tab Bar Styles
+  tabBarContainer: {
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
     },
-    header: {
-      padding: 15,
-      backgroundColor: '#FFFFFF',
-      borderBottomWidth: 1,
-      borderBottomColor: '#E0E0E0',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollViewContent: {
-      flexGrow: 1,
-    },
-    section: {
-      padding: 15,
-      paddingBottom: Platform.OS === 'ios' ? 100 : 80,
-    },
-   
-    // Report Card Styles
-    reportCard: {
-      marginBottom: 10,
-      backgroundColor: '#FFFFFF',
-      borderRadius: 8,
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 3,
-      elevation: 3,
-    },
-    reportContent: {
-      gap: 4,
-      padding: 15,
-      flex: 0.8,
-    },
-    reportText: {
-      fontSize: 14,
-      color: '#666',
-      lineHeight: 20,
-    },
-    typeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-   
-    // View All Button Styles
-    viewAllButton: {
-      flex: 0.2,
-      padding: 15,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 10,
-    },
-    viewAllText: {
-      color: '#007AFF',
-      fontSize: 16,
-      fontWeight: '500',
-      marginRight: 4,
-    },
-   
-    // Modal Styles
-    modalHeaderOverride: {
-      width: '100%',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottomColor: '#eee',
-      borderBottomWidth: 1,
-      paddingVertical: 15,
-    },
-   
-    // Form Styles
-    formContainer: {
-      padding: 20,
-    },
-    formGroup: {
-      marginBottom: 20,
-    },
-    formLabel: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: '#333',
-      marginBottom: 12,
-    },
-    formInput: {
-      fontSize: 16,
-    },
-   
-    // Type Grid Styles
-    typeGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-start',
-      marginHorizontal: -4,
-    },
-    typeGridItem: {
-      width: '33.33%',
-      padding: 4,
-    },
-    typeButtonGrid: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 8,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: '#E0E0E0',
-      backgroundColor: '#F5F5F5',
-      height: 60,
-      minWidth: '100%',
-    },
-    typeButtonSelected: {
-      borderColor: '#007AFF',
-      backgroundColor: '#E3F2FD',
-    },
-    typeButtonText: {
-      fontSize: 10,
-      color: '#333',
-      fontWeight: '500',
-      flex: 1,
-      
-      lineHeight: 16,
-    },
-    typeButtonTextSelected: {
-      color: '#007AFF',
-    },
-    typeButtonIcon: {
-      marginLeft: 2,
-    },
-   
-    // Photo Section Styles
-    photoSection: {
-      marginVertical: 20,
-    },
-    previewImage: {
-      width: '100%',
-      height: 200,
-      borderRadius: 10,
-      marginTop: 10,
-    },
-   
-    // Button Container Styles
-    buttonContainer: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 10,
-      marginTop: 20,
-      paddingBottom: 20,
-    },
-    buttonMargin: {
-      marginRight: 10,
-    },
-   
-    // Utility Styles
-    loader: {
-      marginVertical: 20,
-    },
-    emptyText: {
-      textAlign: 'center',
-      fontSize: 16,
-      color: '#666',
-      marginVertical: 20,
-    },
-   
-    // Tab Bar Styles
-    tabBarContainer: {
-      paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-      borderTopWidth: 1,
-      borderTopColor: '#E0E0E0',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: -2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 3,
-      elevation: 10,
-    },
-   });
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 10,
+  },
+});
 
 export default ReportsScreen;

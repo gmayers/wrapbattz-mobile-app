@@ -10,7 +10,7 @@ import {
   ScrollView, 
   Alert 
 } from 'react-native';
-import NfcManager, { NfcTech, Ndef, NfcAdapter, NfcError } from 'react-native-nfc-manager';
+import NfcManager, { NfcTech, Ndef, NfcError } from 'react-native-nfc-manager';
 
 // Dimensions for responsive design
 const { width } = Dimensions.get('window');
@@ -18,8 +18,14 @@ const { width } = Dimensions.get('window');
 // Initialize NFC Manager
 NfcManager.start();
 
-// Helper function to handle NFC session
-const withNfcManager = async (callback) => {
+/**
+ * Helper to request NFC, perform an operation, then cancel request.
+ * We also show an Alert prompting the user to "scan the NFC tag" just before scanning.
+ */
+const withNfcManager = async (title, message, callback) => {
+  // Prompt user
+  Alert.alert(title, message);
+
   try {
     await NfcManager.requestTechnology(NfcTech.Ndef);
     const result = await callback();
@@ -38,14 +44,16 @@ const jsonToNdef = (jsonData) => {
   return Ndef.encodeMessage([Ndef.textRecord(payload)]);
 };
 
-// Parse NDEF message to JSON
+// Parse NDEF message to JSON (assuming the first record is a text record containing JSON)
 const ndefToJson = (tag) => {
   try {
     if (tag.ndefMessage && tag.ndefMessage.length > 0) {
       const ndefRecord = tag.ndefMessage[0];
       const textDecoder = new TextDecoder();
       const payload = textDecoder.decode(ndefRecord.payload);
-      // Remove language code bytes from the beginning
+
+      // The first few bytes in a text record often specify language (e.g. 'en'),
+      // so we slice off the first 3 bytes or so. Adjust if needed for your usage.
       const jsonString = payload.slice(3);
       return JSON.parse(jsonString);
     }
@@ -81,7 +89,10 @@ const NFCButton = ({
   </TouchableOpacity>
 );
 
-// NFC Lock Component
+/**
+ * Lock NFC Tag (JSON-based)
+ * Writes { locked: true, password } into the existing data on the tag
+ */
 export const NFCLock = ({
   onLock,
   buttonStyle,
@@ -101,17 +112,31 @@ export const NFCLock = ({
 
     try {
       setIsLocking(true);
-      await withNfcManager(async () => {
-        const jsonData = {
-          locked: true,
-          password: password,
-        };
-        const ndefMessage = jsonToNdef(jsonData);
-        await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
-        Alert.alert('Success', 'NFC tag has been locked with a password.');
-        onLock?.();
-        setPassword('');
-      });
+
+      await withNfcManager(
+        'Lock NFC Tag',
+        'Please bring your device near the NFC tag to lock it.',
+        async () => {
+          // 1) Read existing data
+          const tag = await NfcManager.getTag();
+          const existingData = ndefToJson(tag) || {};
+
+          // 2) Merge existing data with locked/password
+          const newData = {
+            ...existingData,
+            locked: true,
+            password,
+          };
+
+          // 3) Write the new data
+          const ndefMessage = jsonToNdef(newData);
+          await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
+
+          Alert.alert('Success', 'NFC tag has been locked with a password.');
+          onLock?.();
+          setPassword('');
+        }
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to lock NFC tag.');
       console.error('Error locking NFC:', error);
@@ -142,7 +167,11 @@ export const NFCLock = ({
   );
 };
 
-// NFC Remove Password Component
+/**
+ * Remove Password (JSON-based)
+ * Reads the existing data, checks if locked/password matches,
+ * then sets locked = false, removing password from the JSON.
+ */
 export const NFCRemovePassword = ({
   onRemove,
   buttonStyle,
@@ -162,24 +191,35 @@ export const NFCRemovePassword = ({
 
     try {
       setIsRemoving(true);
-      await withNfcManager(async () => {
-        const tag = await NfcManager.getTag();
-        if (tag) {
-          const existingData = ndefToJson(tag);
-          if (existingData && existingData.locked && existingData.password === currentPassword) {
-            const newData = { locked: false };
+
+      await withNfcManager(
+        'Remove Password',
+        'Please bring your device near the NFC tag to unlock it.',
+        async () => {
+          // 1) Read existing data
+          const tag = await NfcManager.getTag();
+          const existingData = ndefToJson(tag) || {};
+
+          if (existingData.locked && existingData.password === currentPassword) {
+            // 2) Modify data so locked is false & remove the password
+            const newData = {
+              ...existingData,
+              locked: false
+            };
+            delete newData.password;
+
+            // 3) Write updated data
             const ndefMessage = jsonToNdef(newData);
             await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
+
             Alert.alert('Success', 'Password removed. NFC tag is now unlocked.');
             onRemove?.();
             setCurrentPassword('');
           } else {
-            Alert.alert('Error', 'Incorrect password or tag is not locked.');
+            Alert.alert('Error', 'Incorrect password or the tag is not locked.');
           }
-        } else {
-          Alert.alert('Error', 'No NFC tag found.');
         }
-      });
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to remove password from NFC tag.');
       console.error('Error removing password:', error);
@@ -210,7 +250,10 @@ export const NFCRemovePassword = ({
   );
 };
 
-// NFC Read Component
+/**
+ * Read NFC Tag
+ * Reads any existing JSON data from the tag
+ */
 export const NFCRead = ({
   onRead,
   buttonStyle,
@@ -226,21 +269,26 @@ export const NFCRead = ({
   const handleRead = async () => {
     try {
       setIsReading(true);
-      await withNfcManager(async () => {
-        const tag = await NfcManager.getTag();
-        if (tag) {
-          const parsedData = ndefToJson(tag);
-          if (parsedData) {
-            setTagData(parsedData);
-            onRead?.(parsedData);
-            Alert.alert('Success', 'NFC tag data read successfully.');
+
+      await withNfcManager(
+        'Read NFC Tag',
+        'Please bring your device near the NFC tag to read it.',
+        async () => {
+          const tag = await NfcManager.getTag();
+          if (tag) {
+            const parsedData = ndefToJson(tag);
+            if (parsedData) {
+              setTagData(parsedData);
+              onRead?.(parsedData);
+              Alert.alert('Success', 'NFC tag data read successfully.');
+            } else {
+              Alert.alert('Error', 'Failed to parse NFC tag data.');
+            }
           } else {
-            Alert.alert('Error', 'Failed to parse NFC tag data.');
+            Alert.alert('Error', 'No NFC tag found.');
           }
-        } else {
-          Alert.alert('Error', 'No NFC tag found.');
         }
-      });
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to read NFC tag.');
       console.error('Error reading NFC:', error);
@@ -271,7 +319,12 @@ export const NFCRead = ({
   );
 };
 
-// NFC Write Component with Dynamic Label/Value Fields
+/**
+ * Write to NFC Tag
+ * 1) Reads existing data from the tag,
+ * 2) Merges with new label/value pairs,
+ * 3) Writes final merged data back to the tag
+ */
 export const NFCWrite = ({
   onWrite,
   buttonStyle,
@@ -314,18 +367,34 @@ export const NFCWrite = ({
   const handleWrite = async () => {
     try {
       setIsWriting(true);
-      const jsonData = convertFieldsToJson();
-      if (Object.keys(jsonData).length === 0) {
+      const newData = convertFieldsToJson();
+      if (Object.keys(newData).length === 0) {
         Alert.alert('Error', 'Please enter at least one label/value pair.');
         return;
       }
-      await withNfcManager(async () => {
-        const ndefMessage = jsonToNdef(jsonData);
-        await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
-        Alert.alert('Success', 'Data written to NFC tag successfully!');
-        onWrite?.(jsonData);
-        setWriteFields([{ label: '', value: '' }]); // Reset fields after writing
-      });
+
+      await withNfcManager(
+        'Write NFC Tag',
+        'Please bring your device near the NFC tag to write.',
+        async () => {
+          // 1) Read existing data
+          const tag = await NfcManager.getTag();
+          const existingData = ndefToJson(tag) || {};
+
+          // 2) Merge existing data with the new data
+          const mergedData = { ...existingData, ...newData };
+
+          // 3) Write the merged data to the tag
+          const ndefMessage = jsonToNdef(mergedData);
+          await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
+
+          Alert.alert('Success', 'Data written to NFC tag successfully!');
+          onWrite?.(mergedData);
+
+          // Reset fields after writing
+          setWriteFields([{ label: '', value: '' }]);
+        }
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to write to NFC tag.');
       console.error('Error writing NFC:', error);
@@ -372,7 +441,9 @@ export const NFCWrite = ({
   );
 };
 
-// Combined NFC Manager Component for better user experience
+/**
+ * Combined Manager with Tabs for Read, Write, Lock, Unlock
+ */
 export const NFCManagerComponent = () => {
   const [activeTab, setActiveTab] = useState('read');
 
@@ -407,6 +478,7 @@ export const NFCManagerComponent = () => {
             activeTab === 'read' && styles.activeTabText
           ]}>Read</Text>
         </TouchableOpacity>
+
         <TouchableOpacity 
           style={[
             styles.tabButton, 
@@ -419,6 +491,7 @@ export const NFCManagerComponent = () => {
             activeTab === 'write' && styles.activeTabText
           ]}>Write</Text>
         </TouchableOpacity>
+
         <TouchableOpacity 
           style={[
             styles.tabButton, 
@@ -431,6 +504,7 @@ export const NFCManagerComponent = () => {
             activeTab === 'lock' && styles.activeTabText
           ]}>Lock</Text>
         </TouchableOpacity>
+
         <TouchableOpacity 
           style={[
             styles.tabButton, 
@@ -444,6 +518,7 @@ export const NFCManagerComponent = () => {
           ]}>Unlock</Text>
         </TouchableOpacity>
       </View>
+
       {activeTab === 'read' && (
         <NFCRead onRead={handleRead} />
       )}
