@@ -1,9 +1,9 @@
 // components/ModalComponents.js
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
-import { BaseTextInput } from '../TextInput';
-import Button from '../Button';
-import Dropdown from '../Dropdown';
+import { BaseTextInput } from '../../components/TextInput';
+import Button from '../../components/Button';
+import Dropdown from '../../components/Dropdown';
 
 const ITEM_CHOICES = [
   { label: 'Battery', value: 'Battery' },

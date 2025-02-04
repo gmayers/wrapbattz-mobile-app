@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "wrapbattz",
-    "slug": "wrapbattz",
+    "name": "battwrapz",
+    "slug": "battwrapz",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,8 +19,9 @@
         "react-native-nfc-manager",
         {
           "nfcPermission": "Allow $(PRODUCT_NAME) to access NFC features for device management.",
-          "systemEvents": ["found-ndef"],
-          "selectIdentifiers": ["NDEF"]
+          "selectIdentifiers": ["A0000002471001"],
+          "systemCodes": ["8008"],
+          "includeNdefEntitlement": false
         }
       ],
       [
@@ -46,6 +47,7 @@
       ]
     ],
     "ios": {
+      "deploymentTarget": "16.0",
       "jsEngine": "hermes",
       "supportsTablet": true,
       "config": {
@@ -55,16 +57,13 @@
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos.",
-        "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user.",
-        "com.apple.developer.nfc.readersession.iso7816.select-identifiers": [
-          "NDEF"
-        ]
+        "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
       },
-      "bundleIdentifier": "com.garanmayers7262.wrapbattz"
+      "bundleIdentifier": "com.garanmayers7262.battwrapz"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -72,16 +71,18 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.NFC",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_MEDIA_LOCATION"
       ],
-      "package": "com.garanmayers7262.wrapbattz"
+      "package": "com.garanmayers7262.battwrapz"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "118edc61-d040-441a-a6a2-15580a087e51"
+        "projectId": "4bfa6fa2-5c17-44a2-b424-a811fbdceec4"
       }
     }
   }

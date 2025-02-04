@@ -1,4 +1,4 @@
-// ReportsScreen.js
+// AllReportsScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -7,11 +7,8 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Alert,
   Platform,
-  ActivityIndicator,
-  Dimensions,
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,13 +16,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import TabBar from '../components/TabBar';
 import CustomModal from '../components/Modal';
 import { BaseTextInput } from '../components/TextInput';
-import { useAuth } from '../context/AuthContext';
 
-const { width } = Dimensions.get('window');
-
+// Reuse the report types from ReportsScreen
 const REPORT_TYPES = {
   DAMAGED: "Device is physically damaged or broken",
   STOLEN: "Device has been stolen or is missing under suspicious circumstances",
@@ -35,6 +29,7 @@ const REPORT_TYPES = {
   OTHER: "Other issues not covered by other categories"
 };
 
+// Report Form Component
 const ReportForm = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     device_id: '',
@@ -225,293 +220,67 @@ const ReportForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-const ReportsScreen = ({ navigation }) => {
-  const { logout, refreshToken, getAccessToken } = useAuth();
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('reports');
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, [navigation]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      setActiveTab('reports');
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const fetchReports = async () => {
-    setIsLoading(true);
-    try {
-      let token = await getAccessToken();
-      
-      let response = await fetch('https://test.gmayersservices.com/api/reports/', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (response.status === 401) {
-        token = await refreshToken();
-        response = await fetch('https://test.gmayersservices.com/api/reports/', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setReports(data.slice(0, 5));
-      } else if (data && data.results && Array.isArray(data.results)) {
-        setReports(data.results.slice(0, 5));
-      } else {
-        console.error('Unexpected data format:', data);
-        setReports([]);
-      }
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-      if (error.message.includes('401')) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
-        Alert.alert('Error', 'Failed to fetch reports. Please try again later.');
-      }
-      setReports([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTabPress = (key) => {
-    if (key === activeTab) return;
-    
-    setActiveTab(key);
-    switch (key) {
-      case 'dashboard':
-        navigation.navigate('Dashboard');
-        break;
-      case 'logout':
-        Alert.alert(
-          'Logout',
-          'Are you sure you want to logout?',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setActiveTab('reports') },
-            { 
-              text: 'Logout', 
-              style: 'destructive',
-              onPress: () => logout()
-            }
-          ]
-        );
-        break;
-    }
-  };
-
-  const tabs = [
-    {
-      key: 'dashboard',
-      title: 'Home',
-      icon: <Ionicons name="home-outline" size={24} />,
-    },
-    {
-      key: 'reports',
-      title: 'Reports',
-      icon: <Ionicons name="document-text-outline" size={24} />,
-    },
-    {
-      key: 'logout',
-      title: 'Logout',
-      icon: <Ionicons name="log-out-outline" size={24} />,
-    }
-  ];
-
-  const renderReportCard = (report) => (
-    <Card
-      key={report.id}
-      title={`Device: ${report.device?.identifier || 'Unknown'}`}
-      style={styles.reportCard}
-    >
-      <View style={styles.reportContent}>
-        <Text style={styles.reportText}>Date: {report.report_date}</Text>
-        <TouchableOpacity 
-          onPress={() => Alert.alert('Type Info', REPORT_TYPES[report.type])}
-          style={styles.typeRow}
-        >
-          <Text style={styles.reportText}>Type: {report.type}</Text>
-          <Ionicons name="information-circle-outline" size={16} color="#666" />
-        </TouchableOpacity>
-        <Text style={styles.reportText}>Status: {report.status}</Text>
-        <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
-        {report.resolved_date && (
-          <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
-        )}
-        <Text style={styles.reportText}>Description: {report.description}</Text>
-      </View>
-    </Card>
-  );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      <View style={styles.header}>
-        <Button
-          title="Create Report"
-          onPress={() => setCreateModalVisible(true)}
-          size="small"
-        />
-      </View>
-
-      <View style={styles.contentContainer}>
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-        >
-          <View style={styles.section}>
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-            ) : reports.length > 0 ? (
-              <>
-                {reports.map(renderReportCard)}
-                <TouchableOpacity
-                  style={styles.viewAllButton}
-                  onPress={() => navigation?.navigate('AllReports')}
-                >
-                  <Text style={styles.viewAllText}>All Reports</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <Text style={styles.emptyText}>No reports found</Text>
-            )}
-          </View>
-        </ScrollView>
-      </View>
-
-      <CustomModal
-        visible={createModalVisible}
-        onClose={() => setCreateModalVisible(false)}
-        title="Create Report"
-        headerStyle={styles.modalHeaderOverride}
-      >
-        <ReportForm
-          onSubmit={() => {
-            setCreateModalVisible(false);
-            fetchReports();
-          }}
-          onCancel={() => setCreateModalVisible(false)}
-        />
-      </CustomModal>
-
-      <TabBar
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-        backgroundColor="#FFFFFF"
-        activeColor="#007AFF"
-        inactiveColor="#666666"
-        showIcons={true}
-        showLabels={true}
-        height={Platform.OS === 'ios' ? 80 : 60}
-        containerStyle={styles.tabBarContainer}
-      />
-    </SafeAreaView>
-  );
+const AllReportsScreen = ({ navigation }) => {
+  // ... rest of your existing AllReportsScreen code ...
 };
 
 const styles = StyleSheet.create({
+  // Your existing styles
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
-  contentContainer: {
-    flex: 1,
-    position: 'relative',
-  },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+  },
+  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+  },
+  backText: {
+    fontSize: 17,
+    color: '#007AFF',
+    marginLeft: 4,
   },
   scrollView: {
     flex: 1,
   },
-  scrollViewContent: {
-    flexGrow: 1,
-  },
   section: {
     padding: 15,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   reportCard: {
     marginBottom: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
   },
   reportContent: {
     gap: 4,
-    padding: 15,
-    flex: 0.8,
   },
   reportText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
   },
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
- 
-  // View All Button Styles
-  viewAllButton: {
-    flex: 0.2,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  viewAllText: {
-    color: '#007AFF',
+  loadingText: {
+    textAlign: 'center',
     fontSize: 16,
-    fontWeight: '500',
-    marginRight: 4,
+    color: '#666',
+    marginTop: 20,
   },
- 
-  // Modal Styles
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+    marginTop: 20,
+  },
   modalHeaderOverride: {
     width: '100%',
     flexDirection: 'row',
@@ -521,8 +290,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingVertical: 15,
   },
- 
-  // Form Styles
+
+  // Added Report Form Styles
   formContainer: {
     padding: 20,
   },
@@ -538,8 +307,6 @@ const styles = StyleSheet.create({
   formInput: {
     fontSize: 16,
   },
- 
-  // Type Grid Styles
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -579,8 +346,6 @@ const styles = StyleSheet.create({
   typeButtonIcon: {
     marginLeft: 2,
   },
- 
-  // Photo Section Styles
   photoSection: {
     marginVertical: 20,
   },
@@ -590,8 +355,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
   },
- 
-  // Button Container Styles
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -602,32 +365,6 @@ const styles = StyleSheet.create({
   buttonMargin: {
     marginRight: 10,
   },
- 
-  // Utility Styles
-  loader: {
-    marginVertical: 20,
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666',
-    marginVertical: 20,
-  },
- 
-  // Tab Bar Styles
-  tabBarContainer: {
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 10,
-  },
 });
 
-export default ReportsScreen;
+export default AllReportsScreen;

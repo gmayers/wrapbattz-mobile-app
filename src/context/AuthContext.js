@@ -1,12 +1,9 @@
-// src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/api';
 
-// Create context
 export const AuthContext = createContext(null);
 
-// Storage keys
 const AUTH_KEYS = {
   ACCESS_TOKEN: 'accessToken',
   REFRESH_TOKEN: 'refreshToken',
@@ -19,12 +16,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
 
-  // Initialize auth state
   useEffect(() => {
     checkAuthState();
   }, []);
 
-  // Check if user is authenticated
   const checkAuthState = async () => {
     try {
       setIsLoading(true);
@@ -43,20 +38,54 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login handler
+  const refreshToken = async () => {
+    try {
+      const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+      if (!refreshToken) throw new Error('No refresh token found');
+
+      const response = await fetch('https://test.gmayersservices.com/api/auth/token/refresh/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const data = await response.json();
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, data.access);
+      return data.access;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      // If refresh fails, logout user
+      await logout();
+      throw error;
+    }
+  };
+
+  const getAccessToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
+      return token;
+    } catch (error) {
+      console.error('Error getting access token:', error);
+      return null;
+    }
+  };
+
   const login = async (email, password) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Call login API
       const response = await authService.login(email, password);
       
-      // Store tokens
       await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.access);
       await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, response.refresh);
       
-      // Store user data if available
       if (response.user) {
         await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(response.user));
         setUser(response.user);
@@ -74,19 +103,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout handler
   const logout = async () => {
     try {
       setIsLoading(true);
       
-      // Clear all auth related storage
       await AsyncStorage.multiRemove([
         AUTH_KEYS.ACCESS_TOKEN,
         AUTH_KEYS.REFRESH_TOKEN,
         AUTH_KEYS.USER_DATA,
       ]);
 
-      // Reset state
       setUser(null);
       setIsAuthenticated(false);
       setError(null);
@@ -98,7 +124,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Update user data
   const updateUser = async (userData) => {
     try {
       await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(userData));
@@ -109,10 +134,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Clear any error
   const clearError = () => setError(null);
 
-  // Context value
   const value = {
     isAuthenticated,
     isLoading,
@@ -122,12 +145,13 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     clearError,
+    refreshToken,
+    getAccessToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook for using auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -135,45 +159,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-// Example usage:
-/*
-import { useAuth } from '../context/AuthContext';
-
-const MyComponent = () => {
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    user, 
-    error, 
-    login, 
-    logout,
-    updateUser,
-    clearError 
-  } = useAuth();
-
-  const handleLogin = async () => {
-    try {
-      await login('email@example.com', 'password');
-      // Navigate to home screen
-    } catch (error) {
-      // Handle error
-    }
-  };
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  return (
-    <View>
-      {error && <ErrorMessage message={error} onDismiss={clearError} />}
-      {isAuthenticated ? (
-        <Button title="Logout" onPress={logout} />
-      ) : (
-        <Button title="Login" onPress={handleLogin} />
-      )}
-    </View>
-  );
-};
-*/
