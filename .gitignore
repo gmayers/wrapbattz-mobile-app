@@ -34,3 +34,8 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+# Android/iOS specific
+android/
+ios/
