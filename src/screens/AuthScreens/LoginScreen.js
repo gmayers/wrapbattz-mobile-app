@@ -1,4 +1,3 @@
-// LoginScreen.js
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -13,7 +12,6 @@ import {
   Image,
   Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EmailInput, PasswordInput } from '../../components/TextInput';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -59,49 +57,34 @@ const LoginScreen = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('https://test.gmayersservices.com/api/auth/token/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle specific error messages from the server
-        const errorMessage = data.detail || data.message || 'Invalid credentials';
-        Alert.alert(
-          'Login Failed',
-          errorMessage
-        );
-        return;
-      }
-
-      if (!data.access || !data.refresh) {
-        Alert.alert(
-          'Login Failed',
-          'Invalid response from server - missing tokens'
-        );
-        return;
-      }
-
-      await AsyncStorage.multiSet([
-        ['accessToken', data.access],
-        ['refreshToken', data.refresh]
-      ]);
-
+      // Use the login function from AuthContext which now uses axios
       await login(email, password);
+      
+      // If login is successful, the AuthContext will handle the token storage
+      // and state updates automatically
       
     } catch (error) {
       console.error('Login error:', error);
       
-      // Network or other errors
+      let errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+      
+      // Handle different types of errors
+      if (error.response) {
+        // The server responded with a status code outside of 2xx
+        errorMessage = error.response.data?.detail || 
+                      error.response.data?.message || 
+                      'Invalid credentials';
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response from server. Please check your internet connection.';
+      } else if (error.message) {
+        // Something happened in setting up the request
+        errorMessage = error.message;
+      }
+
       Alert.alert(
-        'Connection Error',
-        'Unable to connect to the server. Please check your internet connection and try again.'
+        'Login Failed',
+        errorMessage
       );
     } finally {
       setIsLoading(false);
@@ -135,7 +118,10 @@ const LoginScreen = () => {
             <View style={styles.formContainer}>
               <EmailInput
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setEmailError(''); // Clear error when user types
+                }}
                 error={emailError}
                 placeholder="Enter your email"
                 testID="email-input"
@@ -146,7 +132,10 @@ const LoginScreen = () => {
               <PasswordInput
                 ref={passwordInputRef}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setPasswordError(''); // Clear error when user types
+                }}
                 error={passwordError}
                 placeholder="Enter your password"
                 testID="password-input"

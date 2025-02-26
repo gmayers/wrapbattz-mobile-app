@@ -1,17 +1,8 @@
 import React from 'react';
-import { 
-  NavigationContainer 
-} from '@react-navigation/native';
-import { 
-  createStackNavigator 
-} from '@react-navigation/stack';
-import { 
-  useAuth 
-} from '../context/AuthContext';
-import { 
-  ActivityIndicator, 
-  View
-} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { useAuth } from '../context/AuthContext';
+import { ActivityIndicator, View } from 'react-native';
 
 // Import screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -20,7 +11,8 @@ import HomeScreen from '../screens/HomeScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import AllReportsScreen from '../screens/AllReportsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
-import AddDeviceScreen from '../screens/AddDeviceScreen'; // Add this import
+import AddDeviceScreen from '../screens/AddDeviceScreen';
+import CreateReportScreen from '../screens/CreateReportScreen'; // New import
 
 const Stack = createStackNavigator();
 
@@ -62,6 +54,23 @@ const MainStack = () => (
       component={ReportsScreen}
       options={{ 
         headerTitle: 'Reports',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+    <Stack.Screen
+      name="CreateReport" // New screen for creating a report
+      component={CreateReportScreen}
+      options={{
+        headerTitle: 'Create Report',
         headerStyle: {
           backgroundColor: '#fff',
           elevation: 0,

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '../services/api';
+import axios from 'axios';
 
 export const AuthContext = createContext(null);
 
@@ -8,6 +8,90 @@ const AUTH_KEYS = {
   ACCESS_TOKEN: 'accessToken',
   REFRESH_TOKEN: 'refreshToken',
   USER_DATA: 'userData',
+};
+
+// Create axios instance with base configuration
+const axiosInstance = axios.create({
+  baseURL: 'https://battwrapz.gmayersservices.com/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to add token to requests
+axiosInstance.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle token refresh
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+        const response = await axios.post(
+          'https://battwrapz.gmayersservices.com/api/auth/token/refresh/',
+          { refresh: refreshToken }
+        );
+
+        const { access } = response.data;
+        await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, access);
+
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        // Handle refresh token failure
+        throw refreshError;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// API service for device-related operations
+const deviceService = {
+  getAssignments: async () => {
+    const response = await axiosInstance.get('/device-assignments/');
+    return response.data;
+  },
+
+  getLocations: async () => {
+    const response = await axiosInstance.get('/locations/');
+    return response.data;
+  },
+
+  getDevicesByLocation: async (locationId) => {
+    const response = await axiosInstance.get(`/devices/?location=${locationId}`);
+    return response.data;
+  },
+
+  returnDevice: async (deviceId, returnData) => {
+    const response = await axiosInstance.patch(
+      `/device-assignments/${deviceId}/`,
+      returnData
+    );
+    return response.data;
+  },
+
+  createDeviceReturn: async (returnData) => {
+    const response = await axiosInstance.post('/device-returns/', returnData);
+    return response.data;
+  }
 };
 
 export const AuthProvider = ({ children }) => {
@@ -43,24 +127,14 @@ export const AuthProvider = ({ children }) => {
       const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
       if (!refreshToken) throw new Error('No refresh token found');
 
-      const response = await fetch('https://test.gmayersservices.com/api/auth/token/refresh/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
+      const response = await axiosInstance.post('/auth/token/refresh/', {
+        refresh: refreshToken,
       });
 
-      if (!response.ok) {
-        throw new Error('Token refresh failed');
-      }
-
-      const data = await response.json();
-      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, data.access);
-      return data.access;
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.data.access);
+      return response.data.access;
     } catch (error) {
       console.error('Token refresh error:', error);
-      // If refresh fails, logout user
       await logout();
       throw error;
     }
@@ -81,18 +155,21 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
 
-      const response = await authService.login(email, password);
+      const response = await axiosInstance.post('/auth/token/', {
+        email,
+        password,
+      });
       
-      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.access);
-      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, response.refresh);
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.data.access);
+      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, response.data.refresh);
       
-      if (response.user) {
-        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(response.user));
-        setUser(response.user);
+      if (response.data.user) {
+        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(response.data.user));
+        setUser(response.data.user);
       }
 
       setIsAuthenticated(true);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error.response?.data?.detail || 'Login failed. Please try again.';
@@ -147,6 +224,8 @@ export const AuthProvider = ({ children }) => {
     clearError,
     refreshToken,
     getAccessToken,
+    deviceService, // Add the device service to the context
+    axiosInstance, // Expose the axios instance for custom API calls
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -159,3 +238,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default axiosInstance;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -18,18 +18,11 @@ import CustomModal from '../components/Modal';
 import { NFCWrite } from '../components/NFCComponents';
 import { useAuth } from '../context/AuthContext';
 
-const ITEM_CHOICES = [
-  'Battery',
-  'Charger',
-  'Adapter',
-  'Cable',
-  'Drill',
-  'Saw',
-  'Other',
-];
+const ITEM_CHOICES = ['Battery', 'Charger', 'Adapter', 'Cable', 'Drill', 'Saw', 'Other'];
+const MAKES = ['Makita', 'Mawkee', 'Dewalt', 'Other'];
 
 const AddDevicePage = ({ navigation }) => {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, deviceService } = useAuth();
   const [formData, setFormData] = useState({
     description: '',
     make: '',
@@ -38,124 +31,94 @@ const AddDevicePage = ({ navigation }) => {
     serial_number: '',
     maintenance_interval: '',
     next_maintenance_date: new Date(),
+    location: '',
   });
   const [loading, setLoading] = useState(false);
   const [nfcModalVisible, setNfcModalVisible] = useState(false);
   const [deviceIdentifier, setDeviceIdentifier] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [otherMake, setOtherMake] = useState('');
+  const [otherDeviceType, setOtherDeviceType] = useState('');
+
+  useEffect(() => {
+    fetchLocations();
+  }, []);
+
+  const fetchLocations = async () => {
+    try {
+      const locationsData = await deviceService.getLocations();
+      setLocations(locationsData);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      Alert.alert('Error', 'Failed to load locations. Please try again.');
+    }
+  };
 
   const handleInputChange = (name, value) => {
-    console.log('Input Change:', { field: name, value: value });
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const validateForm = () => {
-    console.log('Validating Form Data:', formData);
-    if (!formData.description || !formData.make || !formData.model) {
-      console.log('Form Validation Failed: Missing required fields');
+    if (!formData.description || !formData.make || !formData.model || !formData.location) {
       Alert.alert('Error', 'Please fill in all required fields');
       return false;
     }
-    console.log('Form Validation: Success');
     return true;
   };
 
   const handleSubmit = async () => {
-    console.log('Submit Attempt - Initial Form Data:', formData);
-    
-    if (!validateForm()) {
-      console.log('Submit Cancelled: Form validation failed');
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
-    console.log('Setting loading state: true');
 
     try {
-      console.log('Getting access token...');
       const token = await getAccessToken();
-      console.log('Access Token Retrieved:', token ? 'Token present' : 'Token missing');
-
       const requestData = {
         ...formData,
-        next_maintenance_date: formData.next_maintenance_date.toISOString().split('T')[0]
+        next_maintenance_date: formatDate(formData.next_maintenance_date),
       };
 
-      console.log('Preparing Request:', {
-        url: 'https://test.gmayersservices.com/api/devices/',
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: requestData
-      });
-
-      console.log('Sending API request...');
       const response = await fetch('https://test.gmayersservices.com/api/devices/', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
       });
 
-      console.log('API Response received:', {
-        status: response.status,
-        statusText: response.statusText
-      });
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
         throw new Error(`Failed to create device: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('API Success Response:', data);
-      
       setDeviceIdentifier(data.identifier);
-      console.log('Device Identifier set:', data.identifier);
-      
       setNfcModalVisible(true);
-      console.log('NFC Modal visibility set to true');
-
     } catch (error) {
-      console.error('Error in handleSubmit:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response ? {
-          status: error.response.status,
-          data: error.response.data,
-          headers: error.response.headers
-        } : 'No response object'
-      });
+      console.error('Error in handleSubmit:', error);
       Alert.alert('Error', 'Failed to create device. Please try again.');
     } finally {
-      console.log('Setting loading state: false');
       setLoading(false);
     }
   };
 
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const handleNFCWrite = async () => {
-    console.log('NFC Write Attempt for device:', deviceIdentifier);
-    const nfcData = {
-      ID: deviceIdentifier
-    };
-    console.log('NFC Data prepared:', nfcData);
-    return nfcData;
+    return { ID: deviceIdentifier };
   };
 
   const handleNFCSuccess = () => {
-    console.log('NFC Write Success - Navigating back');
     Alert.alert(
       'Success',
       'Device created and NFC tag written successfully',
@@ -165,30 +128,56 @@ const AddDevicePage = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
-        <ScrollView style={styles.scrollView}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoid}>
+        <ScrollView contentContainerStyle={styles.scrollView}>
           <View style={styles.form}>
-            <BaseTextInput
-              label="Make"
-              value={formData.make}
-              onChangeText={(text) => handleInputChange('make', text)}
-              placeholder="Enter device make"
-              required
-            />
+            {/* Make Dropdown */}
+            <Text style={styles.label}>Make</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.make}
+                onValueChange={(value) => {
+                  if (value === 'Other') {
+                    setOtherMake('');
+                    handleInputChange('make', 'Other'); // Retain "Other" in the dropdown
+                  } else {
+                    handleInputChange('make', value);
+                  }
+                }}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select Make" value="" />
+                {MAKES.map((make) => (
+                  <Picker.Item key={make} label={make} value={make} />
+                ))}
+              </Picker>
+            </View>
 
+            {/* Other Make Input */}
+            {formData.make === 'Other' && (
+              <BaseTextInput
+                value={otherMake}
+                onChangeText={(text) => {
+                  setOtherMake(text);
+                  handleInputChange('make', text); // Update formData.make with custom input
+                }}
+                placeholder="Enter other make"
+                required
+              />
+            )}
+
+            {/* Model Input */}
+            <Text style={styles.label}>Model</Text>
             <BaseTextInput
-              label="Model"
               value={formData.model}
               onChangeText={(text) => handleInputChange('model', text)}
               placeholder="Enter device model"
               required
             />
 
+            {/* Description Input */}
+            <Text style={styles.label}>Description</Text>
             <BaseTextInput
-              label="Description"
               value={formData.description}
               onChangeText={(text) => handleInputChange('description', text)}
               placeholder="Enter device description"
@@ -196,80 +185,128 @@ const AddDevicePage = ({ navigation }) => {
               required
             />
 
+            {/* Device Type Dropdown */}
+            <Text style={styles.label}>Device Type</Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.device_type}
-                onValueChange={(value) => handleInputChange('device_type', value)}
+                onValueChange={(value) => {
+                  if (value === 'Other') {
+                    setOtherDeviceType('');
+                    handleInputChange('device_type', 'Other'); // Retain "Other" in the dropdown
+                  } else {
+                    handleInputChange('device_type', value);
+                  }
+                }}
                 style={styles.picker}
               >
+                <Picker.Item label="Select Device Type" value="" />
                 {ITEM_CHOICES.map((item) => (
                   <Picker.Item key={item} label={item} value={item} />
                 ))}
               </Picker>
             </View>
 
+            {/* Other Device Type Input */}
+            {formData.device_type === 'Other' && (
+              <BaseTextInput
+                value={otherDeviceType}
+                onChangeText={(text) => {
+                  setOtherDeviceType(text);
+                  handleInputChange('device_type', text); // Update formData.device_type with custom input
+                }}
+                placeholder="Enter other device type"
+                required
+              />
+            )}
+
+            {/* Serial Number Input */}
+            <Text style={styles.label}>Serial Number</Text>
             <BaseTextInput
-              label="Serial Number"
               value={formData.serial_number}
               onChangeText={(text) => handleInputChange('serial_number', text)}
               placeholder="Enter serial number (optional)"
             />
 
+            {/* Maintenance Interval Input */}
+            <Text style={styles.label}>Maintenance Interval</Text>
             <BaseTextInput
-              label="Maintenance Interval (days)"
               value={formData.maintenance_interval}
               onChangeText={(text) => handleInputChange('maintenance_interval', text)}
               placeholder="Enter maintenance interval (optional)"
               keyboardType="numeric"
             />
 
-            <View style={styles.datePickerContainer}>
-              <Text style={styles.dateLabel}>Next Maintenance Date</Text>
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
+            {/* Next Maintenance Date Picker */}
+            <Text style={styles.label}>Next Maintenance Date</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.dateButtonText}>
+                {formatDate(formData.next_maintenance_date)}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={formData.next_maintenance_date}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    handleInputChange('next_maintenance_date', selectedDate);
+                  }
+                }}
+                themeVariant="light"
+                accentColor="#FFA500" // Orange color
+              />
+            )}
+
+            {/* Location Dropdown */}
+            <Text style={styles.label}>Location</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.location}
+                onValueChange={(value) => handleInputChange('location', value)}
+                style={styles.picker}
               >
-                <Text style={styles.dateButtonText}>
-                  {formData.next_maintenance_date.toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-              
-              {showDatePicker && (
-                <DateTimePicker
-                  value={formData.next_maintenance_date}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      handleInputChange('next_maintenance_date', selectedDate);
-                    }
-                  }}
-                />
-              )}
+                <Picker.Item label="Select Location" value="" />
+                {locations.map((location) => (
+                  <Picker.Item key={location.id} label={location.name} value={location.id} />
+                ))}
+              </Picker>
             </View>
 
+            {/* Submit Button */}
             <Button
-              title="Create Device"
+              title="Submit"
               onPress={handleSubmit}
               loading={loading}
               style={styles.submitButton}
             />
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      <CustomModal
-        visible={nfcModalVisible}
-        onClose={() => setNfcModalVisible(false)}
-        title="Write NFC Tag"
-      >
-        <NFCWrite
-          onWrite={handleNFCWrite}
-          onSuccess={handleNFCSuccess}
-          buttonStyle={styles.nfcButton}
-        />
-      </CustomModal>
+        {/* NFC Modal */}
+        <CustomModal
+          visible={nfcModalVisible}
+          onClose={() => setNfcModalVisible(false)}
+          title="Write NFC Tag"
+          style={styles.modal}
+        >
+          <Text style={styles.modalText}>Write the following data to the NFC tag:</Text>
+          <Text style={styles.modalText}>{JSON.stringify({ ID: deviceIdentifier })}</Text>
+          <Button
+            title="Write NFC Tag"
+            onPress={async () => {
+              await handleNFCWrite();
+              handleNFCSuccess();
+            }}
+            style={styles.nfcButton}
+          />
+        </CustomModal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -283,10 +320,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 1,
+    padding: 20,
   },
   form: {
-    padding: 20,
+    flex: 1,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
   },
   pickerContainer: {
     borderWidth: 1,
@@ -297,20 +341,13 @@ const styles = StyleSheet.create({
   picker: {
     height: 50,
   },
-  datePickerContainer: {
-    marginBottom: 16,
-  },
-  dateLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#333',
-  },
   dateButton: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
     backgroundColor: '#F8F8F8',
+    marginBottom: 16,
   },
   dateButtonText: {
     fontSize: 16,
@@ -318,6 +355,16 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
+    backgroundColor: 'orange',
+  },
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  modalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   nfcButton: {
     marginTop: 10,

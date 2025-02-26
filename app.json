@@ -21,7 +21,8 @@
           "nfcPermission": "Allow $(PRODUCT_NAME) to access NFC features for device management.",
           "selectIdentifiers": ["A0000002471001"],
           "systemCodes": ["8008"],
-          "includeNdefEntitlement": false
+          "includeNdefEntitlement": true,
+          "nfcReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
         }
       ],
       [
@@ -47,7 +48,6 @@
       ]
     ],
     "ios": {
-      "deploymentTarget": "16.0",
       "jsEngine": "hermes",
       "supportsTablet": true,
       "config": {
@@ -58,6 +58,9 @@
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos.",
         "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
+      },
+      "entitlements": {
+        "com.apple.developer.nfc.readersession.formats": ["TAG"]
       },
       "bundleIdentifier": "com.garanmayers7262.battwrapz"
     },
