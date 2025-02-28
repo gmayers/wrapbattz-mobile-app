@@ -28,7 +28,7 @@ import NfcManagerModal from './home/components/NFCManager/NFCManagerModal';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
-  const { logout, deviceService } = useAuth();
+  const { logout, deviceService, userData, user, refreshRoleInfo } = useAuth();
   const [assignments, setAssignments] = useState(mockAssignments);
   const [locations, setLocations] = useState([]);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
@@ -37,6 +37,13 @@ const HomeScreen = ({ navigation }) => {
   const [nfcManagerModalVisible, setNfcManagerModalVisible] = useState(false);
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
+  
+  // Get role directly from userData
+  const userRole = userData?.role;
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+  
+  // Get user's name
+  const userName = userData?.name || user?.username || user?.email || 'User';
 
   const tabs = [
     { key: 'dashboard', title: 'Home', icon: <Ionicons name="home-outline" size={24} /> },
@@ -45,6 +52,15 @@ const HomeScreen = ({ navigation }) => {
   ];
 
   useEffect(() => {
+    // Try to refresh role info from token on component mount
+    refreshRoleInfo().then(success => {
+      if (success) {
+        console.log("Role info refreshed successfully");
+      } else {
+        console.log("Could not refresh role info");
+      }
+    });
+    
     NfcManager.start();
     fetchInitialData();
 
@@ -213,26 +229,38 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeText} accessibilityRole="header">
-            Welcome{'\n'}User
+            Welcome{'\n'}{userName}
           </Text>
         </View>
-        <View style={styles.spacer} />
-        <View style={styles.buttonContainer}>
-          <Button
-            title="NFC Manager"
-            onPress={() => setNfcManagerModalVisible(true)}
-            size="small"
-            textColor="black"
-            style={styles.headerButton}
-          />
-          <Button
-            title="Assign Device"
-            onPress={() => setAssignDeviceModalVisible(true)}
-            size="small"
-            textColor="black"
-            style={styles.headerButton}
-          />
-        </View>
+        
+        {isAdminOrOwner ? (
+          <View style={styles.adminButtonContainer}>
+            <Button
+              title="NFC Manager"
+              onPress={() => setNfcManagerModalVisible(true)}
+              size="small"
+              textColor="black"
+              style={styles.headerButton}
+            />
+            <Button
+              title="Assign Device"
+              onPress={() => setAssignDeviceModalVisible(true)}
+              size="small"
+              textColor="black"
+              style={styles.headerButton}
+            />
+          </View>
+        ) : (
+          <View style={styles.userButtonContainer}>
+            <Button
+              title="Assign Device"
+              onPress={() => setAssignDeviceModalVisible(true)}
+              size="small"
+              textColor="black"
+              style={styles.fullWidthButton}
+            />
+          </View>
+        )}
       </View>
 
       {/* Device Assignments Section */}
@@ -243,13 +271,15 @@ const HomeScreen = ({ navigation }) => {
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Devices Assigned</Text>
-          <Button
-            title="Add Device"
-            onPress={() => navigation.navigate('AddDevice')}
-            size="small"
-            textColor="black"
-            style={styles.addDeviceButton}
-          />
+          {isAdminOrOwner && (
+            <Button
+              title="Add Device"
+              onPress={() => navigation.navigate('AddDevice')}
+              size="small"
+              textColor="black"
+              style={styles.addDeviceButton}
+            />
+          )}
         </View>
         <View style={styles.section}>
           {loading ? (
@@ -261,19 +291,21 @@ const HomeScreen = ({ navigation }) => {
               ) : (
                 <>
                   <View style={styles.devicesGrid}>
+                    {/* Always show up to 5 device cards in the main view */}
                     {assignments.slice(0, 5).map((assignment) => renderDeviceCard(assignment))}
                   </View>
-                  {assignments.length > 5 && (
-                    <TouchableOpacity
-                      style={styles.viewAllButton}
-                      onPress={() => navigation?.navigate('AllDevices', { assignments })}
-                    >
-                      <Text style={styles.viewAllText}>
-                        View All ({assignments.length} Devices)
-                      </Text>
-                      <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-                    </TouchableOpacity>
-                  )}
+                  
+                  {/* Always show View All button, regardless of the number of assignments */}
+                  <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={() => navigation?.navigate('AllDevices', { assignments })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllText}>
+                      View All ({assignments.length} Devices)
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -386,7 +418,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
     paddingHorizontal: '5%',
     paddingVertical: '3%',
     backgroundColor: '#FFFFFF',
@@ -395,7 +426,7 @@ const styles = StyleSheet.create({
     marginBottom: '3%',
   },
   welcomeContainer: {
-    flex: 2,
+    flex: 1,
     justifyContent: 'center',
   },
   welcomeText: {
@@ -404,20 +435,35 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 32,
   },
-  spacer: {
-    width: '3%',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Admin buttons container - side by side layout
+  adminButtonContainer: {
     flex: 1,
+    flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+  },
+  // User button container - single button layout
+  userButtonContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
   headerButton: {
-    marginLeft: '3%',
-    paddingHorizontal: 12,
-    minWidth: '30%',
+    marginLeft: 8, 
+    paddingHorizontal: Platform.OS === 'ios' ? 10 : 0,  // Added padding for iOS
+    height: 40,            // Fixed height
+    width: Platform.OS === 'ios' ? 120 : 'auto', // Increased width on iOS
     backgroundColor: 'orange',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullWidthButton: {
+    paddingHorizontal: Platform.OS === 'ios' ? 10 : 0, // Added padding for iOS
+    height: 40,
+    width: Platform.OS === 'ios' ? 160 : 'auto', // Increased width on iOS
+    backgroundColor: 'orange',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -431,9 +477,12 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   addDeviceButton: {
-    paddingHorizontal: 12,
-    minWidth: '25%',
-    backgroundColor: 'orange'
+    paddingHorizontal: Platform.OS === 'ios' ? 10 : 8,
+    height: 40,
+    width: Platform.OS === 'ios' ? 120 : 'auto', // Increased width on iOS
+    backgroundColor: 'orange',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   section: {
     marginBottom: '5%',
@@ -450,26 +499,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: '3%',
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    marginTop: '3%',
-    marginBottom: '2%',
+    marginTop: 15,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    height: 48,
+    width: '100%',
   },
   viewAllText: {
     color: '#007AFF',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginRight: 8,
   },
   modalOverlay: {

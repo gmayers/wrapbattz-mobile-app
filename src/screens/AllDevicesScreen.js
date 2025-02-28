@@ -16,74 +16,39 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
 const { width } = Dimensions.get('window');
 
-const AllDevicesScreen = ({ navigation }) => {
-  const { getAccessToken, logout } = useAuth();
+const AllDevicesScreen = ({ navigation, route }) => {
+  const { 
+    axiosInstance, 
+    logout, 
+    deviceService, 
+    userData, 
+    isAdminOrOwner 
+  } = useAuth();
+  
+  const [activeTab, setActiveTab] = useState('assignments');
   const [devices, setDevices] = useState([]);
+  const [allDevices, setAllDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAllDevices, setLoadingAllDevices] = useState(true);
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
 
   useEffect(() => {
-    fetchDevices();
+    fetchDeviceAssignments();
     fetchLocations();
-  }, []);
-
-  const fetchDevices = async () => {
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        Alert.alert('Error', 'Authentication token not found. Please log in again.');
-        await logout();
-        return;
-      }
-
-      const response = await axios.get('https://test.gmayersservices.com/api/device-assignments/', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      // Filter only active assignments
-      const activeDevices = response.data.filter(assignment => !assignment.returned_date);
-      setDevices(activeDevices);
-    } catch (error) {
-      handleApiError(error, 'Failed to fetch devices.');
-    } finally {
-      setLoading(false);
+    
+    if (isAdminOrOwner) {
+      fetchAllOrganizationDevices();
     }
-  };
-
-  const fetchLocations = async () => {
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        Alert.alert('Error', 'Authentication token not found. Please log in again.');
-        await logout();
-        return;
-      }
-
-      const response = await axios.get('https://test.gmayersservices.com/api/locations/', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      setLocations(response.data);
-    } catch (error) {
-      handleApiError(error, 'Failed to fetch locations.');
-    }
-  };
+  }, [isAdminOrOwner]);
 
   const handleApiError = (error, defaultMessage) => {
     if (error.response) {
@@ -95,12 +60,48 @@ const AllDevicesScreen = ({ navigation }) => {
       Alert.alert('Error', error.message || defaultMessage);
     }
 
-    if (error.response && error.response.status === 401) {
+    if (error.response?.status === 401) {
       Alert.alert(
         'Session Expired',
         'Your session has expired. Please login again.',
         [{ text: 'OK', onPress: async () => await logout() }]
       );
+    }
+  };
+
+  const fetchDeviceAssignments = async () => {
+    try {
+      setLoading(true);
+      const data = await deviceService.getAssignments();
+      
+      // Filter only active assignments
+      const activeDevices = data.filter(assignment => !assignment.returned_date);
+      setDevices(activeDevices);
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch device assignments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllOrganizationDevices = async () => {
+    try {
+      setLoadingAllDevices(true);
+      const response = await axiosInstance.get('/devices/');
+      setAllDevices(response.data);
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch organization devices.');
+    } finally {
+      setLoadingAllDevices(false);
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const data = await deviceService.getLocations();
+      setLocations(data);
+    } catch (error) {
+      handleApiError(error, 'Failed to fetch locations');
     }
   };
 
@@ -122,54 +123,34 @@ const AllDevicesScreen = ({ navigation }) => {
     }
 
     try {
-      const token = await getAccessToken();
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
       const returnedDateTime = new Date().toISOString();
 
-      await axios.patch(
-        `https://test.gmayersservices.com/api/device-assignments/${selectedReturnDevice.id}/`,
-        {
-          returned_date: returnedDateTime.split('T')[0],
-          returned_time: returnedDateTime.split('T')[1].split('.')[0],
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Update device assignment
+      await deviceService.returnDevice(selectedReturnDevice.id, {
+        returned_date: returnedDateTime.split('T')[0],
+        returned_time: returnedDateTime.split('T')[1].split('.')[0],
+      });
 
-      const newEntryData = {
-        device_id: selectedReturnDevice.id,
+      // Create device return entry
+      await deviceService.createDeviceReturn({
+        device_id: selectedReturnDevice.device.id,
         location: selectedReturnLocation.id,
         returned_date_time: returnedDateTime,
-      };
-
-      await axios.post(
-        'https://test.gmayersservices.com/api/device-returns/',
-        newEntryData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      });
 
       Alert.alert('Success', 'Device has been returned successfully');
       setReturnDeviceModalVisible(false);
       setSelectedReturnLocation(null);
-      fetchDevices(); // Refresh the devices list
+      fetchDeviceAssignments(); // Refresh the devices list
+      if (isAdminOrOwner) {
+        fetchAllOrganizationDevices(); // Refresh all devices too
+      }
     } catch (error) {
       handleApiError(error, 'Failed to return device.');
     }
   };
 
-  const renderDeviceCard = (device) => (
+  const renderAssignmentCard = (device) => (
     <Card
       key={device.id}
       title={device.device.identifier}
@@ -195,6 +176,33 @@ const AllDevicesScreen = ({ navigation }) => {
     </Card>
   );
 
+  const renderDeviceCard = (device) => (
+    <Card
+      key={device.id}
+      title={device.identifier}
+      subtitle={device.device_type}
+      style={styles.deviceCard}
+    >
+      <View style={styles.cardContent}>
+        <View style={styles.cardInfo}>
+          <Text style={styles.infoText}>Make: {device.make}</Text>
+          <Text style={styles.infoText}>Model: {device.model}</Text>
+          <Text style={styles.infoText}>Serial: {device.serial_number}</Text>
+          <Text style={styles.infoText}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
+        </View>
+        <View style={styles.cardActions}>
+          <Button
+            title="View Details"
+            variant="outlined"
+            size="small"
+            onPress={() => navigation.navigate('DeviceDetails', { deviceId: device.id })}
+            style={styles.returnButton}
+          />
+        </View>
+      </View>
+    </Card>
+  );
+
   const handleReturnDeviceModalClose = () => {
     setReturnDeviceModalVisible(false);
     setSelectedReturnLocation(null);
@@ -211,31 +219,91 @@ const AllDevicesScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color="#007AFF" />
           <Text style={styles.backText}>Devices</Text>
         </TouchableOpacity>
-        <Button
-          title="Add Device"
-          onPress={() => navigation.navigate('AddDevice')}
-          size="small"
-        />
+        {isAdminOrOwner && (
+          <Button
+            title="Add Device"
+            onPress={() => navigation.navigate('AddDevice')}
+            size="small"
+          />
+        )}
       </View>
 
-      {/* Device List */}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.section}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-          ) : devices.length > 0 ? (
-            <View style={styles.devicesGrid}>
-              {devices.map(renderDeviceCard)}
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>No devices found</Text>
-          )}
-        </View>
-      </ScrollView>
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'assignments' && styles.activeTabButton
+          ]}
+          onPress={() => setActiveTab('assignments')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'assignments' && styles.activeTabText
+          ]}>
+            Assignments
+          </Text>
+        </TouchableOpacity>
+        
+        {isAdminOrOwner && (
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === 'all' && styles.activeTabButton
+            ]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Text style={[
+              styles.tabText,
+              activeTab === 'all' && styles.activeTabText
+            ]}>
+              Organization Devices
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Assignments Tab Content */}
+      {activeTab === 'assignments' && (
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.section}>
+            {loading ? (
+              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+            ) : devices.length > 0 ? (
+              <View style={styles.devicesGrid}>
+                {devices.map(renderAssignmentCard)}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>No device assignments found</Text>
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* All Organization Devices Tab Content */}
+      {activeTab === 'all' && isAdminOrOwner && (
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.section}>
+            {loadingAllDevices ? (
+              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+            ) : allDevices.length > 0 ? (
+              <View style={styles.devicesGrid}>
+                {allDevices.map(renderDeviceCard)}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>No organization devices found</Text>
+            )}
+          </View>
+        </ScrollView>
+      )}
 
       {/* Return Device Modal */}
       <Modal
@@ -316,6 +384,32 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#007AFF',
     marginLeft: 4,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  activeTabButton: {
+    borderBottomColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

@@ -8,6 +8,7 @@ const AUTH_KEYS = {
   ACCESS_TOKEN: 'accessToken',
   REFRESH_TOKEN: 'refreshToken',
   USER_DATA: 'userData',
+  TOKEN_DATA: 'tokenData', // New key to store decoded token data
 };
 
 // Create axios instance with base configuration
@@ -94,24 +95,127 @@ const deviceService = {
   }
 };
 
+// Pure JS function to decode a JWT token without external libraries
+const decodeJWT = (token) => {
+  try {
+    if (!token) return null;
+    
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    const base64Url = parts[1];
+    
+    // Replace non-url compatible chars with standard base64 chars
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Add padding if needed
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const paddedBase64 = base64 + padding;
+    
+    // Convert base64 to raw binary data held in a string
+    try {
+      // Decode base64
+      const rawData = atob(paddedBase64);
+      
+      // Convert to percent-encoding
+      const encodedData = rawData
+        .split('')
+        .map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('');
+      
+      // Decode URI component
+      const jsonPayload = decodeURIComponent(encodedData);
+      
+      // Parse the JSON string
+      return JSON.parse(jsonPayload);
+    } catch (decodeError) {
+      console.error('Error during base64 decoding:', decodeError);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error decoding JWT:', error);
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null); // For decoded token data
   const [error, setError] = useState(null);
+
+  // Role-based helper functions
+  const isAdmin = userData?.role === 'admin';
+  const isOwner = userData?.role === 'owner';
+  const isAdminOrOwner = isAdmin || isOwner;
 
   useEffect(() => {
     checkAuthState();
   }, []);
 
+  // Store decoded token data in AsyncStorage and state
+  const saveTokenData = async (token) => {
+    try {
+      if (!token) return null;
+      
+      const decodedToken = decodeJWT(token);
+      if (!decodedToken) return null;
+      
+      // Store decoded token in state
+      const extractedUserData = {
+        userId: decodedToken.user_id,
+        orgId: decodedToken.org_id,
+        role: decodedToken.role,
+        name: decodedToken.first_name || 'User',
+      };
+      
+      console.log('Setting userData to:', extractedUserData);
+      
+      // Save token data to AsyncStorage
+      await AsyncStorage.setItem(AUTH_KEYS.TOKEN_DATA, JSON.stringify(decodedToken));
+      
+      // Update state
+      setUserData(extractedUserData);
+      
+      return decodedToken;
+    } catch (error) {
+      console.error('Error saving token data:', error);
+      return null;
+    }
+  };
+
   const checkAuthState = async () => {
     try {
       setIsLoading(true);
-      const userData = await AsyncStorage.getItem(AUTH_KEYS.USER_DATA);
+      const savedUserData = await AsyncStorage.getItem(AUTH_KEYS.USER_DATA);
+      const savedTokenData = await AsyncStorage.getItem(AUTH_KEYS.TOKEN_DATA);
       const accessToken = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
       
-      if (userData && accessToken) {
-        setUser(JSON.parse(userData));
+      console.log('checkAuthState - Token exists:', !!accessToken);
+      console.log('checkAuthState - Saved token data exists:', !!savedTokenData);
+      
+      if (savedUserData) {
+        const parsedUserData = JSON.parse(savedUserData);
+        setUser(parsedUserData);
+      }
+      
+      // First check if we have saved token data
+      if (savedTokenData) {
+        const parsedTokenData = JSON.parse(savedTokenData);
+        setUserData({
+          userId: parsedTokenData.user_id,
+          orgId: parsedTokenData.org_id,
+          role: parsedTokenData.role, 
+          name: parsedTokenData.first_name || user?.username || 'User',
+        });
+        setIsAuthenticated(true);
+      } 
+      // If no saved token data but we have a token, decode and save it
+      else if (accessToken) {
+        await saveTokenData(accessToken);
         setIsAuthenticated(true);
       }
     } catch (error) {
@@ -131,8 +235,13 @@ export const AuthProvider = ({ children }) => {
         refresh: refreshToken,
       });
 
-      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.data.access);
-      return response.data.access;
+      const accessToken = response.data.access;
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      
+      // Save the decoded token data
+      await saveTokenData(accessToken);
+      
+      return accessToken;
     } catch (error) {
       console.error('Token refresh error:', error);
       await logout();
@@ -160,8 +269,14 @@ export const AuthProvider = ({ children }) => {
         password,
       });
       
-      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, response.data.access);
-      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, response.data.refresh);
+      const accessToken = response.data.access;
+      const refreshToken = response.data.refresh;
+      
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, refreshToken);
+      
+      // Save the decoded token data
+      await saveTokenData(accessToken);
       
       if (response.data.user) {
         await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(response.data.user));
@@ -188,9 +303,11 @@ export const AuthProvider = ({ children }) => {
         AUTH_KEYS.ACCESS_TOKEN,
         AUTH_KEYS.REFRESH_TOKEN,
         AUTH_KEYS.USER_DATA,
+        AUTH_KEYS.TOKEN_DATA, // Also clear stored token data
       ]);
 
       setUser(null);
+      setUserData(null);
       setIsAuthenticated(false);
       setError(null);
     } catch (error) {
@@ -213,10 +330,34 @@ export const AuthProvider = ({ children }) => {
 
   const clearError = () => setError(null);
 
+  // Method to manually check and update role information
+  const refreshRoleInfo = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
+      if (token) {
+        const decodedToken = decodeJWT(token);
+        if (decodedToken && decodedToken.role) {
+          setUserData(prev => ({
+            ...prev,
+            role: decodedToken.role,
+            userId: decodedToken.user_id,
+            orgId: decodedToken.org_id,
+          }));
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error refreshing role info:', error);
+      return false;
+    }
+  };
+
   const value = {
     isAuthenticated,
     isLoading,
     user,
+    userData,
     error,
     login,
     logout,
@@ -224,8 +365,12 @@ export const AuthProvider = ({ children }) => {
     clearError,
     refreshToken,
     getAccessToken,
-    deviceService, // Add the device service to the context
-    axiosInstance, // Expose the axios instance for custom API calls
+    deviceService,
+    axiosInstance,
+    isAdmin,
+    isOwner,
+    isAdminOrOwner,
+    refreshRoleInfo, // New method to manually refresh role info
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
