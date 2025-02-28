@@ -14,6 +14,14 @@
     },
     "plugins": [
       "expo-sqlite",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0"
+          }
+        }
+      ],
       "expo-secure-store",
       [
         "react-native-nfc-manager",
@@ -21,7 +29,8 @@
           "nfcPermission": "Allow $(PRODUCT_NAME) to access NFC features for device management.",
           "selectIdentifiers": ["A0000002471001"],
           "systemCodes": ["8008"],
-          "includeNdefEntitlement": false
+          "includeNdefEntitlement": false,
+          "nfcReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
         }
       ],
       [
@@ -47,7 +56,6 @@
       ]
     ],
     "ios": {
-      "deploymentTarget": "16.0",
       "jsEngine": "hermes",
       "supportsTablet": true,
       "config": {
@@ -57,7 +65,11 @@
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos.",
-        "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
+        "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user.",
+        "com.apple.developer.nfc.readersession.iso7816.select-identifiers": ["A0000002471001"]
+      },
+      "entitlements": {
+        "com.apple.developer.nfc.readersession.formats": ["TAG"]
       },
       "bundleIdentifier": "com.garanmayers7262.battwrapz"
     },
@@ -75,7 +87,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_MEDIA_LOCATION"
       ],
-      "package": "com.garanmayers7262.battwrapz"
+      "package": "com.garanmayers7262.wrapbattz"
     },
     "web": {
       "favicon": "./assets/favicon.png"
