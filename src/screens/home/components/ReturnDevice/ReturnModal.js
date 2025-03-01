@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 import Card from '../../../../components/Card';
 import { useAuth } from '../../../../context/AuthContext';
@@ -25,14 +25,26 @@ const ReturnModal = ({
   locations = [],
 }) => {
   // State
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [locationOptions, setLocationOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const { getAccessToken } = useAuth();
+
+  // Transform locations into dropdown format
+  useEffect(() => {
+    if (locations.length > 0) {
+      const options = locations.map(location => ({
+        label: location.name,
+        value: location.id
+      }));
+      setLocationOptions(options);
+    }
+  }, [locations]);
 
   // Reset state when modal closes
   useEffect(() => {
     if (!visible) {
-      setSelectedLocation(null);
+      setSelectedLocation('');
       setLoading(false);
     }
   }, [visible]);
@@ -74,6 +86,9 @@ const ReturnModal = ({
         throw new Error('Failed to update assignment status');
       }
 
+      // Find the selected location object from the locations array
+      const locationObj = locations.find(loc => loc.id === selectedLocation);
+      
       // Create return record
       const returnResponse = await fetch(
         'https://test.gmayersservices.com/api/device-returns/',
@@ -85,7 +100,7 @@ const ReturnModal = ({
           },
           body: JSON.stringify({
             device_id: device.id,
-            location: selectedLocation.id,
+            location: selectedLocation, // Now passing just the ID
             returned_date_time: currentDate,
           }),
         }
@@ -158,27 +173,15 @@ const ReturnModal = ({
                 {/* Location Selection */}
                 <View style={styles.formSection}>
                   <Text style={styles.sectionTitle}>Select Return Location</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={selectedLocation}
-                      onValueChange={setSelectedLocation}
-                      enabled={!loading}
-                      style={styles.picker}
-                    >
-                      <Picker.Item 
-                        label="Select a location" 
-                        value={null} 
-                        color="#999"
-                      />
-                      {locations.map((location) => (
-                        <Picker.Item
-                          key={location.id}
-                          label={location.name}
-                          value={location}
-                        />
-                      ))}
-                    </Picker>
-                  </View>
+                  <Dropdown
+                    value={selectedLocation}
+                    onValueChange={(value) => setSelectedLocation(value)}
+                    items={locationOptions}
+                    placeholder="Select a location"
+                    disabled={loading}
+                    testID="return-location-dropdown"
+                    containerStyle={styles.dropdownContainer}
+                  />
                 </View>
 
                 {/* Action Buttons */}
@@ -292,15 +295,8 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 10,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    backgroundColor: '#F8F8F8',
+  dropdownContainer: {
     marginBottom: 20,
-  },
-  picker: {
-    height: 50,
   },
   buttonContainer: {
     flexDirection: 'row',

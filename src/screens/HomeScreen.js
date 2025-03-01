@@ -16,7 +16,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import TabBar from '../components/TabBar';
@@ -31,7 +31,8 @@ const HomeScreen = ({ navigation }) => {
   const { logout, deviceService, userData, user, refreshRoleInfo } = useAuth();
   const [assignments, setAssignments] = useState(mockAssignments);
   const [locations, setLocations] = useState([]);
-  const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [selectedReturnLocation, setSelectedReturnLocation] = useState('');
   const [loading, setLoading] = useState(true);
   const [assignDeviceModalVisible, setAssignDeviceModalVisible] = useState(false);
   const [nfcManagerModalVisible, setNfcManagerModalVisible] = useState(false);
@@ -68,6 +69,17 @@ const HomeScreen = ({ navigation }) => {
       NfcManager.cancelTechnologyRequest().catch(() => 0);
     };
   }, []);
+
+  // Transform locations into dropdown format
+  useEffect(() => {
+    if (locations.length > 0) {
+      const options = locations.map(location => ({
+        label: location.name,
+        value: location.id
+      }));
+      setLocationOptions(options);
+    }
+  }, [locations]);
 
   const handleApiError = (error, defaultMessage) => {
     if (error.response) {
@@ -136,7 +148,7 @@ const HomeScreen = ({ navigation }) => {
     }
     setSelectedReturnDevice(assignment.device);
     setReturnDeviceModalVisible(true);
-    setSelectedReturnLocation(null);
+    setSelectedReturnLocation('');
   };
 
   const handleConfirmReturn = async () => {
@@ -158,13 +170,13 @@ const HomeScreen = ({ navigation }) => {
       // Create device return entry
       await deviceService.createDeviceReturn({
         device_id: selectedReturnDevice.id,
-        location: selectedReturnLocation.id,
+        location: selectedReturnLocation,
         returned_date_time: returnedDateTime,
       });
 
       Alert.alert('Success', 'Device has been returned successfully');
       setReturnDeviceModalVisible(false);
-      setSelectedReturnLocation(null);
+      setSelectedReturnLocation('');
       fetchDeviceAssignments();
     } catch (error) {
       handleApiError(error, 'Failed to return device');
@@ -218,7 +230,7 @@ const HomeScreen = ({ navigation }) => {
 
   const handleReturnDeviceModalClose = () => {
     setReturnDeviceModalVisible(false);
-    setSelectedReturnLocation(null);
+    setSelectedReturnLocation('');
   };
 
   return (
@@ -228,15 +240,16 @@ const HomeScreen = ({ navigation }) => {
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText} accessibilityRole="header">
-            Welcome{'\n'}{userName}
+          <Text style={styles.welcomeText}>
+            Welcome {userName}
           </Text>
         </View>
-        
+
+        {/* Admin/Owner Buttons */}
         {isAdminOrOwner ? (
           <View style={styles.adminButtonContainer}>
             <Button
-              title="NFC Manager"
+              title="Manage NFC"
               onPress={() => setNfcManagerModalVisible(true)}
               size="small"
               textColor="black"
@@ -251,9 +264,10 @@ const HomeScreen = ({ navigation }) => {
             />
           </View>
         ) : (
+          // Regular User Button
           <View style={styles.userButtonContainer}>
             <Button
-              title="Assign Device"
+              title="Request Device"
               onPress={() => setAssignDeviceModalVisible(true)}
               size="small"
               textColor="black"
@@ -350,20 +364,16 @@ const HomeScreen = ({ navigation }) => {
                       Type: <Text style={styles.modalTextBold}>{selectedReturnDevice.device_type}</Text>
                     </Text>
 
-                    {/* Location Picker */}
+                    {/* Location Dropdown */}
                     <Text style={styles.modalText}>Select Location:</Text>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={selectedReturnLocation}
-                        onValueChange={(itemValue) => setSelectedReturnLocation(itemValue)}
-                        style={styles.picker}
-                      >
-                        <Picker.Item label="Select a location" value={null} />
-                        {locations.map((location) => (
-                          <Picker.Item key={location.id} label={location.name} value={location} />
-                        ))}
-                      </Picker>
-                    </View>
+                    <Dropdown
+                      value={selectedReturnLocation}
+                      onValueChange={(value) => setSelectedReturnLocation(value)}
+                      items={locationOptions}
+                      placeholder="Select a location"
+                      testID="return-location-dropdown"
+                      containerStyle={styles.dropdownContainer}
+                    />
 
                     <Button
                       title="Confirm Return"
@@ -424,43 +434,45 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     marginBottom: '3%',
+    flexWrap: 'wrap',
   },
   welcomeContainer: {
     flex: 1,
-    justifyContent: 'center',
+    marginRight: 10, // Add spacing between text and buttons
+    maxWidth: '60%', // Limit text width on larger screens
   },
   welcomeText: {
-    fontSize: 26,
+    fontSize: 24, // Slightly smaller for iOS
     fontWeight: 'bold',
     color: '#333',
-    lineHeight: 32,
+    lineHeight: 30,
+    flexWrap: 'wrap', // Enable text wrapping
   },
-  // Admin buttons container - side by side layout
   adminButtonContainer: {
-    flex: 1,
     flexDirection: 'row',
+    flexWrap: 'wrap', // Allow buttons to wrap
     justifyContent: 'flex-end',
-    alignItems: 'center',
-    flexWrap: 'nowrap',
+    marginTop: 8, // Add space when wrapped
+    width: '100%', // Full width for wrapping
   },
   // User button container - single button layout
   userButtonContainer: {
-    flex: 1,
-    alignItems: 'flex-end',
+    width: '100%', // Full width for single button
+    marginTop: 8, // Add space when wrapped
   },
   headerButton: {
-    marginLeft: 8, 
-    paddingHorizontal: Platform.OS === 'ios' ? 10 : 0,  // Added padding for iOS
-    height: 40,            // Fixed height
-    width: Platform.OS === 'ios' ? 120 : 'auto', // Increased width on iOS
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    minWidth: Platform.OS === 'ios' ? 120 : 'auto', // Smaller min width on iOS
     backgroundColor: 'orange',
     justifyContent: 'center',
     alignItems: 'center',
   },
   fullWidthButton: {
-    paddingHorizontal: Platform.OS === 'ios' ? 10 : 0, // Added padding for iOS
+    paddingHorizontal: 12,
     height: 40,
-    width: Platform.OS === 'ios' ? 160 : 'auto', // Increased width on iOS
+    minWidth: Platform.OS === 'ios' ? 160 : 'auto', // Adjust for iOS
     backgroundColor: 'orange',
     justifyContent: 'center',
     alignItems: 'center',
@@ -477,9 +489,9 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   addDeviceButton: {
-    paddingHorizontal: Platform.OS === 'ios' ? 10 : 8,
+    paddingHorizontal: 12,
     height: 40,
-    width: Platform.OS === 'ios' ? 120 : 'auto', // Increased width on iOS
+    minWidth: Platform.OS === 'ios' ? 140 : 'auto', // Increased minimum width on iOS
     backgroundColor: 'orange',
     justifyContent: 'center',
     alignItems: 'center',
@@ -559,15 +571,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+  dropdownContainer: {
     marginBottom: 15,
-  },
-  picker: {
-    height: 50,
-    width: '100%',
   },
   confirmButton: {
     backgroundColor: '#007AFF',

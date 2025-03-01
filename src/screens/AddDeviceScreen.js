@@ -10,16 +10,29 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BaseTextInput } from '../components/TextInput';
 import Button from '../components/Button';
 import CustomModal from '../components/Modal';
-import { NFCWrite } from '../components/NFCComponents';
+import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 
-const ITEM_CHOICES = ['Battery', 'Charger', 'Adapter', 'Cable', 'Drill', 'Saw', 'Other'];
-const MAKES = ['Makita', 'Mawkee', 'Dewalt', 'Other'];
+const ITEM_CHOICES = [
+  { label: 'Battery', value: 'Battery' },
+  { label: 'Charger', value: 'Charger' },
+  { label: 'Adapter', value: 'Adapter' },
+  { label: 'Cable', value: 'Cable' },
+  { label: 'Drill', value: 'Drill' },
+  { label: 'Saw', value: 'Saw' },
+  { label: 'Other', value: 'Other' }
+];
+
+const MAKES = [
+  { label: 'Makita', value: 'Makita' },
+  { label: 'Mawkee', value: 'Mawkee' },
+  { label: 'Dewalt', value: 'Dewalt' },
+  { label: 'Other', value: 'Other' }
+];
 
 const AddDevicePage = ({ navigation }) => {
   const { getAccessToken, deviceService } = useAuth();
@@ -38,12 +51,24 @@ const AddDevicePage = ({ navigation }) => {
   const [deviceIdentifier, setDeviceIdentifier] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [locations, setLocations] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
   const [otherMake, setOtherMake] = useState('');
   const [otherDeviceType, setOtherDeviceType] = useState('');
 
   useEffect(() => {
     fetchLocations();
   }, []);
+
+  useEffect(() => {
+    // Transform locations into the format expected by the Dropdown component
+    if (locations.length > 0) {
+      const options = locations.map(location => ({
+        label: location.name,
+        value: location.id
+      }));
+      setLocationOptions(options);
+    }
+  }, [locations]);
 
   const fetchLocations = async () => {
     try {
@@ -132,26 +157,21 @@ const AddDevicePage = ({ navigation }) => {
         <ScrollView contentContainerStyle={styles.scrollView}>
           <View style={styles.form}>
             {/* Make Dropdown */}
-            <Text style={styles.label}>Make</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={formData.make}
-                onValueChange={(value) => {
-                  if (value === 'Other') {
-                    setOtherMake('');
-                    handleInputChange('make', 'Other'); // Retain "Other" in the dropdown
-                  } else {
-                    handleInputChange('make', value);
-                  }
-                }}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Make" value="" />
-                {MAKES.map((make) => (
-                  <Picker.Item key={make} label={make} value={make} />
-                ))}
-              </Picker>
-            </View>
+            <Dropdown
+              label="Make"
+              value={formData.make}
+              onValueChange={(value) => {
+                if (value === 'Other') {
+                  setOtherMake('');
+                  handleInputChange('make', 'Other'); // Retain "Other" in the dropdown
+                } else {
+                  handleInputChange('make', value);
+                }
+              }}
+              items={MAKES}
+              placeholder="Select Make"
+              testID="make-dropdown"
+            />
 
             {/* Other Make Input */}
             {formData.make === 'Other' && (
@@ -186,26 +206,21 @@ const AddDevicePage = ({ navigation }) => {
             />
 
             {/* Device Type Dropdown */}
-            <Text style={styles.label}>Device Type</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={formData.device_type}
-                onValueChange={(value) => {
-                  if (value === 'Other') {
-                    setOtherDeviceType('');
-                    handleInputChange('device_type', 'Other'); // Retain "Other" in the dropdown
-                  } else {
-                    handleInputChange('device_type', value);
-                  }
-                }}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Device Type" value="" />
-                {ITEM_CHOICES.map((item) => (
-                  <Picker.Item key={item} label={item} value={item} />
-                ))}
-              </Picker>
-            </View>
+            <Dropdown
+              label="Device Type"
+              value={formData.device_type}
+              onValueChange={(value) => {
+                if (value === 'Other') {
+                  setOtherDeviceType('');
+                  handleInputChange('device_type', 'Other'); // Retain "Other" in the dropdown
+                } else {
+                  handleInputChange('device_type', value);
+                }
+              }}
+              items={ITEM_CHOICES}
+              placeholder="Select Device Type"
+              testID="device-type-dropdown"
+            />
 
             {/* Other Device Type Input */}
             {formData.device_type === 'Other' && (
@@ -264,19 +279,14 @@ const AddDevicePage = ({ navigation }) => {
             )}
 
             {/* Location Dropdown */}
-            <Text style={styles.label}>Location</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={formData.location}
-                onValueChange={(value) => handleInputChange('location', value)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Location" value="" />
-                {locations.map((location) => (
-                  <Picker.Item key={location.id} label={location.name} value={location.id} />
-                ))}
-              </Picker>
-            </View>
+            <Dropdown
+              label="Location"
+              value={formData.location}
+              onValueChange={(value) => handleInputChange('location', value)}
+              items={locationOptions}
+              placeholder="Select Location"
+              testID="location-dropdown"
+            />
 
             {/* Submit Button */}
             <Button
@@ -331,15 +341,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333',
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  picker: {
-    height: 50,
   },
   dateButton: {
     borderWidth: 1,

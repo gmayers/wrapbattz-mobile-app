@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
+import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 
 const SelectMenuTab = ({ 
@@ -9,10 +9,61 @@ const SelectMenuTab = ({
   fetchDevicesByLocation,
   handleApiError 
 }) => {
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [selectedLocationAssign, setSelectedLocationAssign] = useState(null);
   const [selectedDeviceAssign, setSelectedDeviceAssign] = useState(null);
   const [availableDevices, setAvailableDevices] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [deviceOptions, setDeviceOptions] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
+  
+  // Transform locations into dropdown format
+  useEffect(() => {
+    if (locations && locations.length > 0) {
+      const options = locations.map(location => ({
+        label: location.name || 'Unnamed Location',
+        value: location.id  // Store the ID here
+      }));
+      setLocationOptions(options);
+    }
+  }, [locations]);
+  
+  // Update device options when available devices change
+  useEffect(() => {
+    if (availableDevices && availableDevices.length > 0) {
+      const options = availableDevices.map(device => ({
+        label: device.name || 'Unnamed Device',
+        value: device.id  // Store the ID here
+      }));
+      setDeviceOptions(options);
+    } else {
+      setDeviceOptions([]);
+    }
+  }, [availableDevices]);
+
+  const handleLocationChange = (locationId) => {
+    setSelectedLocationId(locationId);
+    setSelectedDeviceId('');
+    setSelectedDeviceAssign(null);
+    
+    // Find the location object from the id
+    const locationObj = locations.find(loc => loc.id === locationId);
+    setSelectedLocationAssign(locationObj || null);
+    
+    if (locationId) {
+      fetchDevicesByLocation(locationId)
+        .then(devices => {
+          setAvailableDevices(devices || []);
+        })
+        .catch(error => {
+          handleApiError(error, 'Failed to fetch devices for the selected location');
+          setAvailableDevices([]);
+        });
+    } else {
+      setAvailableDevices([]);
+    }
+  };
 
   const handleAssignSelect = async () => {
     if (!selectedLocationAssign || !selectedDeviceAssign) {
@@ -52,49 +103,29 @@ const SelectMenuTab = ({
       <Text style={styles.assignTabSubtitle}>Select location and device to assign.</Text>
 
       <Text style={styles.pickerLabel}>Location:</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedLocationAssign}
-          onValueChange={(itemValue) => {
-            setSelectedLocationAssign(itemValue);
-            if (itemValue) {
-              fetchDevicesByLocation(itemValue.id);
-            } else {
-              setAvailableDevices([]);
-              setSelectedDeviceAssign(null);
-            }
-          }}
-          style={styles.picker}
-        >
-          <Picker.Item label="Select a location" value={null} />
-          {locations.map((location) => (
-            <Picker.Item
-              key={location.id}
-              label={location.name || 'Unnamed Location'}
-              value={location}
-            />
-          ))}
-        </Picker>
-      </View>
+      <Dropdown
+        value={selectedLocationId}
+        onValueChange={handleLocationChange}
+        items={locationOptions}
+        placeholder="Select a location"
+        testID="location-dropdown"
+        containerStyle={styles.dropdownContainer}
+      />
       
       <Text style={styles.pickerLabel}>Device:</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedDeviceAssign}
-          onValueChange={(itemValue) => setSelectedDeviceAssign(itemValue)}
-          enabled={availableDevices.length > 0}
-          style={styles.picker}
-        >
-          <Picker.Item label="Select a device" value={null} />
-          {availableDevices.map((device) => (
-            <Picker.Item
-              key={device.id}
-              label={device.name || 'Unnamed Device'}
-              value={device}
-            />
-          ))}
-        </Picker>
-      </View>
+      <Dropdown
+        value={selectedDeviceId}
+        onValueChange={(deviceId) => {
+          setSelectedDeviceId(deviceId);
+          const deviceObj = availableDevices.find(dev => dev.id === deviceId);
+          setSelectedDeviceAssign(deviceObj || null);
+        }}
+        items={deviceOptions}
+        placeholder="Select a device"
+        disabled={deviceOptions.length === 0}
+        testID="device-dropdown"
+        containerStyle={styles.dropdownContainer}
+      />
       
       <View style={styles.assignButtonsContainer}>
         <Button
@@ -123,15 +154,8 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 5,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+  dropdownContainer: {
     marginBottom: 15,
-  },
-  picker: {
-    height: 50,
-    width: '100%',
   },
   assignButtonsContainer: {
     flexDirection: 'row',

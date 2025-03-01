@@ -1,22 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet, Alert } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TabBar from '../../../../components/TabBar';
 import ReadTab from './ReadTab';
 import LockTab from './LockTab';
 import UnlockTab from './UnlockTab';
 import EditTab from './EditTab';
-import NfcManager, { NfcTech } from 'react-native-nfc-manager';
-import { ndefToJson, jsonToNdef } from '../../../../../utils/NfcUtils';
+import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { ndefToJson } from '../../../../../utils/NfcUtils';
 
 const NfcManagerModal = ({ visible, onClose }) => {
   // NFC Manager states
   const [nfcActiveTab, setNfcActiveTab] = useState('read');
   const [writeFields, setWriteFields] = useState([{ label: '', value: '' }]);
   const [isWriting, setIsWriting] = useState(false);
-  const [lockPassword, setLockPassword] = useState('');
   const [unlockPassword, setUnlockPassword] = useState('');
-  const [isLocking, setIsLocking] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const isCancelling = useRef(false);
 
@@ -64,6 +62,52 @@ const NfcManagerModal = ({ visible, onClose }) => {
     }
   };
 
+  // iOS-specific function for writing to NFC tags
+  const writeToNfcTagIOS = async (jsonData) => {
+    try {
+      console.log("iOS: Writing data to tag:", jsonData);
+      
+      // Convert JSON to string
+      const jsonString = JSON.stringify(jsonData);
+      console.log("iOS: JSON string to write:", jsonString);
+      
+      // Create NDEF Text Record manually
+      const languageCode = 'en';
+      
+      // Status byte: bit 7 = UTF-16 (0) or UTF-8 (1), bits 6-0 = language code length
+      const statusByte = 0x80 | (languageCode.length & 0x3F); // UTF-8 with language code length
+      
+      // Full payload with language code and text
+      const payload = [statusByte];
+      
+      // Add language code bytes
+      for (let i = 0; i < languageCode.length; i++) {
+        payload.push(languageCode.charCodeAt(i));
+      }
+      
+      // Add text bytes
+      for (let i = 0; i < jsonString.length; i++) {
+        payload.push(jsonString.charCodeAt(i));
+      }
+      
+      console.log("iOS: Created payload:", payload);
+      
+      // Create an NDEF Text Record
+      const record = Ndef.record(Ndef.TNF_WELL_KNOWN, Ndef.RTD_TEXT, [], payload);
+      
+      console.log("iOS: Writing NDEF message with record:", record);
+      
+      // Write the record using the current API
+      await NfcManager.writeNdefMessage([record]);
+      console.log("iOS: Successfully wrote to tag");
+      
+      return true;
+    } catch (error) {
+      console.error("iOS: Error writing to tag:", error);
+      throw error;
+    }
+  };
+
   // Write Fields Handlers
   const handleDeleteWriteField = (index) => {
     if (writeFields.length === 1) {
@@ -107,9 +151,17 @@ const NfcManagerModal = ({ visible, onClose }) => {
         Alert.alert('Error', 'Please enter at least one label/value pair.');
         return;
       }
+      
       await withNfcManager(async () => {
-        const ndefMessage = jsonToNdef(jsonData);
-        await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
+        // Use platform-specific approach
+        if (Platform.OS === 'ios') {
+          await writeToNfcTagIOS(jsonData);
+        } else {
+          // Android approach
+          const textRecord = Ndef.textRecord(JSON.stringify(jsonData));
+          await NfcManager.writeNdefMessage([textRecord]);
+        }
+        
         if (!isCancelling.current) {
           Alert.alert('Success', 'Data written to NFC tag successfully!');
           setWriteFields([{ label: '', value: '' }]);
@@ -122,36 +174,6 @@ const NfcManagerModal = ({ visible, onClose }) => {
       }
     } finally {
       setIsWriting(false);
-    }
-  };
-
-  const handleLockNfc = async () => {
-    if (!lockPassword) {
-      Alert.alert('Error', 'Please enter a password to lock the tag.');
-      return;
-    }
-
-    try {
-      setIsLocking(true);
-      await withNfcManager(async () => {
-        const jsonData = {
-          locked: true,
-          password: lockPassword,
-        };
-        const ndefMessage = jsonToNdef(jsonData);
-        await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
-        if (!isCancelling.current) {
-          Alert.alert('Success', 'NFC tag has been locked with a password.');
-          setLockPassword('');
-        }
-      });
-    } catch (error) {
-      if (!isCancelling.current) {
-        Alert.alert('Error', 'Failed to lock NFC tag.');
-        console.error('Error locking NFC:', error);
-      }
-    } finally {
-      setIsLocking(false);
     }
   };
 
@@ -169,8 +191,16 @@ const NfcManagerModal = ({ visible, onClose }) => {
           const existingData = ndefToJson(tag);
           if (existingData && existingData.locked && existingData.password === unlockPassword) {
             const newData = { locked: false };
-            const ndefMessage = jsonToNdef(newData);
-            await NfcManager.ndefHandler.writeNdefMessage(ndefMessage);
+            
+            // Use platform-specific approach
+            if (Platform.OS === 'ios') {
+              await writeToNfcTagIOS(newData);
+            } else {
+              // Android approach
+              const textRecord = Ndef.textRecord(JSON.stringify(newData));
+              await NfcManager.writeNdefMessage([textRecord]);
+            }
+            
             if (!isCancelling.current) {
               Alert.alert('Success', 'Password removed. NFC tag is now unlocked.');
               setUnlockPassword('');
@@ -193,6 +223,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
   };
 
   const handleNfcTabPress = (key) => {
+    console.log("Tab pressed:", key);
     setNfcActiveTab(key);
   };
 
@@ -209,10 +240,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
       case 'lock':
         return (
           <LockTab
-            lockPassword={lockPassword}
-            setLockPassword={setLockPassword}
-            handleLockNfc={handleLockNfc}
-            isLocking={isLocking}
+            withNfcManager={withNfcManager}
             onCancel={handleNfcCancel}
           />
         );
@@ -246,42 +274,40 @@ const NfcManagerModal = ({ visible, onClose }) => {
       transparent={true}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.nfcModalContainer}>
-              <View style={styles.nfcModalContent}>
-                {/* NFC Manager Header */}
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>NFC Manager</Text>
-                  <TouchableOpacity onPress={onClose}>
-                    <Ionicons name="close" size={24} color="#333" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* NFC Tabs */}
-                <TabBar
-                  tabs={nfcTabs}
-                  activeTab={nfcActiveTab}
-                  onTabPress={handleNfcTabPress}
-                  backgroundColor="#F9F9F9"
-                  activeColor="#007AFF"
-                  inactiveColor="#666666"
-                  showIcons
-                  showLabels
-                  height={50}
-                  containerStyle={styles.nfcTabBarContainer}
-                  labelStyle={styles.nfcTabBarLabel}
-                  iconStyle={styles.nfcTabBarIcon}
-                />
-
-                {/* NFC Tab Content */}
-                {renderTabContent()}
-              </View>
+      <View style={styles.modalOverlay}>
+        <View style={styles.nfcModalContainer}>
+          <View style={styles.nfcModalContent}>
+            {/* NFC Manager Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>NFC Manager</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+
+            {/* NFC Tabs */}
+            <TabBar
+              tabs={nfcTabs}
+              activeTab={nfcActiveTab}
+              onTabPress={handleNfcTabPress}
+              backgroundColor="#F9F9F9"
+              activeColor="#007AFF"
+              inactiveColor="#666666"
+              showIcons
+              showLabels
+              height={50}
+              containerStyle={styles.nfcTabBarContainer}
+              labelStyle={styles.nfcTabBarLabel}
+              iconStyle={styles.nfcTabBarIcon}
+            />
+
+            {/* NFC Tab Content */}
+            <View style={styles.tabContentContainer}>
+              {renderTabContent()}
+            </View>
+          </View>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 };
@@ -299,15 +325,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 10,
+    overflow: 'hidden', // Important for iOS rendering
   },
   nfcModalContent: {
     flex: 1,
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
+    paddingHorizontal: 5,
   },
   modalTitle: {
     fontSize: 20,
@@ -318,6 +347,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
     marginTop: '2%',
+    ...(Platform.OS === 'ios' ? {
+      zIndex: 1,  // Make sure tabs are interactive on iOS
+      elevation: 1,
+    } : {}),
   },
   nfcTabBarLabel: {
     fontSize: 12,
@@ -325,6 +358,12 @@ const styles = StyleSheet.create({
   },
   nfcTabBarIcon: {
     fontSize: 20,
+  },
+  tabContentContainer: {
+    flex: 1,
+    ...(Platform.OS === 'ios' ? {
+      zIndex: 0,  // Make sure content is below the tabs
+    } : {}),
   },
 });
 
