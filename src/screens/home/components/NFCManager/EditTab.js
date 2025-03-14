@@ -61,6 +61,8 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
   const [tagData, setTagData] = useState(null);
   const [editedFields, setEditedFields] = useState({});
   const [newField, setNewField] = useState({ key: '', value: '' });
+  
+  // Keep debugLogs in state but don't display them in the UI
   const [debugLogs, setDebugLogs] = useState([]);
 
   const addDebugLog = (message) => {
@@ -264,7 +266,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
     }
   };
 
-  // Improved function to write NFC tag with better cross-platform handling
+  // Unified write function that works on both iOS and Android
   const writeToNfcTag = async (jsonData) => {
     try {
       addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
@@ -343,7 +345,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       await withNfcManager(async () => {
         addDebugLog('NFC technology acquired');
         
-        // Use the cross-platform write function
+        // Use the unified write function
         await writeToNfcTag(dataToWrite);
         
         addDebugLog('Write operation completed successfully');
@@ -363,12 +365,43 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       ...prev,
       [key]: value
     }));
-    addDebugLog(`Updated field "${key}" with new value: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`);
+    addDebugLog(`Updated field value for "${key}"`);
+  };
+
+  const handleKeyChange = (oldKey, newKey) => {
+    if (!newKey.trim()) {
+      Alert.alert('Error', 'Field name cannot be empty');
+      return;
+    }
+    
+    if (oldKey === newKey) {
+      return; // No change needed
+    }
+    
+    if (editedFields.hasOwnProperty(newKey)) {
+      Alert.alert('Error', `Field "${newKey}" already exists`);
+      return;
+    }
+    
+    setEditedFields(prev => {
+      const updatedFields = { ...prev };
+      const value = updatedFields[oldKey];
+      delete updatedFields[oldKey];
+      updatedFields[newKey] = value;
+      return updatedFields;
+    });
+    
+    addDebugLog(`Renamed field "${oldKey}" to "${newKey}"`);
   };
 
   const handleAddField = () => {
     if (!newField.key.trim()) {
       Alert.alert('Error', 'Please enter a field name.');
+      return;
+    }
+    
+    if (editedFields.hasOwnProperty(newField.key.trim())) {
+      Alert.alert('Error', `Field "${newField.key.trim()}" already exists`);
       return;
     }
     
@@ -436,7 +469,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       )}
 
       {tagData !== null && !isReading && !isWriting && (
-        <ScrollView style={styles.editFieldsContainer}>
+        <ScrollView style={styles.editFieldsContainer} contentContainerStyle={styles.editFieldsContentContainer}>
           {tagData.id && (
             <View style={styles.idField}>
               <Text style={styles.fieldLabel}>ID (Not Editable):</Text>
@@ -448,7 +481,15 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
           {Object.entries(editedFields).map(([key, value]) => (
             <View key={key} style={styles.fieldContainer}>
               <View style={styles.fieldHeader}>
-                <Text style={styles.fieldLabel}>{key}:</Text>
+                <View style={styles.fieldKeyContainer}>
+                  <TextInput
+                    style={styles.fieldKeyInput}
+                    value={key}
+                    onChangeText={(newKey) => {}}
+                    onEndEditing={(e) => handleKeyChange(key, e.nativeEvent.text)}
+                    placeholder="Field Name"
+                  />
+                </View>
                 <TouchableOpacity onPress={() => handleDeleteField(key)}>
                   <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
                 </TouchableOpacity>
@@ -492,20 +533,8 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
             title="Save Changes to Tag"
             onPress={handleWriteTag}
             disabled={isWriting}
-            style={[styles.writeButton, { marginTop: 20, marginBottom: 20 }]}
+            style={[styles.writeButton, { marginTop: 20, marginBottom: 40 }]}
           />
-          
-          {/* Debug Logs */}
-          {debugLogs.length > 0 && (
-            <View style={styles.debugContainer}>
-              <Text style={styles.debugTitle}>Debug Logs:</Text>
-              <ScrollView style={styles.debugLogsContainer}>
-                {debugLogs.map((log, index) => (
-                  <Text key={index} style={styles.debugText}>{log}</Text>
-                ))}
-              </ScrollView>
-            </View>
-          )}
         </ScrollView>
       )}
     </View>
@@ -514,9 +543,17 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
 
 // Additional styles
 const additionalStyles = {
+  nfcTabContent: {
+    flex: 1,
+    padding: 16,
+    paddingBottom: 80, // Add padding to avoid overlap with tab navigation
+  },
   editFieldsContainer: {
     flex: 1,
     marginTop: 20,
+  },
+  editFieldsContentContainer: {
+    paddingBottom: 20, // Extra padding at the bottom of the scroll content
   },
   fieldContainer: {
     marginBottom: 15,
@@ -526,6 +563,19 @@ const additionalStyles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 5,
+  },
+  fieldKeyContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  fieldKeyInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 8,
+    fontSize: 14,
+    fontWeight: '500',
+    backgroundColor: '#f9f9f9',
   },
   fieldLabel: {
     fontSize: 16,
@@ -579,28 +629,6 @@ const additionalStyles = {
   },
   addFieldButton: {
     padding: 5,
-  },
-  debugContainer: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  debugTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  debugLogsContainer: {
-    maxHeight: 200,
-  },
-  debugText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    color: '#333',
-    marginBottom: 3,
   },
 };
 

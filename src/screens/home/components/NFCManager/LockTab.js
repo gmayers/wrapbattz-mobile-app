@@ -16,35 +16,105 @@ const LockTab = ({ withNfcManager, onCancel }) => {
     setDebugLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
   };
 
-  // Universal write function that handles both platforms
+  // First try to read any existing data from the tag
+  const readExistingTagData = async () => {
+    try {
+      addDebugLog('Reading existing tag data before locking');
+      
+      const tag = await NfcManager.getTag();
+      addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
+      
+      if (!tag) {
+        addDebugLog('Error: No tag detected');
+        throw new Error('No NFC tag detected.');
+      }
+      
+      // If tag has no NDEF message, return empty object to start fresh
+      if (!tag.ndefMessage || !tag.ndefMessage.length) {
+        addDebugLog('No NDEF message found on tag, will create new data');
+        return {};
+      }
+      
+      // Process first NDEF record
+      const record = tag.ndefMessage[0];
+      
+      if (!record || !record.payload) {
+        addDebugLog('Invalid record format, will create new data');
+        return {};
+      }
+      
+      // Try to decode the payload
+      try {
+        const textContent = Ndef.text.decodePayload(record.payload);
+        addDebugLog(`Decoded existing text content: ${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}`);
+        
+        // Check if content is JSON
+        if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
+          try {
+            const jsonData = JSON.parse(textContent);
+            addDebugLog('Successfully parsed existing JSON data');
+            
+            // Check if tag is already locked
+            if (jsonData.locked === true || jsonData.locked === 'true') {
+              addDebugLog('Tag is already locked');
+              throw new Error('This tag is already locked. Please unlock it first.');
+            }
+            
+            return jsonData; // Return the parsed data
+          } catch (jsonError) {
+            if (jsonError.message === 'This tag is already locked. Please unlock it first.') {
+              throw jsonError;
+            }
+            
+            addDebugLog(`JSON parse error: ${jsonError.message}, will create new data`);
+            return {}; // Start fresh if can't parse existing data
+          }
+        } else {
+          addDebugLog('Existing data is not in JSON format, will create new data');
+          return {};
+        }
+      } catch (decodeError) {
+        addDebugLog(`Error decoding payload: ${decodeError.message}, will create new data`);
+        return {};
+      }
+    } catch (error) {
+      addDebugLog(`Error reading tag: ${error.message}`);
+      throw error;
+    }
+  };
+
+  // Universal write function for both platforms
   const writeToNfcTag = async (jsonData) => {
     try {
       addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
       
-      // Log data types for debugging
+      // Standardize data format
+      const processedData = {};
       Object.entries(jsonData).forEach(([key, value]) => {
         const type = typeof value;
         addDebugLog(`Data property "${key}": value = ${value}, type = ${type}`);
         
-        // Check for problematic integer values
-        if (type === 'number' && Number.isInteger(value)) {
-          addDebugLog(`Converting integer value for "${key}" to string to avoid issues`);
-          jsonData[key] = String(value);
+        // Convert numbers to strings for iOS compatibility
+        if (type === 'number') {
+          processedData[key] = String(value);
+          addDebugLog(`Converting number to string: ${key} = ${value} → "${String(value)}"`);
+        } else {
+          processedData[key] = value;
         }
       });
       
-      // Convert JSON to string - ensure we're using only ASCII quotes
-      const jsonString = JSON.stringify(jsonData)
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // Replace fancy double quotes
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'"); // Replace fancy single quotes
+      // Convert JSON to string with standard quotes
+      const jsonString = JSON.stringify(processedData)
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
       
       addDebugLog(`JSON string to write: ${jsonString}`);
 
-      // Create NDEF text record using the library function
+      // Create standard NDEF text record
       const textRecord = Ndef.textRecord(jsonString);
-      addDebugLog('NDEF record created using Ndef.textRecord');
+      addDebugLog('NDEF record created using standard method');
       
-      // Write to tag using the standard approach
+      // Write to tag
       addDebugLog('Writing NDEF message to tag');
       await NfcManager.writeNdefMessage([textRecord]);
       addDebugLog('Successfully wrote NDEF message');
@@ -52,13 +122,8 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       return true;
     } catch (error) {
       addDebugLog(`Write failed: ${error.message}`);
-      addDebugLog(`Error name: ${error.name}`);
-      addDebugLog(`Error code: ${error.code || 'N/A'}`);
-      addDebugLog(`Stack trace: ${error.stack}`);
-      
-      // Attempt to extract more iOS-specific error details
-      if (error.userInfo) {
-        addDebugLog(`iOS userInfo: ${JSON.stringify(error.userInfo)}`);
+      if (error.stack) {
+        addDebugLog(`Stack trace: ${error.stack}`);
       }
       
       throw error;
@@ -76,35 +141,29 @@ const LockTab = ({ withNfcManager, onCancel }) => {
 
     try {
       setIsLocking(true);
-      addDebugLog('Starting NFC write process');
-      addDebugLog(`Password type: ${typeof lockPassword}, value: "${lockPassword}", length: ${lockPassword.length}`);
-      
-      // Check if password contains potentially problematic characters
-      const specialChars = lockPassword.match(/[^\w\s]/g);
-      if (specialChars) {
-        addDebugLog(`WARNING: Password contains special characters: ${specialChars.join('')}`);
-      }
-      
-      // Check if password is or could be interpreted as a number
-      if (!isNaN(lockPassword)) {
-        addDebugLog(`WARNING: Password "${lockPassword}" could be interpreted as a number: ${Number(lockPassword)}`);
-      }
+      addDebugLog('Starting NFC lock process');
+      addDebugLog(`Password length: ${lockPassword.length}`);
       
       await withNfcManager(async () => {
         addDebugLog('NFC technology acquired');
         
-        // Create data object with explicit string type for password
-        const jsonData = {
+        // First read existing data to preserve it
+        const existingData = await readExistingTagData();
+        addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
+        
+        // Combine existing data with lock info
+        const dataToWrite = {
+          ...existingData,
           locked: true,
-          password: String(lockPassword), // Force string type
+          password: String(lockPassword), // Ensure password is stored as string
         };
         
-        addDebugLog(`Data object created: locked=${jsonData.locked} (${typeof jsonData.locked}), password="${jsonData.password}" (${typeof jsonData.password})`);
+        addDebugLog(`Combined data has ${Object.keys(dataToWrite).length} fields`);
         
-        // Use the unified write function
-        await writeToNfcTag(jsonData);
+        // Write back to tag
+        await writeToNfcTag(dataToWrite);
         
-        addDebugLog('Write operation completed successfully');
+        addDebugLog('Lock operation completed successfully');
         Alert.alert('Success', 'Tag locked successfully!');
         setLockPassword('');
       });
@@ -112,7 +171,7 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       addDebugLog(`Lock failed: ${error.message}`);
       Alert.alert(
         'Error', 
-        `Failed to lock tag: ${error.message}\n\nPlease check debug logs for more details.`
+        `Failed to lock tag: ${error.message}`
       );
     } finally {
       setIsLocking(false);
@@ -163,6 +222,7 @@ const LockTab = ({ withNfcManager, onCancel }) => {
             <Button
               title="Cancel"
               onPress={onCancel}
+              disabled={isLocking}
               secondary
               style={styles.cancelButton}
             />
@@ -177,17 +237,55 @@ const LockTab = ({ withNfcManager, onCancel }) => {
           </Text>
         </View>
       )}
-      
-      <View style={styles.debugContainer}>
-        <Text style={styles.debugTitle}>Debug Logs:</Text>
-        <ScrollView style={styles.debugLogsContainer}>
-          {debugLogs.map((log, index) => (
-            <Text key={index} style={styles.debugText}>{log}</Text>
-          ))}
-        </ScrollView>
-      </View>
     </View>
   );
 };
+
+// Ensure the styles exist
+const additionalStyles = {
+  nfcTabContent: {
+    flex: 1,
+    padding: 16,
+    paddingBottom: 80, // Add padding to avoid overlap with tab navigation
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  sectionDescription: {
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 20,
+  },
+  input: {
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'column',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  cancelButton: {
+    marginTop: 10,
+  },
+  readingStatusContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#f5f7fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e5eb',
+    alignItems: 'center',
+  },
+  readingStatusText: {
+    fontSize: 16,
+    color: '#4a6da7',
+    textAlign: 'center',
+  },
+};
+
+// Add these styles if not already present
+Object.assign(styles, additionalStyles);
 
 export default LockTab;
