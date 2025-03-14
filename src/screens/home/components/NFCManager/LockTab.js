@@ -16,74 +16,6 @@ const LockTab = ({ onCancel }) => {
     setDebugLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
   };
 
-  // First try to read any existing data from the tag
-  const readExistingTagData = async () => {
-    try {
-      addDebugLog('Reading existing tag data before locking');
-      
-      // Get tag data
-      const tag = await NfcManager.getTag();
-      addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
-      
-      if (!tag) {
-        addDebugLog('Error: No tag detected');
-        throw new Error('No NFC tag detected.');
-      }
-      
-      // If tag has no NDEF message, return empty object to start fresh
-      if (!tag.ndefMessage || !tag.ndefMessage.length) {
-        addDebugLog('No NDEF message found on tag, will create new data');
-        return {};
-      }
-      
-      // Process first NDEF record
-      const record = tag.ndefMessage[0];
-      
-      if (!record || !record.payload) {
-        addDebugLog('Invalid record format, will create new data');
-        return {};
-      }
-      
-      // Try to decode the payload
-      try {
-        const textContent = Ndef.text.decodePayload(record.payload);
-        addDebugLog(`Decoded existing text content: ${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}`);
-        
-        // Check if content is JSON
-        if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
-          try {
-            const jsonData = JSON.parse(textContent);
-            addDebugLog('Successfully parsed existing JSON data');
-            
-            // Check if tag is already locked
-            if (jsonData.locked === true || jsonData.locked === 'true') {
-              addDebugLog('Tag is already locked');
-              throw new Error('This tag is already locked. Please unlock it first.');
-            }
-            
-            return jsonData; // Return the parsed data
-          } catch (jsonError) {
-            if (jsonError.message === 'This tag is already locked. Please unlock it first.') {
-              throw jsonError;
-            }
-            
-            addDebugLog(`JSON parse error: ${jsonError.message}, will create new data`);
-            return {}; // Start fresh if can't parse existing data
-          }
-        } else {
-          addDebugLog('Existing data is not in JSON format, will create new data');
-          return {};
-        }
-      } catch (decodeError) {
-        addDebugLog(`Error decoding payload: ${decodeError.message}, will create new data`);
-        return {};
-      }
-    } catch (error) {
-      addDebugLog(`Error reading tag: ${error.message}`);
-      throw error;
-    }
-  };
-
   const handleLockNfc = async () => {
     addDebugLog('Lock button pressed');
     
@@ -100,40 +32,83 @@ const LockTab = ({ onCancel }) => {
       
       // Initialize NFC Manager
       await NfcManager.start();
+      addDebugLog('NFC Manager initialized');
       
       // STEP 1: Request NFC technology
-      addDebugLog('Requesting NFC technology');
+      addDebugLog('Requesting NFC technology: Ndef');
       await NfcManager.requestTechnology(NfcTech.Ndef);
+      addDebugLog('Ndef technology acquired');
       
-      // First read existing data to preserve it
-      const existingData = await readExistingTagData();
-      addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
+      // Read existing tag data
+      addDebugLog('Reading existing tag data');
+      const tag = await NfcManager.getTag();
       
-      // Combine existing data with lock info
+      if (!tag) {
+        addDebugLog('Error: No tag detected');
+        throw new Error('No NFC tag detected');
+      }
+      
+      addDebugLog(`Tag detected with ID: ${tag.id || 'Unknown'}`);
+      
+      let existingData = {};
+      
+      // Try to parse existing data (if any)
+      if (tag.ndefMessage && tag.ndefMessage.length > 0) {
+        try {
+          addDebugLog(`Tag has ${tag.ndefMessage.length} NDEF message(s)`);
+          const record = tag.ndefMessage[0];
+          
+          if (record && record.payload) {
+            const textContent = Ndef.text.decodePayload(record.payload);
+            addDebugLog(`Decoded text content: ${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}`);
+            
+            if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
+              const parsedData = JSON.parse(textContent);
+              addDebugLog('Successfully parsed existing JSON data');
+              
+              // Check if already locked
+              if (parsedData.locked === true || parsedData.locked === 'true') {
+                addDebugLog('Tag is already locked');
+                throw new Error('This tag is already locked. Please unlock it first.');
+              }
+              
+              existingData = parsedData;
+              addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
+            }
+          }
+        } catch (error) {
+          if (error.message === 'This tag is already locked. Please unlock it first.') {
+            throw error;
+          }
+          addDebugLog(`Error parsing existing data: ${error.message}. Starting fresh.`);
+        }
+      } else {
+        addDebugLog('No NDEF message found on tag, will create new data');
+      }
+      
+      // Add lock data to existing data
       const dataToWrite = {
         ...existingData,
         locked: true,
-        password: String(lockPassword), // Ensure password is stored as string
+        password: lockPassword // Store as string
       };
       
-      addDebugLog(`Combined data has ${Object.keys(dataToWrite).length} fields`);
+      addDebugLog(`Prepared data to write with ${Object.keys(dataToWrite).length} fields`);
       
-      // Convert to JSON string with clean quotes
-      const jsonString = JSON.stringify(dataToWrite)
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
-      
+      // Convert to JSON string
+      const jsonString = JSON.stringify(dataToWrite);
       addDebugLog(`JSON string to write: ${jsonString}`);
       
-      // STEP 2: Create NDEF message bytes
+      // STEP 2: Create NDEF message
+      addDebugLog('Creating NDEF message bytes');
       const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
       
       if (bytes) {
         // STEP 3: Write NDEF message to tag
         addDebugLog('Writing NDEF message to tag');
         await NfcManager.ndefHandler.writeNdefMessage(bytes);
+        addDebugLog('Successfully wrote NDEF message to tag');
         
-        addDebugLog('Lock operation completed successfully');
         Alert.alert('Success', 'Tag locked successfully!');
         setLockPassword('');
       } else {
@@ -147,6 +122,7 @@ const LockTab = ({ onCancel }) => {
       );
     } finally {
       // STEP 4: Always cancel technology request when done
+      addDebugLog('Canceling technology request');
       NfcManager.cancelTechnologyRequest();
       setIsLocking(false);
       addDebugLog('Lock process completed');
@@ -225,7 +201,7 @@ const additionalStyles = {
   nfcTabContent: {
     flex: 1,
     padding: 16,
-    paddingBottom: 80, // Add padding to avoid overlap with tab navigation
+    paddingBottom: 80,
   },
   sectionTitle: {
     fontSize: 20,
