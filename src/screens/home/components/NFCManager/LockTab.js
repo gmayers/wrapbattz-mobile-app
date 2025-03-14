@@ -16,91 +16,37 @@ const LockTab = ({ withNfcManager, onCancel }) => {
     setDebugLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
   };
 
-  // iOS-specific function for writing to NFC tags
-  const writeToNfcTagIOS = async (jsonData) => {
+  // Universal write function that handles both platforms
+  const writeToNfcTag = async (jsonData) => {
     try {
-      addDebugLog('Starting iOS write operation');
+      addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
       
-      // Log data types to debug MSdictionaryM integer value issues
+      // Log data types for debugging
       Object.entries(jsonData).forEach(([key, value]) => {
         const type = typeof value;
         addDebugLog(`Data property "${key}": value = ${value}, type = ${type}`);
         
         // Check for problematic integer values
         if (type === 'number' && Number.isInteger(value)) {
-          addDebugLog(`WARNING: Integer value detected for "${key}" which may cause MSdictionaryM issues on iOS`);
-        }
-      });
-      
-      addDebugLog(`Preparing JSON data: ${JSON.stringify(jsonData)}`);
-
-      // Ensure all numeric values are converted to strings to avoid MSdictionaryM issues
-      const safejsonData = {};
-      Object.entries(jsonData).forEach(([key, value]) => {
-        if (typeof value === 'number') {
-          safejsonData[key] = String(value);
-          addDebugLog(`Converting numeric value for "${key}" to string: ${value} → "${String(value)}"`);
-        } else {
-          safejsonData[key] = value;
+          addDebugLog(`Converting integer value for "${key}" to string to avoid issues`);
+          jsonData[key] = String(value);
         }
       });
       
       // Convert JSON to string - ensure we're using only ASCII quotes
-      const jsonString = JSON.stringify(safejsonData)
+      const jsonString = JSON.stringify(jsonData)
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // Replace fancy double quotes
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'"); // Replace fancy single quotes
       
-      addDebugLog(`Safe JSON string: ${jsonString}`);
+      addDebugLog(`JSON string to write: ${jsonString}`);
 
-      // Create NDEF Text Record manually
-      const languageCode = 'en';
+      // Create NDEF text record using the library function
+      const textRecord = Ndef.textRecord(jsonString);
+      addDebugLog('NDEF record created using Ndef.textRecord');
       
-      // IMPORTANT: Force UTF-8 encoding to avoid UTF-16 issues
-      // Status byte: bit 7 = UTF-16 (0) or UTF-8 (1), bits 6-0 = language code length
-      const statusByte = 0x80 | (languageCode.length & 0x3F); // UTF-8 with language code length
-      addDebugLog(`Status byte: ${statusByte.toString(16)} (hex), ${statusByte} (decimal), Encoding: UTF-8`);
-      
-      // Create payload array
-      const payload = [statusByte];
-
-      // Add language code
-      for (const char of languageCode) {
-        payload.push(char.charCodeAt(0));
-      }
-      addDebugLog(`Language code bytes: ${languageCode} (${payload.slice(1, 1 + languageCode.length).join(', ')})`);
-
-      // Log each character and its code point for debugging
-      addDebugLog('Character by character breakdown of JSON string:');
-      for (let i = 0; i < jsonString.length; i++) {
-        const char = jsonString[i];
-        const code = jsonString.charCodeAt(i);
-        addDebugLog(`Position ${i}: '${char}' → ${code}`);
-        
-        // Verify quote characters are standard ASCII
-        if ((char === '"' && code !== 34) || (char === "'" && code !== 39)) {
-          addDebugLog(`WARNING: Non-standard quote character detected at position ${i}`);
-        }
-      }
-
-      // Add JSON data
-      for (const char of jsonString) {
-        payload.push(char.charCodeAt(0));
-      }
-      addDebugLog(`Payload length: ${payload.length} bytes`);
-      addDebugLog(`Full payload: [${payload.join(', ')}]`);
-
-      // Create NDEF record
-      const record = Ndef.record(
-        Ndef.TNF_WELL_KNOWN,
-        Ndef.RTD_TEXT,
-        [],
-        payload
-      );
-      addDebugLog(`NDEF record created: TNF=${record.tnf}, TYPE=${record.type}, ID=${record.id || 'none'}, PAYLOAD_LENGTH=${record.payload ? record.payload.length : 'undefined'}`);
-
-      // Write to tag
+      // Write to tag using the standard approach
       addDebugLog('Writing NDEF message to tag');
-      await NfcManager.writeNdefMessage([record]);
+      await NfcManager.writeNdefMessage([textRecord]);
       addDebugLog('Successfully wrote NDEF message');
       
       return true;
@@ -108,7 +54,6 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       addDebugLog(`Write failed: ${error.message}`);
       addDebugLog(`Error name: ${error.name}`);
       addDebugLog(`Error code: ${error.code || 'N/A'}`);
-      addDebugLog(`Error native code: ${error.nativeStackIOS || error.nativeStackAndroid || 'N/A'}`);
       addDebugLog(`Stack trace: ${error.stack}`);
       
       // Attempt to extract more iOS-specific error details
@@ -148,27 +93,16 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       await withNfcManager(async () => {
         addDebugLog('NFC technology acquired');
         
-        // Create data object with explicit type handling
+        // Create data object with explicit string type for password
         const jsonData = {
           locked: true,
           password: String(lockPassword), // Force string type
         };
         
         addDebugLog(`Data object created: locked=${jsonData.locked} (${typeof jsonData.locked}), password="${jsonData.password}" (${typeof jsonData.password})`);
-        addDebugLog(`Raw JSON stringify result: ${JSON.stringify(jsonData)}`);
-        addDebugLog(`Preparing data for ${Platform.OS}`);
         
-        if (Platform.OS === 'ios') {
-          addDebugLog('Using iOS write method');
-          await writeToNfcTagIOS(jsonData);
-        } else {
-          addDebugLog('Using Android write method');
-          const jsonString = JSON.stringify(jsonData);
-          addDebugLog(`Android JSON string: ${jsonString}`);
-          const textRecord = Ndef.textRecord(jsonString);
-          addDebugLog('Android NDEF record created');
-          await NfcManager.writeNdefMessage([textRecord]);
-        }
+        // Use the unified write function
+        await writeToNfcTag(jsonData);
         
         addDebugLog('Write operation completed successfully');
         Alert.alert('Success', 'Tag locked successfully!');
@@ -176,7 +110,6 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       });
     } catch (error) {
       addDebugLog(`Lock failed: ${error.message}`);
-      // Enhanced error reporting in the alert
       Alert.alert(
         'Error', 
         `Failed to lock tag: ${error.message}\n\nPlease check debug logs for more details.`
@@ -185,6 +118,14 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       setIsLocking(false);
       addDebugLog('Lock process completed');
     }
+  };
+
+  const cancelLocking = () => {
+    if (isLocking) {
+      setIsLocking(false);
+      addDebugLog('Lock operation cancelled by user');
+    }
+    onCancel?.();
   };
 
   return (
@@ -203,21 +144,39 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       />
       
       <View style={styles.buttonContainer}>
-        <Button
-          title={isLocking ? "Locking..." : "Lock Tag"}
-          onPress={handleLockNfc}
-          disabled={isLocking}
-          primary
-        />
-        
-        <Button
-          title="Cancel"
-          onPress={onCancel}
-          disabled={isLocking}
-          secondary
-          style={styles.cancelButton}
-        />
+        {isLocking ? (
+          <Button
+            title="Cancel"
+            onPress={cancelLocking}
+            secondary
+            style={styles.cancelButton}
+          />
+        ) : (
+          <>
+            <Button
+              title="Lock Tag"
+              onPress={handleLockNfc}
+              disabled={isLocking || !lockPassword}
+              primary
+            />
+            
+            <Button
+              title="Cancel"
+              onPress={onCancel}
+              secondary
+              style={styles.cancelButton}
+            />
+          </>
+        )}
       </View>
+      
+      {isLocking && (
+        <View style={styles.readingStatusContainer}>
+          <Text style={styles.readingStatusText}>
+            Ready to lock... Place NFC tag near device
+          </Text>
+        </View>
+      )}
       
       <View style={styles.debugContainer}>
         <Text style={styles.debugTitle}>Debug Logs:</Text>

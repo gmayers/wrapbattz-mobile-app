@@ -147,6 +147,7 @@ const LoginScreen = () => {
                 title="Sign In"
                 onPress={handleLogin}
                 loading={isLoading}
+                textColor="black"
                 style={styles.loginButton}
                 testID="login-button"
               />
@@ -160,6 +161,17 @@ const LoginScreen = () => {
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
+              
+              {/* Register Section */}
+              <View style={styles.registerContainer}>
+                <Text style={styles.registerText}>Don't have an account?</Text>
+                <TouchableOpacity 
+                  testID="register-button"
+                  onPress={() => navigation.navigate('Register')}
+                >
+                  <Text style={styles.registerButtonText}>Create Account</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -209,6 +221,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 20,
+    backgroundColor:'orange',
   },
   forgotPassword: {
     alignItems: 'center',
@@ -217,6 +230,25 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#007AFF',
     fontSize: 16,
+  },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+  },
+  registerText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  registerButtonText: {
+    color: 'orange',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
 

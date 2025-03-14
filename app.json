@@ -87,7 +87,7 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_MEDIA_LOCATION"
       ],
-      "package": "com.garanmayers7262.wrapbattz"
+      "package": "com.garanmayers7262.battwrapz"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -109,42 +109,9 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
             const rawBuffer = new Uint8Array(record.payload);
             addDebugLog(`Raw payload (${rawBuffer.length} bytes): [${Array.from(rawBuffer).slice(0, 20).join(', ')}...]`);
             
-            // Analyze first few bytes for debugging
-            if (rawBuffer.length > 0) {
-              const statusByte = rawBuffer[0];
-              const languageLength = statusByte & 0x3F;
-              const isUTF16 = !(statusByte & 0x80);
-              
-              addDebugLog(`Status byte: ${statusByte}, Language length: ${languageLength}, Encoding: ${isUTF16 ? 'UTF-16' : 'UTF-8'}`);
-            }
-            
-            // Decode the NDEF Text Record payload
+            // Try standard NDEF text decoding
             let textContent;
             try {
-              // First, log the raw payload for debugging
-              const rawBuffer = new Uint8Array(record.payload);
-              addDebugLog(`Raw payload (${rawBuffer.length} bytes): [${Array.from(rawBuffer).join(', ')}]`);
-              addDebugLog(`Raw payload (hex): ${Array.from(rawBuffer).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-              
-              // Try to understand the payload format
-              if (rawBuffer.length > 0) {
-                const statusByte = rawBuffer[0];
-                const languageLength = statusByte & 0x3F;
-                const isUTF16 = !(statusByte & 0x80);
-                
-                addDebugLog(`Status byte: ${statusByte} (${statusByte.toString(16)}h)`);
-                addDebugLog(`Language code length: ${languageLength}`);
-                addDebugLog(`Encoding: ${isUTF16 ? 'UTF-16' : 'UTF-8'}`);
-                
-                if (rawBuffer.length > 1 + languageLength) {
-                  const langCode = Array.from(rawBuffer.slice(1, 1 + languageLength))
-                    .map(code => String.fromCharCode(code))
-                    .join('');
-                  addDebugLog(`Language code: "${langCode}"`);
-                }
-              }
-              
-              // Try standard NDEF text decoding
               textContent = Ndef.text.decodePayload(record.payload);
               addDebugLog(`Standard decoded text: "${textContent}"`);
             } catch (e) {
@@ -164,13 +131,10 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                 
                 // Skip language code and status byte
                 const textBytes = bytes.slice(1 + languageLength);
-                addDebugLog(`Text bytes length: ${textBytes.length}`);
-                addDebugLog(`First few text bytes: [${textBytes.slice(0, Math.min(10, textBytes.length)).join(', ')}${textBytes.length > 10 ? '...' : ''}]`);
                 
                 // Convert to string based on encoding
                 if (isUTF16) {
                   // UTF-16 encoding
-                  addDebugLog('Attempting UTF-16 decoding');
                   const uint16Array = new Uint16Array(textBytes.length / 2);
                   for (let i = 0; i < textBytes.length; i += 2) {
                     uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
@@ -178,7 +142,6 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                   textContent = String.fromCharCode.apply(null, uint16Array);
                 } else {
                   // UTF-8 encoding
-                  addDebugLog('Attempting UTF-8 decoding');
                   textContent = new TextDecoder().decode(new Uint8Array(textBytes));
                 }
                 
@@ -186,7 +149,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
               } catch (manualError) {
                 addDebugLog(`Manual decoding failed: ${manualError.message}`);
                 
-                // One more attempt with direct TextDecoder
+                // Direct TextDecoder fallback
                 try {
                   const rawBytes = new Uint8Array(record.payload);
                   const statusByte = rawBytes[0];
@@ -225,9 +188,11 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                 const editableFields = {};
                 Object.entries(editableData).forEach(([key, value]) => {
                   addDebugLog(`Processing field "${key}" with value type: ${typeof value}`);
-                  if (typeof value === 'object') {
+                  if (typeof value === 'object' && value !== null) {
+                    // Properly stringify objects
                     editableFields[key] = JSON.stringify(value);
                   } else {
+                    // Convert primitives to string
                     editableFields[key] = String(value);
                   }
                 });
@@ -238,47 +203,6 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                 return;
               } catch (jsonError) {
                 addDebugLog(`JSON parse error: ${jsonError.message}`);
-                
-                // Try manually parsing the JSON
-                try {
-                  // From the logs, we can see the tag data is valid JSON but might have issues
-                  // Let's try to clean it up more aggressively
-                  const cleanText = textContent
-                    .replace(/\n/g, '')  // Remove newlines
-                    .replace(/\r/g, '')  // Remove carriage returns
-                    .replace(/\t/g, '')  // Remove tabs
-                    .trim();
-                    
-                  addDebugLog(`Attempting with cleaned text: ${cleanText}`);
-                  
-                  if (cleanText && (cleanText.startsWith('{') || cleanText.startsWith('['))) {
-                    try {
-                      const manuallyParsed = JSON.parse(cleanText);
-                      addDebugLog(`Manual JSON parsing succeeded`);
-                      
-                      const { id, ...editableData } = manuallyParsed;
-                      const tagDataObj = id ? { id } : {};
-                      
-                      const editableFields = {};
-                      Object.entries(editableData).forEach(([key, value]) => {
-                        if (typeof value === 'object') {
-                          editableFields[key] = JSON.stringify(value);
-                        } else {
-                          editableFields[key] = String(value);
-                        }
-                      });
-                      
-                      setTagData(tagDataObj);
-                      setEditedFields(editableFields);
-                      Alert.alert('Success', 'NFC tag data loaded successfully!');
-                      return;
-                    } catch (manualJsonError) {
-                      addDebugLog(`Manual JSON parsing also failed: ${manualJsonError.message}`);
-                    }
-                  }
-                } catch (cleanupError) {
-                  addDebugLog(`Error during text cleanup: ${cleanupError.message}`);
-                }
                 
                 // Try using ndefToJson as a fallback
                 try {
@@ -292,7 +216,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                     
                     const editableFields = {};
                     Object.entries(editableData).forEach(([key, value]) => {
-                      if (typeof value === 'object') {
+                      if (typeof value === 'object' && value !== null) {
                         editableFields[key] = JSON.stringify(value);
                       } else {
                         editableFields[key] = String(value);
@@ -303,56 +227,9 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                     setEditedFields(editableFields);
                     Alert.alert('Success', 'NFC tag data loaded successfully (using fallback method)!');
                     return;
-                  } else {
-                    addDebugLog('Used ndefToJson helper but no valid data found');
                   }
                 } catch (fallbackError) {
-                  addDebugLog(`ndefToJson fallback also failed: ${fallbackError.message}`);
-                }
-                
-                // Last attempt - try to directly parse the NDEF payload
-                try {
-                  // Based on the ReadTab logs, the payload format is:
-                  // [status byte, language code bytes, JSON data bytes]
-                  // We can try to extract the JSON data directly
-                  
-                  const rawBuffer = new Uint8Array(record.payload);
-                  const statusByte = rawBuffer[0];
-                  const languageLength = statusByte & 0x3F;
-                  
-                  // Extract just the payload part (skip status byte and language code)
-                  const payloadBytes = rawBuffer.slice(1 + languageLength);
-                  const directText = new TextDecoder().decode(payloadBytes);
-                  
-                  addDebugLog(`Direct payload extract: ${directText}`);
-                  
-                  if (directText && (directText.startsWith('{') || directText.startsWith('['))) {
-                    try {
-                      const directData = JSON.parse(directText);
-                      addDebugLog(`Direct payload parsing succeeded`);
-                      
-                      const { id, ...editableData } = directData;
-                      const tagDataObj = id ? { id } : {};
-                      
-                      const editableFields = {};
-                      Object.entries(editableData).forEach(([key, value]) => {
-                        if (typeof value === 'object') {
-                          editableFields[key] = JSON.stringify(value);
-                        } else {
-                          editableFields[key] = String(value);
-                        }
-                      });
-                      
-                      setTagData(tagDataObj);
-                      setEditedFields(editableFields);
-                      Alert.alert('Success', 'NFC tag data loaded successfully (using direct method)!');
-                      return;
-                    } catch (directJsonError) {
-                      addDebugLog(`Direct payload parsing failed: ${directJsonError.message}`);
-                    }
-                  }
-                } catch (directError) {
-                  addDebugLog(`Direct payload extraction failed: ${directError.message}`);
+                  addDebugLog(`ndefToJson fallback failed: ${fallbackError.message}`);
                 }
                 
                 // If all parsing fails, just use the text as is
@@ -387,62 +264,53 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
     }
   };
 
-  // Function to write NFC tag with iOS-specific handling
-  const writeToNfcTagIOS = async (jsonData) => {
+  // Improved function to write NFC tag with better cross-platform handling
+  const writeToNfcTag = async (jsonData) => {
     try {
-      addDebugLog('Starting iOS write operation');
+      addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
       
-      // Convert all numeric values to strings to avoid MSdictionaryM issues
-      const safejsonData = {};
+      // Standardize data format - convert all values to appropriate format
+      const processedData = {};
       Object.entries(jsonData).forEach(([key, value]) => {
         addDebugLog(`Processing field "${key}" (type: ${typeof value})`);
         
-        if (typeof value === 'number') {
-          safejsonData[key] = String(value);
-          addDebugLog(`Converting numeric value for "${key}": ${value} → "${String(value)}"`);
+        // Handle string values that might be JSON
+        if (typeof value === 'string' && 
+           ((value.startsWith('{') && value.endsWith('}')) || 
+            (value.startsWith('[') && value.endsWith(']')))) {
+          try {
+            processedData[key] = JSON.parse(value);
+            addDebugLog(`Parsed JSON string for field "${key}"`);
+          } catch (e) {
+            // If parsing fails, use as string
+            processedData[key] = value;
+            addDebugLog(`Failed to parse JSON string for field "${key}", using as string`);
+          }
+        } else if (typeof value === 'number') {
+          // Convert numbers to strings for iOS compatibility
+          processedData[key] = Platform.OS === 'ios' ? String(value) : value;
+          if (Platform.OS === 'ios') {
+            addDebugLog(`Converting number to string for iOS: ${key} = ${value} → "${String(value)}"`);
+          }
         } else {
-          safejsonData[key] = value;
+          processedData[key] = value;
         }
       });
       
-      // Convert JSON to string - ensure we're using only ASCII quotes
-      const jsonString = JSON.stringify(safejsonData)
+      // Convert JSON to string with clean quotes
+      const jsonString = JSON.stringify(processedData)
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
       
       addDebugLog(`JSON string to write: ${jsonString}`);
 
-      // Create NDEF Text Record manually
-      const languageCode = 'en';
-      
-      // Force UTF-8 encoding
-      const statusByte = 0x80 | (languageCode.length & 0x3F);
-      
-      // Create payload array
-      const payload = [statusByte];
-
-      // Add language code
-      for (const char of languageCode) {
-        payload.push(char.charCodeAt(0));
-      }
-      
-      // Add JSON data
-      for (const char of jsonString) {
-        payload.push(char.charCodeAt(0));
-      }
-      addDebugLog(`Payload length: ${payload.length} bytes`);
-
-      // Create NDEF record
-      const record = Ndef.record(
-        Ndef.TNF_WELL_KNOWN,
-        Ndef.RTD_TEXT,
-        [],
-        payload
-      );
+      // Create a standard NDEF Text Record
+      const textRecord = Ndef.textRecord(jsonString);
+      addDebugLog('Created NDEF text record using standard method');
       
       // Write to tag
       addDebugLog('Writing NDEF message to tag');
-      await NfcManager.writeNdefMessage([record]);
+      await NfcManager.writeNdefMessage([textRecord]);
       addDebugLog('Successfully wrote NDEF message');
       
       return true;
@@ -475,19 +343,8 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       await withNfcManager(async () => {
         addDebugLog('NFC technology acquired');
         
-        // Platform-specific handling
-        if (Platform.OS === 'ios') {
-          addDebugLog('Using iOS write method');
-          await writeToNfcTagIOS(dataToWrite);
-        } else {
-          // Android handling
-          addDebugLog('Using Android write method');
-          const jsonString = JSON.stringify(dataToWrite);
-          addDebugLog(`Android JSON string: ${jsonString}`);
-          
-          const textRecord = Ndef.textRecord(jsonString);
-          await NfcManager.writeNdefMessage([textRecord]);
-        }
+        // Use the cross-platform write function
+        await writeToNfcTag(dataToWrite);
         
         addDebugLog('Write operation completed successfully');
         Alert.alert('Success', 'Changes saved to NFC tag successfully!');
@@ -506,6 +363,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       ...prev,
       [key]: value
     }));
+    addDebugLog(`Updated field "${key}" with new value: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`);
   };
 
   const handleAddField = () => {

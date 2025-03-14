@@ -259,6 +259,46 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Register the user
+      const registerResponse = await axiosInstance.post('/auth/register/', userData);
+      
+      // After successful registration, attempt to log in
+      const loginResponse = await axiosInstance.post('/auth/token/', {
+        email: userData.email,
+        password: userData.password,
+      });
+      
+      const accessToken = loginResponse.data.access;
+      const refreshToken = loginResponse.data.refresh;
+      
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, refreshToken);
+      
+      // Save the decoded token data
+      await saveTokenData(accessToken);
+      
+      if (loginResponse.data.user) {
+        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(loginResponse.data.user));
+        setUser(loginResponse.data.user);
+      }
+
+      setIsAuthenticated(true);
+      return loginResponse.data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.detail || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (email, password) => {
     try {
       setIsLoading(true);
@@ -361,6 +401,7 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     logout,
+    register,
     updateUser,
     clearError,
     refreshToken,
@@ -370,7 +411,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isOwner,
     isAdminOrOwner,
-    refreshRoleInfo, // New method to manually refresh role info
+    refreshRoleInfo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

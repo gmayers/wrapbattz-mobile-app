@@ -6,19 +6,38 @@ import { ActivityIndicator, View } from 'react-native';
 
 // Import screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
+import RegisterScreen from '../screens/AuthScreens/RegisterScreen'; // Added RegisterScreen
 import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
 import HomeScreen from '../screens/HomeScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import AllReportsScreen from '../screens/AllReportsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
 import AddDeviceScreen from '../screens/AddDeviceScreen';
-import CreateReportScreen from '../screens/CreateReportScreen'; // New import
+import CreateReportScreen from '../screens/CreateReportScreen';
 
 const Stack = createStackNavigator();
 
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen 
+      name="Register" 
+      component={RegisterScreen} 
+      options={{
+        headerShown: true,
+        headerTitle: 'Create Account',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
     <Stack.Screen 
       name="ForgotPassword" 
       component={ForgotPasswordPage}
@@ -67,7 +86,7 @@ const MainStack = () => (
       }}
     />
     <Stack.Screen
-      name="CreateReport" // New screen for creating a report
+      name="CreateReport"
       component={CreateReportScreen}
       options={{
         headerTitle: 'Create Report',
