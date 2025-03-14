@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import Button from '../../../../components/Button';
-import NfcManager, { Ndef } from 'react-native-nfc-manager';
+import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -55,7 +55,7 @@ const normalizeJsonString = (jsonString) => {
   }
 };
 
-const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
+const EditTab = ({ onCancel }) => {
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [tagData, setTagData] = useState(null);
@@ -77,203 +77,199 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       setDebugLogs([]);
       addDebugLog('Starting read operation to load tag data');
       
-      await withNfcManager(async () => {
-        addDebugLog('NFC technology acquired');
-        
-        const tag = await NfcManager.getTag();
-        addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
-        
-        if (!tag) {
-          addDebugLog('Error: No tag detected');
-          Alert.alert('Error', 'No NFC tag detected.');
-          return;
-        }
-        
-        addDebugLog(`Tag ID: ${tag.id || 'Unknown'}`);
-        addDebugLog(`Tag tech types: ${JSON.stringify(tag.techTypes || [])}`);
-        
-        if (!tag.ndefMessage || !tag.ndefMessage.length) {
-          addDebugLog('Error: No NDEF message found on tag');
-          Alert.alert('Error', 'No NDEF message found on tag.');
-          return;
-        }
-        
-        addDebugLog(`NDEF message contains ${tag.ndefMessage.length} records`);
-        
-        // Process first NDEF record
-        const record = tag.ndefMessage[0];
-        
-        addDebugLog(`Record type: ${record?.type ? new TextDecoder().decode(record.type) : 'null'}`);
-        
-        if (record && record.payload) {
+      // Initialize NFC Manager
+      await NfcManager.start();
+      
+      addDebugLog('Requesting NFC technology');
+      await NfcManager.requestTechnology(NfcTech.Ndef);
+      
+      addDebugLog('Getting tag data');
+      const tag = await NfcManager.getTag();
+      addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
+      
+      if (!tag) {
+        addDebugLog('Error: No tag detected');
+        Alert.alert('Error', 'No NFC tag detected.');
+        return;
+      }
+      
+      addDebugLog(`Tag ID: ${tag.id || 'Unknown'}`);
+      addDebugLog(`Tag tech types: ${JSON.stringify(tag.techTypes || [])}`);
+      
+      if (!tag.ndefMessage || !tag.ndefMessage.length) {
+        addDebugLog('Error: No NDEF message found on tag');
+        Alert.alert('Error', 'No NDEF message found on tag.');
+        return;
+      }
+      
+      addDebugLog(`NDEF message contains ${tag.ndefMessage.length} records`);
+      
+      // Process first NDEF record
+      const record = tag.ndefMessage[0];
+      
+      addDebugLog(`Record type: ${record?.type ? new TextDecoder().decode(record.type) : 'null'}`);
+      
+      if (record && record.payload) {
+        try {
+          // For debugging
+          const rawBuffer = new Uint8Array(record.payload);
+          addDebugLog(`Raw payload (${rawBuffer.length} bytes): [${Array.from(rawBuffer).slice(0, 20).join(', ')}...]`);
+          
+          // Try standard NDEF text decoding
+          let textContent;
           try {
-            // For debugging
-            const rawBuffer = new Uint8Array(record.payload);
-            addDebugLog(`Raw payload (${rawBuffer.length} bytes): [${Array.from(rawBuffer).slice(0, 20).join(', ')}...]`);
+            textContent = Ndef.text.decodePayload(record.payload);
+            addDebugLog(`Standard decoded text: "${textContent}"`);
+          } catch (e) {
+            addDebugLog(`Error during standard decoding: ${e.message}`);
             
-            // Try standard NDEF text decoding
-            let textContent;
+            // Manual decoding fallback
             try {
-              textContent = Ndef.text.decodePayload(record.payload);
-              addDebugLog(`Standard decoded text: "${textContent}"`);
-            } catch (e) {
-              addDebugLog(`Error during standard decoding: ${e.message}`);
+              // Get a byte array from the payload
+              const bytes = [...new Uint8Array(record.payload)];
               
-              // Manual decoding fallback
+              // First byte contains status and language length
+              const statusByte = bytes[0];
+              const languageLength = statusByte & 0x3F;
+              const isUTF16 = !(statusByte & 0x80);
+              
+              addDebugLog(`Manual decode - Status byte: ${statusByte}, Language length: ${languageLength}, Encoding: ${isUTF16 ? 'UTF-16' : 'UTF-8'}`);
+              
+              // Skip language code and status byte
+              const textBytes = bytes.slice(1 + languageLength);
+              
+              // Convert to string based on encoding
+              if (isUTF16) {
+                // UTF-16 encoding
+                const uint16Array = new Uint16Array(textBytes.length / 2);
+                for (let i = 0; i < textBytes.length; i += 2) {
+                  uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
+                }
+                textContent = String.fromCharCode.apply(null, uint16Array);
+              } else {
+                // UTF-8 encoding
+                textContent = new TextDecoder().decode(new Uint8Array(textBytes));
+              }
+              
+              addDebugLog(`Manually decoded text: "${textContent}"`);
+            } catch (manualError) {
+              addDebugLog(`Manual decoding failed: ${manualError.message}`);
+              
+              // Direct TextDecoder fallback
               try {
-                // Get a byte array from the payload
-                const bytes = [...new Uint8Array(record.payload)];
-                
-                // First byte contains status and language length
-                const statusByte = bytes[0];
+                const rawBytes = new Uint8Array(record.payload);
+                const statusByte = rawBytes[0];
                 const languageLength = statusByte & 0x3F;
-                const isUTF16 = !(statusByte & 0x80);
                 
-                addDebugLog(`Manual decode - Status byte: ${statusByte}, Language length: ${languageLength}, Encoding: ${isUTF16 ? 'UTF-16' : 'UTF-8'}`);
+                // Skip status byte and language code
+                const contentBytes = rawBytes.slice(1 + languageLength);
+                textContent = new TextDecoder().decode(contentBytes);
                 
-                // Skip language code and status byte
-                const textBytes = bytes.slice(1 + languageLength);
-                
-                // Convert to string based on encoding
-                if (isUTF16) {
-                  // UTF-16 encoding
-                  const uint16Array = new Uint16Array(textBytes.length / 2);
-                  for (let i = 0; i < textBytes.length; i += 2) {
-                    uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
-                  }
-                  textContent = String.fromCharCode.apply(null, uint16Array);
-                } else {
-                  // UTF-8 encoding
-                  textContent = new TextDecoder().decode(new Uint8Array(textBytes));
-                }
-                
-                addDebugLog(`Manually decoded text: "${textContent}"`);
-              } catch (manualError) {
-                addDebugLog(`Manual decoding failed: ${manualError.message}`);
-                
-                // Direct TextDecoder fallback
-                try {
-                  const rawBytes = new Uint8Array(record.payload);
-                  const statusByte = rawBytes[0];
-                  const languageLength = statusByte & 0x3F;
-                  
-                  // Skip status byte and language code
-                  const contentBytes = rawBytes.slice(1 + languageLength);
-                  textContent = new TextDecoder().decode(contentBytes);
-                  
-                  addDebugLog(`TextDecoder fallback result: "${textContent}"`);
-                } catch (decoderError) {
-                  addDebugLog(`TextDecoder fallback failed: ${decoderError.message}`);
-                  throw e; // rethrow the original error
-                }
+                addDebugLog(`TextDecoder fallback result: "${textContent}"`);
+              } catch (decoderError) {
+                addDebugLog(`TextDecoder fallback failed: ${decoderError.message}`);
+                throw e; // rethrow the original error
               }
             }
-            
-            // Process the content based on its format
-            if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
-              try {
-                // Normalize and clean JSON string
-                const cleanJson = normalizeJsonString(textContent.trim());
-                addDebugLog(`Normalized JSON: ${cleanJson.substring(0, 100)}${cleanJson.length > 100 ? '...' : ''}`);
-                
-                // Parse the JSON
-                const jsonData = JSON.parse(cleanJson);
-                addDebugLog(`Parsed JSON data successfully`);
-                
-                // Separate the ID field (if it exists) from other editable fields
-                const { id, ...editableData } = jsonData;
-                
-                // Create a clean object for tagData and editedFields
-                const tagDataObj = id ? { id } : {};
-                
-                // Convert all fields to strings for the TextInput component
-                const editableFields = {};
-                Object.entries(editableData).forEach(([key, value]) => {
-                  addDebugLog(`Processing field "${key}" with value type: ${typeof value}`);
-                  if (typeof value === 'object' && value !== null) {
-                    // Properly stringify objects
-                    editableFields[key] = JSON.stringify(value);
-                  } else {
-                    // Convert primitives to string
-                    editableFields[key] = String(value);
-                  }
-                });
-                
-                setTagData(tagDataObj);
-                setEditedFields(editableFields);
-                Alert.alert('Success', 'NFC tag data loaded successfully!');
-                return;
-              } catch (jsonError) {
-                addDebugLog(`JSON parse error: ${jsonError.message}`);
-                
-                // Try using ndefToJson as a fallback
-                try {
-                  addDebugLog('Attempting to use ndefToJson helper');
-                  const fallbackData = ndefToJson(tag);
-                  if (fallbackData && Object.keys(fallbackData).length > 0) {
-                    addDebugLog(`Successfully used ndefToJson as fallback: ${JSON.stringify(fallbackData)}`);
-                    
-                    const { id, ...editableData } = fallbackData;
-                    const tagDataObj = id ? { id } : {};
-                    
-                    const editableFields = {};
-                    Object.entries(editableData).forEach(([key, value]) => {
-                      if (typeof value === 'object' && value !== null) {
-                        editableFields[key] = JSON.stringify(value);
-                      } else {
-                        editableFields[key] = String(value);
-                      }
-                    });
-                    
-                    setTagData(tagDataObj);
-                    setEditedFields(editableFields);
-                    Alert.alert('Success', 'NFC tag data loaded successfully (using fallback method)!');
-                    return;
-                  }
-                } catch (fallbackError) {
-                  addDebugLog(`ndefToJson fallback failed: ${fallbackError.message}`);
+          }
+          
+          // Process the content based on its format
+          if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
+            try {
+              // Normalize and clean JSON string
+              const cleanJson = normalizeJsonString(textContent.trim());
+              addDebugLog(`Normalized JSON: ${cleanJson.substring(0, 100)}${cleanJson.length > 100 ? '...' : ''}`);
+              
+              // Parse the JSON
+              const jsonData = JSON.parse(cleanJson);
+              addDebugLog(`Parsed JSON data successfully`);
+              
+              // Separate the ID field (if it exists) from other editable fields
+              const { id, ...editableData } = jsonData;
+              
+              // Create a clean object for tagData and editedFields
+              const tagDataObj = id ? { id } : {};
+              
+              // Convert all fields to strings for the TextInput component
+              const editableFields = {};
+              Object.entries(editableData).forEach(([key, value]) => {
+                addDebugLog(`Processing field "${key}" with value type: ${typeof value}`);
+                if (typeof value === 'object' && value !== null) {
+                  // Properly stringify objects
+                  editableFields[key] = JSON.stringify(value);
+                } else {
+                  // Convert primitives to string
+                  editableFields[key] = String(value);
                 }
-                
-                // If all parsing fails, just use the text as is
-                setTagData({});
-                setEditedFields({ "content": textContent });
-                Alert.alert('Partial Success', 'Could not parse structured data. Loaded raw content.');
-              }
-            } else if (textContent) {
-              // Not JSON format, just use the text content
+              });
+              
+              setTagData(tagDataObj);
+              setEditedFields(editableFields);
+              Alert.alert('Success', 'NFC tag data loaded successfully!');
+              return;
+            } catch (jsonError) {
+              addDebugLog(`JSON parse error: ${jsonError.message}`);
+              
+              // If all parsing fails, just use the text as is
               setTagData({});
               setEditedFields({ "content": textContent });
-              Alert.alert('Success', 'Plain text content loaded.');
-            } else {
-              addDebugLog('Error: Empty or invalid text content');
-              Alert.alert('Error', 'Tag contains empty or invalid content.');
+              Alert.alert('Partial Success', 'Could not parse structured data. Loaded raw content.');
             }
-          } catch (e) {
-            addDebugLog(`Error decoding payload: ${e.message}`);
-            Alert.alert('Error', 'Failed to decode tag content.');
+          } else if (textContent) {
+            // Not JSON format, just use the text content
+            setTagData({});
+            setEditedFields({ "content": textContent });
+            Alert.alert('Success', 'Plain text content loaded.');
+          } else {
+            addDebugLog('Error: Empty or invalid text content');
+            Alert.alert('Error', 'Tag contains empty or invalid content.');
           }
-        } else {
-          addDebugLog('Error: Invalid record format');
-          Alert.alert('Error', 'Tag contains an invalid NDEF record format.');
+        } catch (e) {
+          addDebugLog(`Error decoding payload: ${e.message}`);
+          Alert.alert('Error', 'Failed to decode tag content.');
         }
-      });
+      } else {
+        addDebugLog('Error: Invalid record format');
+        Alert.alert('Error', 'Tag contains an invalid NDEF record format.');
+      }
     } catch (error) {
       addDebugLog(`Error in read operation: ${error.message}`);
       Alert.alert('Error', `Failed to read NFC tag: ${error.message}`);
     } finally {
+      // Always cancel technology request when done
+      NfcManager.cancelTechnologyRequest();
       setIsReading(false);
       addDebugLog('Read operation completed');
     }
   };
 
-  // Unified write function that works on both iOS and Android
-  const writeToNfcTag = async (jsonData) => {
+  // Improved write function using the recommended pattern
+  const handleWriteTag = async () => {
     try {
-      addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
+      setIsWriting(true);
+      addDebugLog('Starting write operation');
       
-      // Standardize data format - convert all values to appropriate format
+      // Check if there are any fields to write
+      if (Object.keys(editedFields).length === 0) {
+        addDebugLog('No fields to write');
+        Alert.alert('Error', 'There are no fields to write to the tag.');
+        setIsWriting(false);
+        return;
+      }
+      
+      // Process the data
+      addDebugLog('Processing data for write');
+      
+      // Standardize data format - convert values to appropriate format
       const processedData = {};
-      Object.entries(jsonData).forEach(([key, value]) => {
+      
+      // Add ID if it exists
+      if (tagData?.id) {
+        processedData.id = tagData.id;
+      }
+      
+      // Process all other fields
+      Object.entries(editedFields).forEach(([key, value]) => {
         addDebugLog(`Processing field "${key}" (type: ${typeof value})`);
         
         // Handle string values that might be JSON
@@ -288,73 +284,40 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
             processedData[key] = value;
             addDebugLog(`Failed to parse JSON string for field "${key}", using as string`);
           }
-        } else if (typeof value === 'number') {
-          // Convert numbers to strings for iOS compatibility
-          processedData[key] = Platform.OS === 'ios' ? String(value) : value;
-          if (Platform.OS === 'ios') {
-            addDebugLog(`Converting number to string for iOS: ${key} = ${value} → "${String(value)}"`);
-          }
         } else {
           processedData[key] = value;
         }
       });
       
-      // Convert JSON to string with clean quotes
+      // Convert to JSON string with clean quotes
       const jsonString = JSON.stringify(processedData)
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
       
       addDebugLog(`JSON string to write: ${jsonString}`);
-
-      // Create a standard NDEF Text Record
-      const textRecord = Ndef.textRecord(jsonString);
-      addDebugLog('Created NDEF text record using standard method');
       
-      // Write to tag
-      addDebugLog('Writing NDEF message to tag');
-      await NfcManager.writeNdefMessage([textRecord]);
-      addDebugLog('Successfully wrote NDEF message');
+      // STEP 1: Request NFC technology
+      await NfcManager.requestTechnology(NfcTech.Ndef);
       
-      return true;
-    } catch (error) {
-      addDebugLog(`Write failed: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleWriteTag = async () => {
-    try {
-      setIsWriting(true);
-      addDebugLog('Starting write operation');
+      // STEP 2: Create NDEF message bytes
+      const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
       
-      // Check if there are any fields to write
-      if (Object.keys(editedFields).length === 0) {
-        addDebugLog('No fields to write');
-        Alert.alert('Error', 'There are no fields to write to the tag.');
-        setIsWriting(false);
-        return;
-      }
-      
-      // Combine ID field with edited fields
-      const dataToWrite = tagData?.id 
-        ? { id: tagData.id, ...editedFields }
-        : editedFields;
-      
-      addDebugLog(`Preparing to write ${Object.keys(dataToWrite).length} fields`);
-      
-      await withNfcManager(async () => {
-        addDebugLog('NFC technology acquired');
-        
-        // Use the unified write function
-        await writeToNfcTag(dataToWrite);
+      if (bytes) {
+        // STEP 3: Write the message to the tag
+        addDebugLog('Writing NDEF message to tag');
+        await NfcManager.ndefHandler.writeNdefMessage(bytes);
         
         addDebugLog('Write operation completed successfully');
         Alert.alert('Success', 'Changes saved to NFC tag successfully!');
-      });
+      } else {
+        throw new Error('Failed to encode NDEF message');
+      }
     } catch (error) {
       addDebugLog(`Error in write operation: ${error.message}`);
       Alert.alert('Error', `Failed to write changes to NFC tag: ${error.message}`);
     } finally {
+      // STEP 4: Always cancel technology request when done
+      NfcManager.cancelTechnologyRequest();
       setIsWriting(false);
       addDebugLog('Write operation completed');
     }
@@ -432,23 +395,27 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
       setIsReading(false);
       setIsWriting(false);
       addDebugLog('Operation cancelled by user');
+      NfcManager.cancelTechnologyRequest();
+      onCancel?.();
+    } else {
       onCancel?.();
     }
   };
 
   return (
-    <View style={styles.nfcTabContent}>
-      <Text style={styles.nfcTabTitle}>Edit NFC Tag</Text>
-      <Text style={styles.nfcTabSubtitle}>
+    <View style={styles.nfcTabContent} testID="edit-tab-container">
+      <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
+      <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
         Read the NFC tag to load existing data into the form, make changes, and save.
       </Text>
 
       {isReading || isWriting ? (
-        <View style={styles.buttonGroup}>
+        <View style={styles.buttonGroup} testID="operation-cancel-container">
           <Button
             title="Cancel Operation"
             onPress={cancelOperation}
             style={styles.cancelButton}
+            testID="cancel-operation-button"
           />
         </View>
       ) : (
@@ -457,29 +424,34 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
           onPress={handleReadTag}
           style={styles.loadButton}
           disabled={isReading || isWriting}
+          testID="load-tag-button"
         />
       )}
 
       {(isReading || isWriting) && (
-        <View style={styles.readingStatusContainer}>
-          <Text style={styles.readingStatusText}>
+        <View style={styles.readingStatusContainer} testID="operation-status-container">
+          <Text style={styles.readingStatusText} testID="operation-status-text">
             {isReading ? "Ready to read... Place NFC tag near device" : "Ready to write... Place NFC tag near device"}
           </Text>
         </View>
       )}
 
       {tagData !== null && !isReading && !isWriting && (
-        <ScrollView style={styles.editFieldsContainer} contentContainerStyle={styles.editFieldsContentContainer}>
+        <ScrollView 
+          style={styles.editFieldsContainer} 
+          contentContainerStyle={styles.editFieldsContentContainer}
+          testID="edit-fields-scroll"
+        >
           {tagData.id && (
-            <View style={styles.idField}>
-              <Text style={styles.fieldLabel}>ID (Not Editable):</Text>
-              <Text style={styles.idValue}>{tagData.id}</Text>
+            <View style={styles.idField} testID="id-field-container">
+              <Text style={styles.fieldLabel} testID="id-field-label">ID (Not Editable):</Text>
+              <Text style={styles.idValue} testID="id-field-value">{tagData.id}</Text>
             </View>
           )}
           
           {/* Existing Fields */}
-          {Object.entries(editedFields).map(([key, value]) => (
-            <View key={key} style={styles.fieldContainer}>
+          {Object.entries(editedFields).map(([key, value], index) => (
+            <View key={key} style={styles.fieldContainer} testID={`field-container-${index}`}>
               <View style={styles.fieldHeader}>
                 <View style={styles.fieldKeyContainer}>
                   <TextInput
@@ -488,9 +460,13 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                     onChangeText={(newKey) => {}}
                     onEndEditing={(e) => handleKeyChange(key, e.nativeEvent.text)}
                     placeholder="Field Name"
+                    testID={`field-key-input-${index}`}
                   />
                 </View>
-                <TouchableOpacity onPress={() => handleDeleteField(key)}>
+                <TouchableOpacity 
+                  onPress={() => handleDeleteField(key)}
+                  testID={`field-delete-button-${index}`}
+                >
                   <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
                 </TouchableOpacity>
               </View>
@@ -500,29 +476,33 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
                 onChangeText={(text) => handleFieldChange(key, text)}
                 placeholder={`Enter ${key}`}
                 multiline={value && value.length > 40}
+                testID={`field-value-input-${index}`}
               />
             </View>
           ))}
           
           {/* Add New Field */}
-          <View style={styles.addFieldContainer}>
-            <Text style={styles.addFieldTitle}>Add New Field</Text>
+          <View style={styles.addFieldContainer} testID="add-field-container">
+            <Text style={styles.addFieldTitle} testID="add-field-title">Add New Field</Text>
             <View style={styles.newFieldRow}>
               <TextInput
                 style={[styles.fieldInput, styles.newFieldKey]}
                 value={newField.key}
                 onChangeText={(text) => setNewField(prev => ({ ...prev, key: text }))}
                 placeholder="Field Name"
+                testID="new-field-key-input"
               />
               <TextInput
                 style={[styles.fieldInput, styles.newFieldValue]}
                 value={newField.value}
                 onChangeText={(text) => setNewField(prev => ({ ...prev, value: text }))}
                 placeholder="Field Value"
+                testID="new-field-value-input"
               />
               <TouchableOpacity 
                 style={styles.addFieldButton}
                 onPress={handleAddField}
+                testID="add-field-button"
               >
                 <Ionicons name="add-circle" size={26} color="#007aff" />
               </TouchableOpacity>
@@ -534,6 +514,7 @@ const EditTab = ({ withNfcManager, ndefToJson, onCancel }) => {
             onPress={handleWriteTag}
             disabled={isWriting}
             style={[styles.writeButton, { marginTop: 20, marginBottom: 40 }]}
+            testID="save-changes-button"
           />
         </ScrollView>
       )}

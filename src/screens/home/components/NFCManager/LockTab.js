@@ -4,9 +4,9 @@ import { View, Text, Alert, Platform, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
 import { styles } from './styles';
-import NfcManager, { Ndef } from 'react-native-nfc-manager';
+import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 
-const LockTab = ({ withNfcManager, onCancel }) => {
+const LockTab = ({ onCancel }) => {
   const [lockPassword, setLockPassword] = useState('');
   const [isLocking, setIsLocking] = useState(false);
   const [debugLogs, setDebugLogs] = useState([]);
@@ -21,6 +21,7 @@ const LockTab = ({ withNfcManager, onCancel }) => {
     try {
       addDebugLog('Reading existing tag data before locking');
       
+      // Get tag data
       const tag = await NfcManager.getTag();
       addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
       
@@ -83,53 +84,6 @@ const LockTab = ({ withNfcManager, onCancel }) => {
     }
   };
 
-  // Universal write function for both platforms
-  const writeToNfcTag = async (jsonData) => {
-    try {
-      addDebugLog(`Starting write operation for platform: ${Platform.OS}`);
-      
-      // Standardize data format
-      const processedData = {};
-      Object.entries(jsonData).forEach(([key, value]) => {
-        const type = typeof value;
-        addDebugLog(`Data property "${key}": value = ${value}, type = ${type}`);
-        
-        // Convert numbers to strings for iOS compatibility
-        if (type === 'number') {
-          processedData[key] = String(value);
-          addDebugLog(`Converting number to string: ${key} = ${value} → "${String(value)}"`);
-        } else {
-          processedData[key] = value;
-        }
-      });
-      
-      // Convert JSON to string with standard quotes
-      const jsonString = JSON.stringify(processedData)
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
-      
-      addDebugLog(`JSON string to write: ${jsonString}`);
-
-      // Create standard NDEF text record
-      const textRecord = Ndef.textRecord(jsonString);
-      addDebugLog('NDEF record created using standard method');
-      
-      // Write to tag
-      addDebugLog('Writing NDEF message to tag');
-      await NfcManager.writeNdefMessage([textRecord]);
-      addDebugLog('Successfully wrote NDEF message');
-      
-      return true;
-    } catch (error) {
-      addDebugLog(`Write failed: ${error.message}`);
-      if (error.stack) {
-        addDebugLog(`Stack trace: ${error.stack}`);
-      }
-      
-      throw error;
-    }
-  };
-
   const handleLockNfc = async () => {
     addDebugLog('Lock button pressed');
     
@@ -144,29 +98,47 @@ const LockTab = ({ withNfcManager, onCancel }) => {
       addDebugLog('Starting NFC lock process');
       addDebugLog(`Password length: ${lockPassword.length}`);
       
-      await withNfcManager(async () => {
-        addDebugLog('NFC technology acquired');
-        
-        // First read existing data to preserve it
-        const existingData = await readExistingTagData();
-        addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
-        
-        // Combine existing data with lock info
-        const dataToWrite = {
-          ...existingData,
-          locked: true,
-          password: String(lockPassword), // Ensure password is stored as string
-        };
-        
-        addDebugLog(`Combined data has ${Object.keys(dataToWrite).length} fields`);
-        
-        // Write back to tag
-        await writeToNfcTag(dataToWrite);
+      // Initialize NFC Manager
+      await NfcManager.start();
+      
+      // STEP 1: Request NFC technology
+      addDebugLog('Requesting NFC technology');
+      await NfcManager.requestTechnology(NfcTech.Ndef);
+      
+      // First read existing data to preserve it
+      const existingData = await readExistingTagData();
+      addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
+      
+      // Combine existing data with lock info
+      const dataToWrite = {
+        ...existingData,
+        locked: true,
+        password: String(lockPassword), // Ensure password is stored as string
+      };
+      
+      addDebugLog(`Combined data has ${Object.keys(dataToWrite).length} fields`);
+      
+      // Convert to JSON string with clean quotes
+      const jsonString = JSON.stringify(dataToWrite)
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+      
+      addDebugLog(`JSON string to write: ${jsonString}`);
+      
+      // STEP 2: Create NDEF message bytes
+      const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
+      
+      if (bytes) {
+        // STEP 3: Write NDEF message to tag
+        addDebugLog('Writing NDEF message to tag');
+        await NfcManager.ndefHandler.writeNdefMessage(bytes);
         
         addDebugLog('Lock operation completed successfully');
         Alert.alert('Success', 'Tag locked successfully!');
         setLockPassword('');
-      });
+      } else {
+        throw new Error('Failed to encode NDEF message');
+      }
     } catch (error) {
       addDebugLog(`Lock failed: ${error.message}`);
       Alert.alert(
@@ -174,6 +146,8 @@ const LockTab = ({ withNfcManager, onCancel }) => {
         `Failed to lock tag: ${error.message}`
       );
     } finally {
+      // STEP 4: Always cancel technology request when done
+      NfcManager.cancelTechnologyRequest();
       setIsLocking(false);
       addDebugLog('Lock process completed');
     }
@@ -183,14 +157,15 @@ const LockTab = ({ withNfcManager, onCancel }) => {
     if (isLocking) {
       setIsLocking(false);
       addDebugLog('Lock operation cancelled by user');
+      NfcManager.cancelTechnologyRequest();
     }
     onCancel?.();
   };
 
   return (
-    <View style={styles.nfcTabContent}>
-      <Text style={styles.sectionTitle}>Lock NFC Tag</Text>
-      <Text style={styles.sectionDescription}>
+    <View style={styles.nfcTabContent} testID="lock-tab-container">
+      <Text style={styles.sectionTitle} testID="lock-tab-title">Lock NFC Tag</Text>
+      <Text style={styles.sectionDescription} testID="lock-tab-description">
         Set a password to lock your NFC tag. You'll need this password to unlock or modify the tag later.
       </Text>
       
@@ -200,15 +175,17 @@ const LockTab = ({ withNfcManager, onCancel }) => {
         onChangeText={setLockPassword}
         placeholder="Enter password to lock the tag"
         style={styles.input}
+        testID="lock-password-input"
       />
       
-      <View style={styles.buttonContainer}>
+      <View style={styles.buttonContainer} testID="lock-buttons-container">
         {isLocking ? (
           <Button
             title="Cancel"
             onPress={cancelLocking}
             secondary
             style={styles.cancelButton}
+            testID="lock-cancel-button"
           />
         ) : (
           <>
@@ -217,6 +194,7 @@ const LockTab = ({ withNfcManager, onCancel }) => {
               onPress={handleLockNfc}
               disabled={isLocking || !lockPassword}
               primary
+              testID="lock-tag-button"
             />
             
             <Button
@@ -225,14 +203,15 @@ const LockTab = ({ withNfcManager, onCancel }) => {
               disabled={isLocking}
               secondary
               style={styles.cancelButton}
+              testID="lock-back-button"
             />
           </>
         )}
       </View>
       
       {isLocking && (
-        <View style={styles.readingStatusContainer}>
-          <Text style={styles.readingStatusText}>
+        <View style={styles.readingStatusContainer} testID="lock-status-container">
+          <Text style={styles.readingStatusText} testID="lock-status-text">
             Ready to lock... Place NFC tag near device
           </Text>
         </View>
