@@ -16,14 +16,14 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const RegisterScreen = ({ navigation }) => {
-  const { axiosInstance, login } = useAuth();
+  const { axiosInstance } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
     first_name: '',
     last_name: '',
-    company_invite_code: '',
+    organization_invite_code: '', // Updated field name to match API
     phone_number: '',
   });
   const [errors, setErrors] = useState({});
@@ -65,8 +65,6 @@ const RegisterScreen = ({ navigation }) => {
       isValid = false;
     }
 
-    // Company invite code is optional, no validation needed
-
     // Phone number validation (basic)
     if (!formData.phone_number) {
       newErrors.phone_number = 'Phone number is required';
@@ -90,30 +88,28 @@ const RegisterScreen = ({ navigation }) => {
 
     setIsSubmitting(true);
     try {
-      // API call to register user
-      const response = await axiosInstance.post('/auth/register/', {
+      // API call to register user with correct endpoint and fields
+      const response = await axiosInstance.post('/auth/register/register/', {
         email: formData.email,
+        // No username field since CustomUser doesn't use it
         password: formData.password,
+        password2: formData.confirmPassword,
         first_name: formData.first_name,
         last_name: formData.last_name,
-        company_invite_code: formData.company_invite_code || '',
+        organization_invite_code: formData.organization_invite_code || '',
         phone_number: formData.phone_number
       });
 
+      // Show success message with email verification instructions
       Alert.alert(
         'Registration Successful',
-        'Your account has been created. You will be logged in automatically.',
+        'Your account has been created. Please check your email to verify your account before logging in.',
         [
           {
             text: 'OK',
-            onPress: async () => {
-              try {
-                // Auto login after successful registration
-                await login(formData.email, formData.password);
-              } catch (loginError) {
-                console.error('Auto login failed:', loginError);
-                navigation.navigate('Login');
-              }
+            onPress: () => {
+              // Navigate to login screen after registration
+              navigation.navigate('Login');
             }
           }
         ]
@@ -192,11 +188,11 @@ const RegisterScreen = ({ navigation }) => {
           />
 
           <BaseTextInput
-            label="Company Invite Code (Optional)"
-            value={formData.company_invite_code}
-            onChangeText={(text) => handleInputChange('company_invite_code', text)}
-            placeholder="Enter company invite code if you have one"
-            error={errors.company_invite_code}
+            label="Organization Invite Code (Optional)"
+            value={formData.organization_invite_code}
+            onChangeText={(text) => handleInputChange('organization_invite_code', text)}
+            placeholder="Enter organization invite code if you have one"
+            error={errors.organization_invite_code}
           />
 
           <BaseTextInput

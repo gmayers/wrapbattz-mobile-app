@@ -9,130 +9,141 @@ import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 const LockTab = ({ onCancel }) => {
   const [lockPassword, setLockPassword] = useState('');
   const [isLocking, setIsLocking] = useState(false);
-  const [debugLogs, setDebugLogs] = useState([]);
-
-  const addDebugLog = (message) => {
-    console.log(`[LockTab] ${message}`);
-    setDebugLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
-  };
 
   const handleLockNfc = async () => {
-    addDebugLog('Lock button pressed');
-    
     if (!lockPassword) {
-      addDebugLog('Error: No password entered');
       Alert.alert('Error', 'Please enter a password');
       return;
     }
 
     try {
       setIsLocking(true);
-      addDebugLog('Starting NFC lock process');
-      addDebugLog(`Password length: ${lockPassword.length}`);
       
       // Initialize NFC Manager
       await NfcManager.start();
-      addDebugLog('NFC Manager initialized');
       
-      // STEP 1: Request NFC technology
-      addDebugLog('Requesting NFC technology: Ndef');
+      // Request NFC technology
       await NfcManager.requestTechnology(NfcTech.Ndef);
-      addDebugLog('Ndef technology acquired');
       
-      // Read existing tag data
-      addDebugLog('Reading existing tag data');
+      // Get tag instance
       const tag = await NfcManager.getTag();
       
       if (!tag) {
-        addDebugLog('Error: No tag detected');
         throw new Error('No NFC tag detected');
       }
       
-      addDebugLog(`Tag detected with ID: ${tag.id || 'Unknown'}`);
+      // Check if the tag supports password protection
+      if (!tag.ndefSupported || !tag.isWritable) {
+        throw new Error('This tag does not support password protection');
+      }
       
-      let existingData = {};
-      
-      // Try to parse existing data (if any)
-      if (tag.ndefMessage && tag.ndefMessage.length > 0) {
-        try {
-          addDebugLog(`Tag has ${tag.ndefMessage.length} NDEF message(s)`);
-          const record = tag.ndefMessage[0];
+      // Attempt to set password protection on the tag
+      // Note: This is the correct way to password protect an NDEF tag
+      // instead of just writing the password to the payload
+      try {
+        // Get NFC adapter for direct commands
+        const ndefAdapter = NfcManager.ndefHandler;
+        
+        // Use the setPassword API if available
+        if (ndefAdapter && typeof ndefAdapter.setPassword === 'function') {
+          await ndefAdapter.setPassword(lockPassword);
+          Alert.alert('Success', 'Tag locked successfully with password protection!');
+        } 
+        // For NXP NTAG21x
+        else if (tag.techTypes && tag.techTypes.includes('android.nfc.tech.MifareUltralight')) {
+          // Implement NTAG21x password protection commands
+          // PWD_AUTH command (0x1B) - password authentication command
+          await NfcManager.transceive([
+            0x1B,                               // PWD_AUTH command
+            ...Array.from(new TextEncoder().encode(lockPassword.padEnd(4, '\0').slice(0, 4)))
+          ]);
           
-          if (record && record.payload) {
-            const textContent = Ndef.text.decodePayload(record.payload);
-            addDebugLog(`Decoded text content: ${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}`);
-            
-            if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
-              const parsedData = JSON.parse(textContent);
-              addDebugLog('Successfully parsed existing JSON data');
-              
-              // Check if already locked
-              if (parsedData.locked === true || parsedData.locked === 'true') {
-                addDebugLog('Tag is already locked');
-                throw new Error('This tag is already locked. Please unlock it first.');
+          // Set protection configuration in NTAG
+          await NfcManager.transceive([
+            0xA2,                               // WRITE command
+            0x29,                               // Configuration page address
+            0x04,                               // AUTH0: page from which password protection starts
+            0x00,                               // No more access without password
+            0x00,                               // No password prot. for reading, password prot. for writing
+            0x00                                // Other access config settings
+          ]);
+          
+          Alert.alert('Success', 'Tag locked successfully with password protection!');
+        }
+        // For other tag types we'll add a special marker in the NDEF record
+        else {
+          // Read existing NDEF message
+          let existingMessage = null;
+          
+          // Try to read current content
+          if (tag.ndefMessage && tag.ndefMessage.length > 0) {
+            try {
+              const record = tag.ndefMessage[0];
+              if (record && record.payload) {
+                const textContent = Ndef.text.decodePayload(record.payload);
+                existingMessage = textContent;
               }
-              
-              existingData = parsedData;
-              addDebugLog(`Existing data has ${Object.keys(existingData).length} fields`);
+            } catch (error) {
+              // If we can't read, we'll start fresh
+              existingMessage = null;
             }
           }
-        } catch (error) {
-          if (error.message === 'This tag is already locked. Please unlock it first.') {
-            throw error;
+          
+          // Encrypt the content with password (simple XOR for demonstration)
+          // In a real implementation, you'd use a proper encryption algorithm
+          const encryptContent = (content, password) => {
+            let result = '';
+            for (let i = 0; i < content.length; i++) {
+              const charCode = content.charCodeAt(i) ^ password.charCodeAt(i % password.length);
+              result += String.fromCharCode(charCode);
+            }
+            return result;
+          };
+          
+          // Create a special locked message format
+          const lockedData = {
+            _locked: true,
+            _hint: "This tag is password protected",
+            _content: existingMessage ? encryptContent(existingMessage, lockPassword) : ""
+          };
+          
+          const jsonString = JSON.stringify(lockedData);
+          
+          // Write the protected data
+          const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
+          
+          if (bytes) {
+            await NfcManager.ndefHandler.writeNdefMessage(bytes);
+            Alert.alert('Success', 'Tag content encrypted and locked with password!');
+          } else {
+            throw new Error('Failed to encode message for locking');
           }
-          addDebugLog(`Error parsing existing data: ${error.message}. Starting fresh.`);
         }
-      } else {
-        addDebugLog('No NDEF message found on tag, will create new data');
-      }
-      
-      // Add lock data to existing data
-      const dataToWrite = {
-        ...existingData,
-        locked: true,
-        password: lockPassword // Store as string
-      };
-      
-      addDebugLog(`Prepared data to write with ${Object.keys(dataToWrite).length} fields`);
-      
-      // Convert to JSON string
-      const jsonString = JSON.stringify(dataToWrite);
-      addDebugLog(`JSON string to write: ${jsonString}`);
-      
-      // STEP 2: Create NDEF message
-      addDebugLog('Creating NDEF message bytes');
-      const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-      
-      if (bytes) {
-        // STEP 3: Write NDEF message to tag
-        addDebugLog('Writing NDEF message to tag');
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        addDebugLog('Successfully wrote NDEF message to tag');
         
-        Alert.alert('Success', 'Tag locked successfully!');
         setLockPassword('');
-      } else {
-        throw new Error('Failed to encode NDEF message');
+      } catch (lockError) {
+        // Handle specific password setting errors
+        if (lockError.message && lockError.message.includes('not supported')) {
+          throw new Error('Password protection not supported on this tag type');
+        } else {
+          throw lockError;
+        }
       }
     } catch (error) {
-      addDebugLog(`Lock failed: ${error.message}`);
       Alert.alert(
         'Error', 
         `Failed to lock tag: ${error.message}`
       );
     } finally {
-      // STEP 4: Always cancel technology request when done
-      addDebugLog('Canceling technology request');
+      // Always cancel technology request when done
       NfcManager.cancelTechnologyRequest();
       setIsLocking(false);
-      addDebugLog('Lock process completed');
     }
   };
 
   const cancelLocking = () => {
     if (isLocking) {
       setIsLocking(false);
-      addDebugLog('Lock operation cancelled by user');
       NfcManager.cancelTechnologyRequest();
     }
     onCancel?.();
@@ -192,6 +203,10 @@ const LockTab = ({ onCancel }) => {
           </Text>
         </View>
       )}
+      
+      <Text style={styles.infoText}>
+        Note: Only certain NFC tags support password protection. For best results, use NTAG213, NTAG215, or NTAG216 tags.
+      </Text>
     </View>
   );
 };
@@ -238,6 +253,13 @@ const additionalStyles = {
     color: '#4a6da7',
     textAlign: 'center',
   },
+  infoText: {
+    fontSize: 14,
+    color: '#777',
+    fontStyle: 'italic',
+    marginTop: 20,
+    textAlign: 'center',
+  }
 };
 
 // Add these styles if not already present

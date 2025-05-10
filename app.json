@@ -2,7 +2,7 @@
   "expo": {
     "name": "battwrapz",
     "slug": "battwrapz",
-    "version": "1.0.0",
+    "version": "1.4.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -43,14 +43,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for device reporting ."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
-          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for device reporting.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos for device reporting of photos taken.",
           "isAccessMediaLocationEnabled": true
         }
       ]
@@ -62,9 +62,9 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera.",
-        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos.",
-        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos.",
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera for device reporting.",
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos for device reporting.",
+        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos for device reporting of photos taken..",
         "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user.",
         "com.apple.developer.nfc.readersession.iso7816.select-identifiers": ["A0000002471001"]
       },

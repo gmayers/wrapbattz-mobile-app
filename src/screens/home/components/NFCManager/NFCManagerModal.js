@@ -20,10 +20,10 @@ const NfcManagerModal = ({ visible, onClose }) => {
 
   // NFC Tabs Configuration
   const nfcTabs = [
-    { key: 'read', title: 'Read', icon: <Ionicons name="scan-outline" size={20} /> },
-    { key: 'lock', title: 'Lock', icon: <Ionicons name="lock-closed-outline" size={20} /> },
-    { key: 'unlock', title: 'Unlock', icon: <Ionicons name="lock-open-outline" size={20} /> },
-    { key: 'edit', title: 'Edit', icon: <Ionicons name="create-outline" size={20} /> },
+    { key: 'read', title: 'Read', icon: <Ionicons name="scan-outline" size={20} color={nfcActiveTab === 'read' ? '#007AFF' : '#666666'} /> },
+    { key: 'lock', title: 'Lock', icon: <Ionicons name="lock-closed-outline" size={20} color={nfcActiveTab === 'lock' ? '#007AFF' : '#666666'} /> },
+    { key: 'unlock', title: 'Unlock', icon: <Ionicons name="lock-open-outline" size={20} color={nfcActiveTab === 'unlock' ? '#007AFF' : '#666666'} /> },
+    { key: 'edit', title: 'Edit', icon: <Ionicons name="create-outline" size={20} color={nfcActiveTab === 'edit' ? '#007AFF' : '#666666'} /> },
   ];
 
   const withNfcManager = async (callback) => {
@@ -222,9 +222,9 @@ const NfcManagerModal = ({ visible, onClose }) => {
     }
   };
 
-  const handleNfcTabPress = (key) => {
-    console.log("Tab pressed:", key);
-    setNfcActiveTab(key);
+  const handleNfcTabPress = (tabKey) => {
+    console.log("Tab pressed:", tabKey);
+    setNfcActiveTab(tabKey);
   };
 
   const renderTabContent = () => {
@@ -263,7 +263,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
           />
         );
       default:
-        return null;
+        return <View style={styles.emptyTabContent}><Text>No content available</Text></View>;
     }
   };
 
@@ -280,26 +280,32 @@ const NfcManagerModal = ({ visible, onClose }) => {
             {/* NFC Manager Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>NFC Manager</Text>
-              <TouchableOpacity onPress={onClose} hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}>
+              <TouchableOpacity 
+                onPress={onClose} 
+                hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
+                style={styles.closeButton}
+              >
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
 
             {/* NFC Tabs */}
-            <TabBar
-              tabs={nfcTabs}
-              activeTab={nfcActiveTab}
-              onTabPress={handleNfcTabPress}
-              backgroundColor="#F9F9F9"
-              activeColor="#007AFF"
-              inactiveColor="#666666"
-              showIcons
-              showLabels
-              height={50}
-              containerStyle={styles.nfcTabBarContainer}
-              labelStyle={styles.nfcTabBarLabel}
-              iconStyle={styles.nfcTabBarIcon}
-            />
+            <View style={styles.tabBarWrapper}>
+              <TabBar
+                tabs={nfcTabs}
+                activeTab={nfcActiveTab}
+                onTabPress={handleNfcTabPress}
+                backgroundColor="#F9F9F9"
+                activeColor="#007AFF"
+                inactiveColor="#666666"
+                showIcons
+                showLabels
+                height={50}
+                containerStyle={styles.nfcTabBarContainer}
+                labelStyle={styles.nfcTabBarLabel}
+                iconStyle={styles.nfcTabBarIcon}
+              />
+            </View>
 
             {/* NFC Tab Content */}
             <View style={styles.tabContentContainer}>
@@ -343,28 +349,51 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  closeButton: {
+    padding: 5, // Add some padding to increase touch area
+  },
+  tabBarWrapper: {
+    // Wrapper to help with iOS touch handling
+    zIndex: 10,
+    position: 'relative',
+    marginBottom: 10,
+  },
   nfcTabBarContainer: {
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    marginTop: '2%',
+    marginTop: 0,
+    paddingTop: 5,
+    // Improved iOS touch handling
     ...(Platform.OS === 'ios' ? {
-      zIndex: 1,  // Make sure tabs are interactive on iOS
-      elevation: 1,
+      zIndex: 10,
+      shadowColor: 'transparent', // Remove shadow that might interfere
+      elevation: 0,
     } : {}),
   },
   nfcTabBarLabel: {
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
   },
   nfcTabBarIcon: {
-    fontSize: 20,
+    marginBottom: 2,
   },
   tabContentContainer: {
     flex: 1,
+    // Ensure proper z-index stacking for iOS
     ...(Platform.OS === 'ios' ? {
-      zIndex: 0,  // Make sure content is below the tabs
-    } : {}),
+      zIndex: 1,
+      position: 'relative',
+      marginTop: 5,
+    } : {
+      marginTop: 5,
+    }),
   },
+  emptyTabContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });
 
 export default NfcManagerModal;

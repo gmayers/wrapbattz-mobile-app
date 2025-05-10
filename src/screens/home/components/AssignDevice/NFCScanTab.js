@@ -5,9 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../../components/Button';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { useAuth } from '../../../../context/AuthContext';
-import axios from 'axios';
 
-// Helper function from ReadTab to normalize JSON strings
+// Helper function to normalize JSON strings
 const normalizeJsonString = (jsonString) => {
   // Replace fancy quotes with standard quotes
   let normalized = jsonString
@@ -57,7 +56,7 @@ const normalizeJsonString = (jsonString) => {
 const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   const [assignLoading, setAssignLoading] = useState(false);
   const [debugLogs, setDebugLogs] = useState([]);
-  const { getAccessToken } = useAuth();
+  const { axiosInstance, getAccessToken } = useAuth();
 
   const addDebugLog = (message) => {
     console.log(`[NFCScanTab] ${message}`);
@@ -142,14 +141,28 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
         const parsedData = JSON.parse(cleanJson);
         addDebugLog(`Successfully parsed JSON data: ${JSON.stringify(parsedData)}`);
         
-        // Check if ID field exists
-        if (!parsedData.id) {
+        // Check for device identifier
+        // First try to find an "ID" field (case insensitive)
+        let deviceId = null;
+        
+        // Check for various possible ID field names
+        if (parsedData.ID) {
+          deviceId = parsedData.ID;
+        } else if (parsedData.id) {
+          deviceId = parsedData.id;
+        } else if (parsedData.identifier) {
+          deviceId = parsedData.identifier;
+        } else if (parsedData.device_id) {
+          deviceId = parsedData.device_id;
+        }
+        
+        if (!deviceId) {
           addDebugLog('No ID field found in tag data');
           throw new Error('No device ID found on this tag');
         }
         
-        addDebugLog(`Found device ID: ${parsedData.id}`);
-        return parsedData.id;
+        addDebugLog(`Found device ID: ${deviceId}`);
+        return deviceId;
       } catch (jsonError) {
         addDebugLog(`JSON parse error: ${jsonError.message}`);
         throw new Error('Invalid data format on tag');
@@ -170,32 +183,31 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
       const deviceId = await readNfcTag();
       addDebugLog(`Successfully read device ID: ${deviceId}`);
       
-      // Get authentication token
-      const token = await getAccessToken();
-      if (!token) {
-        addDebugLog('No authentication token available');
-        throw new Error('Authentication error. Please log in again.');
-      }
-      
+      // Use axios instance from Auth context to make the request
+      // This ensures proper token handling and error management
       addDebugLog('Sending assignment request to API');
-      // Send API request to assign the device
-      await axios.post(
-        'https://test.gmayersservices.com/api/assign-device/',
-        { device_id: deviceId },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
       
-      addDebugLog('API request successful');
-      Alert.alert('Success', `Device with ID ${deviceId} assigned successfully.`);
-      onAssignComplete();
+      const response = await axiosInstance.post('/device-assignments/', {
+        device_id: deviceId,
+        assigned_date: new Date().toISOString().split('T')[0] // Format as YYYY-MM-DD
+      });
+      
+      addDebugLog(`API request successful: ${JSON.stringify(response.data)}`);
+      Alert.alert('Success', 'Device assigned successfully to your account.');
+      
+      // Call the onAssignComplete callback to update parent components
+      if (onAssignComplete) {
+        onAssignComplete();
+      }
     } catch (error) {
       addDebugLog(`Error: ${error.message}`);
-      handleApiError(error, error.message || 'Failed to assign device via NFC.');
+      
+      // Use the provided handleApiError function or fallback to Alert
+      if (handleApiError) {
+        handleApiError(error, 'Failed to assign device via NFC');
+      } else {
+        Alert.alert('Error', error.message || 'Failed to assign device via NFC');
+      }
     } finally {
       setAssignLoading(false);
       addDebugLog('Assignment process completed');
@@ -205,7 +217,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   return (
     <View style={styles.assignTabContent} testID="nfc-scan-tab-container">
       <Text style={styles.assignTabSubtitle} testID="nfc-scan-subtitle">
-        Scan an NFC tag to assign a device.
+        Scan an NFC tag to assign a device to your account.
       </Text>
       
       {assignLoading ? (
@@ -223,6 +235,17 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
           style={styles.assignNfcButton}
           testID="scan-nfc-button"
         />
+      )}
+      
+      {debugLogs.length > 0 && __DEV__ && (
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugTitle}>Debug Logs:</Text>
+          <ScrollView style={styles.debugLogs}>
+            {debugLogs.map((log, index) => (
+              <Text key={index} style={styles.debugLog}>{log}</Text>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -256,6 +279,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0056b3',
     textAlign: 'center',
+  },
+  debugContainer: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  debugTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  debugLogs: {
+    maxHeight: 200,
+  },
+  debugLog: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    color: '#666',
+    marginBottom: 2,
   },
 });
 

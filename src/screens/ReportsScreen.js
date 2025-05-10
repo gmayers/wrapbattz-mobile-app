@@ -18,11 +18,23 @@ import Card from '../components/Card';
 import TabBar from '../components/TabBar';
 import { useAuth } from '../context/AuthContext';
 
+const STATUS_CHOICES = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'ESCALATED', label: 'Escalated' }
+];
+
 const ReportsScreen = ({ navigation }) => {
-  const { axiosInstance, logout } = useAuth();
+  const { axiosInstance, logout, userData } = useAuth();
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('reports');
+  
+  // Get user role from userData
+  const userRole = userData?.role;
+  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
 
   useEffect(() => {
     navigation.setOptions({
@@ -39,15 +51,73 @@ const ReportsScreen = ({ navigation }) => {
     return unsubscribe;
   }, [navigation]);
 
+  // Generate tabs based on user role
+  const getTabsForUser = () => {
+    const baseTabs = [
+      {
+        key: 'dashboard',
+        title: 'Home',
+        icon: <Ionicons name="home-outline" size={24} />,
+      },
+      {
+        key: 'reports',
+        title: 'Reports',
+        icon: <Ionicons name="document-text-outline" size={24} />,
+      }
+    ];
+    
+    // Add locations tab only for admin or owner roles
+    if (isAdminOrOwner) {
+      baseTabs.push({
+        key: 'locations',
+        title: 'Locations',
+        icon: <Ionicons name="location-outline" size={24} />,
+      });
+    }
+    
+    // Always add logout tab at the end
+    baseTabs.push({
+      key: 'logout',
+      title: 'Logout',
+      icon: <Ionicons name="log-out-outline" size={24} />,
+    });
+    
+    return baseTabs;
+  };
+
+  const tabs = getTabsForUser();
+
   const fetchReports = async () => {
     setIsLoading(true);
     try {
       const response = await axiosInstance.get('/reports/');
+      
       // Adapt to your response format – here we assume a list or paginated response
-      const data = Array.isArray(response.data)
+      let allReports = Array.isArray(response.data)
         ? response.data
         : response.data.results || [];
-      setReports(data.slice(0, 5));
+        
+      // Filter to only show pending and in-progress reports first
+      const filteredReports = allReports.filter(report => 
+        report.status === 'PENDING' || report.status === 'IN_PROGRESS'
+      );
+      
+      // If there are less than 5 pending/in-progress reports, add other reports until we have 5
+      let displayReports = filteredReports;
+      
+      if (filteredReports.length < 5) {
+        const otherReports = allReports.filter(report => 
+          report.status !== 'PENDING' && report.status !== 'IN_PROGRESS'
+        );
+        
+        const additionalReports = otherReports.slice(0, 5 - filteredReports.length);
+        displayReports = [...filteredReports, ...additionalReports];
+      } else {
+        // If we have more than 5 pending/in-progress reports, only display 5
+        displayReports = filteredReports.slice(0, 5);
+      }
+      
+      setReports(displayReports);
     } catch (error) {
       console.error('Error fetching reports:', error);
       if (error.response && error.response.status === 401) {
@@ -69,6 +139,9 @@ const ReportsScreen = ({ navigation }) => {
       case 'dashboard':
         navigation.navigate('Dashboard');
         break;
+      case 'locations':
+        navigation.navigate('Locations');
+        break;
       case 'logout':
         Alert.alert(
           'Logout',
@@ -88,23 +161,29 @@ const ReportsScreen = ({ navigation }) => {
     }
   };
 
-  const tabs = [
-    {
-      key: 'dashboard',
-      title: 'Home',
-      icon: <Ionicons name="home-outline" size={24} />,
-    },
-    {
-      key: 'reports',
-      title: 'Reports',
-      icon: <Ionicons name="document-text-outline" size={24} />,
-    },
-    {
-      key: 'logout',
-      title: 'Logout',
-      icon: <Ionicons name="log-out-outline" size={24} />,
+  // Helper function to get status label
+  const getStatusLabel = (statusValue) => {
+    const status = STATUS_CHOICES.find(s => s.value === statusValue);
+    return status ? status.label : statusValue;
+  };
+
+  // Helper function to get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return '#F59E0B'; // Amber/Yellow
+      case 'IN_PROGRESS':
+        return '#3B82F6'; // Blue
+      case 'RESOLVED':
+        return '#10B981'; // Green
+      case 'CANCELLED':
+        return '#6B7280'; // Gray
+      case 'ESCALATED':
+        return '#EF4444'; // Red
+      default:
+        return '#6B7280'; // Gray default
     }
-  ];
+  };
 
   const renderReportCard = (report) => (
     <Card
@@ -121,7 +200,12 @@ const ReportsScreen = ({ navigation }) => {
           <Text style={styles.reportText}>Type: {report.type}</Text>
           <Ionicons name="information-circle-outline" size={16} color="#666" />
         </TouchableOpacity>
-        <Text style={styles.reportText}>Status: {report.status}</Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.reportText}>Status: </Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
+            <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
+          </View>
+        </View>
         <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
         {report.resolved_date && (
           <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
@@ -149,22 +233,26 @@ const ReportsScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Reports</Text>
+            <Text style={styles.sectionSubtitle}>Showing your pending and in-progress reports</Text>
+            
             {isLoading ? (
               <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
             ) : reports.length > 0 ? (
               <>
                 {reports.map(renderReportCard)}
-                <TouchableOpacity
-                  style={styles.viewAllButton}
-                  onPress={() => navigation.navigate('AllReports')}
-                >
-                  <Text style={styles.viewAllText}>All Reports</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-                </TouchableOpacity>
               </>
             ) : (
               <Text style={styles.emptyText}>No reports found</Text>
             )}
+            
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => navigation.navigate('AllReports')}
+            >
+              <Text style={styles.viewAllText}>View All Reports</Text>
+              <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -213,6 +301,17 @@ const styles = StyleSheet.create({
     padding: 15,
     paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 15,
+  },
   reportCard: {
     marginBottom: 10,
     backgroundColor: '#FFFFFF',
@@ -237,12 +336,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 4,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   viewAllButton: {
     padding: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   viewAllText: {
     color: '#007AFF',

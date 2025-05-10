@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
@@ -37,10 +38,10 @@ const CreateReportScreen = ({ navigation, route }) => {
     type: '',
     description: '',
     photo: null,
-    signature: null,
   });
   const [photoUri, setPhotoUri] = useState(null);
   const [photos, setPhotos] = useState([]);
+  const [signatureUri, setSignatureUri] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSignatureModal, setIsSignatureModal] = useState(false);
   const [devices, setDevices] = useState([]);
@@ -238,13 +239,45 @@ const CreateReportScreen = ({ navigation, route }) => {
     );
   };
 
+  // Save signature as a file
+  const saveSignatureAsFile = async (base64Data) => {
+    try {
+      // Create a unique filename for the signature
+      const fileName = `signature_${Date.now()}.png`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      // Save base64 data to file
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      // Return the file URI
+      return fileUri;
+    } catch (error) {
+      console.error('Error saving signature to file:', error);
+      throw error;
+    }
+  };
+
   // Signature canvas handling
-  const handleSignatureOK = (signature) => {
-    // For the example we're changing from base64 to a file-based approach
-    // In a real implementation, you would save this as a file instead
-    const base64String = signature.replace('data:image/png;base64,', '');
-    setFormData(prev => ({ ...prev, signature: base64String }));
-    setIsSignatureModal(false);
+  const handleSignatureOK = async (signature) => {
+    try {
+      // Remove data URI prefix
+      const base64String = signature.replace('data:image/png;base64,', '');
+      
+      // Save signature as a file
+      const fileUri = await saveSignatureAsFile(base64String);
+      console.log('Signature saved as file:', fileUri);
+      
+      // Save the file URI in state
+      setSignatureUri(fileUri);
+      
+      // Close modal
+      setIsSignatureModal(false);
+    } catch (error) {
+      console.error('Error processing signature:', error);
+      Alert.alert('Error', 'Failed to process signature. Please try again.');
+    }
   };
 
   const handleSignatureClear = (ref) => {
@@ -284,6 +317,8 @@ const CreateReportScreen = ({ navigation, route }) => {
         report_date: new Date().toISOString().split('T')[0],
       });
       const reportData = reportResponse.data;
+      
+      console.log('Report created successfully:', reportData.id);
 
       // Upload main photo if exists
       if (photoUri) {
@@ -299,8 +334,9 @@ const CreateReportScreen = ({ navigation, route }) => {
           await axiosInstance.post('/device-photos/', photoForm, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
+          console.log('Main photo uploaded successfully');
         } catch (error) {
-          console.warn('Failed to upload main photo, but report was created');
+          console.warn('Failed to upload main photo, but report was created:', error);
         }
       }
 
@@ -318,8 +354,32 @@ const CreateReportScreen = ({ navigation, route }) => {
           await axiosInstance.post('/device-photos/', photoForm, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
+          console.log('Additional photo uploaded successfully');
         } catch (error) {
-          console.warn('Failed to upload an additional photo');
+          console.warn('Failed to upload an additional photo:', error);
+        }
+      }
+
+      // Upload signature as a photo if exists
+      if (signatureUri) {
+        console.log('Preparing to upload signature as image');
+        const signatureForm = new FormData();
+        signatureForm.append('image', {
+          uri: signatureUri,
+          type: 'image/png',
+          name: 'signature.png',
+        });
+        signatureForm.append('device', formData.device_id);
+        signatureForm.append('report', reportData.id);
+        signatureForm.append('is_signature', true); // Add flag to identify this as a signature
+        
+        try {
+          await axiosInstance.post('/device-photos/', signatureForm, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          console.log('Signature uploaded successfully as image');
+        } catch (error) {
+          console.warn('Failed to upload signature as image:', error);
         }
       }
 
@@ -455,14 +515,14 @@ const CreateReportScreen = ({ navigation, route }) => {
 
       <View style={styles.signatureSection}>
         <Button
-          title={formData.signature ? "Edit Signature" : "Add Signature"}
+          title={signatureUri ? "Edit Signature" : "Add Signature"}
           onPress={() => setIsSignatureModal(true)}
           variant="outlined"
           size="small"
         />
-        {formData.signature && (
+        {signatureUri && (
           <Image
-            source={{ uri: `data:image/png;base64,${formData.signature}` }}
+            source={{ uri: signatureUri }}
             style={styles.signaturePreview}
           />
         )}

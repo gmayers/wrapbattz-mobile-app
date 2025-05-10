@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   picker: {
-    marginLeft: -16, // Compensate for container padding
-    width: '110%',   // Ensure dropdown arrow is visible
+    marginLeft: -4, // Compensate for container padding
+    width: '100%',   // Ensure dropdown arrow is visible
     height: 48,
   },
   // iOS Modal styles

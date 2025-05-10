@@ -14,6 +14,9 @@ import AllReportsScreen from '../screens/AllReportsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
 import AddDeviceScreen from '../screens/AddDeviceScreen';
 import CreateReportScreen from '../screens/CreateReportScreen';
+// Import new location screens
+import LocationsScreen from '../screens/LocationsScreen';
+import LocationDetailsScreen from '../screens/LocationDetailsScreen';
 
 const Stack = createStackNavigator();
 
@@ -122,6 +125,32 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Add New Device',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+    {/* Add new location screens */}
+    <Stack.Screen
+      name="Locations"
+      component={LocationsScreen}
+      options={{
+        headerShown: false
+      }}
+    />
+    <Stack.Screen
+      name="LocationDetails"
+      component={LocationDetailsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Location Details',
         headerStyle: {
           backgroundColor: '#fff',
           elevation: 0,

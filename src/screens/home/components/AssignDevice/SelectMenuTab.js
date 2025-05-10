@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
+import { useAuth } from '../../../../context/AuthContext';
 
 const SelectMenuTab = ({ 
   locations,
@@ -18,12 +19,15 @@ const SelectMenuTab = ({
   const [deviceOptions, setDeviceOptions] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
   
+  // Import axiosInstance from AuthContext
+  const { axiosInstance } = useAuth();
+  
   // Transform locations into dropdown format
   useEffect(() => {
     if (locations && locations.length > 0) {
       const options = locations.map(location => ({
-        label: location.name || 'Unnamed Location',
-        value: location.id  // Store the ID here
+        label: location.name || `${location.street_number} ${location.street_name}`,
+        value: location.id
       }));
       setLocationOptions(options);
     }
@@ -33,8 +37,8 @@ const SelectMenuTab = ({
   useEffect(() => {
     if (availableDevices && availableDevices.length > 0) {
       const options = availableDevices.map(device => ({
-        label: device.name || 'Unnamed Device',
-        value: device.id  // Store the ID here
+        label: `${device.make} ${device.model} - ${device.identifier}`,
+        value: device.id
       }));
       setDeviceOptions(options);
     } else {
@@ -54,7 +58,11 @@ const SelectMenuTab = ({
     if (locationId) {
       fetchDevicesByLocation(locationId)
         .then(devices => {
-          setAvailableDevices(devices || []);
+          // Filter devices to show only available ones
+          const availableDevices = devices.filter(device => 
+            device.status === 'available'
+          );
+          setAvailableDevices(availableDevices || []);
         })
         .catch(error => {
           handleApiError(error, 'Failed to fetch devices for the selected location');
@@ -65,73 +73,137 @@ const SelectMenuTab = ({
     }
   };
 
+  const handleDeviceChange = (deviceId) => {
+    setSelectedDeviceId(deviceId);
+    // Find the device object from the id
+    const deviceObj = availableDevices.find(dev => dev.id === deviceId);
+    setSelectedDeviceAssign(deviceObj || null);
+  };
+
   const handleAssignSelect = async () => {
-    if (!selectedLocationAssign || !selectedDeviceAssign) {
-      Alert.alert('Error', 'Please select both location and device.');
+    if (!selectedDeviceId) {
+      Alert.alert('Error', 'Please select a device to assign.');
       return;
     }
 
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
+    setAssignLoading(true);
 
-      await axios.post(
-        'https://test.gmayersservices.com/api/assign-device/',
+    try {
+      console.log('Assigning device via selection menu:', {
+        device_id: selectedDeviceId,
+        assigned_date: new Date().toISOString().split('T')[0]
+      });
+
+      // Use axiosInstance from AuthContext to automatically handle authentication
+      const response = await axiosInstance.post(
+        '/device-assignments/',
         {
-          device_id: selectedDeviceAssign.id,
-          location_id: selectedLocationAssign.id,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          device_id: selectedDeviceId,
+          assigned_date: new Date().toISOString().split('T')[0] // Format as YYYY-MM-DD
         }
       );
 
-      Alert.alert('Success', `Device ${selectedDeviceAssign.name} assigned to ${selectedLocationAssign.name}.`);
-      onAssignComplete();
+      console.log('Assignment successful:', response.data);
+      
+      Alert.alert(
+        'Success', 
+        'Device assigned successfully to your account.',
+        [{ text: 'OK', onPress: onAssignComplete }]
+      );
     } catch (error) {
-      handleApiError(error, 'Failed to assign device via selection.');
+      console.error('Assignment error:', error);
+      
+      // Use the provided error handler or fallback to Alert
+      if (handleApiError) {
+        handleApiError(error, 'Failed to assign device');
+      } else {
+        let errorMessage = 'Failed to assign device. Please try again.';
+        
+        if (error.response) {
+          // The server responded with an error
+          if (error.response.data && typeof error.response.data === 'object') {
+            // Try to extract meaningful error messages
+            const errors = [];
+            Object.entries(error.response.data).forEach(([key, value]) => {
+              if (Array.isArray(value)) {
+                errors.push(`${key}: ${value.join(', ')}`);
+              } else if (typeof value === 'string') {
+                errors.push(`${key}: ${value}`);
+              }
+            });
+            
+            if (errors.length > 0) {
+              errorMessage = errors.join('\n');
+            } else if (error.response.data.detail) {
+              errorMessage = error.response.data.detail;
+            }
+          }
+        }
+        
+        Alert.alert('Assignment Error', errorMessage);
+      }
+    } finally {
+      setAssignLoading(false);
     }
   };
 
   return (
     <View style={styles.assignTabContent}>
-      <Text style={styles.assignTabSubtitle}>Select location and device to assign.</Text>
+      <Text style={styles.assignTabSubtitle}>
+        Select a location and device to assign to your account.
+      </Text>
 
-      <Text style={styles.pickerLabel}>Location:</Text>
-      <Dropdown
-        value={selectedLocationId}
-        onValueChange={handleLocationChange}
-        items={locationOptions}
-        placeholder="Select a location"
-        testID="location-dropdown"
-        containerStyle={styles.dropdownContainer}
-      />
+      <View style={styles.formSection}>
+        <Text style={styles.pickerLabel}>Location:</Text>
+        <Dropdown
+          value={selectedLocationId}
+          onValueChange={handleLocationChange}
+          items={locationOptions}
+          placeholder="Select a location"
+          testID="location-dropdown"
+          containerStyle={[
+            styles.dropdownContainer,
+            Platform.OS === 'ios' ? styles.iosDropdownContainer : {}
+          ]}
+        />
+      </View>
       
-      <Text style={styles.pickerLabel}>Device:</Text>
-      <Dropdown
-        value={selectedDeviceId}
-        onValueChange={(deviceId) => {
-          setSelectedDeviceId(deviceId);
-          const deviceObj = availableDevices.find(dev => dev.id === deviceId);
-          setSelectedDeviceAssign(deviceObj || null);
-        }}
-        items={deviceOptions}
-        placeholder="Select a device"
-        disabled={deviceOptions.length === 0}
-        testID="device-dropdown"
-        containerStyle={styles.dropdownContainer}
-      />
+      <View style={styles.formSection}>
+        <Text style={styles.pickerLabel}>Device:</Text>
+        <Dropdown
+          value={selectedDeviceId}
+          onValueChange={handleDeviceChange}
+          items={deviceOptions}
+          placeholder={
+            selectedLocationId 
+              ? deviceOptions.length > 0 
+                ? "Select a device" 
+                : "No available devices at this location"
+              : "Select a location first"
+          }
+          disabled={!selectedLocationId || deviceOptions.length === 0}
+          testID="device-dropdown"
+          containerStyle={[
+            styles.dropdownContainer,
+            Platform.OS === 'ios' ? styles.iosDropdownContainer : {}
+          ]}
+        />
+      </View>
+      
+      {selectedDeviceAssign && (
+        <View style={styles.deviceInfo}>
+          <Text style={styles.deviceInfoTitle}>Selected Device:</Text>
+          <Text style={styles.deviceInfoText}>ID: {selectedDeviceAssign.identifier}</Text>
+          <Text style={styles.deviceInfoText}>Make: {selectedDeviceAssign.make}</Text>
+          <Text style={styles.deviceInfoText}>Model: {selectedDeviceAssign.model}</Text>
+        </View>
+      )}
       
       <View style={styles.assignButtonsContainer}>
         <Button
-          title="Submit"
+          title="Assign to Me"
           onPress={handleAssignSelect}
-          disabled={assignLoading}
+          disabled={!selectedDeviceId || assignLoading}
           isLoading={assignLoading}
           style={styles.submitButton}
         />
@@ -142,30 +214,56 @@ const SelectMenuTab = ({
 
 const styles = StyleSheet.create({
   assignTabContent: {
-    padding: 10,
+    padding: 16,
+    flex: 1,
   },
   assignTabSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#555',
-    marginBottom: 15,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  formSection: {
+    marginBottom: 16,
+    zIndex: 10, // For iOS dropdown rendering
   },
   pickerLabel: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   dropdownContainer: {
-    marginBottom: 15,
+    marginBottom: 5,
+  },
+  iosDropdownContainer: {
+    zIndex: 1000,
+    position: 'relative',
+  },
+  deviceInfo: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  deviceInfoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#495057',
+  },
+  deviceInfoText: {
+    fontSize: 14,
+    color: '#495057',
+    marginBottom: 4,
   },
   assignButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 24,
   },
   submitButton: {
     backgroundColor: '#28a745',
-    flex: 1,
-    marginRight: 10,
   },
 });
 

@@ -55,6 +55,26 @@ const normalizeJsonString = (jsonString) => {
   }
 };
 
+// New function to validate JSON structure
+const validateJSON = (jsonString) => {
+  try {
+    JSON.parse(jsonString);
+    return { valid: true, error: null };
+  } catch (e) {
+    return { valid: false, error: e.message };
+  }
+};
+
+// Function to determine if a string is likely JSON
+const isLikelyJSON = (value) => {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  );
+};
+
 const EditTab = ({ onCancel }) => {
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
@@ -62,67 +82,42 @@ const EditTab = ({ onCancel }) => {
   const [editedFields, setEditedFields] = useState({});
   const [newField, setNewField] = useState({ key: '', value: '' });
   
-  // Keep debugLogs in state but don't display them in the UI
-  const [debugLogs, setDebugLogs] = useState([]);
-
-  const addDebugLog = (message) => {
-    console.log(`[EditTab] ${message}`);
-    setDebugLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
-  };
+  // New state for field editing
+  const [editingKeys, setEditingKeys] = useState({});
+  const [jsonValidationState, setJsonValidationState] = useState({});
 
   const handleReadTag = async () => {
     try {
       setIsReading(true);
       setTagData(null);
-      setDebugLogs([]);
-      addDebugLog('Starting read operation to load tag data');
       
       // Initialize NFC Manager
       await NfcManager.start();
       
-      addDebugLog('Requesting NFC technology');
       await NfcManager.requestTechnology(NfcTech.Ndef);
       
-      addDebugLog('Getting tag data');
       const tag = await NfcManager.getTag();
-      addDebugLog(`Tag detected: ${tag ? 'Yes' : 'No'}`);
       
       if (!tag) {
-        addDebugLog('Error: No tag detected');
         Alert.alert('Error', 'No NFC tag detected.');
         return;
       }
       
-      addDebugLog(`Tag ID: ${tag.id || 'Unknown'}`);
-      addDebugLog(`Tag tech types: ${JSON.stringify(tag.techTypes || [])}`);
-      
       if (!tag.ndefMessage || !tag.ndefMessage.length) {
-        addDebugLog('Error: No NDEF message found on tag');
         Alert.alert('Error', 'No NDEF message found on tag.');
         return;
       }
       
-      addDebugLog(`NDEF message contains ${tag.ndefMessage.length} records`);
-      
       // Process first NDEF record
       const record = tag.ndefMessage[0];
       
-      addDebugLog(`Record type: ${record?.type ? new TextDecoder().decode(record.type) : 'null'}`);
-      
       if (record && record.payload) {
         try {
-          // For debugging
-          const rawBuffer = new Uint8Array(record.payload);
-          addDebugLog(`Raw payload (${rawBuffer.length} bytes): [${Array.from(rawBuffer).slice(0, 20).join(', ')}...]`);
-          
           // Try standard NDEF text decoding
           let textContent;
           try {
             textContent = Ndef.text.decodePayload(record.payload);
-            addDebugLog(`Standard decoded text: "${textContent}"`);
           } catch (e) {
-            addDebugLog(`Error during standard decoding: ${e.message}`);
-            
             // Manual decoding fallback
             try {
               // Get a byte array from the payload
@@ -132,8 +127,6 @@ const EditTab = ({ onCancel }) => {
               const statusByte = bytes[0];
               const languageLength = statusByte & 0x3F;
               const isUTF16 = !(statusByte & 0x80);
-              
-              addDebugLog(`Manual decode - Status byte: ${statusByte}, Language length: ${languageLength}, Encoding: ${isUTF16 ? 'UTF-16' : 'UTF-8'}`);
               
               // Skip language code and status byte
               const textBytes = bytes.slice(1 + languageLength);
@@ -150,11 +143,7 @@ const EditTab = ({ onCancel }) => {
                 // UTF-8 encoding
                 textContent = new TextDecoder().decode(new Uint8Array(textBytes));
               }
-              
-              addDebugLog(`Manually decoded text: "${textContent}"`);
             } catch (manualError) {
-              addDebugLog(`Manual decoding failed: ${manualError.message}`);
-              
               // Direct TextDecoder fallback
               try {
                 const rawBytes = new Uint8Array(record.payload);
@@ -164,10 +153,7 @@ const EditTab = ({ onCancel }) => {
                 // Skip status byte and language code
                 const contentBytes = rawBytes.slice(1 + languageLength);
                 textContent = new TextDecoder().decode(contentBytes);
-                
-                addDebugLog(`TextDecoder fallback result: "${textContent}"`);
               } catch (decoderError) {
-                addDebugLog(`TextDecoder fallback failed: ${decoderError.message}`);
                 throw e; // rethrow the original error
               }
             }
@@ -178,11 +164,9 @@ const EditTab = ({ onCancel }) => {
             try {
               // Normalize and clean JSON string
               const cleanJson = normalizeJsonString(textContent.trim());
-              addDebugLog(`Normalized JSON: ${cleanJson.substring(0, 100)}${cleanJson.length > 100 ? '...' : ''}`);
               
               // Parse the JSON
               const jsonData = JSON.parse(cleanJson);
-              addDebugLog(`Parsed JSON data successfully`);
               
               // Separate the ID field (if it exists) from other editable fields
               const { id, ...editableData } = jsonData;
@@ -192,24 +176,30 @@ const EditTab = ({ onCancel }) => {
               
               // Convert all fields to strings for the TextInput component
               const editableFields = {};
+              const jsonState = {};
+              
               Object.entries(editableData).forEach(([key, value]) => {
-                addDebugLog(`Processing field "${key}" with value type: ${typeof value}`);
                 if (typeof value === 'object' && value !== null) {
                   // Properly stringify objects
-                  editableFields[key] = JSON.stringify(value);
+                  const stringifiedValue = JSON.stringify(value);
+                  editableFields[key] = stringifiedValue;
+                  jsonState[key] = { valid: true, error: null };
                 } else {
                   // Convert primitives to string
                   editableFields[key] = String(value);
+                  // Check if the string looks like JSON
+                  if (isLikelyJSON(String(value))) {
+                    jsonState[key] = validateJSON(String(value));
+                  }
                 }
               });
               
               setTagData(tagDataObj);
               setEditedFields(editableFields);
+              setJsonValidationState(jsonState);
               Alert.alert('Success', 'NFC tag data loaded successfully!');
               return;
             } catch (jsonError) {
-              addDebugLog(`JSON parse error: ${jsonError.message}`);
-              
               // If all parsing fails, just use the text as is
               setTagData({});
               setEditedFields({ "content": textContent });
@@ -221,44 +211,49 @@ const EditTab = ({ onCancel }) => {
             setEditedFields({ "content": textContent });
             Alert.alert('Success', 'Plain text content loaded.');
           } else {
-            addDebugLog('Error: Empty or invalid text content');
             Alert.alert('Error', 'Tag contains empty or invalid content.');
           }
         } catch (e) {
-          addDebugLog(`Error decoding payload: ${e.message}`);
           Alert.alert('Error', 'Failed to decode tag content.');
         }
       } else {
-        addDebugLog('Error: Invalid record format');
         Alert.alert('Error', 'Tag contains an invalid NDEF record format.');
       }
     } catch (error) {
-      addDebugLog(`Error in read operation: ${error.message}`);
       Alert.alert('Error', `Failed to read NFC tag: ${error.message}`);
     } finally {
       // Always cancel technology request when done
       NfcManager.cancelTechnologyRequest();
       setIsReading(false);
-      addDebugLog('Read operation completed');
     }
   };
 
   // Improved write function using the recommended pattern
   const handleWriteTag = async () => {
     try {
+      // Check for invalid JSON first
+      const invalidFields = Object.entries(jsonValidationState)
+        .filter(([key, state]) => state && !state.valid)
+        .map(([key]) => key);
+
+      if (invalidFields.length > 0) {
+        Alert.alert(
+          'Invalid JSON Detected', 
+          `Please fix the JSON formatting in the following fields: ${invalidFields.join(', ')}`
+        );
+        return;
+      }
+
       setIsWriting(true);
-      addDebugLog('Starting write operation');
       
       // Check if there are any fields to write
       if (Object.keys(editedFields).length === 0) {
-        addDebugLog('No fields to write');
         Alert.alert('Error', 'There are no fields to write to the tag.');
         setIsWriting(false);
         return;
       }
       
       // Process the data
-      addDebugLog('Processing data for write');
       
       // Standardize data format - convert values to appropriate format
       const processedData = {};
@@ -270,19 +265,15 @@ const EditTab = ({ onCancel }) => {
       
       // Process all other fields
       Object.entries(editedFields).forEach(([key, value]) => {
-        addDebugLog(`Processing field "${key}" (type: ${typeof value})`);
-        
         // Handle string values that might be JSON
         if (typeof value === 'string' && 
            ((value.startsWith('{') && value.endsWith('}')) || 
             (value.startsWith('[') && value.endsWith(']')))) {
           try {
             processedData[key] = JSON.parse(value);
-            addDebugLog(`Parsed JSON string for field "${key}"`);
           } catch (e) {
             // If parsing fails, use as string
             processedData[key] = value;
-            addDebugLog(`Failed to parse JSON string for field "${key}", using as string`);
           }
         } else {
           processedData[key] = value;
@@ -294,8 +285,6 @@ const EditTab = ({ onCancel }) => {
         .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
         .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
       
-      addDebugLog(`JSON string to write: ${jsonString}`);
-      
       // STEP 1: Request NFC technology
       await NfcManager.requestTechnology(NfcTech.Ndef);
       
@@ -304,22 +293,18 @@ const EditTab = ({ onCancel }) => {
       
       if (bytes) {
         // STEP 3: Write the message to the tag
-        addDebugLog('Writing NDEF message to tag');
         await NfcManager.ndefHandler.writeNdefMessage(bytes);
         
-        addDebugLog('Write operation completed successfully');
         Alert.alert('Success', 'Changes saved to NFC tag successfully!');
       } else {
         throw new Error('Failed to encode NDEF message');
       }
     } catch (error) {
-      addDebugLog(`Error in write operation: ${error.message}`);
       Alert.alert('Error', `Failed to write changes to NFC tag: ${error.message}`);
     } finally {
       // STEP 4: Always cancel technology request when done
       NfcManager.cancelTechnologyRequest();
       setIsWriting(false);
-      addDebugLog('Write operation completed');
     }
   };
 
@@ -328,24 +313,69 @@ const EditTab = ({ onCancel }) => {
       ...prev,
       [key]: value
     }));
-    addDebugLog(`Updated field value for "${key}"`);
+    
+    // Check JSON validity if the value looks like JSON
+    if (isLikelyJSON(value)) {
+      setJsonValidationState(prev => ({
+        ...prev,
+        [key]: validateJSON(value)
+      }));
+    } else {
+      // If it no longer looks like JSON, remove validation state
+      setJsonValidationState(prev => {
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      });
+    }
   };
 
+  // New improved key change handler with live feedback
   const handleKeyChange = (oldKey, newKey) => {
-    if (!newKey.trim()) {
+    // Update the editing state
+    setEditingKeys(prev => ({
+      ...prev,
+      [oldKey]: newKey
+    }));
+  };
+
+  // New function to commit key changes when editing is complete
+  const handleKeyChangeComplete = (oldKey) => {
+    const newKey = editingKeys[oldKey]?.trim() || oldKey;
+    
+    // Handle empty keys - revert to original
+    if (!newKey) {
+      setEditingKeys(prev => {
+        const updated = { ...prev };
+        delete updated[oldKey];
+        return updated;
+      });
       Alert.alert('Error', 'Field name cannot be empty');
       return;
     }
     
     if (oldKey === newKey) {
-      return; // No change needed
-    }
-    
-    if (editedFields.hasOwnProperty(newKey)) {
-      Alert.alert('Error', `Field "${newKey}" already exists`);
+      // No change needed, just clear the editing state
+      setEditingKeys(prev => {
+        const updated = { ...prev };
+        delete updated[oldKey];
+        return updated;
+      });
       return;
     }
     
+    // Check for duplicate keys, but ignore the current key
+    if (oldKey !== newKey && editedFields.hasOwnProperty(newKey)) {
+      Alert.alert('Error', `Field "${newKey}" already exists`);
+      // Revert back to old key in the editing state
+      setEditingKeys(prev => ({
+        ...prev,
+        [oldKey]: oldKey
+      }));
+      return;
+    }
+    
+    // Commit the key change
     setEditedFields(prev => {
       const updatedFields = { ...prev };
       const value = updatedFields[oldKey];
@@ -354,7 +384,23 @@ const EditTab = ({ onCancel }) => {
       return updatedFields;
     });
     
-    addDebugLog(`Renamed field "${oldKey}" to "${newKey}"`);
+    // Update JSON validation state if needed
+    if (jsonValidationState.hasOwnProperty(oldKey)) {
+      setJsonValidationState(prev => {
+        const updated = { ...prev };
+        const validationState = updated[oldKey];
+        delete updated[oldKey];
+        updated[newKey] = validationState;
+        return updated;
+      });
+    }
+    
+    // Clear editing state for this key
+    setEditingKeys(prev => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      return updated;
+    });
   };
 
   const handleAddField = () => {
@@ -368,16 +414,25 @@ const EditTab = ({ onCancel }) => {
       return;
     }
     
+    const keyToAdd = newField.key.trim();
+    const valueToAdd = newField.value;
+    
     // Add the new field to editedFields
     setEditedFields(prev => ({
       ...prev,
-      [newField.key.trim()]: newField.value
+      [keyToAdd]: valueToAdd
     }));
+    
+    // Check if the value looks like JSON and validate if needed
+    if (isLikelyJSON(valueToAdd)) {
+      setJsonValidationState(prev => ({
+        ...prev,
+        [keyToAdd]: validateJSON(valueToAdd)
+      }));
+    }
     
     // Reset the new field inputs
     setNewField({ key: '', value: '' });
-    
-    addDebugLog(`Added new field: ${newField.key.trim()} = ${newField.value}`);
   };
 
   const handleDeleteField = (key) => {
@@ -387,19 +442,50 @@ const EditTab = ({ onCancel }) => {
       return updated;
     });
     
-    addDebugLog(`Deleted field: ${key}`);
+    // Also clean up any editing state or validation state
+    setEditingKeys(prev => {
+      const updated = { ...prev };
+      delete updated[key];
+      return updated;
+    });
+    
+    setJsonValidationState(prev => {
+      const updated = { ...prev };
+      delete updated[key];
+      return updated;
+    });
   };
 
   const cancelOperation = () => {
     if (isReading || isWriting) {
       setIsReading(false);
       setIsWriting(false);
-      addDebugLog('Operation cancelled by user');
       NfcManager.cancelTechnologyRequest();
       onCancel?.();
     } else {
       onCancel?.();
     }
+  };
+
+  // Helper function to get field key border color based on validation
+  const getFieldKeyBorderColor = (key) => {
+    // If the key is being edited and exists in another field, show error
+    const editingValue = editingKeys[key];
+    if (editingValue && 
+        editingValue !== key && 
+        editedFields.hasOwnProperty(editingValue)) {
+      return '#ff4c4c'; // Red for duplicate
+    }
+    return '#ccc'; // Default gray
+  };
+
+  // Helper function to get field value border color based on JSON validation
+  const getFieldValueBorderColor = (key, value) => {
+    // If this is a JSON field with validation state
+    if (jsonValidationState[key]) {
+      return jsonValidationState[key].valid ? '#4CAF50' : '#ff4c4c';
+    }
+    return '#ccc'; // Default gray
   };
 
   return (
@@ -455,10 +541,13 @@ const EditTab = ({ onCancel }) => {
               <View style={styles.fieldHeader}>
                 <View style={styles.fieldKeyContainer}>
                   <TextInput
-                    style={styles.fieldKeyInput}
-                    value={key}
-                    onChangeText={(newKey) => {}}
-                    onEndEditing={(e) => handleKeyChange(key, e.nativeEvent.text)}
+                    style={[
+                      styles.fieldKeyInput, 
+                      { borderColor: getFieldKeyBorderColor(key) }
+                    ]}
+                    value={editingKeys[key] !== undefined ? editingKeys[key] : key}
+                    onChangeText={(newKey) => handleKeyChange(key, newKey)}
+                    onEndEditing={() => handleKeyChangeComplete(key)}
                     placeholder="Field Name"
                     testID={`field-key-input-${index}`}
                   />
@@ -470,14 +559,23 @@ const EditTab = ({ onCancel }) => {
                   <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
                 </TouchableOpacity>
               </View>
+              
               <TextInput
-                style={styles.fieldInput}
+                style={[
+                  styles.fieldInput,
+                  { borderColor: getFieldValueBorderColor(key, value) }
+                ]}
                 value={value}
                 onChangeText={(text) => handleFieldChange(key, text)}
                 placeholder={`Enter ${key}`}
                 multiline={value && value.length > 40}
                 testID={`field-value-input-${index}`}
               />
+              
+              {/* Add JSON validation error message if needed */}
+              {jsonValidationState[key] && !jsonValidationState[key].valid && (
+                <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
+              )}
             </View>
           ))}
           
@@ -493,7 +591,13 @@ const EditTab = ({ onCancel }) => {
                 testID="new-field-key-input"
               />
               <TextInput
-                style={[styles.fieldInput, styles.newFieldValue]}
+                style={[
+                  styles.fieldInput, 
+                  styles.newFieldValue,
+                  isLikelyJSON(newField.value) && !validateJSON(newField.value).valid 
+                    ? { borderColor: '#ff4c4c' } 
+                    : {}
+                ]}
                 value={newField.value}
                 onChangeText={(text) => setNewField(prev => ({ ...prev, value: text }))}
                 placeholder="Field Value"
@@ -507,6 +611,11 @@ const EditTab = ({ onCancel }) => {
                 <Ionicons name="add-circle" size={26} color="#007aff" />
               </TouchableOpacity>
             </View>
+            
+            {/* Add JSON validation error for new field if needed */}
+            {isLikelyJSON(newField.value) && !validateJSON(newField.value).valid && (
+              <Text style={styles.jsonErrorText}>{validateJSON(newField.value).error}</Text>
+            )}
           </View>
 
           <Button
@@ -610,6 +719,12 @@ const additionalStyles = {
   },
   addFieldButton: {
     padding: 5,
+  },
+  jsonErrorText: {
+    color: '#ff4c4c',
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 };
 
