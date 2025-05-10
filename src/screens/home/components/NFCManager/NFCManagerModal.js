@@ -276,41 +276,39 @@ const NfcManagerModal = ({ visible, onClose }) => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.nfcModalContainer}>
-          <View style={styles.nfcModalContent}>
-            {/* NFC Manager Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>NFC Manager</Text>
-              <TouchableOpacity 
-                onPress={onClose} 
-                hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+          {/* NFC Manager Header */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>NFC Manager</Text>
+            <TouchableOpacity 
+              onPress={onClose} 
+              hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close-circle" size={32} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
 
-            {/* NFC Tabs */}
-            <View style={styles.tabBarWrapper}>
-              <TabBar
-                tabs={nfcTabs}
-                activeTab={nfcActiveTab}
-                onTabPress={handleNfcTabPress}
-                backgroundColor="#F9F9F9"
-                activeColor="#007AFF"
-                inactiveColor="#666666"
-                showIcons
-                showLabels
-                height={50}
-                containerStyle={styles.nfcTabBarContainer}
-                labelStyle={styles.nfcTabBarLabel}
-                iconStyle={styles.nfcTabBarIcon}
-              />
-            </View>
+          {/* NFC Tab Content - Takes up the middle section */}
+          <View style={styles.tabContentContainer}>
+            {renderTabContent()}
+          </View>
 
-            {/* NFC Tab Content */}
-            <View style={styles.tabContentContainer}>
-              {renderTabContent()}
-            </View>
+          {/* NFC Tabs - Moved to the bottom */}
+          <View style={styles.tabBarWrapper}>
+            <TabBar
+              tabs={nfcTabs}
+              activeTab={nfcActiveTab}
+              onTabPress={handleNfcTabPress}
+              backgroundColor="#F9F9F9"
+              activeColor="#007AFF"
+              inactiveColor="#666666"
+              showIcons
+              showLabels
+              height={60}
+              containerStyle={styles.nfcTabBarContainer}
+              labelStyle={styles.nfcTabBarLabel}
+              iconStyle={styles.nfcTabBarIcon}
+            />
           </View>
         </View>
       </View>
@@ -332,17 +330,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     overflow: 'hidden', // Important for iOS rendering
-  },
-  nfcModalContent: {
-    flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'column', // Ensure the container uses column layout
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
     paddingHorizontal: 5,
+    paddingTop: 5,
   },
   modalTitle: {
     fontSize: 20,
@@ -350,19 +346,26 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   closeButton: {
-    padding: 5, // Add some padding to increase touch area
+    padding: 5, // Add padding to increase touch area
+  },
+  tabContentContainer: {
+    flex: 1, // This will take up all the space between header and footer
+    // Ensure proper z-index stacking for iOS
+    ...(Platform.OS === 'ios' ? {
+      zIndex: 1,
+      position: 'relative',
+    } : {}),
   },
   tabBarWrapper: {
-    // Wrapper to help with iOS touch handling
+    // Moved to the bottom
     zIndex: 10,
     position: 'relative',
-    marginBottom: 10,
-  },
-  nfcTabBarContainer: {
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    marginTop: 0,
-    paddingTop: 5,
+    marginTop: 10, // Space above the tab bar
+  },
+  nfcTabBarContainer: {
+    paddingVertical: 5,
     // Improved iOS touch handling
     ...(Platform.OS === 'ios' ? {
       zIndex: 10,
@@ -377,17 +380,6 @@ const styles = StyleSheet.create({
   },
   nfcTabBarIcon: {
     marginBottom: 2,
-  },
-  tabContentContainer: {
-    flex: 1,
-    // Ensure proper z-index stacking for iOS
-    ...(Platform.OS === 'ios' ? {
-      zIndex: 1,
-      position: 'relative',
-      marginTop: 5,
-    } : {
-      marginTop: 5,
-    }),
   },
   emptyTabContent: {
     flex: 1,

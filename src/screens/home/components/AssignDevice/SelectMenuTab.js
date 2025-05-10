@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
 import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 import { useAuth } from '../../../../context/AuthContext';
@@ -18,18 +18,36 @@ const SelectMenuTab = ({
   const [locationOptions, setLocationOptions] = useState([]);
   const [deviceOptions, setDeviceOptions] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   // Import axiosInstance from AuthContext
   const { axiosInstance } = useAuth();
   
-  // Transform locations into dropdown format
+  // Transform locations into dropdown format and select first location
   useEffect(() => {
     if (locations && locations.length > 0) {
+      // Create location options
       const options = locations.map(location => ({
         label: location.name || `${location.street_number} ${location.street_name}`,
         value: location.id
       }));
+      
       setLocationOptions(options);
+      
+      // Auto-select first location if no location is selected yet
+      if (!selectedLocationId && !initialLoadComplete) {
+        const firstLocationId = options[0].value;
+        console.log(`Auto-selecting first location: ${firstLocationId}`);
+        setSelectedLocationId(firstLocationId);
+        
+        // Find the location object from the id
+        const locationObj = locations.find(loc => loc.id === firstLocationId);
+        setSelectedLocationAssign(locationObj || null);
+        
+        // Fetch devices for the first location
+        fetchDevicesForLocation(firstLocationId);
+        setInitialLoadComplete(true);
+      }
     }
   }, [locations]);
   
@@ -46,15 +64,8 @@ const SelectMenuTab = ({
     }
   }, [availableDevices]);
 
-  const handleLocationChange = (locationId) => {
-    setSelectedLocationId(locationId);
-    setSelectedDeviceId('');
-    setSelectedDeviceAssign(null);
-    
-    // Find the location object from the id
-    const locationObj = locations.find(loc => loc.id === locationId);
-    setSelectedLocationAssign(locationObj || null);
-    
+  // Helper function to fetch devices for a location
+  const fetchDevicesForLocation = (locationId) => {
     if (locationId) {
       fetchDevicesByLocation(locationId)
         .then(devices => {
@@ -62,6 +73,7 @@ const SelectMenuTab = ({
           const availableDevices = devices.filter(device => 
             device.status === 'available'
           );
+          console.log(`Found ${availableDevices.length} available devices at location ${locationId}`);
           setAvailableDevices(availableDevices || []);
         })
         .catch(error => {
@@ -73,7 +85,22 @@ const SelectMenuTab = ({
     }
   };
 
+  const handleLocationChange = (locationId) => {
+    console.log(`Location changed to: ${locationId}`);
+    setSelectedLocationId(locationId);
+    setSelectedDeviceId('');
+    setSelectedDeviceAssign(null);
+    
+    // Find the location object from the id
+    const locationObj = locations.find(loc => loc.id === locationId);
+    setSelectedLocationAssign(locationObj || null);
+    
+    // Fetch devices for the selected location
+    fetchDevicesForLocation(locationId);
+  };
+
   const handleDeviceChange = (deviceId) => {
+    console.log(`Device changed to: ${deviceId}`);
     setSelectedDeviceId(deviceId);
     // Find the device object from the id
     const deviceObj = availableDevices.find(dev => dev.id === deviceId);
@@ -148,122 +175,185 @@ const SelectMenuTab = ({
   };
 
   return (
-    <View style={styles.assignTabContent}>
-      <Text style={styles.assignTabSubtitle}>
+    <View style={styles.container}>
+      <Text style={styles.headerText}>
         Select a location and device to assign to your account.
       </Text>
 
+      {/* Improved iOS-compatible dropdown for locations */}
       <View style={styles.formSection}>
-        <Text style={styles.pickerLabel}>Location:</Text>
-        <Dropdown
-          value={selectedLocationId}
-          onValueChange={handleLocationChange}
-          items={locationOptions}
-          placeholder="Select a location"
-          testID="location-dropdown"
-          containerStyle={[
-            styles.dropdownContainer,
-            Platform.OS === 'ios' ? styles.iosDropdownContainer : {}
-          ]}
-        />
+        <Text style={styles.inputLabel}>Location:</Text>
+        <View style={styles.dropdownWrapper}>
+          <Dropdown
+            value={selectedLocationId}
+            onValueChange={handleLocationChange}
+            items={locationOptions}
+            placeholder="Select a location"
+            testID="location-dropdown"
+            containerStyle={styles.dropdown}
+            style={Platform.OS === 'ios' ? styles.iosDropdown : {}}
+          />
+        </View>
       </View>
       
+      {/* Improved iOS-compatible dropdown for devices */}
       <View style={styles.formSection}>
-        <Text style={styles.pickerLabel}>Device:</Text>
-        <Dropdown
-          value={selectedDeviceId}
-          onValueChange={handleDeviceChange}
-          items={deviceOptions}
-          placeholder={
-            selectedLocationId 
-              ? deviceOptions.length > 0 
-                ? "Select a device" 
-                : "No available devices at this location"
-              : "Select a location first"
-          }
-          disabled={!selectedLocationId || deviceOptions.length === 0}
-          testID="device-dropdown"
-          containerStyle={[
-            styles.dropdownContainer,
-            Platform.OS === 'ios' ? styles.iosDropdownContainer : {}
-          ]}
-        />
+        <Text style={styles.inputLabel}>Device:</Text>
+        <View style={styles.dropdownWrapper}>
+          <Dropdown
+            value={selectedDeviceId}
+            onValueChange={handleDeviceChange}
+            items={deviceOptions}
+            placeholder={
+              selectedLocationId 
+                ? deviceOptions.length > 0 
+                  ? "Select a device" 
+                  : "No available devices at this location"
+                : "Select a location first"
+            }
+            disabled={!selectedLocationId || deviceOptions.length === 0}
+            testID="device-dropdown"
+            containerStyle={styles.dropdown}
+            style={[
+              deviceOptions.length === 0 ? styles.disabledDropdown : {},
+              Platform.OS === 'ios' ? styles.iosDropdown : {}
+            ]}
+          />
+        </View>
       </View>
       
+      {/* Device info card with improved styling */}
       {selectedDeviceAssign && (
-        <View style={styles.deviceInfo}>
-          <Text style={styles.deviceInfoTitle}>Selected Device:</Text>
-          <Text style={styles.deviceInfoText}>ID: {selectedDeviceAssign.identifier}</Text>
-          <Text style={styles.deviceInfoText}>Make: {selectedDeviceAssign.make}</Text>
-          <Text style={styles.deviceInfoText}>Model: {selectedDeviceAssign.model}</Text>
+        <View style={styles.deviceInfoCard}>
+          <Text style={styles.deviceInfoTitle}>Selected Device</Text>
+          <View style={styles.deviceInfoRow}>
+            <Text style={styles.deviceInfoLabel}>ID:</Text>
+            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.identifier}</Text>
+          </View>
+          <View style={styles.deviceInfoRow}>
+            <Text style={styles.deviceInfoLabel}>Make:</Text>
+            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.make}</Text>
+          </View>
+          <View style={styles.deviceInfoRow}>
+            <Text style={styles.deviceInfoLabel}>Model:</Text>
+            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.model}</Text>
+          </View>
         </View>
       )}
       
-      <View style={styles.assignButtonsContainer}>
-        <Button
-          title="Assign to Me"
-          onPress={handleAssignSelect}
-          disabled={!selectedDeviceId || assignLoading}
-          isLoading={assignLoading}
-          style={styles.submitButton}
-        />
-      </View>
+      {/* Bottom spacer to push button to bottom when no device is selected */}
+      {!selectedDeviceAssign && <View style={styles.flexSpacer} />}
+      
+      {/* Enhanced button with better styling */}
+      <Button
+        title="Assign to My Account"
+        onPress={handleAssignSelect}
+        disabled={!selectedDeviceId || assignLoading}
+        isLoading={assignLoading}
+        style={styles.assignButton}
+        textColor="white"
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  assignTabContent: {
-    padding: 16,
+  container: {
     flex: 1,
+    padding: 16,
+    backgroundColor: '#fff',
   },
-  assignTabSubtitle: {
+  headerText: {
     fontSize: 16,
     color: '#555',
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 22,
   },
   formSection: {
-    marginBottom: 16,
-    zIndex: 10, // For iOS dropdown rendering
+    marginBottom: 20,
   },
-  pickerLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: '600',
     color: '#333',
     marginBottom: 8,
   },
-  dropdownContainer: {
-    marginBottom: 5,
+  dropdownWrapper: {
+    // This wrapper helps with iOS z-index issues
+    ...(Platform.OS === 'ios' ? {
+      zIndex: 50,
+      position: 'relative',
+    } : {})
   },
-  iosDropdownContainer: {
-    zIndex: 1000,
-    position: 'relative',
-  },
-  deviceInfo: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+  dropdown: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#ccc',
+    borderRadius: 8,
+    // Crucial fix for iOS
+    ...(Platform.OS === 'ios' ? {
+      zIndex: 100,
+    } : {})
+  },
+  iosDropdown: {
+    // iOS-specific dropdown styling
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  disabledDropdown: {
+    backgroundColor: '#f1f1f1',
+    borderColor: '#ddd',
+  },
+  deviceInfoCard: {
+    marginTop: 24,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   deviceInfoTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
+    textAlign: 'center',
+  },
+  deviceInfoRow: {
+    flexDirection: 'row',
     marginBottom: 8,
-    color: '#495057',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  deviceInfoText: {
-    fontSize: 14,
-    color: '#495057',
-    marginBottom: 4,
+  deviceInfoLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#555',
+    width: 80,
   },
-  assignButtonsContainer: {
-    marginTop: 24,
+  deviceInfoValue: {
+    fontSize: 15,
+    color: '#333',
+    flex: 1,
   },
-  submitButton: {
-    backgroundColor: '#28a745',
+  flexSpacer: {
+    flex: 1,
+    minHeight: 20,
+  },
+  assignButton: {
+    marginTop: 16,
+    backgroundColor: '#28a745', // Changed to green to differentiate from orange close button
+    paddingVertical: 12,
+    borderRadius: 8,
   },
 });
 
