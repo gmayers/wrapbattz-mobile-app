@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -11,44 +10,52 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { EmailInput } from '../../components/TextInput';
 import Button from '../../components/Button';
+import { useAuth } from '../../context/AuthContext'; // Import AuthContext
 
 const ForgotPasswordPage = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { axiosInstance } = useAuth(); // Use auth context
 
   const validateEmail = () => {
+    console.log('FP-1: Validating email:', email);
     if (!email) {
-      setEmailError('Email is required');
+      const error = 'Email is required';
+      console.log('FP-2: Validation error:', error);
+      setEmailError(error);
       return false;
     }
     if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Please enter a valid email');
+      const error = 'Please enter a valid email';
+      console.log('FP-3: Validation error:', error);
+      setEmailError(error);
       return false;
     }
+    console.log('FP-4: Email validation successful');
     return true;
   };
 
   const handleSubmit = async () => {
-    if (!validateEmail()) return;
+    console.log('FP-5: Submit button pressed');
+    if (!validateEmail()) {
+      console.log('FP-6: Email validation failed, aborting submission');
+      return;
+    }
 
     setIsLoading(true);
+    console.log('FP-7: Setting loading state to true');
+    
     try {
-      const response = await fetch('https://test.gmayersservices.com/api/auth/password/reset/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
+      console.log('FP-8: Sending password reset request for email:', email);
+      const response = await axiosInstance.post('/auth/password/reset/', {
+        email,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to send reset instructions');
-      }
+      console.log('FP-9: Password reset response received:', response.status);
+      console.log('FP-10: Response data:', JSON.stringify(response.data, null, 2));
 
       // Show success message
       Alert.alert(
@@ -57,38 +64,48 @@ const ForgotPasswordPage = ({ navigation }) => {
         [
           {
             text: 'OK',
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              console.log('FP-11: Success alert acknowledged, navigating back');
+              navigation.goBack();
+            },
           },
         ]
       );
     } catch (error) {
+      console.error('FP-12: Password reset error:', error);
+      console.error('FP-13: Error response status:', error.response?.status);
+      console.error('FP-14: Error response data:', JSON.stringify(error.response?.data, null, 2));
+      
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          'An error occurred while sending reset instructions. Please try again.';
+      
+      console.error('FP-15: Displaying error message to user:', errorMessage);
+      
       Alert.alert(
         'Error',
-        error.message || 'An error occurred while sending reset instructions. Please try again.',
+        errorMessage,
       );
     } finally {
+      console.log('FP-16: Setting loading state to false');
       setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="close" size={28} color="#333" />
-          </TouchableOpacity>
-
           <View style={styles.content}>
             <View style={styles.logoContainer}>
               <Image
@@ -112,7 +129,10 @@ const ForgotPasswordPage = ({ navigation }) => {
                 }}
                 error={emailError}
                 returnKeyType="send"
-                onSubmitEditing={handleSubmit}
+                onSubmitEditing={() => {
+                  console.log('FP-19: Email input submit pressed');
+                  handleSubmit();
+                }}
                 editable={!isLoading}
               />
 
@@ -122,6 +142,7 @@ const ForgotPasswordPage = ({ navigation }) => {
                 loading={isLoading}
                 disabled={isLoading}
                 style={styles.submitButton}
+                textColor="black"
               />
             </View>
           </View>
@@ -132,7 +153,7 @@ const ForgotPasswordPage = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
@@ -141,11 +162,13 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
+    justifyContent: 'center', // Center content vertically
   },
   content: {
     flex: 1,
     padding: 20,
     justifyContent: 'center',
+    minHeight: '100%',
   },
   logoContainer: {
     alignItems: 'center',
@@ -174,13 +197,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
-    padding: 8,
+    backgroundColor: 'orange',
   },
 });
 
