@@ -14,9 +14,10 @@ import AllReportsScreen from '../screens/AllReportsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
 import AddDeviceScreen from '../screens/AddDeviceScreen';
 import CreateReportScreen from '../screens/CreateReportScreen';
-// Import new location screens
 import LocationsScreen from '../screens/LocationsScreen';
 import LocationDetailsScreen from '../screens/LocationDetailsScreen';
+import PricingScreen from '../screens/PricingScreen';
+import SuggestFeatureScreen from '../screens/SuggestFeatureScreen'; 
 
 const Stack = createStackNavigator();
 
@@ -29,6 +30,42 @@ const AuthStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Create Account',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+    <Stack.Screen
+      name="Pricing" 
+      component={PricingScreen} 
+      options={{
+        headerShown: true,
+        headerTitle: 'Pricing',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    />
+     <Stack.Screen
+      name="SuggestFeature"
+      component={SuggestFeatureScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Suggest a Feature',
         headerStyle: {
           backgroundColor: '#fff',
           elevation: 0,

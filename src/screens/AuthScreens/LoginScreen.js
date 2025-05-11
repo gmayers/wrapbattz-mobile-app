@@ -172,6 +172,17 @@ const LoginScreen = () => {
                   <Text style={styles.registerButtonText}>Create Account</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Pricing Button - Added Below Register Section */}
+              <View style={styles.pricingButtonContainer}>
+                <TouchableOpacity 
+                  style={styles.pricingButton}
+                  testID="pricing-button"
+                  onPress={() => navigation.navigate('Pricing')}
+                >
+                  <Text style={styles.pricingButtonText}>View Subscription Plans</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -249,6 +260,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 5,
+  },
+  // New styles for pricing button
+  pricingButtonContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  pricingButton: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    width: '100%',
+    alignItems: 'center',
+  },
+  pricingButtonText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
   },
 });
 

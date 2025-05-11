@@ -42,7 +42,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-signature-canvas": "^4.7.2",
     "react-native-webview": "13.12.5",
-    "@sentry/react-native": "~6.10.0"
+    "@sentry/react-native": "~6.10.0",
+    "expo-linear-gradient": "~14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0"
