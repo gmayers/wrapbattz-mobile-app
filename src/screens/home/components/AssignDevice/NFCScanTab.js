@@ -42,9 +42,6 @@ const normalizeJsonString = (jsonString) => {
     }
     
     if (quoteCount % 2 !== 0) {
-      // Unbalanced quotes - try to identify and fix the issue
-      console.log("[NFCScanTab] Detected unbalanced quotes, attempting fix");
-      
       // Add a closing quote before any commas or closing braces
       normalized = normalized.replace(/([^"\s,{}[\]]+)(\s*)(,|\}|\])/g, '$1"$2$3');
       
@@ -58,14 +55,14 @@ const normalizeJsonString = (jsonString) => {
 
 const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   const [assignLoading, setAssignLoading] = useState(false);
-  const { axiosInstance } = useAuth();
+  const { deviceService } = useAuth();
 
   const cancelNfcRead = async () => {
     try {
       setAssignLoading(false);
       await NfcManager.cancelTechnologyRequest();
     } catch (error) {
-      console.log(`Error canceling NFC: ${error.message}`);
+      // Silent error handling
     }
   };
 
@@ -142,25 +139,25 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
         // Parse the JSON data
         const jsonData = JSON.parse(cleanJson);
         
-        // Extract device ID using various possible field names
-        let deviceId = null;
+        // Extract device ID or identifier using various possible field names
+        let deviceIdentifier = null;
         
-        // Check for various possible ID field names
-        if (jsonData.ID) {
-          deviceId = jsonData.ID;
+        // Check for various possible identifier field names
+        if (jsonData.identifier) {
+          deviceIdentifier = jsonData.identifier;
+        } else if (jsonData.ID) {
+          deviceIdentifier = jsonData.ID;
         } else if (jsonData.id) {
-          deviceId = jsonData.id;
-        } else if (jsonData.identifier) {
-          deviceId = jsonData.identifier;
+          deviceIdentifier = jsonData.id;
         } else if (jsonData.device_id) {
-          deviceId = jsonData.device_id;
+          deviceIdentifier = jsonData.device_id;
         }
         
-        if (!deviceId) {
-          throw new Error('No device ID found on this tag');
+        if (!deviceIdentifier) {
+          throw new Error('No device identifier found on this tag');
         }
         
-        return deviceId;
+        return deviceIdentifier;
       } catch (jsonError) {
         throw new Error('Invalid data format on tag');
       }
@@ -169,25 +166,27 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
       try {
         await NfcManager.cancelTechnologyRequest();
       } catch (cleanupError) {
-        console.log('NFC cleanup error:', cleanupError);
+        // Silent cleanup error
       }
     }
   };
 
   const handleAssignNfc = async () => {
-    let deviceId = null;
+    let deviceIdentifier = null;
     
     try {
       setAssignLoading(true);
       
-      // Read the NFC tag to get the device ID
-      deviceId = await readNfcTag();
+      // Read the NFC tag to get the device identifier
+      deviceIdentifier = await readNfcTag();
       
-      // Proceed with assignment
-      const response = await axiosInstance.post('/device-assignments/', {
-        device_id: deviceId,
+      // Create assignment data with current date
+      const assignmentData = {
         assigned_date: new Date().toISOString().split('T')[0] // Format as YYYY-MM-DD
-      });
+      };
+      
+      // Use the assignDeviceByIdentifier method for NFC scans
+      await deviceService.assignDeviceByIdentifier(deviceIdentifier, assignmentData);
       
       Alert.alert('Success', 'Device assigned successfully to your account.');
       
@@ -198,7 +197,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
     } catch (error) {
       // Use the provided handleApiError function or fallback to Alert
       if (handleApiError) {
-        handleApiError(error, `Failed to assign device${deviceId ? ` (ID: ${deviceId})` : ''}`);
+        handleApiError(error, `Failed to assign device${deviceIdentifier ? ` (Identifier: ${deviceIdentifier})` : ''}`);
       } else {
         Alert.alert('Error', error.message || 'Failed to assign device via NFC');
       }

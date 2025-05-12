@@ -86,227 +86,496 @@ const EditTab = ({ onCancel }) => {
   const [editingKeys, setEditingKeys] = useState({});
   const [jsonValidationState, setJsonValidationState] = useState({});
 
-  const handleReadTag = async () => {
-    try {
-      setIsReading(true);
-      setTagData(null);
-      
-      // Initialize NFC Manager
-      await NfcManager.start();
-      
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      const tag = await NfcManager.getTag();
-      
-      if (!tag) {
-        Alert.alert('Error', 'No NFC tag detected.');
-        return;
-      }
-      
-      if (!tag.ndefMessage || !tag.ndefMessage.length) {
-        Alert.alert('Error', 'No NDEF message found on tag.');
-        return;
-      }
-      
-      // Process first NDEF record
-      const record = tag.ndefMessage[0];
-      
-      if (record && record.payload) {
+const handleReadTag = async () => {
+  let result = false;
+  
+  try {
+    setIsReading(true);
+    setTagData(null);
+    
+    console.log('[EditTab] Starting tag read operation');
+    
+    // Initialize NFC Manager
+    await NfcManager.start();
+    console.log('[EditTab] NFC Manager started');
+    
+    // STEP 1: Request Technology
+    await NfcManager.requestTechnology(NfcTech.Ndef);
+    console.log('[EditTab] NFC technology requested successfully');
+    
+    // Get tag information
+    const tag = await NfcManager.getTag();
+    
+    if (!tag) {
+      throw new Error('No NFC tag detected. Please position the tag correctly.');
+    }
+    
+    console.log(`[EditTab] Tag detected: ${JSON.stringify({
+      type: tag.type || 'unknown',
+      maxSize: tag.maxSize || 'unknown',
+      isWritable: tag.isWritable || false,
+      id: tag.id ? tag.id.toString('hex') : 'unknown'
+    })}`);
+    
+    // Check for NDEF message
+    if (!tag.ndefMessage || !tag.ndefMessage.length) {
+      // Try to check if this is a Mifare tag
+      if (tag.techTypes && tag.techTypes.some(tech => tech.includes('MifareUltralight'))) {
+        console.log('[EditTab] Detected Mifare tag, attempting to read');
         try {
-          // Try standard NDEF text decoding
-          let textContent;
-          try {
-            textContent = Ndef.text.decodePayload(record.payload);
-          } catch (e) {
-            // Manual decoding fallback
-            try {
-              // Get a byte array from the payload
-              const bytes = [...new Uint8Array(record.payload)];
-              
-              // First byte contains status and language length
-              const statusByte = bytes[0];
-              const languageLength = statusByte & 0x3F;
-              const isUTF16 = !(statusByte & 0x80);
-              
-              // Skip language code and status byte
-              const textBytes = bytes.slice(1 + languageLength);
-              
-              // Convert to string based on encoding
-              if (isUTF16) {
-                // UTF-16 encoding
-                const uint16Array = new Uint16Array(textBytes.length / 2);
-                for (let i = 0; i < textBytes.length; i += 2) {
-                  uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
-                }
-                textContent = String.fromCharCode.apply(null, uint16Array);
-              } else {
-                // UTF-8 encoding
-                textContent = new TextDecoder().decode(new Uint8Array(textBytes));
-              }
-            } catch (manualError) {
-              // Direct TextDecoder fallback
-              try {
-                const rawBytes = new Uint8Array(record.payload);
-                const statusByte = rawBytes[0];
-                const languageLength = statusByte & 0x3F;
-                
-                // Skip status byte and language code
-                const contentBytes = rawBytes.slice(1 + languageLength);
-                textContent = new TextDecoder().decode(contentBytes);
-              } catch (decoderError) {
-                throw e; // rethrow the original error
-              }
-            }
+          // Cancel the current technology request
+          await NfcManager.cancelTechnologyRequest();
+          
+          // Switch to Mifare technology
+          await NfcManager.requestTechnology(NfcTech.MifareUltralight);
+          
+          // Read Mifare pages
+          const mifareData = await readMifarePagesWithRetry();
+          
+          // Process Mifare data
+          if (mifareData && mifareData.length > 0) {
+            // Handle Mifare data...
+            console.log('[EditTab] Successfully read Mifare tag');
+            
+            // Convert Mifare data to a usable format
+            // ... processing code here
+            
+            Alert.alert('Success', 'Read Mifare tag data successfully!');
+            result = true;
+            return;
           }
+        } catch (mifare_error) {
+          console.warn('[EditTab] Mifare read failed:', mifare_error);
+          // Continue with standard error handling
+        }
+      }
+      
+      throw new Error('No NDEF message found on tag. This may not be an NDEF formatted tag or it may be empty.');
+    }
+    
+    // Process first NDEF record
+    const record = tag.ndefMessage[0];
+    
+    if (record && record.payload) {
+      try {
+        // Try multiple decoding approaches to maximize success
+        let textContent = decodeTagContent(record);
+        
+        if (textContent) {
+          console.log('[EditTab] Successfully decoded tag content');
           
           // Process the content based on its format
-          if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
+          if (isLikelyJSON(textContent)) {
             try {
-              // Normalize and clean JSON string
-              const cleanJson = normalizeJsonString(textContent.trim());
-              
-              // Parse the JSON
-              const jsonData = JSON.parse(cleanJson);
-              
-              // Separate the ID field (if it exists) from other editable fields
-              const { id, ...editableData } = jsonData;
-              
-              // Create a clean object for tagData and editedFields
-              const tagDataObj = id ? { id } : {};
-              
-              // Convert all fields to strings for the TextInput component
-              const editableFields = {};
-              const jsonState = {};
-              
-              Object.entries(editableData).forEach(([key, value]) => {
-                if (typeof value === 'object' && value !== null) {
-                  // Properly stringify objects
-                  const stringifiedValue = JSON.stringify(value);
-                  editableFields[key] = stringifiedValue;
-                  jsonState[key] = { valid: true, error: null };
-                } else {
-                  // Convert primitives to string
-                  editableFields[key] = String(value);
-                  // Check if the string looks like JSON
-                  if (isLikelyJSON(String(value))) {
-                    jsonState[key] = validateJSON(String(value));
-                  }
-                }
-              });
-              
-              setTagData(tagDataObj);
-              setEditedFields(editableFields);
-              setJsonValidationState(jsonState);
+              // Process JSON content
+              processJsonTagContent(textContent);
               Alert.alert('Success', 'NFC tag data loaded successfully!');
-              return;
+              result = true;
             } catch (jsonError) {
-              // If all parsing fails, just use the text as is
+              console.warn('[EditTab] JSON processing error:', jsonError);
               setTagData({});
               setEditedFields({ "content": textContent });
               Alert.alert('Partial Success', 'Could not parse structured data. Loaded raw content.');
+              result = true;
             }
-          } else if (textContent) {
+          } else {
             // Not JSON format, just use the text content
             setTagData({});
             setEditedFields({ "content": textContent });
             Alert.alert('Success', 'Plain text content loaded.');
-          } else {
-            Alert.alert('Error', 'Tag contains empty or invalid content.');
-          }
-        } catch (e) {
-          Alert.alert('Error', 'Failed to decode tag content.');
-        }
-      } else {
-        Alert.alert('Error', 'Tag contains an invalid NDEF record format.');
-      }
-    } catch (error) {
-      Alert.alert('Error', `Failed to read NFC tag: ${error.message}`);
-    } finally {
-      // Always cancel technology request when done
-      NfcManager.cancelTechnologyRequest();
-      setIsReading(false);
-    }
-  };
-
-  // Improved write function using the recommended pattern
-  const handleWriteTag = async () => {
-    try {
-      // Check for invalid JSON first
-      const invalidFields = Object.entries(jsonValidationState)
-        .filter(([key, state]) => state && !state.valid)
-        .map(([key]) => key);
-
-      if (invalidFields.length > 0) {
-        Alert.alert(
-          'Invalid JSON Detected', 
-          `Please fix the JSON formatting in the following fields: ${invalidFields.join(', ')}`
-        );
-        return;
-      }
-
-      setIsWriting(true);
-      
-      // Check if there are any fields to write
-      if (Object.keys(editedFields).length === 0) {
-        Alert.alert('Error', 'There are no fields to write to the tag.');
-        setIsWriting(false);
-        return;
-      }
-      
-      // Process the data
-      
-      // Standardize data format - convert values to appropriate format
-      const processedData = {};
-      
-      // Add ID if it exists
-      if (tagData?.id) {
-        processedData.id = tagData.id;
-      }
-      
-      // Process all other fields
-      Object.entries(editedFields).forEach(([key, value]) => {
-        // Handle string values that might be JSON
-        if (typeof value === 'string' && 
-           ((value.startsWith('{') && value.endsWith('}')) || 
-            (value.startsWith('[') && value.endsWith(']')))) {
-          try {
-            processedData[key] = JSON.parse(value);
-          } catch (e) {
-            // If parsing fails, use as string
-            processedData[key] = value;
+            result = true;
           }
         } else {
+          throw new Error('Failed to decode tag content. The format may be unsupported.');
+        }
+      } catch (decodeError) {
+        console.error('[EditTab] Decode error:', decodeError);
+        throw new Error(`Failed to decode tag content: ${decodeError.message}`);
+      }
+    } else {
+      throw new Error('Tag contains an invalid or empty NDEF record.');
+    }
+  } catch (error) {
+    console.error('[EditTab] Error in handleReadTag:', error);
+    
+    // Create user-friendly error message based on error type
+    let userErrorMessage;
+    
+    if (error.message.includes('NFC hardware')) {
+      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
+    } else if (error.message.includes('cancelled')) {
+      userErrorMessage = 'NFC operation was cancelled.';
+    } else if (error.message.includes('No NFC tag detected')) {
+      userErrorMessage = 'No NFC tag detected. Please make sure the tag is positioned correctly near your device.';
+    } else if (error.message.includes('No NDEF message')) {
+      userErrorMessage = 'This tag may not be NDEF formatted or may be empty. Please format the tag or try a different one.';
+    } else if (error.message.includes('decode')) {
+      userErrorMessage = 'Could not read tag content. The tag format may be incompatible or corrupted.';
+    } else {
+      // Generic error with the technical message included
+      userErrorMessage = `Error reading NFC tag: ${error.message}`;
+    }
+    
+    Alert.alert('NFC Read Error', userErrorMessage, [
+      { 
+        text: 'Retry', 
+        onPress: () => handleReadTag(),
+        style: 'default'
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      }
+    ]);
+    
+    result = false;
+  } finally {
+    // Always cancel technology request when done
+    try {
+      await NfcManager.cancelTechnologyRequest();
+      console.log('[EditTab] NFC technology request canceled');
+    } catch (finallyError) {
+      console.warn(`[EditTab] Error canceling NFC technology request: ${finallyError.message}`);
+    }
+    setIsReading(false);
+  }
+  
+  return result;
+};
+
+// Helper function to read Mifare pages with retry
+const readMifarePagesWithRetry = async (maxRetries = 3) => {
+  let mifarePages = [];
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const readLength = 60; // Adjust based on your tag type
+      
+      for (let i = 0; i < readLength; i++) {
+        try {
+          const pages = await NfcManager.mifareUltralightHandlerAndroid
+            .mifareUltralightReadPages(i * 4);
+          
+          if (pages) {
+            mifarePages.push(pages);
+          }
+        } catch (pageError) {
+          // If we hit the end of available pages, stop
+          if (pageError.message.includes('Out of bounds') || 
+              pageError.message.includes('Invalid page') ||
+              pageError.message.includes('I/O error')) {
+            console.log(`[EditTab] Reached end of readable pages at page ${i*4}`);
+            break;
+          }
+          throw pageError; // Rethrow other errors
+        }
+      }
+      
+      // If we got here successfully, return the pages
+      return mifarePages;
+    } catch (error) {
+      retryCount++;
+      console.warn(`[EditTab] Mifare read attempt ${retryCount} failed: ${error.message}`);
+      
+      if (retryCount >= maxRetries) {
+        throw new Error(`Failed to read Mifare tag after ${maxRetries} attempts: ${error.message}`);
+      }
+      
+      // Brief delay before retry
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+  
+  return mifarePages;
+};
+
+// Helper function to decode tag content with multiple approaches
+const decodeTagContent = (record) => {
+  // Try standard NDEF text decoding first
+  try {
+    return Ndef.text.decodePayload(record.payload);
+  } catch (e) {
+    console.warn('[EditTab] Standard NDEF decoding failed, trying alternative methods');
+  }
+  
+  // Manual decoding as fallback
+  try {
+    // Get a byte array from the payload
+    const bytes = [...new Uint8Array(record.payload)];
+    
+    // First byte contains status and language length
+    const statusByte = bytes[0];
+    const languageLength = statusByte & 0x3F;
+    const isUTF16 = !(statusByte & 0x80);
+    
+    // Skip language code and status byte
+    const textBytes = bytes.slice(1 + languageLength);
+    
+    // Convert to string based on encoding
+    if (isUTF16) {
+      // UTF-16 encoding
+      const uint16Array = new Uint16Array(textBytes.length / 2);
+      for (let i = 0; i < textBytes.length; i += 2) {
+        uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
+      }
+      return String.fromCharCode.apply(null, uint16Array);
+    } else {
+      // UTF-8 encoding
+      return new TextDecoder().decode(new Uint8Array(textBytes));
+    }
+  } catch (manualError) {
+    console.warn('[EditTab] Manual decoding failed, trying TextDecoder directly');
+  }
+  
+  // Direct TextDecoder fallback
+  try {
+    const rawBytes = new Uint8Array(record.payload);
+    const statusByte = rawBytes[0];
+    const languageLength = statusByte & 0x3F;
+    
+    // Skip status byte and language code
+    const contentBytes = rawBytes.slice(1 + languageLength);
+    return new TextDecoder().decode(contentBytes);
+  } catch (decoderError) {
+    console.warn('[EditTab] All decoding methods failed');
+    throw new Error('Unable to decode tag content using any available method');
+  }
+};
+
+// Helper function to process JSON tag content
+const processJsonTagContent = (textContent) => {
+  // Normalize and clean JSON string
+  const cleanJson = normalizeJsonString(textContent.trim());
+  
+  // Parse the JSON
+  const jsonData = JSON.parse(cleanJson);
+  
+  // Separate the ID field (if it exists) from other editable fields
+  const { id, ...editableData } = jsonData;
+  
+  // Create a clean object for tagData and editedFields
+  const tagDataObj = id ? { id } : {};
+  
+  // Convert all fields to strings for the TextInput component
+  const editableFields = {};
+  const jsonState = {};
+  
+  Object.entries(editableData).forEach(([key, value]) => {
+    if (typeof value === 'object' && value !== null) {
+      // Properly stringify objects
+      const stringifiedValue = JSON.stringify(value);
+      editableFields[key] = stringifiedValue;
+      jsonState[key] = { valid: true, error: null };
+    } else {
+      // Convert primitives to string
+      editableFields[key] = String(value);
+      // Check if the string looks like JSON
+      if (isLikelyJSON(String(value))) {
+        jsonState[key] = validateJSON(String(value));
+      }
+    }
+  });
+  
+  setTagData(tagDataObj);
+  setEditedFields(editableFields);
+  setJsonValidationState(jsonState);
+};
+
+
+
+  // Improved write function using the recommended pattern
+const handleWriteTag = async () => {
+  let result = false;
+  
+  try {
+    // Check for invalid JSON first
+    const invalidFields = Object.entries(jsonValidationState)
+      .filter(([key, state]) => state && !state.valid)
+      .map(([key]) => key);
+
+    if (invalidFields.length > 0) {
+      Alert.alert(
+        'Invalid JSON Detected', 
+        `Please fix the JSON formatting in these fields: ${invalidFields.join(', ')}`
+      );
+      return;
+    }
+
+    setIsWriting(true);
+    
+    // Check if there are any fields to write
+    if (Object.keys(editedFields).length === 0) {
+      Alert.alert('Error', 'There are no fields to write to the tag.');
+      return;
+    }
+    
+    // Process the data for writing
+    const processedData = {};
+    
+    // Add ID if it exists
+    if (tagData?.id) {
+      processedData.id = tagData.id;
+    }
+    
+    // Process all other fields
+    Object.entries(editedFields).forEach(([key, value]) => {
+      // Handle string values that might be JSON
+      if (typeof value === 'string' && isLikelyJSON(value)) {
+        try {
+          processedData[key] = JSON.parse(value);
+        } catch (e) {
+          // If parsing fails, use as string
           processedData[key] = value;
+        }
+      } else {
+        processedData[key] = value;
+      }
+    });
+    
+    // Convert to JSON string with normalized quotes
+    const jsonString = JSON.stringify(processedData);
+    const normalizedString = normalizeJsonString(jsonString);
+    
+    // Calculate byte length for capacity check
+    const stringByteLength = new TextEncoder().encode(normalizedString).length;
+    console.log(`[EditTab] Data size: ${stringByteLength} bytes`);
+    
+    // STEP 1: Request NFC technology
+    await NfcManager.requestTechnology(NfcTech.Ndef);
+    console.log('[EditTab] NFC technology requested successfully');
+    
+    // Get tag information to check capacity
+    const tag = await NfcManager.getTag();
+    if (!tag) {
+      throw new Error('Could not read NFC tag. Make sure it is positioned correctly.');
+    }
+    
+    // Log tag details for debugging
+    console.log(`[EditTab] Tag detected: ${JSON.stringify({
+      type: tag.type,
+      maxSize: tag.maxSize || 'unknown',
+      isWritable: tag.isWritable,
+      id: tag.id ? tag.id.toString('hex') : 'unknown'
+    })}`);
+    
+    // Check if tag is NDEF formatted and writable
+    if (!tag.isWritable) {
+      throw new Error('This tag appears to be read-only and cannot be written to.');
+    }
+    
+    // Check capacity if available
+    if (tag.maxSize && stringByteLength > tag.maxSize) {
+      // Create a more compact version by removing optional fields
+      const compactData = { ...processedData };
+      
+      // Remove fields that aren't critical (preserving id and key identifiers)
+      Object.keys(compactData).forEach(key => {
+        if (key !== 'id' && key !== 'ID' && typeof compactData[key] === 'string' && compactData[key].length > 30) {
+          compactData[key] = compactData[key].substring(0, 30) + '...';
         }
       });
       
-      // Convert to JSON string with clean quotes
-      const jsonString = JSON.stringify(processedData)
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+      const compactJson = JSON.stringify(compactData);
+      const compactSize = new TextEncoder().encode(compactJson).length;
       
-      // STEP 1: Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      // STEP 2: Create NDEF message bytes
-      const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-      
-      if (bytes) {
-        // STEP 3: Write the message to the tag
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        
-        Alert.alert('Success', 'Changes saved to NFC tag successfully!');
+      if (compactSize > tag.maxSize) {
+        throw new Error(`Data size (${stringByteLength} bytes) exceeds tag capacity (${tag.maxSize} bytes). Even a reduced version (${compactSize} bytes) is too large.`);
       } else {
-        throw new Error('Failed to encode NDEF message');
+        // Use the compact version instead
+        console.log(`[EditTab] Using reduced data format to fit tag capacity: ${compactJson}`);
+        Alert.alert(
+          'Warning', 
+          'Complete data is too large for this tag. Writing a reduced version with truncated fields.',
+          [{ text: 'Continue', style: 'default' }]
+        );
+        // Update the string to write
+        normalizedString = compactJson;
       }
-    } catch (error) {
-      Alert.alert('Error', `Failed to write changes to NFC tag: ${error.message}`);
-    } finally {
-      // STEP 4: Always cancel technology request when done
-      NfcManager.cancelTechnologyRequest();
-      setIsWriting(false);
     }
-  };
+    
+    // STEP 2: Create NDEF message bytes
+    let bytes;
+    try {
+      bytes = Ndef.encodeMessage([Ndef.textRecord(normalizedString)]);
+      console.log('[EditTab] NDEF message encoded successfully');
+    } catch (encodeError) {
+      throw new Error(`Failed to encode data: ${encodeError.message}`);
+    }
+    
+    if (!bytes) {
+      throw new Error('Failed to create NDEF message. The encoding returned null.');
+    }
+    
+    // Final size check
+    if (tag.maxSize && bytes.length > tag.maxSize) {
+      throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
+    }
+    
+    // STEP 3: Write the message to the tag
+    try {
+      await NfcManager.ndefHandler.writeNdefMessage(bytes);
+      console.log('[EditTab] Write operation completed successfully');
+      
+      result = true;
+      Alert.alert('Success', 'Changes saved to NFC tag successfully!');
+    } catch (writeError) {
+      // Check for specific write errors
+      if (writeError.message.includes('timeout')) {
+        throw new Error('Write operation timed out. The tag may have been moved too soon.');
+      } else if (writeError.message.includes('read-only')) {
+        throw new Error('This NFC tag is read-only and cannot be written to.');
+      } else {
+        throw new Error(`Write failed: ${writeError.message}`);
+      }
+    }
+  } catch (error) {
+    console.error('[EditTab] Error:', error);
+    
+    // Create user-friendly error message based on error type
+    let userErrorMessage;
+    
+    if (error.message.includes('NFC hardware')) {
+      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
+    } else if (error.message.includes('cancelled')) {
+      userErrorMessage = 'NFC operation was cancelled.';
+    } else if (error.message.includes('tag capacity')) {
+      userErrorMessage = error.message; // Already formatted for user
+    } else if (error.message.includes('timeout')) {
+      userErrorMessage = 'The tag was not held close enough to the device. Please try again and keep the tag steady.';
+    } else if (error.message.includes('not writable') || error.message.includes('read-only')) {
+      userErrorMessage = 'This tag cannot be written to. Please use a writable NFC tag.';
+    } else {
+      // Generic error with the technical message included
+      userErrorMessage = `Failed to write to NFC tag: ${error.message}`;
+    }
+    
+    Alert.alert('NFC Write Error', userErrorMessage, [
+      { 
+        text: 'Retry', 
+        onPress: () => handleWriteTag(),
+        style: 'default'
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      }
+    ]);
+    
+    result = false;
+  } finally {
+    // STEP 4: Always cancel technology request when done
+    try {
+      await NfcManager.cancelTechnologyRequest();
+      console.log('[EditTab] NFC technology request canceled');
+    } catch (error) {
+      console.warn(`[EditTab] Error canceling NFC technology request: ${error.message}`);
+    }
+    setIsWriting(false);
+  }
+  
+  return result;
+};
 
   const handleFieldChange = (key, value) => {
     setEditedFields(prev => ({

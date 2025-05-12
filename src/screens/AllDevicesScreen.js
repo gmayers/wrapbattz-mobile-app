@@ -1,4 +1,3 @@
-// AllDevicesScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -23,30 +22,34 @@ import Card from '../components/Card';
 const { width } = Dimensions.get('window');
 
 const AllDevicesScreen = ({ navigation, route }) => {
-  const { 
-    axiosInstance, 
-    logout, 
-    deviceService, 
-    userData, 
-    isAdminOrOwner 
+  const {
+    axiosInstance,
+    logout,
+    deviceService,
+    userData,
+    isAdminOrOwner
   } = useAuth();
-  
+
   const [activeTab, setActiveTab] = useState('assignments');
-  const [devices, setDevices] = useState([]);
-  const [allDevices, setAllDevices] = useState([]);
+  // State for "My Assignments" tab
+  const [myAssignments, setMyAssignments] = useState([]);
+  const [loadingMyAssignments, setLoadingMyAssignments] = useState(true);
+
+  // State for "Organization Devices" (now Organization Assignments) tab
+  const [organizationAssignments, setOrganizationAssignments] = useState([]);
+  const [loadingOrgAssignments, setLoadingOrgAssignments] = useState(true);
+
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingAllDevices, setLoadingAllDevices] = useState(true);
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
 
   useEffect(() => {
-    fetchDeviceAssignments();
+    fetchMyAssignments(); // Fetches assignments for the current user
     fetchLocations();
-    
+
     if (isAdminOrOwner) {
-      fetchAllOrganizationDevices();
+      fetchOrganizationAssignments(); // Fetches all assignments for the organization
     }
   }, [isAdminOrOwner]);
 
@@ -69,30 +72,35 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  const fetchDeviceAssignments = async () => {
+  // Fetches current user's assignments (active ones after filtering)
+  const fetchMyAssignments = async () => {
     try {
-      setLoading(true);
-      const data = await deviceService.getAssignments();
-      
+      setLoadingMyAssignments(true);
+      // Use getMyAssignments for the "My Assignments" tab
+      const data = await deviceService.getMyAssignments();
+
       // Filter only active assignments
-      const activeDevices = data.filter(assignment => !assignment.returned_date);
-      setDevices(activeDevices);
+      const activeUserAssignments = data.filter(assignment => !assignment.returned_date);
+      setMyAssignments(activeUserAssignments);
     } catch (error) {
-      handleApiError(error, 'Failed to fetch device assignments');
+      handleApiError(error, 'Failed to fetch your device assignments');
     } finally {
-      setLoading(false);
+      setLoadingMyAssignments(false);
     }
   };
 
-  const fetchAllOrganizationDevices = async () => {
+  // Fetches all assignments for the organization
+  const fetchOrganizationAssignments = async () => {
     try {
-      setLoadingAllDevices(true);
-      const response = await axiosInstance.get('/devices/');
-      setAllDevices(response.data);
+      setLoadingOrgAssignments(true);
+      // Use getAssignments for the "Organization Devices" tab (which now shows assignments)
+      const data = await deviceService.getAssignments();
+      setOrganizationAssignments(data);
+      // Note: No client-side filtering for active assignments here unless specified for this tab
     } catch (error) {
-      handleApiError(error, 'Failed to fetch organization devices.');
+      handleApiError(error, 'Failed to fetch organization assignments.');
     } finally {
-      setLoadingAllDevices(false);
+      setLoadingOrgAssignments(false);
     }
   };
 
@@ -105,35 +113,32 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleDeviceReturn = (device) => {
-    if (!device) {
-      Alert.alert('Error', 'Invalid device data');
+  const handleDeviceReturn = (deviceAssignment) => { // Parameter is an assignment object
+    if (!deviceAssignment || !deviceAssignment.device) {
+      Alert.alert('Error', 'Invalid device assignment data');
       return;
     }
-    
-    setSelectedReturnDevice(device);
+
+    setSelectedReturnDevice(deviceAssignment); // selectedReturnDevice is an assignment
     setReturnDeviceModalVisible(true);
     setSelectedReturnLocation(null);
   };
 
   const handleConfirmReturn = async () => {
-    if (!selectedReturnLocation) {
+    if (!selectedReturnLocation || !selectedReturnLocation.id) {
       Alert.alert('Error', 'Please select a location.');
+      return;
+    }
+
+    if (!selectedReturnDevice || !selectedReturnDevice.id) {
+      Alert.alert('Error', 'No device assignment selected for return.');
       return;
     }
 
     try {
       const returnedDateTime = new Date().toISOString();
 
-      // Update device assignment
-      await deviceService.returnDevice(selectedReturnDevice.id, {
-        returned_date: returnedDateTime.split('T')[0],
-        returned_time: returnedDateTime.split('T')[1].split('.')[0],
-      });
-
-      // Create device return entry
-      await deviceService.createDeviceReturn({
-        device_id: selectedReturnDevice.device.id,
+      await deviceService.returnDeviceToLocation(selectedReturnDevice.id, { // .id is assignmentId
         location: selectedReturnLocation.id,
         returned_date_time: returnedDateTime,
       });
@@ -141,41 +146,56 @@ const AllDevicesScreen = ({ navigation, route }) => {
       Alert.alert('Success', 'Device has been returned successfully');
       setReturnDeviceModalVisible(false);
       setSelectedReturnLocation(null);
-      fetchDeviceAssignments(); // Refresh the devices list
+      fetchMyAssignments(); // Refresh my assignments list
       if (isAdminOrOwner) {
-        fetchAllOrganizationDevices(); // Refresh all devices too
+        fetchOrganizationAssignments(); // Refresh organization assignments list
       }
     } catch (error) {
       handleApiError(error, 'Failed to return device.');
     }
   };
 
-  const renderAssignmentCard = (device) => (
+  const renderAssignmentCard = (assignment) => (
     <Card
-      key={device.id}
-      title={device.device.identifier}
-      subtitle={device.device.device_type}
+      key={assignment.id}
+      title={assignment.device.identifier}
+      subtitle={assignment.device.device_type}
       style={styles.deviceCard}
     >
       <View style={styles.cardContent}>
         <View style={styles.cardInfo}>
-          <Text style={styles.infoText}>Make: {device.device.make}</Text>
-          <Text style={styles.infoText}>Model: {device.device.model}</Text>
-          <Text style={styles.infoText}>Assigned: {device.assigned_date}</Text>
+          <Text style={styles.infoText}>Make: {assignment.device.make}</Text>
+          <Text style={styles.infoText}>Model: {assignment.device.model}</Text>
+          <Text style={styles.infoText}>Assigned: {assignment.assigned_date}</Text>
+          {assignment.returned_date && (
+            <Text style={styles.infoText}>Returned: {assignment.returned_date}</Text>
+          )}
+          {assignment.assigned_to_user && (
+            <Text style={styles.infoText}>
+              User: {assignment.assigned_to_user.first_name} {assignment.assigned_to_user.last_name}
+            </Text>
+          )}
+          {assignment.assigned_to_location && (
+            <Text style={styles.infoText}>Location: {assignment.assigned_to_location.name}</Text>
+          )}
         </View>
         <View style={styles.cardActions}>
-          <Button
-            title="Return"
-            variant="outlined"
-            size="small"
-            onPress={() => handleDeviceReturn(device)}
-            style={styles.returnButton}
-          />
+          {!assignment.returned_date && (
+            <Button
+              title="Return"
+              variant="outlined"
+              size="small"
+              onPress={() => handleDeviceReturn(assignment)}
+              style={styles.returnButton}
+            />
+          )}
         </View>
       </View>
     </Card>
   );
 
+  // Renders a card for a device (currently not used for list rendering in this screen based on new requirements)
+  // Kept for potential future use or if linked from elsewhere (e.g. DeviceDetails screen)
   const renderDeviceCard = (device) => (
     <Card
       key={device.id}
@@ -196,7 +216,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
             variant="outlined"
             size="small"
             onPress={() => navigation.navigate('DeviceDetails', { deviceId: device.id })}
-            style={styles.returnButton}
+            style={styles.returnButton} // Style might need adjustment if it implies "return"
           />
         </View>
       </View>
@@ -212,11 +232,11 @@ const AllDevicesScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          <Ionicons name="chevron-back" size={24} color="#FF8C00" />
           <Text style={styles.backText}>Devices</Text>
         </TouchableOpacity>
         {isAdminOrOwner && (
@@ -241,10 +261,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
             styles.tabText,
             activeTab === 'assignments' && styles.activeTabText
           ]}>
-            Assignments
+            My Assignments
           </Text>
         </TouchableOpacity>
-        
+
         {isAdminOrOwner && (
           <TouchableOpacity
             style={[
@@ -257,49 +277,49 @@ const AllDevicesScreen = ({ navigation, route }) => {
               styles.tabText,
               activeTab === 'all' && styles.activeTabText
             ]}>
-              Organization Devices
+              Organization Assignments
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Assignments Tab Content */}
+      {/* My Assignments Tab Content */}
       {activeTab === 'assignments' && (
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            {loading ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-            ) : devices.length > 0 ? (
+            {loadingMyAssignments ? (
+              <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
+            ) : myAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
-                {devices.map(renderAssignmentCard)}
+                {myAssignments.map(renderAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No device assignments found</Text>
+              <Text style={styles.emptyText}>No active device assignments found</Text>
             )}
           </View>
         </ScrollView>
       )}
 
-      {/* All Organization Devices Tab Content */}
+      {/* All Organization Assignments Tab Content */}
       {activeTab === 'all' && isAdminOrOwner && (
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            {loadingAllDevices ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-            ) : allDevices.length > 0 ? (
+            {loadingOrgAssignments ? (
+              <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
+            ) : organizationAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
-                {allDevices.map(renderDeviceCard)}
+                {organizationAssignments.map(renderAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No organization devices found</Text>
+              <Text style={styles.emptyText}>No organization assignments found</Text>
             )}
           </View>
         </ScrollView>
@@ -316,7 +336,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
               <View style={styles.modalContainer}>
-                {selectedReturnDevice && (
+                {selectedReturnDevice && selectedReturnDevice.device && ( // Ensure device object exists
                   <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Return Device</Text>
                     <Text style={styles.modalText}>
@@ -326,14 +346,15 @@ const AllDevicesScreen = ({ navigation, route }) => {
                       Type: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.device_type}</Text>
                     </Text>
 
-                    <Text style={styles.modalText}>Select Location:</Text>
+                    <Text style={styles.modalText}>Select Return Location:</Text>
                     <View style={styles.pickerContainer}>
                       <Picker
                         selectedValue={selectedReturnLocation}
                         onValueChange={(itemValue) => setSelectedReturnLocation(itemValue)}
                         style={styles.picker}
+                        prompt="Select a location"
                       >
-                        <Picker.Item label="Select a location" value={null} />
+                        <Picker.Item label="-- Select a location --" value={null} />
                         {locations.map((location) => (
                           <Picker.Item key={location.id} label={location.name} value={location} />
                         ))}
@@ -344,6 +365,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
                       title="Confirm Return"
                       onPress={handleConfirmReturn}
                       style={styles.confirmButton}
+                      disabled={!selectedReturnLocation}
                     />
                     <Button
                       title="Cancel"
@@ -361,7 +383,6 @@ const AllDevicesScreen = ({ navigation, route }) => {
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -382,7 +403,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 17,
-    color: '#007AFF',
+    color: '#FF8C00', // Updated to orange
     marginLeft: 4,
   },
   tabContainer: {
@@ -400,7 +421,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#007AFF',
+    borderBottomColor: '#FF8C00', // Updated to orange
   },
   tabText: {
     fontSize: 15,
@@ -408,7 +429,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   activeTabText: {
-    color: '#007AFF',
+    color: '#FF8C00', // Updated to orange
     fontWeight: '600',
   },
   scrollView: {
@@ -428,27 +449,37 @@ const styles = StyleSheet.create({
   deviceCard: {
     width: (width * 0.45),
     marginBottom: 15,
+    borderColor: '#FFA500', // Subtle orange border
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: '#FFF3E0', // Light orange background
   },
   cardContent: {
     flexDirection: 'column',
     justifyContent: 'space-between',
+    padding: 10,
   },
   cardInfo: {
     marginBottom: 10,
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: '#4A3B31', // Darker text for contrast on light orange
     marginBottom: 4,
   },
   cardActions: {
     width: '100%',
+    marginTop: 5,
   },
   returnButton: {
     width: '100%',
+    borderColor: '#FF8C00', // Orange border for button
+    backgroundColor: 'transparent',
+    borderRadius: 5,
   },
   loader: {
     marginTop: 20,
+    color: '#FF8C00', // Orange loader
   },
   emptyText: {
     textAlign: 'center',
@@ -466,21 +497,23 @@ const styles = StyleSheet.create({
     width: '90%',
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 25,
   },
-  modalContent: {
-    paddingBottom: 20,
-  },
+  modalContent: {},
+
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: '#FF8C00', // Orange modal title
+    marginBottom: 20,
+    textAlign: 'center',
   },
   modalText: {
     fontSize: 16,
     marginBottom: 10,
     color: '#555',
+    lineHeight: 22,
   },
   modalTextBold: {
     fontWeight: 'bold',
@@ -488,19 +521,25 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#FFA500', // Orange border for picker
     borderRadius: 8,
-    marginBottom: 15,
+    marginBottom: 20,
+    justifyContent: 'center',
   },
   picker: {
-    height: 50,
+    height: Platform.OS === 'ios' ? 120 : 50,
+    width: '100%',
   },
   confirmButton: {
-    backgroundColor: '#007AFF',
     marginTop: 10,
+    backgroundColor: '#FF8C00', // Orange confirm button
+    borderColor: '#FF8C00',
   },
   cancelButton: {
     marginTop: 10,
+    borderColor: '#FF8C00', // 
+    color: '#FF8C00', // 
+    textColor: 'orange'
   },
 });
 

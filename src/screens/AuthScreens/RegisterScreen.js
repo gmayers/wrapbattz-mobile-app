@@ -14,6 +14,7 @@ import {
 import Button from '../../components/Button';
 import { BaseTextInput, EmailInput, PasswordInput } from '../../components/TextInput';
 import { useAuth } from '../../context/AuthContext';
+import axios from 'axios'; // Import axios directly
 
 const RegisterScreen = ({ navigation }) => {
   const { axiosInstance } = useAuth();
@@ -23,7 +24,7 @@ const RegisterScreen = ({ navigation }) => {
     confirmPassword: '',
     first_name: '',
     last_name: '',
-    organization_invite_code: '', // Updated field name to match API
+    organization_invite_code: '',
     phone_number: '',
   });
   const [errors, setErrors] = useState({});
@@ -32,7 +33,6 @@ const RegisterScreen = ({ navigation }) => {
   const confirmPasswordInputRef = useRef(null);
 
   const validateForm = () => {
-    console.log('REG-1: Validating registration form');
     let isValid = true;
     const newErrors = {};
 
@@ -73,8 +73,6 @@ const RegisterScreen = ({ navigation }) => {
     }
 
     setErrors(newErrors);
-    console.log('REG-2: Validation result:', isValid ? 'Valid' : 'Invalid', 
-      Object.keys(newErrors).length > 0 ? 'with errors' : '');
     return isValid;
   };
 
@@ -87,80 +85,90 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    console.log('REG-3: Register button pressed');
     if (!validateForm()) {
-      console.log('REG-4: Form validation failed, aborting registration');
       return;
     }
 
     setIsSubmitting(true);
-    console.log('REG-5: Setting submission state to true');
+    
+    // Prepare the registration data exactly as required by the API
+    const registrationData = {
+      email: formData.email,
+      password: formData.password,
+      password2: formData.password, // Use same password to ensure match
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      organization_invite_code: formData.organization_invite_code || '',
+      phone_number: formData.phone_number || ''
+    };
+    
+    console.log('Registration data:', JSON.stringify(registrationData, null, 2));
     
     try {
-      console.log('REG-6: Sending registration request');
-      // API call to register user with correct endpoint and fields
-      const response = await axiosInstance.post('/auth/register/register/', {
-        email: formData.email,
-        // No username field since CustomUser doesn't use it
-        password: formData.password,
-        password2: formData.confirmPassword,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        organization_invite_code: formData.organization_invite_code || '',
-        phone_number: formData.phone_number
-      });
-
-      console.log('REG-7: Registration successful, response:', response.status);
+      // First, log what base URL is being used
+      console.log('API Base URL:', axiosInstance.defaults.baseURL);
       
-      // Show success message with email verification instructions
+      // Direct API call
+      const response = await axiosInstance.post('/auth/register/', registrationData);
+      
+      console.log('Registration response:', response.data);
+      
       Alert.alert(
         'Registration Successful',
         'Your account has been created. Please check your email to verify your account before logging in.',
         [
           {
             text: 'OK',
-            onPress: () => {
-              console.log('REG-8: Success alert acknowledged, navigating to login');
-              // Navigate to login screen after registration
-              navigation.navigate('Login');
-            }
+            onPress: () => navigation.navigate('Login')
           }
         ]
       );
     } catch (error) {
-      console.error('REG-9: Registration error:', error);
-      console.error('REG-10: Error response status:', error.response?.status);
-      console.error('REG-11: Error response data:', JSON.stringify(error.response?.data, null, 2));
+      console.error('Registration error:', error);
       
-      if (error.response && error.response.data) {
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
+        
         // Handle server validation errors
-        const serverErrors = error.response.data;
-        const formattedErrors = {};
-        
-        Object.keys(serverErrors).forEach(key => {
-          formattedErrors[key] = Array.isArray(serverErrors[key]) 
-            ? serverErrors[key][0] 
-            : serverErrors[key];
-        });
-        
-        console.log('REG-12: Setting server validation errors:', JSON.stringify(formattedErrors, null, 2));
-        setErrors(formattedErrors);
+        if (error.response.data && typeof error.response.data === 'object') {
+          const serverErrors = error.response.data;
+          const formattedErrors = {};
+          
+          Object.keys(serverErrors).forEach(key => {
+            formattedErrors[key] = Array.isArray(serverErrors[key]) 
+              ? serverErrors[key][0] 
+              : serverErrors[key];
+          });
+          
+          setErrors(formattedErrors);
+        } else {
+          // Generic server error message
+          Alert.alert(
+            'Registration Failed',
+            'The server encountered an error. Please try again later.'
+          );
+        }
+      } else if (error.request) {
+        // Network error
+        console.error('Network error - no response received');
+        Alert.alert(
+          'Connection Error',
+          'Could not connect to the server. Please check your internet connection and try again.'
+        );
       } else {
-        // General error
-        console.log('REG-13: Displaying general error alert');
+        // Other errors
         Alert.alert(
           'Registration Failed',
           error.message || 'An unexpected error occurred. Please try again.'
         );
       }
     } finally {
-      console.log('REG-14: Setting submission state to false');
       setIsSubmitting(false);
     }
   };
 
   const navigateToLogin = () => {
-    console.log('REG-15: Navigate to login screen');
     navigation.navigate('Login');
   };
 

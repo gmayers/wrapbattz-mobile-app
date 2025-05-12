@@ -4,6 +4,9 @@ import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 import { useAuth } from '../../../../context/AuthContext';
 
+// Define the orange color to match other screens
+const ORANGE_COLOR = '#FF9500';
+
 const SelectMenuTab = ({ 
   locations,
   onAssignComplete,
@@ -18,13 +21,14 @@ const SelectMenuTab = ({
   const [locationOptions, setLocationOptions] = useState([]);
   const [deviceOptions, setDeviceOptions] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
-  // Import axiosInstance from AuthContext
-  const { axiosInstance } = useAuth();
+  // Import deviceService and axiosInstance from AuthContext
+  const { deviceService, axiosInstance } = useAuth();
   
   // Transform locations into dropdown format and select first location
   useEffect(() => {
+    console.log('SelectMenuTab - useEffect[locations] - locations count:', locations?.length);
+    
     if (locations && locations.length > 0) {
       // Create location options
       const options = locations.map(location => ({
@@ -34,10 +38,9 @@ const SelectMenuTab = ({
       
       setLocationOptions(options);
       
-      // Auto-select first location if no location is selected yet
-      if (!selectedLocationId && !initialLoadComplete) {
+      // Auto-select first location
+      if (options.length > 0 && !selectedLocationId) {
         const firstLocationId = options[0].value;
-        console.log(`Auto-selecting first location: ${firstLocationId}`);
         setSelectedLocationId(firstLocationId);
         
         // Find the location object from the id
@@ -46,47 +49,63 @@ const SelectMenuTab = ({
         
         // Fetch devices for the first location
         fetchDevicesForLocation(firstLocationId);
-        setInitialLoadComplete(true);
       }
     }
   }, [locations]);
   
-  // Update device options when available devices change
+  // Auto-select first device when availableDevices changes
   useEffect(() => {
     if (availableDevices && availableDevices.length > 0) {
       const options = availableDevices.map(device => ({
         label: `${device.make} ${device.model} - ${device.identifier}`,
         value: device.id
       }));
+      
       setDeviceOptions(options);
+      
+      // Auto-select first device if one is available and none is selected
+      if (options.length > 0 && !selectedDeviceId) {
+        const firstDeviceId = options[0].value;
+        setSelectedDeviceId(firstDeviceId);
+        
+        // Find the device object from the id
+        const deviceObj = availableDevices.find(dev => 
+          dev.id === parseInt(firstDeviceId) || dev.id === firstDeviceId
+        );
+        
+        setSelectedDeviceAssign(deviceObj || null);
+      }
     } else {
       setDeviceOptions([]);
+      // Clear device selection if no devices are available
+      setSelectedDeviceId('');
+      setSelectedDeviceAssign(null);
     }
   }, [availableDevices]);
 
   // Helper function to fetch devices for a location
-  const fetchDevicesForLocation = (locationId) => {
+  const fetchDevicesForLocation = async (locationId) => {
     if (locationId) {
-      fetchDevicesByLocation(locationId)
-        .then(devices => {
-          // Filter devices to show only available ones
-          const availableDevices = devices.filter(device => 
-            device.status === 'available'
-          );
-          console.log(`Found ${availableDevices.length} available devices at location ${locationId}`);
-          setAvailableDevices(availableDevices || []);
-        })
-        .catch(error => {
-          handleApiError(error, 'Failed to fetch devices for the selected location');
-          setAvailableDevices([]);
-        });
+      try {
+        const devices = await fetchDevicesByLocation(locationId);
+        
+        // Filter for available devices
+        const availableDevices = devices.filter(device => 
+          device.status === 'available'
+        );
+        
+        setAvailableDevices(availableDevices || []);
+      } catch (error) {
+        console.error('SelectMenuTab - Error fetching devices for location:', error);
+        handleApiError(error, 'Failed to fetch devices for the selected location');
+        setAvailableDevices([]);
+      }
     } else {
       setAvailableDevices([]);
     }
   };
 
   const handleLocationChange = (locationId) => {
-    console.log(`Location changed to: ${locationId}`);
     setSelectedLocationId(locationId);
     setSelectedDeviceId('');
     setSelectedDeviceAssign(null);
@@ -100,10 +119,13 @@ const SelectMenuTab = ({
   };
 
   const handleDeviceChange = (deviceId) => {
-    console.log(`Device changed to: ${deviceId}`);
     setSelectedDeviceId(deviceId);
+    
     // Find the device object from the id
-    const deviceObj = availableDevices.find(dev => dev.id === deviceId);
+    const deviceObj = availableDevices.find(dev => 
+      dev.id === parseInt(deviceId) || dev.id === deviceId
+    );
+    
     setSelectedDeviceAssign(deviceObj || null);
   };
 
@@ -116,29 +138,29 @@ const SelectMenuTab = ({
     setAssignLoading(true);
 
     try {
-      console.log('Assigning device via selection menu:', {
-        device_id: selectedDeviceId,
-        assigned_date: new Date().toISOString().split('T')[0]
-      });
-
-      // Use axiosInstance from AuthContext to automatically handle authentication
+      console.log(`Assigning device ${selectedDeviceId} to current user`);
+      
+      // Use the dedicated assign-to-me endpoint which doesn't require any request body
+      // This endpoint automatically assigns the device to the authenticated user
       const response = await axiosInstance.post(
-        '/device-assignments/',
-        {
-          device_id: selectedDeviceId,
-          assigned_date: new Date().toISOString().split('T')[0] // Format as YYYY-MM-DD
-        }
+        `/device-assignments/device/${selectedDeviceId}/assign-to-me/`
       );
-
-      console.log('Assignment successful:', response.data);
       
       Alert.alert(
         'Success', 
         'Device assigned successfully to your account.',
-        [{ text: 'OK', onPress: onAssignComplete }]
+        [{ text: 'OK', onPress: () => {
+          onAssignComplete();
+        }}]
       );
     } catch (error) {
       console.error('Assignment error:', error);
+      
+      // Log the error details
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
+      }
       
       // Use the provided error handler or fallback to Alert
       if (handleApiError) {
@@ -146,24 +168,13 @@ const SelectMenuTab = ({
       } else {
         let errorMessage = 'Failed to assign device. Please try again.';
         
-        if (error.response) {
-          // The server responded with an error
-          if (error.response.data && typeof error.response.data === 'object') {
-            // Try to extract meaningful error messages
-            const errors = [];
-            Object.entries(error.response.data).forEach(([key, value]) => {
-              if (Array.isArray(value)) {
-                errors.push(`${key}: ${value.join(', ')}`);
-              } else if (typeof value === 'string') {
-                errors.push(`${key}: ${value}`);
-              }
-            });
-            
-            if (errors.length > 0) {
-              errorMessage = errors.join('\n');
-            } else if (error.response.data.detail) {
-              errorMessage = error.response.data.detail;
-            }
+        if (error.response && error.response.data) {
+          if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          } else if (error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
           }
         }
         
@@ -174,13 +185,16 @@ const SelectMenuTab = ({
     }
   };
 
+  // Determine if button should be disabled based on selections and loading state
+  const isButtonDisabled = !selectedDeviceId || assignLoading;
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>
-        Select a location and device to assign to your account.
+        Select a device to assign to your account.
       </Text>
 
-      {/* Improved iOS-compatible dropdown for locations */}
+      {/* Location Dropdown */}
       <View style={styles.formSection}>
         <Text style={styles.inputLabel}>Location:</Text>
         <View style={styles.dropdownWrapper}>
@@ -194,9 +208,10 @@ const SelectMenuTab = ({
             style={Platform.OS === 'ios' ? styles.iosDropdown : {}}
           />
         </View>
+        <Text style={styles.helpText}>Select a location to view available devices</Text>
       </View>
       
-      {/* Improved iOS-compatible dropdown for devices */}
+      {/* Device Dropdown */}
       <View style={styles.formSection}>
         <Text style={styles.inputLabel}>Device:</Text>
         <View style={styles.dropdownWrapper}>
@@ -222,36 +237,21 @@ const SelectMenuTab = ({
         </View>
       </View>
       
-      {/* Device info card with improved styling */}
-      {selectedDeviceAssign && (
-        <View style={styles.deviceInfoCard}>
-          <Text style={styles.deviceInfoTitle}>Selected Device</Text>
-          <View style={styles.deviceInfoRow}>
-            <Text style={styles.deviceInfoLabel}>ID:</Text>
-            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.identifier}</Text>
-          </View>
-          <View style={styles.deviceInfoRow}>
-            <Text style={styles.deviceInfoLabel}>Make:</Text>
-            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.make}</Text>
-          </View>
-          <View style={styles.deviceInfoRow}>
-            <Text style={styles.deviceInfoLabel}>Model:</Text>
-            <Text style={styles.deviceInfoValue}>{selectedDeviceAssign.model}</Text>
-          </View>
-        </View>
-      )}
+      {/* Flexible spacer to push button to bottom */}
+      <View style={styles.flexSpacer} />
       
-      {/* Bottom spacer to push button to bottom when no device is selected */}
-      {!selectedDeviceAssign && <View style={styles.flexSpacer} />}
-      
-      {/* Enhanced button with better styling */}
+      {/* Assignment Button */}
       <Button
-        title="Assign to My Account"
+        title={assignLoading ? "Assigning..." : "Assign to My Account"}
         onPress={handleAssignSelect}
-        disabled={!selectedDeviceId || assignLoading}
+        disabled={isButtonDisabled}
         isLoading={assignLoading}
-        style={styles.assignButton}
+        style={[
+          styles.assignButton,
+          isButtonDisabled ? styles.disabledButton : {}
+        ]}
         textColor="white"
+        testID="assign-button"
       />
     </View>
   );
@@ -278,6 +278,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#777',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   dropdownWrapper: {
     // This wrapper helps with iOS z-index issues
@@ -306,55 +312,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f1f1',
     borderColor: '#ddd',
   },
-  deviceInfoCard: {
-    marginTop: 24,
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  deviceInfoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-    textAlign: 'center',
-  },
-  deviceInfoRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  deviceInfoLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#555',
-    width: 80,
-  },
-  deviceInfoValue: {
-    fontSize: 15,
-    color: '#333',
-    flex: 1,
-  },
   flexSpacer: {
     flex: 1,
     minHeight: 20,
   },
   assignButton: {
     marginTop: 16,
-    backgroundColor: '#28a745', // Changed to green to differentiate from orange close button
+    backgroundColor: ORANGE_COLOR,
     paddingVertical: 12,
     borderRadius: 8,
   },
+  disabledButton: {
+    opacity: 0.5,
+    backgroundColor: '#aaa',
+  }
 });
 
 export default SelectMenuTab;

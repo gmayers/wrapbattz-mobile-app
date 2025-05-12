@@ -1,5 +1,5 @@
 // LocationsScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
@@ -21,8 +22,24 @@ import Card from '../components/Card';
 import TabBar from '../components/TabBar';
 import { useAuth } from '../context/AuthContext';
 
+const { width } = Dimensions.get('window');
+
+// Define the orange color to be used for buttons
+const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
+
 const LocationsScreen = ({ navigation }) => {
-  const { axiosInstance, logout, isAdminOrOwner, deviceService, userData } = useAuth();
+  // Enhanced usage of AuthContext
+  const { 
+    deviceService, 
+    logout, 
+    isAdminOrOwner, 
+    userData,
+    user,
+    refreshRoleInfo,
+    error: authError, 
+    clearError 
+  } = useAuth();
+
   const [locations, setLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('locations');
@@ -38,23 +55,29 @@ const LocationsScreen = ({ navigation }) => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Get user's name
+  const userName = userData?.name || user?.username || user?.email || 'User';
+
+  // Reset AuthContext errors when component unmounts
+  useEffect(() => {
+    return () => {
+      if (authError) clearError();
+    };
+  }, [authError, clearError]);
 
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
+    
+    // Only refresh role info once when component mounts
+    if (refreshRoleInfo) {
+      refreshRoleInfo();
+    }
   }, [navigation]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      // Reset active tab when returning
-      setActiveTab('locations');
-      fetchLocations();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const fetchLocations = async () => {
+  const fetchLocations = useCallback(async () => {
     setIsLoading(true);
     try {
       const locationsData = await deviceService.getLocations();
@@ -77,9 +100,48 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [deviceService, logout]);
 
-  const handleTabPress = (key) => {
+  // Use useCallback for event handlers to prevent unnecessary re-renders
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Reset active tab when returning
+      setActiveTab('locations');
+      fetchLocations();
+    });
+    return unsubscribe;
+  }, [navigation, fetchLocations]);
+
+  // Static tabs to avoid re-renders
+  const tabs = [
+    {
+      key: 'dashboard',
+      title: 'Home',
+      icon: <Ionicons name="home-outline" size={24} />,
+    },
+    {
+      key: 'reports',
+      title: 'Reports',
+      icon: <Ionicons name="document-text-outline" size={24} />,
+    },
+    {
+      key: 'locations',
+      title: 'Locations',
+      icon: <Ionicons name="location-outline" size={24} />,
+    },
+    {
+      key: 'profile',
+      title: 'Profile',
+      icon: <Ionicons name="person-outline" size={24} />
+    },
+    {
+      key: 'logout',
+      title: 'Logout',
+      icon: <Ionicons name="log-out-outline" size={24} />,
+    }
+  ];
+
+  const handleTabPress = useCallback((key) => {
     if (key === activeTab) return;
     setActiveTab(key);
     switch (key) {
@@ -88,6 +150,9 @@ const LocationsScreen = ({ navigation }) => {
         break;
       case 'reports':
         navigation.navigate('Reports');
+        break;
+      case 'profile':
+        navigation.navigate('Profile');
         break;
       case 'logout':
         Alert.alert(
@@ -106,47 +171,27 @@ const LocationsScreen = ({ navigation }) => {
       default:
         break;
     }
-  };
+  }, [activeTab, navigation, logout]);
 
-  const tabs = [
-    {
-      key: 'dashboard',
-      title: 'Home',
-      icon: <Ionicons name="home-outline" size={24} />,
-    },
-    {
-      key: 'reports',
-      title: 'Reports',
-      icon: <Ionicons name="document-text-outline" size={24} />,
-    },
-    {
-      key: 'locations',
-      title: 'Locations',
-      icon: <Ionicons name="location-outline" size={24} />,
-    },
-    {
-      key: 'logout',
-      title: 'Logout',
-      icon: <Ionicons name="log-out-outline" size={24} />,
-    }
-  ];
-
-  const handleInputChange = (field, value) => {
-    setFormData({
-      ...formData,
+  const handleInputChange = useCallback((field, value) => {
+    setFormData(prevData => ({
+      ...prevData,
       [field]: value,
-    });
+    }));
     
     // Clear error for this field when user types
-    if (formErrors[field]) {
-      setFormErrors({
-        ...formErrors,
-        [field]: null,
-      });
-    }
-  };
+    setFormErrors(prevErrors => {
+      if (prevErrors[field]) {
+        return {
+          ...prevErrors,
+          [field]: null,
+        };
+      }
+      return prevErrors;
+    });
+  }, []);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const errors = {};
     
     if (!formData.street_name.trim()) {
@@ -167,9 +212,9 @@ const LocationsScreen = ({ navigation }) => {
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [formData]);
 
-  const handleCreateLocation = async () => {
+  const handleCreateLocation = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
@@ -219,9 +264,9 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [deviceService, formData, logout, userData, validateForm, fetchLocations]);
 
-  const renderLocationCard = (location) => (
+  const renderLocationCard = useCallback((location) => (
     <Card
       key={location.id}
       title={location.building_name || `${location.street_number} ${location.street_name}`}
@@ -244,13 +289,14 @@ const LocationsScreen = ({ navigation }) => {
             style={styles.actionButton}
             onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
           >
-            <Ionicons name="eye-outline" size={18} color="#007AFF" />
+            {/* Changed the icon color to orange */}
+            <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
             <Text style={styles.actionText}>View Devices</Text>
           </TouchableOpacity>
         </View>
       </View>
     </Card>
-  );
+  ), [navigation]);
 
   const renderCreateLocationModal = () => (
     <Modal
@@ -387,6 +433,8 @@ const LocationsScreen = ({ navigation }) => {
               onPress={handleCreateLocation}
               size="medium"
               disabled={isSubmitting}
+              textColor="black"
+              style={{ backgroundColor: ORANGE_COLOR }}
             />
           </View>
         </View>
@@ -394,16 +442,59 @@ const LocationsScreen = ({ navigation }) => {
     </Modal>
   );
 
+  // If AuthContext itself has an error state, we could show it here
+  if (authError) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Text style={styles.errorMessage}>{authError}</Text>
+        <Button
+          title="Try Again"
+          onPress={() => {
+            clearError();
+            fetchLocations();
+          }}
+          size="medium"
+          textColor="black"
+          style={{ backgroundColor: ORANGE_COLOR }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
+      {/* Updated Header Section */}
       <View style={styles.header}>
-        {isAdminOrOwner && (
+        <View style={styles.headerTop}>
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>
+              Locations
+            </Text>
+          </View>
+          
+          {/* Profile Button in Header */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {userName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* If userData exists and user has permission, show add button */}
+        {isAdminOrOwner && userData && (
           <Button
             title="Add Location"
             onPress={() => setModalVisible(true)}
             size="small"
+            textColor="black"
+            style={{ backgroundColor: ORANGE_COLOR }}
           />
         )}
       </View>
@@ -414,17 +505,33 @@ const LocationsScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Locations</Text>
-            <Text style={styles.sectionSubtitle}>Manage your organization's locations</Text>
+            <Text style={styles.sectionTitle}>Organization Locations</Text>
+            <Text style={styles.sectionSubtitle}>
+              {userData?.orgId 
+                ? `Manage ${userData.name ? userData.name + "'s" : "your"} organization's locations` 
+                : "Manage your organization's locations"}
+            </Text>
             
             {isLoading ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
             ) : locations.length > 0 ? (
               <>
                 {locations.map(renderLocationCard)}
               </>
             ) : (
-              <Text style={styles.emptyText}>No locations found</Text>
+              <View style={styles.emptyContainer}>
+                <Ionicons name="location-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>No locations found</Text>
+                {isAdminOrOwner && (
+                  <Button
+                    title="Add Your First Location"
+                    onPress={() => setModalVisible(true)}
+                    size="small"
+                    textColor="black"
+                    style={[{ marginTop: 15, backgroundColor: ORANGE_COLOR }]}
+                  />
+                )}
+              </View>
             )}
           </View>
         </ScrollView>
@@ -432,17 +539,20 @@ const LocationsScreen = ({ navigation }) => {
 
       {renderCreateLocationModal()}
 
+      {/* Updated TabBar - conditionally filter tabs based on user role */}
       <TabBar
-        tabs={tabs}
+        tabs={tabs.filter(tab => tab.key !== 'locations' || isAdminOrOwner)}
         activeTab={activeTab}
         onTabPress={handleTabPress}
         backgroundColor="#FFFFFF"
-        activeColor="#007AFF"
+        activeColor={ORANGE_COLOR}
         inactiveColor="#666666"
         showIcons={true}
         showLabels={true}
         height={Platform.OS === 'ios' ? 80 : 60}
         containerStyle={styles.tabBarContainer}
+        labelStyle={styles.tabBarLabel}
+        iconStyle={styles.tabBarIcon}
       />
     </SafeAreaView>
   );
@@ -457,24 +567,55 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  // Updated header styling
   header: {
-    padding: 15,
+    paddingHorizontal: '5%',
+    paddingVertical: '3%',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    marginBottom: '3%',
+  },
+  headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  welcomeContainer: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    lineHeight: 30,
+  },
+  profileButton: {
+    marginLeft: 10,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ORANGE_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   scrollView: {
     flex: 1,
   },
   scrollViewContent: {
-    flexGrow: 1,
+    padding: '4%',
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   section: {
-    padding: 15,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+    width: '100%',
   },
   sectionTitle: {
     fontSize: 18,
@@ -517,20 +658,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
   },
+  // Updated action text color to orange
   actionText: {
     marginLeft: 6,
-    color: '#007AFF',
+    color: ORANGE_COLOR, // Changed from #007AFF to orange
     fontSize: 14,
   },
   loader: {
     marginVertical: 20,
   },
+  // Enhanced empty state
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginVertical: 20,
+    marginTop: 10,
   },
+  // Tab Bar styles updated to match HomeScreen
   tabBarContainer: {
     paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     borderTopWidth: 1,
@@ -540,6 +689,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 10,
+  },
+  tabBarLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  tabBarIcon: {
+    fontSize: 24,
   },
   // Modal styles
   modalContainer: {
@@ -610,6 +766,20 @@ const styles = StyleSheet.create({
     padding: 15,
     borderTopWidth: 1,
     borderTopColor: '#EEEEEE',
+  },
+  // Auth error container
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });
 

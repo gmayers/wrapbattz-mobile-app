@@ -4,9 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 
-// Import screens
+// Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
-import RegisterScreen from '../screens/AuthScreens/RegisterScreen'; // Added RegisterScreen
+import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
 import HomeScreen from '../screens/HomeScreen';
 import ReportsScreen from '../screens/ReportsScreen';
@@ -17,9 +17,19 @@ import CreateReportScreen from '../screens/CreateReportScreen';
 import LocationsScreen from '../screens/LocationsScreen';
 import LocationDetailsScreen from '../screens/LocationDetailsScreen';
 import PricingScreen from '../screens/PricingScreen';
-import SuggestFeatureScreen from '../screens/SuggestFeatureScreen'; 
+import SuggestFeatureScreen from '../screens/SuggestFeatureScreen';
+
+// Import new screens
+import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
+import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 
 const Stack = createStackNavigator();
+
+// Orange color to match UI
+const ORANGE_COLOR = '#FF9500';
 
 const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -200,12 +210,109 @@ const MainStack = () => (
         },
       }}
     />
+    
+    {/* Add new billing and profile screens */}
+    <Stack.Screen
+      name="DataHandlingFee"
+      component={DataHandlingFeeScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Device Management Fee',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="ManageBilling"
+      component={ManageBillingScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Manage Billing',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="Profile"
+      component={ProfileScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'My Profile',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="EditProfile"
+      component={EditProfileScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Edit Profile',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="ChangePassword"
+      component={ChangePasswordScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Change Password',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
   </Stack.Navigator>
 );
 
 const LoadingScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <ActivityIndicator size="large" color="#007AFF" />
+    <ActivityIndicator size="large" color={ORANGE_COLOR} />
   </View>
 );
 

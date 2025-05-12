@@ -1,5 +1,4 @@
-// CreateReportScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,15 +31,24 @@ const REPORT_TYPES = {
 };
 
 const CreateReportScreen = ({ navigation, route }) => {
-  const { axiosInstance, logout, deviceService } = useAuth();
+  // Using more properties from the auth context
+  const { 
+    deviceService, 
+    axiosInstance,
+    error: authError, 
+    clearError, 
+    userData, 
+    logout,
+    isLoading: authLoading
+  } = useAuth();
+  
   const [formData, setFormData] = useState({
     device_id: '',
     type: '',
     description: '',
-    photo: null,
   });
   const [photoUri, setPhotoUri] = useState(null);
-  const [photos, setPhotos] = useState([]);
+  const [additionalPhotos, setAdditionalPhotos] = useState([]);
   const [signatureUri, setSignatureUri] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSignatureModal, setIsSignatureModal] = useState(false);
@@ -48,44 +56,63 @@ const CreateReportScreen = ({ navigation, route }) => {
   const [deviceItems, setDeviceItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSections, setActiveSections] = useState([]);
+  const [error, setError] = useState(null);
+  const signatureRef = useRef(null);
 
+  // Clear auth context errors when component unmounts
   useEffect(() => {
-    // Fetch active devices when component mounts
-    fetchActiveDevices();
-  }, []);
+    return () => {
+      if (authError) clearError();
+    };
+  }, [authError, clearError]);
 
-  const fetchActiveDevices = async () => {
+  const fetchActiveDevices = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await deviceService.getAssignments();
-      const activeDevices = data.filter(assignment => !assignment.returned_date);
-      setDevices(activeDevices);
+      setError(null);
       
-      // Format devices for Dropdown component
+      // Using deviceService from auth context
+      const data = await deviceService.getMyActiveAssignments();
+      const activeDevices = Array.isArray(data) 
+        ? data.filter(assignment => !assignment.returned_date)
+        : [];
+        
+      setDevices(activeDevices);
+
       const formattedDevices = activeDevices.map(item => ({
         label: `${item.device.identifier} - ${item.device.device_type}`,
         value: item.device.id
       }));
-      
-      // Add a placeholder item if needed
+
       if (formattedDevices.length === 0) {
         formattedDevices.unshift({ label: "No active devices", value: "" });
       }
-      
+
       setDeviceItems(formattedDevices);
-      
+
       if (activeDevices.length > 0 && activeDevices[0]?.device?.id) {
         setFormData(prev => ({ ...prev, device_id: activeDevices[0].device.id }));
       }
     } catch (error) {
       console.error('Error fetching devices:', error);
-      Alert.alert('Error', 'Failed to fetch devices');
+      
+      if (error.response?.status === 401) {
+        Alert.alert('Session Expired', 'Please login again');
+        logout();
+      } else {
+        setError('Failed to fetch devices. Please try again.');
+        Alert.alert('Error', 'Failed to fetch devices');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [deviceService, logout]);
 
-  const copyFileToPermanentStorage = async (tempUri) => {
+  useEffect(() => {
+    fetchActiveDevices();
+  }, [fetchActiveDevices]);
+
+  const copyFileToPermanentStorage = useCallback(async (tempUri) => {
     try {
       const filename = tempUri.split('/').pop();
       const permanentUri = `${RNFS.DocumentDirectoryPath}/${filename}`;
@@ -100,9 +127,9 @@ const CreateReportScreen = ({ navigation, route }) => {
       console.error('Error copying file:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const checkAndRequestPermissions = async () => {
+  const checkAndRequestPermissions = useCallback(async () => {
     const cameraPermission = await ImagePicker.getCameraPermissionsAsync();
     const mediaLibraryPermission = await MediaLibrary.getPermissionsAsync();
 
@@ -119,178 +146,157 @@ const CreateReportScreen = ({ navigation, route }) => {
       );
     }
     return true;
-  };
+  }, []);
 
-  // Main photo picker
-  const pickImage = () => {
+  const pickImage = useCallback(() => {
     Alert.alert('Choose Image', 'How would you like to choose the image?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Choose from Gallery', onPress: chooseMainPhotoFromGallery },
       { text: 'Take Photo', onPress: takeMainPhoto },
     ]);
-  };
+  }, []);
 
-  const takeMainPhoto = async () => {
+  const takeMainPhoto = useCallback(async () => {
     try {
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduced quality for faster uploads
+          quality: 0.5,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = await MediaLibrary.createAssetAsync(result.assets[0].uri);
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
-          
           setPhotoUri(permURI);
-          setFormData(prev => ({ ...prev, photo: permURI }));
         }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo and save to gallery.');
+      Alert.alert('Error', 'Failed to take photo and save.');
     }
-  };
+  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
 
-  const chooseMainPhotoFromGallery = async () => {
+  const chooseMainPhotoFromGallery = useCallback(async () => {
     try {
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduced quality for faster uploads
+          quality: 0.5,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
-          
           setPhotoUri(permURI);
-          setFormData(prev => ({ ...prev, photo: permURI }));
         }
       }
     } catch (error) {
       console.error('Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
-  };
+  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
 
-  // Additional photos functions
-  const handleAddPhoto = () => {
+  const handleAddPhoto = useCallback(() => {
     Alert.alert('Choose Image', 'How would you like to choose the image?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Choose from Gallery', onPress: chooseAdditionalPhotoFromGallery },
       { text: 'Take Photo', onPress: takeAdditionalPhoto },
     ]);
-  };
+  }, []);
 
-  const takeAdditionalPhoto = async () => {
+  const takeAdditionalPhoto = useCallback(async () => {
     try {
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduced quality for faster uploads
+          quality: 0.5,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = await MediaLibrary.createAssetAsync(result.assets[0].uri);
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
-          
-          const updatedPhotos = [...photos, { uri: permURI }];
-          setPhotos(updatedPhotos);
-          setActiveSections([updatedPhotos.length - 1]);
+          setAdditionalPhotos(prev => {
+            const updatedPhotos = [...prev, { uri: permURI }];
+            setActiveSections([updatedPhotos.length - 1]);
+            return updatedPhotos;
+          });
         }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo and save to gallery.');
+      Alert.alert('Error', 'Failed to take photo and save.');
     }
-  };
+  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
 
-  const chooseAdditionalPhotoFromGallery = async () => {
+  const chooseAdditionalPhotoFromGallery = useCallback(async () => {
     try {
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.5, // Reduced quality for faster uploads
+          quality: 0.5,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
-          
-          const updatedPhotos = [...photos, { uri: permURI }];
-          setPhotos(updatedPhotos);
-          setActiveSections([updatedPhotos.length - 1]);
+          setAdditionalPhotos(prev => {
+            const updatedPhotos = [...prev, { uri: permURI }];
+            setActiveSections([updatedPhotos.length - 1]);
+            return updatedPhotos;
+          });
         }
       }
     } catch (error) {
       console.error('Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
-  };
+  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
 
-  const handleRemovePhoto = (index) => {
-    const updatedPhotos = photos.filter((_, i) => i !== index);
-    setPhotos(updatedPhotos);
+  const handleRemovePhoto = useCallback((index) => {
+    setAdditionalPhotos(prev => prev.filter((_, i) => i !== index));
     setActiveSections([]);
-  };
+  }, []);
 
-  const toggleSection = (index) => {
+  const toggleSection = useCallback((index) => {
     setActiveSections(prev =>
       prev.includes(index) ? [] : [index]
     );
-  };
+  }, []);
 
-  // Save signature as a file
-  const saveSignatureAsFile = async (base64Data) => {
+  const saveSignatureAsFile = useCallback(async (base64Data) => {
     try {
-      // Create a unique filename for the signature
       const fileName = `signature_${Date.now()}.png`;
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
-      // Save base64 data to file
       await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      
-      // Return the file URI
       return fileUri;
     } catch (error) {
       console.error('Error saving signature to file:', error);
       throw error;
     }
-  };
+  }, []);
 
-  // Signature canvas handling
-  const handleSignatureOK = async (signature) => {
+  const handleSignatureOK = useCallback(async (signature) => {
     try {
-      // Remove data URI prefix
       const base64String = signature.replace('data:image/png;base64,', '');
-      
-      // Save signature as a file
       const fileUri = await saveSignatureAsFile(base64String);
       console.log('Signature saved as file:', fileUri);
-      
-      // Save the file URI in state
       setSignatureUri(fileUri);
-      
-      // Close modal
       setIsSignatureModal(false);
     } catch (error) {
       console.error('Error processing signature:', error);
       Alert.alert('Error', 'Failed to process signature. Please try again.');
     }
-  };
+  }, [saveSignatureAsFile]);
 
-  const handleSignatureClear = (ref) => {
-    if (ref && ref.clearSignature) {
-      ref.clearSignature();
+  const handleSignatureClear = useCallback(() => {
+    if (signatureRef.current && signatureRef.current.clearSignature) {
+      signatureRef.current.clearSignature();
     }
-  };
+  }, []);
 
-  const handleSignatureClose = () => {
+  const handleSignatureClose = useCallback(() => {
     setIsSignatureModal(false);
-  };
+  }, []);
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     if (!formData.device_id) {
       Alert.alert('Error', 'Please select a device');
       return false;
@@ -304,23 +310,40 @@ const CreateReportScreen = ({ navigation, route }) => {
       return false;
     }
     return true;
-  };
+  }, [formData]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
+    
     setIsSubmitting(true);
+    setError(null);
+    
     try {
-      // Create the report
-      const reportResponse = await axiosInstance.post('/reports/', {
-        ...formData,
-        status: 'OPEN',
+      // Format the report data according to the API expectations
+      const reportData = {
+        device_id: formData.device_id,
+        type: formData.type,
+        description: formData.description,
         report_date: new Date().toISOString().split('T')[0],
-      });
-      const reportData = reportResponse.data;
-      
-      console.log('Report created successfully:', reportData.id);
+      };
 
-      // Upload main photo if exists
+      // Use the appropriate method to create a report
+      // First, check if deviceService has a createReport method
+      let reportResponse;
+      if (typeof deviceService.createReport === 'function') {
+        reportResponse = await deviceService.createReport(reportData);
+      } else {
+        // If not, use the axiosInstance directly as a fallback
+        reportResponse = await axiosInstance.post('/reports/', reportData);
+        reportResponse = reportResponse.data; // Extract data from axios response
+      }
+      
+      const reportId = reportResponse.id;
+      console.log('Report created successfully:', reportId);
+
+      // Process photos using the deviceService.createDevicePhoto method
+      const uploadPromises = [];
+
       if (photoUri) {
         const photoForm = new FormData();
         photoForm.append('image', {
@@ -328,39 +351,47 @@ const CreateReportScreen = ({ navigation, route }) => {
           type: 'image/jpeg',
           name: 'photo.jpg',
         });
-        photoForm.append('device', formData.device_id);
-        photoForm.append('report', reportData.id);
+        photoForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        photoForm.append('report', reportId);
+        
         try {
-          await axiosInstance.post('/device-photos/', photoForm, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          console.log('Main photo uploaded successfully');
+          // Check if deviceService has createDevicePhoto method
+          if (typeof deviceService.createDevicePhoto === 'function') {
+            // Check if deviceService has createDevicePhoto method
+          if (typeof deviceService.createDevicePhoto === 'function') {
+            uploadPromises.push(deviceService.createDevicePhoto(photoForm));
+          } else {
+            // Fallback to axiosInstance
+            uploadPromises.push(axiosInstance.post('/device-photos/', photoForm));
+          }
+          } else {
+            // Fallback to axiosInstance
+            uploadPromises.push(axiosInstance.post('/device-photos/', photoForm));
+          }
         } catch (error) {
           console.warn('Failed to upload main photo, but report was created:', error);
         }
       }
 
-      // Upload additional photos (if any)
-      for (const photo of photos) {
+      // Process additional photos
+      for (const photo of additionalPhotos) {
         const photoForm = new FormData();
         photoForm.append('image', {
           uri: photo.uri,
           type: 'image/jpeg',
           name: 'additional_photo.jpg',
         });
-        photoForm.append('device', formData.device_id);
-        photoForm.append('report', reportData.id);
+        photoForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        photoForm.append('report', reportId);
+        
         try {
-          await axiosInstance.post('/device-photos/', photoForm, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          console.log('Additional photo uploaded successfully');
+          uploadPromises.push(deviceService.createDevicePhoto(photoForm));
         } catch (error) {
           console.warn('Failed to upload an additional photo:', error);
         }
       }
 
-      // Upload signature as a photo if exists
+      // Process signature if available
       if (signatureUri) {
         console.log('Preparing to upload signature as image');
         const signatureForm = new FormData();
@@ -369,37 +400,48 @@ const CreateReportScreen = ({ navigation, route }) => {
           type: 'image/png',
           name: 'signature.png',
         });
-        signatureForm.append('device', formData.device_id);
-        signatureForm.append('report', reportData.id);
-        signatureForm.append('is_signature', true); // Add flag to identify this as a signature
+        signatureForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        signatureForm.append('report', reportId);
+        signatureForm.append('is_signature', true);
         
         try {
-          await axiosInstance.post('/device-photos/', signatureForm, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          console.log('Signature uploaded successfully as image');
+          // Check if deviceService has createDevicePhoto method
+          if (typeof deviceService.createDevicePhoto === 'function') {
+            uploadPromises.push(deviceService.createDevicePhoto(signatureForm));
+          } else {
+            // Fallback to axiosInstance
+            uploadPromises.push(axiosInstance.post('/device-photos/', signatureForm));
+          }
         } catch (error) {
           console.warn('Failed to upload signature as image:', error);
         }
       }
 
-      Alert.alert('Success', 'Report submitted successfully');
-      navigation.goBack();
+      // Wait for all uploads to complete
+      await Promise.allSettled(uploadPromises);
+
+      Alert.alert(
+        'Success', 
+        'Report submitted successfully',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       console.error('Error submitting report:', error);
+      
       if (error.response && error.response.status === 401) {
         Alert.alert('Session Expired', 'Please login again');
         logout();
       } else {
-        Alert.alert('Error', 'Failed to submit report. Please try again.');
+        const errorMsg = error.response?.data?.message || 'Failed to submit report. Please try again.';
+        setError(errorMsg);
+        Alert.alert('Error', errorMsg);
       }
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [validateForm, formData, photoUri, additionalPhotos, signatureUri, deviceService, navigation, logout]);
 
-  // Render report type buttons
-  const renderTypeButton = (type, description) => (
+  const renderTypeButton = useCallback((type, description) => (
     <TouchableOpacity
       key={type}
       style={[
@@ -416,7 +458,7 @@ const CreateReportScreen = ({ navigation, route }) => {
       ]} numberOfLines={2}>
         {type}
       </Text>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.infoButtonContainer}
         onPress={() => Alert.alert(type, description)}
       >
@@ -427,27 +469,60 @@ const CreateReportScreen = ({ navigation, route }) => {
         />
       </TouchableOpacity>
     </TouchableOpacity>
-  );
+  ), [formData.type]);
 
-  // Create report type items for a dropdown if needed
-  const reportTypeItems = Object.entries(REPORT_TYPES).map(([type, description]) => ({
-    label: type,
-    value: type
-  }));
+  // Handle auth errors
+  if (authError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorMessage}>{authError}</Text>
+        <Button
+          title="Try Again"
+          onPress={() => {
+            clearError();
+            fetchActiveDevices();
+          }}
+          size="medium"
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.formContainer}>
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{error}</Text>
+          <TouchableOpacity onPress={() => setError(null)}>
+            <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>Create Report</Text>
+        {userData?.name && (
+          <Text style={styles.userInfo}>Reporting as: {userData.name}</Text>
+        )}
+      </View>
+      
       <View style={styles.formGroup}>
         <Text style={styles.formLabel}>Device</Text>
-        <Dropdown
-          label=""
-          placeholder="Select a device"
-          value={formData.device_id}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, device_id: value }))}
-          items={deviceItems}
-          containerStyle={styles.dropdownContainer}
-          disabled={loading || deviceItems.length === 0}
-        />
+        {loading || authLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading devices...</Text>
+          </View>
+        ) : (
+          <Dropdown
+            label=""
+            placeholder="Select a device"
+            value={formData.device_id}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, device_id: value }))}
+            items={deviceItems}
+            containerStyle={styles.dropdownContainer}
+            disabled={deviceItems.length === 0}
+          />
+        )}
       </View>
 
       <View style={styles.formGroup}>
@@ -472,8 +547,14 @@ const CreateReportScreen = ({ navigation, route }) => {
       />
 
       <View style={styles.photoSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Main Photo</Text>
+          <TouchableOpacity onPress={() => Alert.alert('Main Photo', 'This photo will be the primary image associated with this report.')}>
+            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          </TouchableOpacity>
+        </View>
         <Button
-          title="Add Main Photo"
+          title={photoUri ? "Change Main Photo" : "Add Main Photo"}
           onPress={pickImage}
           variant="outlined"
           size="small"
@@ -484,9 +565,15 @@ const CreateReportScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.photosSection}>
-        <Text style={styles.sectionTitle}>Photos</Text>
-        {photos.map((photo, index) => (
-          <View key={index}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Additional Photos</Text>
+          <TouchableOpacity onPress={() => Alert.alert('Additional Photos', 'Add more photos to provide complete documentation of the issue.')}>
+            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          </TouchableOpacity>
+        </View>
+        
+        {additionalPhotos.map((photo, index) => (
+          <View key={index} style={styles.photoItem}>
             <TouchableOpacity onPress={() => toggleSection(index)}>
               <View style={styles.photoHeader}>
                 <Text style={styles.photoHeaderText}>
@@ -514,6 +601,12 @@ const CreateReportScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.signatureSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Signature</Text>
+          <TouchableOpacity onPress={() => Alert.alert('Signature', 'Your signature confirms that the information in this report is accurate to the best of your knowledge.')}>
+            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          </TouchableOpacity>
+        </View>
         <Button
           title={signatureUri ? "Edit Signature" : "Add Signature"}
           onPress={() => setIsSignatureModal(true)}
@@ -530,9 +623,9 @@ const CreateReportScreen = ({ navigation, route }) => {
 
       <View style={styles.buttonContainer}>
         <Button
-          title="Submit Report"
+          title={isSubmitting ? "Submitting..." : "Submit Report"}
           onPress={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || loading || authLoading}
         />
       </View>
 
@@ -544,9 +637,15 @@ const CreateReportScreen = ({ navigation, route }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalInnerContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Signature</Text>
+              <TouchableOpacity onPress={handleSignatureClose}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
             <View style={styles.signatureCanvasContainer}>
               <SignatureScreen
-                ref={(ref) => (this.signatureRef = ref)}
+                ref={signatureRef}
                 onOK={handleSignatureOK}
                 onEmpty={() => console.log('Empty signature')}
                 webStyle={`
@@ -562,12 +661,12 @@ const CreateReportScreen = ({ navigation, route }) => {
             <View style={styles.signatureButtonRow}>
               <Button
                 title="OK"
-                onPress={() => this.signatureRef.readSignature()}
+                onPress={() => signatureRef.current?.readSignature()}
                 style={styles.signatureButton}
               />
               <Button
                 title="Clear"
-                onPress={() => handleSignatureClear(this.signatureRef)}
+                onPress={handleSignatureClear}
                 variant="outlined"
                 style={styles.signatureButton}
               />
@@ -593,6 +692,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     flex: 1,
   },
+  formHeader: {
+    marginBottom: 20,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  userInfo: {
+    fontSize: 14,
+    color: '#666',
+  },
   formGroup: {
     marginBottom: 20,
   },
@@ -610,7 +722,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   dropdownContainer: {
-    marginTop: 0, // Adjust if needed
+    marginTop: 0,
   },
   typeGrid: {
     flexDirection: 'row',
@@ -618,7 +730,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -4,
   },
   typeGridItem: {
-    width: '50%', // 2 columns
+    width: '50%',
     padding: 4,
   },
   typeButtonGrid: {
@@ -641,14 +753,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#333',
     fontWeight: '500',
-    flex: 0.85, // 85% of the space
+    flex: 0.85,
     lineHeight: 16,
   },
   typeButtonTextSelected: {
     color: '#007AFF',
   },
   infoButtonContainer: {
-    flex: 0.15, // 15% of the space
+    flex: 0.15,
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
@@ -665,45 +777,58 @@ const styles = StyleSheet.create({
   photosSection: {
     marginVertical: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginRight: 8,
+  },
+  photoItem: {
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   photoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    backgroundColor: '#F5F5F5',
   },
   photoHeaderText: {
     flex: 1,
     fontSize: 16,
+    color: '#333',
   },
   removeText: {
-    color: 'red',
+    color: '#EF4444',
+    fontWeight: '600',
   },
   photoContent: {
     padding: 10,
-    backgroundColor: '#f1f1f1',
+    backgroundColor: '#FFFFFF',
   },
   photoImage: {
     width: '100%',
     height: 200,
+    borderRadius: 8,
   },
   addPhotoButton: {
     marginTop: 10,
   },
   signatureSection: {
     marginVertical: 20,
-    alignItems: 'center',
   },
   signaturePreview: {
     width: '100%',
     height: 200,
     marginTop: 10,
+    borderRadius: 8,
   },
   buttonContainer: {
     marginVertical: 20,
@@ -714,6 +839,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   modalInnerContainer: {
     width: '90%',
@@ -730,12 +866,15 @@ const styles = StyleSheet.create({
   signatureCanvasContainer: {
     flex: 1,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   signatureCanvas: {
     flex: 1,
     width: '100%',
     height: '100%',
-    borderRadius: 10,
   },
   signatureButtonRow: {
     flexDirection: 'row',
@@ -751,6 +890,44 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     width: '100%',
+  },
+  // Error and loading styles
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorBanner: {
+    backgroundColor: '#EF4444',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorBannerText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    flex: 1,
+  },
+  loadingContainer: {
+    padding: 15,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#666',
+    fontSize: 14,
   },
 });
 

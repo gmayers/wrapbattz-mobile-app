@@ -17,7 +17,6 @@ const AssignDeviceModal = ({
   const [assignTab, setAssignTab] = useState('nfcScan');
 
   const handleAssignTabChange = (tabKey) => {
-    console.log('Tab changed to:', tabKey);
     setAssignTab(tabKey);
   };
 
@@ -49,7 +48,10 @@ const AssignDeviceModal = ({
       case 'nfcScan':
         return (
           <View style={styles.nfcScanContainer}>
-            <NFCScanTab onAssignComplete={onAssignComplete} />
+            <NFCScanTab 
+              onAssignComplete={onAssignComplete} 
+              handleApiError={handleApiError}
+            />
           </View>
         );
       case 'selectMenu':
@@ -196,7 +198,6 @@ const styles = StyleSheet.create({
   activeTabButtonText: {
     color: '#007AFF',
   },
-  // Content container
   // Content container
   tabContentContainer: {
     flex: 1,

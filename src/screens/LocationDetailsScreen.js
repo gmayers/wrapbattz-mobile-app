@@ -1,5 +1,5 @@
 // LocationDetailsScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,51 +17,70 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 
+// Define the orange color to be used for buttons to match LocationsScreen
+const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
+
 const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;
-  const { axiosInstance, logout, isAdminOrOwner } = useAuth();
+  
+  // Enhanced usage of AuthContext
+  const { 
+    deviceService, 
+    axiosInstance,
+    logout, 
+    isAdminOrOwner, 
+    userData,
+    error: authError,
+    clearError,
+    isLoading: authLoading
+  } = useAuth();
   
   const [location, setLocation] = useState(null);
   const [devices, setDevices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDevicesLoading, setIsDevicesLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Clear AuthContext errors when component unmounts
   useEffect(() => {
-    fetchLocationDetails();
-    fetchLocationDevices();
-  }, [locationId]);
+    return () => {
+      if (authError) clearError();
+    };
+  }, [authError, clearError]);
 
-  useEffect(() => {
-    // Set up the header with location name once it's loaded
-    if (location) {
-      navigation.setOptions({
-        title: location.building_name || `${location.street_number} ${location.street_name}`,
-        headerBackTitle: 'Locations',
-      });
-    }
-  }, [location, navigation]);
-
-  const fetchLocationDetails = async () => {
+  // Fetch location details using direct API call
+  const fetchLocationDetails = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
+      // Use direct axios call for consistency with original implementation
       const response = await axiosInstance.get(`/locations/${locationId}/`);
-      setLocation(response.data);
+      const locationData = response.data;
+      
+      setLocation(locationData);
     } catch (error) {
       console.error('Error fetching location details:', error);
+      
       if (error.response && error.response.status === 401) {
         Alert.alert('Session Expired', 'Please login again');
         logout();
       } else {
-        Alert.alert('Error', 'Failed to fetch location details. Please try again later.');
+        const errorMsg = error.response?.data?.message || 'Failed to fetch location details. Please try again later.';
+        setError(errorMsg);
+        Alert.alert('Error', errorMsg);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [locationId, axiosInstance, logout]);
 
-  const fetchLocationDevices = async () => {
+  // Fetch devices at this location using direct API call
+  const fetchLocationDevices = useCallback(async () => {
     setIsDevicesLoading(true);
+    
     try {
+      // Use direct axios call for consistency with original implementation
       const response = await axiosInstance.get(`/devices/?location=${locationId}`);
       
       // Adapt to your response format
@@ -72,19 +91,61 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       setDevices(locationDevices);
     } catch (error) {
       console.error('Error fetching location devices:', error);
+      
       if (error.response && error.response.status === 401) {
         Alert.alert('Session Expired', 'Please login again');
         logout();
       } else {
-        Alert.alert('Error', 'Failed to fetch location devices. Please try again later.');
+        const errorMsg = error.response?.data?.message || 'Failed to fetch location devices. Please try again later.';
+        setError(errorMsg);
+        Alert.alert('Error', errorMsg);
       }
+      
       setDevices([]);
     } finally {
       setIsDevicesLoading(false);
     }
-  };
+  }, [locationId, axiosInstance, logout]);
 
-  const renderDeviceCard = (device) => (
+  // Execute fetch operations on component mount and when locationId changes
+  useEffect(() => {
+    fetchLocationDetails();
+    fetchLocationDevices();
+  }, [locationId, fetchLocationDetails, fetchLocationDevices]);
+
+  // Set up the header with location name once it's loaded
+  useEffect(() => {
+    if (location) {
+      navigation.setOptions({
+        title: location.building_name || `${location.street_number} ${location.street_name}`,
+        headerBackTitle: 'Locations',
+      });
+    }
+  }, [location, navigation]);
+
+  // Navigate to device details
+  const handleViewDevice = useCallback((deviceId) => {
+    navigation.navigate('DeviceDetails', { deviceId });
+  }, [navigation]);
+
+  // Navigate to assign device
+  const handleAssignDevice = useCallback((deviceId) => {
+    navigation.navigate('AssignDevice', { deviceId });
+  }, [navigation]);
+
+  // Navigate to create device
+  const handleAddDevice = useCallback(() => {
+    navigation.navigate('CreateDevice', { locationId });
+  }, [navigation, locationId]);
+
+  // Handle try again
+  const handleTryAgain = useCallback(() => {
+    setError(null);
+    fetchLocationDetails();
+    fetchLocationDevices();
+  }, [fetchLocationDetails, fetchLocationDevices]);
+
+  const renderDeviceCard = useCallback((device) => (
     <Card
       key={device.id}
       title={`${device.device_type}: ${device.identifier}`}
@@ -104,27 +165,29 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         <View style={styles.deviceActions}>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => navigation.navigate('DeviceDetails', { deviceId: device.id })}
+            onPress={() => handleViewDevice(device.id)}
           >
-            <Ionicons name="eye-outline" size={18} color="#007AFF" />
+            {/* Changed color to orange to match LocationsScreen */}
+            <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
             <Text style={styles.actionText}>View Device</Text>
           </TouchableOpacity>
           
           {isAdminOrOwner && (
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => navigation.navigate('AssignDevice', { deviceId: device.id })}
+              onPress={() => handleAssignDevice(device.id)}
             >
-              <Ionicons name="swap-horizontal-outline" size={18} color="#007AFF" />
+              {/* Changed color to orange to match LocationsScreen */}
+              <Ionicons name="swap-horizontal-outline" size={18} color={ORANGE_COLOR} />
               <Text style={styles.actionText}>Assign</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
     </Card>
-  );
+  ), [handleViewDevice, handleAssignDevice, isAdminOrOwner]);
 
-  const renderAddressDetails = () => {
+  const renderAddressDetails = useCallback(() => {
     if (!location) return null;
     
     return (
@@ -143,19 +206,61 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             {location.town_or_city}{location.county ? `, ${location.county}` : ''}
           </Text>
           <Text style={styles.addressText}>{location.postcode}</Text>
+          
+          {userData?.name && (
+            <View style={styles.organizationInfo}>
+              <Text style={styles.organizationText}>
+                Organization: {userData.name}'s Organization
+              </Text>
+            </View>
+          )}
         </View>
       </Card>
     );
-  };
+  }, [location, userData]);
 
+  // Check for auth errors
+  if (authError) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Text style={styles.errorMessage}>{authError}</Text>
+        <Button
+          title="Try Again"
+          onPress={() => {
+            clearError();
+            handleTryAgain();
+          }}
+          size="medium"
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Show loading state
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={ORANGE_COLOR} />
           <Text style={styles.loadingText}>Loading location details...</Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state if location fetch failed
+  if (error && !location) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Text style={styles.errorMessage}>{error}</Text>
+        <Button
+          title="Try Again"
+          onPress={handleTryAgain}
+          size="medium"
+          style={{ marginTop: 15 }}
+        />
       </SafeAreaView>
     );
   }
@@ -176,20 +281,31 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             {isAdminOrOwner && (
               <Button
                 title="Add Device"
-                onPress={() => navigation.navigate('CreateDevice', { locationId: locationId })}
+                onPress={handleAddDevice}
                 size="small"
               />
             )}
           </View>
           
           {isDevicesLoading ? (
-            <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+            <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
           ) : devices.length > 0 ? (
             <>
               {devices.map(renderDeviceCard)}
             </>
           ) : (
-            <Text style={styles.emptyText}>No devices assigned to this location</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cube-outline" size={48} color="#CCCCCC" />
+              <Text style={styles.emptyText}>No devices assigned to this location</Text>
+              {isAdminOrOwner && (
+                <Button
+                  title="Add First Device"
+                  onPress={handleAddDevice}
+                  size="small"
+                  style={{ marginTop: 15 }}
+                />
+              )}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -249,6 +365,17 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 22,
   },
+  organizationInfo: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+  },
+  organizationText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
   deviceCard: {
     marginBottom: 10,
     backgroundColor: '#FFFFFF',
@@ -280,19 +407,41 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: 16,
   },
+  // Changed color to orange to match LocationsScreen
   actionText: {
     marginLeft: 6,
-    color: '#007AFF',
+    color: ORANGE_COLOR, // Changed from #007AFF to orange
     fontSize: 14,
   },
   loader: {
     marginVertical: 20,
   },
+  // Enhanced empty state
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginVertical: 20,
+    marginTop: 10,
+  },
+  // Auth and general error container
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
+    marginTop: 10,
   },
 });
 

@@ -19,25 +19,8 @@ import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 
-const ITEM_CHOICES = [
-  { label: 'Battery', value: 'Battery' },
-  { label: 'Charger', value: 'Charger' },
-  { label: 'Adapter', value: 'Adapter' },
-  { label: 'Cable', value: 'Cable' },
-  { label: 'Drill', value: 'Drill' },
-  { label: 'Saw', value: 'Saw' },
-  { label: 'Other', value: 'Other' }
-];
-
-const MAKES = [
-  { label: 'Makita', value: 'Makita' },
-  { label: 'Mawkee', value: 'Mawkee' },
-  { label: 'Dewalt', value: 'Dewalt' },
-  { label: 'Bosch', value: 'Bosch' },
-  { label: 'Hilti', value: 'Hilti' },
-  { label: 'Ryobi', value: 'Ryobi' },
-  { label: 'Other', value: 'Other' }
-];
+// Define the orange color to match other screens
+const ORANGE_COLOR = '#FF9500';
 
 
 // Function to normalize JSON string from EditTab
@@ -92,20 +75,43 @@ const normalizeJsonString = (jsonString) => {
 
 
 const AddDevicePage = ({ navigation }) => {
-  const { getAccessToken, deviceService, axiosInstance } = useAuth();
+  // Use auth context with all needed properties including getOrganizationMembers
+  const { deviceService, axiosInstance, userData, user, getOrganizationMembers } = useAuth();
   
   // Calculate date 2 weeks from today
   const twoWeeksFromNow = new Date();
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
   
-  const [formData, setFormData] = useState({
+  const ITEM_CHOICES = [
+    { label: 'Battery', value: 'Battery', key: 'device-battery' },
+    { label: 'Charger', value: 'Charger', key: 'device-charger' },
+    { label: 'Adapter', value: 'Adapter', key: 'device-adapter' },
+    { label: 'Cable', value: 'Cable', key: 'device-cable' },
+    { label: 'Drill', value: 'Drill', key: 'device-drill' },
+    { label: 'Saw', value: 'Saw', key: 'device-saw' },
+    { label: 'Other', value: 'Other', key: 'device-other' }
+  ];
+
+  const MAKES = [
+    { label: 'Makita', value: 'Makita', key: 'make-makita' },
+    { label: 'Mawkee', value: 'Mawkee', key: 'make-mawkee' },
+    { label: 'Dewalt', value: 'Dewalt', key: 'make-dewalt' },
+    { label: 'Bosch', value: 'Bosch', key: 'make-bosch' },
+    { label: 'Hilti', value: 'Hilti', key: 'make-hilti' },
+    { label: 'Ryobi', value: 'Ryobi', key: 'make-ryobi' },
+    { label: 'Other', value: 'Other', key: 'make-other' }
+  ];
+
+
+
+const [formData, setFormData] = useState({
     description: '',
     make: 'Makita',
     model: '',
     device_type: 'Battery',
     serial_number: '',
     maintenance_interval: '',
-    next_maintenance_date: twoWeeksFromNow, // Set to 2 weeks from today
+    next_maintenance_date: twoWeeksFromNow,
     location: '', // Will be set when user selects an option
     user: '', // New field for user assignment
   });
@@ -130,7 +136,9 @@ const AddDevicePage = ({ navigation }) => {
       console.log(`[AddDevicePage] ${message}`);
     }
   };
-  // Initialize NFC when component mounts
+  
+
+// Initialize NFC when component mounts
   useEffect(() => {
     const initNfc = async () => {
       try {
@@ -150,19 +158,20 @@ const AddDevicePage = ({ navigation }) => {
     };
   }, []);
 
-  // Fetch locations
+  // Fetch locations and users on component mount
   useEffect(() => {
     fetchLocations();
-    // fetchUsers();
+    fetchUsers();
   }, []);
 
-  // Update dropdown options when data is fetched
+
+// Update dropdown options when locations are fetched
   useEffect(() => {
-    // Transform locations into dropdown format
     if (locations.length > 0) {
       const options = locations.map(location => ({
-        label: location.name || `Location ${location.id}`,
-        value: location.id
+        label: location.name || `${location.street_number} ${location.street_name}`,
+        value: location.id,
+        key: `location-${location.id}` // Add unique key for each item
       }));
       
       logMessage(`Created ${options.length} location options for dropdown`);
@@ -176,7 +185,6 @@ const AddDevicePage = ({ navigation }) => {
     }
   }, [locations]);
 
-
   const fetchLocations = async () => {
     try {
       logMessage('Fetching locations...');
@@ -189,49 +197,108 @@ const AddDevicePage = ({ navigation }) => {
       Alert.alert('Error', 'Failed to load locations. Please try again.');
     }
   };
-
-  const fetchUsers = async () => {
+  
+const fetchUsers = async () => {
     try {
-      logMessage('Fetching users...');
-      // This is a mockup - replace with your actual API endpoint
-      const response = await axiosInstance.get('/users/');
-      const userData = response.data;
-      logMessage(`Fetched ${userData.length} users`);
+      logMessage('Fetching organization members...');
       
-      const options = userData.map(user => ({
-        label: `${user.first_name} ${user.last_name}`,
-        value: user.id
-      }));
+      // Use getOrganizationMembers from auth context
+      const membersData = await getOrganizationMembers();
+      logMessage(`Fetched ${membersData.length} organization members`);
+      
+      // Extract current user ID from auth context
+      const currentUserId = userData?.userId;
+      logMessage(`Current user ID from auth context: ${currentUserId}`);
+      
+      // Create options array with current user first, then others
+      let options = [];
+      
+      // Add "Current User" option first
+      options.push({
+        label: 'Current User (You)',
+        value: currentUserId,
+        key: 'current-user'
+      });
+      
+      // Add other users (excluding current user to avoid duplication)
+      membersData.forEach(member => {
+        // Skip if this is the current user
+        if (member.user === currentUserId) return;
+        
+        // Create a meaningful label with name and role
+        let roleLabel = '';
+        switch(member.role) {
+          case 'owner':
+            roleLabel = '(Owner)';
+            break;
+          case 'admin':
+            roleLabel = '(Admin)';
+            break;
+          case 'office_worker':
+            roleLabel = '(Office)';
+            break;
+          case 'site_worker':
+            roleLabel = '(Worker)';
+            break;
+          default:
+            roleLabel = '';
+        }
+        
+        // Check for user details in the response
+        let displayName;
+        if (member.user_first_name || member.user_last_name) {
+          // If we have names, use them
+          const firstName = member.user_first_name || '';
+          const lastName = member.user_last_name || '';
+          displayName = `${firstName} ${lastName}`.trim();
+          if (!displayName) {
+            displayName = `User ${member.user}`;
+          }
+          if (roleLabel) displayName += ` ${roleLabel}`;
+        } else {
+          // Fallback to user ID with role
+          displayName = `User ${member.user} ${roleLabel}`;
+        }
+        
+        options.push({
+          label: displayName,
+          value: member.user,
+          key: `user-${member.user}`
+        });
+      });
       
       setUserOptions(options);
       
-      // Set current user as default if available
-      if (options.length > 0) {
-        const currentUserData = await deviceService.getCurrentUser();
-        if (currentUserData && currentUserData.id) {
-          handleInputChange('user', currentUserData.id);
-          logMessage(`Setting default user to current user: ${currentUserData.id}`);
-        } else {
-          handleInputChange('user', options[0].value);
-          logMessage(`Setting default user to first user: ${options[0].value}`);
-        }
+      // Default to current user
+      if (currentUserId) {
+        handleInputChange('user', currentUserId);
+        logMessage(`Set default user to current user: ${currentUserId}`);
+      } else if (options.length > 0) {
+        handleInputChange('user', options[0].value);
+        logMessage(`Set default user to first option: ${options[0].value}`);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
       logMessage(`Error fetching users: ${error.message}`);
-      // Continue without user data rather than showing an alert
-      // We'll use a placeholder array for testing
-      setUserOptions([
-        { label: 'John Doe', value: '1' },
-        { label: 'Jane Smith', value: '2' },
-        { label: 'Current User', value: 'current' }
-      ]);
-      handleInputChange('user', 'current');
+      
+      // Create fallback with just current user
+      const currentUserId = userData?.userId || 'current';
+      const fallbackOptions = [
+        { 
+          label: 'Current User (You)',
+          value: currentUserId,
+          key: 'current-user'
+        }
+      ];
+      
+      setUserOptions(fallbackOptions);
+      handleInputChange('user', currentUserId);
     }
   };
 
-  const handleInputChange = (name, value) => {
-    setFormData((prev) => ({
+
+const handleInputChange = (name, value) => {
+    setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
@@ -261,8 +328,7 @@ const AddDevicePage = ({ navigation }) => {
       setOtherDeviceType('');
     }
   };
-
-  const validateForm = () => {
+const validateForm = () => {
     // Collect all missing required fields
     const missingFields = [];
     
@@ -299,16 +365,16 @@ const AddDevicePage = ({ navigation }) => {
     return true;
   };
 
-  // Handle preparing the form data for submission
-  const prepareFormData = () => {
-    logMessage('Preparing form data for submission');
+// Prepare device data without user/location assignment
+  const prepareDeviceData = () => {
+    logMessage('Preparing device data for submission');
     
     // Determine the make value based on selection
     const finalMake = formData.make === 'Other' ? otherMake : formData.make;
     // Determine the device_type value based on selection
     const finalDeviceType = formData.device_type === 'Other' ? otherDeviceType : formData.device_type;
     
-    // Create the request data object
+    // Create the request data object - WITHOUT user or location
     const requestData = {
       description: formData.description,
       make: finalMake || '',
@@ -320,48 +386,70 @@ const AddDevicePage = ({ navigation }) => {
       next_maintenance_date: formatDate(formData.next_maintenance_date),
     };
     
-    // Add either location or user based on the toggle
-    if (isUserAssignment) {
-      requestData.user = formData.user || null;
-      // May still need location for backend logic
-      requestData.location = null;
-    } else {
-      requestData.location = formData.location || null;
-      // May still need user for backend logic
-      requestData.user = null;
-    }
-    
-    logMessage(`Prepared data: ${JSON.stringify(requestData)}`);
+    logMessage(`Prepared device data: ${JSON.stringify(requestData)}`);
     return requestData;
   };
 
+  
+// Handle device creation and assignment as separate steps
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
-    logMessage('Starting device submission');
+    logMessage('Starting device creation and assignment process');
 
     try {
-      const requestData = prepareFormData();
-
-      // Use the axiosInstance from AuthContext for proper token handling
-      const response = await axiosInstance.post('/devices/', requestData);
+      // STEP 1: Create the device (without assignment data)
+      const deviceData = prepareDeviceData();
+      logMessage('Creating device without assignment data');
+      
+      // Use axiosInstance from AuthContext for proper token handling
+      const deviceResponse = await axiosInstance.post('/devices/', deviceData);
+      
+      // Extract the device ID and identifier
+      const createdDeviceId = deviceResponse.data.id;
+      const identifier = deviceResponse.data.identifier;
+      
+      logMessage(`Device created successfully with ID: ${createdDeviceId}, identifier: ${identifier}`);
+      
+      // STEP 2: Assign the device based on the toggle selection
+      if (isUserAssignment) {
+        if (formData.user === userData?.userId || formData.user === user?.id) {
+          // OPTION A: If current user, use assign-to-me endpoint which doesn't need any body
+          logMessage('Assigning device to current user (self)');
+          await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign-to-me/`);
+          logMessage('Device assigned to current user successfully');
+        } else {
+          // OPTION B: For other users, use regular assign endpoint with user parameter
+          logMessage(`Assigning device to user: ${formData.user}`);
+          const assignmentData = {
+            user: formData.user
+          };
+          await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign/`, assignmentData);
+          logMessage('Device assigned to user successfully');
+        }
+      } else {
+        // OPTION C: Assign to location
+        logMessage(`Assigning device to location: ${formData.location}`);
+        const assignmentData = {
+          location: formData.location
+        };
+        await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign/`, assignmentData);
+        logMessage('Device assigned to location successfully');
+      }
       
       // Save the full API response for debugging
-      setApiResponse(response.data);
-      
-      // Extract the device identifier
-      const identifier = response.data.identifier;
-      logMessage(`Device created successfully with ID: ${identifier}`);
+      setApiResponse(deviceResponse.data);
       
       // Set the identifier for use in NFC tag writing
       setDeviceIdentifier(identifier);
       
       // Show the success modal
       setNfcModalVisible(true);
+      
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      logMessage(`Error submitting device data: ${error.message}`);
+      logMessage(`Error in device creation/assignment: ${error.message}`);
       
       // Enhanced error handling to provide better feedback
       let errorMessage = 'Failed to create device. Please try again.';
@@ -415,7 +503,7 @@ const AddDevicePage = ({ navigation }) => {
   };
 
 
-  const formatDate = (date) => {
+const formatDate = (date) => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -460,80 +548,178 @@ const AddDevicePage = ({ navigation }) => {
     setNfcWriteSuccess(true);
   };
 
-  // Improved NFC write function based on EditTab implementation
-  const handleNFCWrite = async () => {
-    try {
-      setIsWritingNfc(true);
-      logMessage('Starting NFC write operation');
+// Improved NFC write function based on EditTab implementation
+const handleNFCWrite = async () => {
+  let result = false;
+  
+  try {
+    setIsWritingNfc(true);
+    logMessage('Starting NFC write operation');
 
-      // Prepare data to write to the NFC tag
-      const dataToWrite = {
+    // Prepare data to write to the NFC tag
+    const dataToWrite = {
+      ID: deviceIdentifier,
+      description: formData.description,
+      make: formData.make === 'Other' ? otherMake : formData.make,
+      model: formData.model,
+      device_type: formData.device_type === 'Other' ? otherDeviceType : formData.device_type,
+      serial_number: formData.serial_number || '',
+      next_maintenance_date: formatDate(formData.next_maintenance_date)
+    };
+    
+    // Add assignment info but keep it concise
+    if (isUserAssignment) {
+      const userOption = userOptions.find(u => u.value === formData.user);
+      dataToWrite.assigned_to = userOption ? userOption.label : 'Unknown User';
+    } else {
+      const locationOption = locationOptions.find(l => l.value === formData.location);
+      dataToWrite.location = locationOption ? locationOption.label : 'Unknown Location';
+    }
+    
+    // Convert to JSON string
+    const jsonString = JSON.stringify(dataToWrite);
+    const stringByteLength = new TextEncoder().encode(jsonString).length;
+    
+    logMessage(`Data to write: ${jsonString}`);
+    logMessage(`Data size: ${stringByteLength} bytes`);
+
+    // STEP 1: Request NFC technology
+    await NfcManager.requestTechnology(NfcTech.Ndef);
+    logMessage('NFC technology requested successfully');
+    
+    // STEP 2: Get tag info to check capacity
+    const tag = await NfcManager.getTag();
+    if (!tag) {
+      throw new Error('Could not read NFC tag. Make sure the tag is properly positioned.');
+    }
+    
+    // Check tag type and capacity
+    logMessage(`Tag detected: ${JSON.stringify({
+      type: tag.type,
+      maxSize: tag.maxSize || 'unknown',
+      id: tag.id ? tag.id.toString() : 'unknown'
+    })}`);
+    
+    // Check if tag is NDEF formatted
+    if (!tag.ndefMessage && !tag.isWritable) {
+      throw new Error('Tag is not NDEF formatted or not writable. Please use an NDEF formatted tag.');
+    }
+    
+    // Check capacity if available
+    if (tag.maxSize && stringByteLength > tag.maxSize) {
+      // Create a smaller version of the data if too large
+      const compactData = {
         ID: deviceIdentifier,
-        description: formData.description,
-        make: formData.make === 'Other' ? otherMake : formData.make,
-        model: formData.model,
-        device_type: formData.device_type === 'Other' ? otherDeviceType : formData.device_type,
-        serial_number: formData.serial_number || '',
-        maintenance_interval: formData.maintenance_interval || '',
-        next_maintenance_date: formatDate(formData.next_maintenance_date)
+        desc: formData.description.substring(0, 30),
+        make: (formData.make === 'Other' ? otherMake : formData.make).substring(0, 15),
+        model: formData.model.substring(0, 15)
       };
       
-      // Add assignment info
-      if (isUserAssignment) {
-        const userOption = userOptions.find(u => u.value === formData.user);
-        dataToWrite.assigned_to = userOption ? userOption.label : 'Unknown User';
-      } else {
-        const locationOption = locationOptions.find(l => l.value === formData.location);
-        dataToWrite.location = locationOption ? locationOption.label : 'Unknown Location';
-      }
+      const compactJson = JSON.stringify(compactData);
+      const compactSize = new TextEncoder().encode(compactJson).length;
       
-      // Convert to JSON string and normalize it
-      const jsonString = normalizeJsonString(JSON.stringify(dataToWrite));
-      logMessage(`Data to write: ${jsonString}`);
-
-      // Check if data might be too large for standard NFC tag
-      if (jsonString.length > 500) {
-        logMessage(`Warning: Data size (${jsonString.length} bytes) may be too large for some NFC tags`);
-      }
-
-      // STEP 1: Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      logMessage('NFC technology requested successfully');
-
-      // STEP 2: Create NDEF message bytes
-      const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-      
-      if (bytes) {
-        logMessage('NDEF message encoded successfully');
-        
-        // STEP 3: Write the message to the tag
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        logMessage('Write operation completed successfully');
-        
-        setNfcWriteSuccess(true);
-        return true;
+      if (compactSize > tag.maxSize) {
+        throw new Error(`Data size (${stringByteLength} bytes) exceeds tag capacity (${tag.maxSize} bytes). Even a compact version (${compactSize} bytes) is too large.`);
       } else {
-        throw new Error('Failed to encode NDEF message');
+        // Use the compact version instead
+        logMessage(`Using compact data format to fit tag capacity: ${compactJson}`);
+        Alert.alert(
+          'Warning', 
+          'Full device data is too large for this tag. Writing a compact version instead.',
+          [{ text: 'Continue', style: 'default' }]
+        );
+        // Update jsonString to use compact version
+        dataToWrite = compactData;
+        jsonString = compactJson;
       }
-    } catch (error) {
-      logMessage(`Error in NFC write operation: ${error.message}`);
-      logMessage(`Error stack: ${error.stack}`);
-      Alert.alert('Error', `Failed to write to NFC tag: ${error.message}`);
-      return false;
-    } finally {
-      // STEP 4: Always cancel technology request when done
-      try {
-        await NfcManager.cancelTechnologyRequest();
-        logMessage('NFC technology request canceled');
-      } catch (error) {
-        logMessage(`Error canceling NFC technology request: ${error.message}`);
-      }
-      setIsWritingNfc(false);
-      logMessage('NFC write process completed');
     }
-  };
 
-  return (
+    // STEP 3: Create NDEF message bytes
+    let bytes;
+    try {
+      bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
+      logMessage('NDEF message encoded successfully');
+    } catch (encodeError) {
+      throw new Error(`Failed to encode message: ${encodeError.message}`);
+    }
+    
+    if (!bytes) {
+      throw new Error('Failed to create NDEF message bytes. Encoding returned null.');
+    }
+    
+    // Final size check
+    if (tag.maxSize && bytes.length > tag.maxSize) {
+      throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
+    }
+    
+    // STEP 4: Write the message to the tag
+    try {
+      await NfcManager.ndefHandler.writeNdefMessage(bytes);
+      logMessage('Write operation completed successfully');
+      
+      result = true;
+      setNfcWriteSuccess(true);
+    } catch (writeError) {
+      // Check for specific write errors
+      if (writeError.message.includes('timeout')) {
+        throw new Error('Write operation timed out. Tag may have been moved too soon.');
+      } else if (writeError.message.includes('read-only')) {
+        throw new Error('This tag appears to be read-only and cannot be written to.');
+      } else {
+        throw new Error(`Write failed: ${writeError.message}`);
+      }
+    }
+  } catch (error) {
+    logMessage(`Error in NFC write operation: ${error.message}`);
+    
+    // Create user-friendly error message based on error type
+    let userErrorMessage;
+    
+    if (error.message.includes('NFC hardware')) {
+      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
+    } else if (error.message.includes('cancelled')) {
+      userErrorMessage = 'NFC operation was cancelled.';
+    } else if (error.message.includes('tag capacity')) {
+      userErrorMessage = error.message; // Already formatted for user
+    } else if (error.message.includes('timeout')) {
+      userErrorMessage = 'The tag was not held close enough to the device. Please try again and keep the tag steady.';
+    } else if (error.message.includes('not writable') || error.message.includes('read-only')) {
+      userErrorMessage = 'This tag cannot be written to. Please use a writable NFC tag.';
+    } else {
+      // Generic error with the technical message included
+      userErrorMessage = `Failed to write to NFC tag: ${error.message}`;
+    }
+    
+    Alert.alert('NFC Write Error', userErrorMessage, [
+      { 
+        text: 'Retry', 
+        onPress: () => handleNFCWrite(),
+        style: 'default'
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      }
+    ]);
+    
+    result = false;
+  } finally {
+    // STEP 5: Always cancel technology request when done
+    try {
+      await NfcManager.cancelTechnologyRequest();
+      logMessage('NFC technology request canceled');
+    } catch (error) {
+      logMessage(`Error canceling NFC technology request: ${error.message}`);
+    }
+    setIsWritingNfc(false);
+    logMessage('NFC write process completed');
+  }
+  
+  return result;
+};
+
+
+return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -685,7 +871,7 @@ const AddDevicePage = ({ navigation }) => {
                     }
                   }}
                   themeVariant="light"
-                  accentColor="#FFA500" // Orange color
+                  accentColor={ORANGE_COLOR}
                 />
               )}
             </View>
@@ -697,10 +883,10 @@ const AddDevicePage = ({ navigation }) => {
                 <Text style={isUserAssignment ? styles.toggleTextActive : styles.toggleTextInactive}>
                   User
                 </Text>
-                <Switch
+               <Switch
                   value={!isUserAssignment}
                   onValueChange={(value) => setIsUserAssignment(!value)}
-                  trackColor={{ false: '#3498db', true: '#3498db' }}
+                  trackColor={{ false: ORANGE_COLOR, true: ORANGE_COLOR }}
                   thumbColor={Platform.OS === 'ios' ? '' : '#FFFFFF'}
                   ios_backgroundColor="#ccc"
                   style={styles.toggle}
@@ -749,13 +935,9 @@ const AddDevicePage = ({ navigation }) => {
               style={styles.submitButton}
               textColor={'black'}
             />
-            
-            
           </View>
         </ScrollView>
-
-
-  {/* NFC Modal */}
+{/* NFC Modal */}
         <CustomModal
           visible={nfcModalVisible}
           onClose={() => setNfcModalVisible(false)}
@@ -809,6 +991,7 @@ const AddDevicePage = ({ navigation }) => {
                     }
                   }}
                   style={[styles.actionButton, styles.nfcButton]}
+                  textColor="white"
                 />
               </View>
               
@@ -817,11 +1000,13 @@ const AddDevicePage = ({ navigation }) => {
                   title="Add Another Device"
                   onPress={handleAddAnother}
                   style={[styles.actionButton, styles.addButton]}
+                  textColor="white"
                 />
                 <Button
                   title="Finish"
                   onPress={handleFinish}
                   style={[styles.actionButton, styles.finishButton]}
+                  textColor="white"
                 />
               </View>
               
@@ -837,6 +1022,7 @@ const AddDevicePage = ({ navigation }) => {
                       setIsWritingNfc(false);
                     }}
                     style={styles.cancelButton}
+                    textColor="white"
                   />
                 </View>
               )}
@@ -850,11 +1036,13 @@ const AddDevicePage = ({ navigation }) => {
                   title="Add Another Device"
                   onPress={handleAddAnother}
                   style={[styles.actionButton, styles.addButton]}
+                  textColor="white"
                 />
                 <Button
                   title="Finish"
                   onPress={handleFinish}
                   style={[styles.actionButton, styles.finishButton]}
+                  textColor="white"
                 />
               </View>
             </>
@@ -864,10 +1052,6 @@ const AddDevicePage = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -916,7 +1100,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
-    backgroundColor: 'orange',
+    backgroundColor: ORANGE_COLOR,
   },
   modal: {
     justifyContent: 'flex-end',
@@ -982,7 +1166,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3', // Blue color
   },
   finishButton: {
-    backgroundColor: '#FF9800', // Orange color
+    backgroundColor: ORANGE_COLOR, // Orange color to match app theme
   },
   requiredField: {
     borderColor: 'red',
@@ -1020,7 +1204,7 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3498db',
+    color: ORANGE_COLOR, // Matching app theme
   },
   toggleTextInactive: {
     fontSize: 16,

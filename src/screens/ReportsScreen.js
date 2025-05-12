@@ -1,5 +1,5 @@
 // ReportsScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,18 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import TabBar from '../components/TabBar';
 import { useAuth } from '../context/AuthContext';
+
+const { width } = Dimensions.get('window');
+
+// Define the orange color to match HomeScreen
+const ORANGE_COLOR = '#FF9500';
 
 const STATUS_CHOICES = [
   { value: 'PENDING', label: 'Pending' },
@@ -27,20 +33,97 @@ const STATUS_CHOICES = [
 ];
 
 const ReportsScreen = ({ navigation }) => {
-  const { axiosInstance, logout, userData } = useAuth();
+  // Use proper auth context properties
+  const { 
+    deviceService, 
+    logout, 
+    userData,
+    user,
+    refreshRoleInfo,
+    error: authError,
+    clearError
+  } = useAuth();
+  
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('reports');
-  
-  // Get user role from userData
+  const [error, setError] = useState(null);
+
+  // Get role directly from userData
   const userRole = userData?.role;
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
+  
+  // Get user's name
+  const userName = userData?.name || user?.username || user?.email || 'User';
+
+  // Clear any auth errors when component unmounts
+  useEffect(() => {
+    return () => {
+      if (authError) clearError();
+    };
+  }, [authError, clearError]);
 
   useEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
+    
+    // Only refresh role info once when component mounts
+    if (refreshRoleInfo) {
+      refreshRoleInfo();
+    }
   }, [navigation]);
+
+  // Use useCallback for improved performance
+  const fetchReports = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Use deviceService instead of direct axios call
+      const reportsData = await deviceService.getMyReports();
+      
+      // Adapt to your response format
+      let allReports = Array.isArray(reportsData)
+        ? reportsData
+        : reportsData.results || [];
+
+      // Filter to only show pending and in-progress reports first
+      const filteredReports = allReports.filter(report =>
+        report.status === 'PENDING' || report.status === 'IN_PROGRESS'
+      );
+
+      // If there are less than 5 pending/in-progress reports, add other reports until we have 5
+      let displayReports = filteredReports;
+
+      if (filteredReports.length < 5) {
+        const otherReports = allReports.filter(report =>
+          report.status !== 'PENDING' && report.status !== 'IN_PROGRESS'
+        );
+
+        const additionalReports = otherReports.slice(0, 5 - filteredReports.length);
+        displayReports = [...filteredReports, ...additionalReports];
+      } else {
+        // If we have more than 5 pending/in-progress reports, only display 5
+        displayReports = filteredReports.slice(0, 5);
+      }
+
+      setReports(displayReports);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      if (error.response && error.response.status === 401) {
+        Alert.alert('Session Expired', 'Please login again');
+        logout();
+      } else {
+        const errorMsg = error.response?.data?.message || 'Failed to fetch your reports. Please try again later.';
+        setError(errorMsg);
+        Alert.alert('Error', errorMsg);
+      }
+      setReports([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deviceService, logout]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -49,10 +132,10 @@ const ReportsScreen = ({ navigation }) => {
       fetchReports();
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, fetchReports]);
 
   // Generate tabs based on user role
-  const getTabsForUser = () => {
+  const getTabsForUser = useCallback(() => {
     const baseTabs = [
       {
         key: 'dashboard',
@@ -65,7 +148,7 @@ const ReportsScreen = ({ navigation }) => {
         icon: <Ionicons name="document-text-outline" size={24} />,
       }
     ];
-    
+
     // Add locations tab only for admin or owner roles
     if (isAdminOrOwner) {
       baseTabs.push({
@@ -74,65 +157,27 @@ const ReportsScreen = ({ navigation }) => {
         icon: <Ionicons name="location-outline" size={24} />,
       });
     }
-    
+
+    // Add profile/settings tab
+    baseTabs.push({
+      key: 'profile',
+      title: 'Profile',
+      icon: <Ionicons name="person-outline" size={24} />
+    });
+
     // Always add logout tab at the end
     baseTabs.push({
       key: 'logout',
       title: 'Logout',
       icon: <Ionicons name="log-out-outline" size={24} />,
     });
-    
+
     return baseTabs;
-  };
+  }, [isAdminOrOwner]);
 
   const tabs = getTabsForUser();
 
-  const fetchReports = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axiosInstance.get('/reports/');
-      
-      // Adapt to your response format – here we assume a list or paginated response
-      let allReports = Array.isArray(response.data)
-        ? response.data
-        : response.data.results || [];
-        
-      // Filter to only show pending and in-progress reports first
-      const filteredReports = allReports.filter(report => 
-        report.status === 'PENDING' || report.status === 'IN_PROGRESS'
-      );
-      
-      // If there are less than 5 pending/in-progress reports, add other reports until we have 5
-      let displayReports = filteredReports;
-      
-      if (filteredReports.length < 5) {
-        const otherReports = allReports.filter(report => 
-          report.status !== 'PENDING' && report.status !== 'IN_PROGRESS'
-        );
-        
-        const additionalReports = otherReports.slice(0, 5 - filteredReports.length);
-        displayReports = [...filteredReports, ...additionalReports];
-      } else {
-        // If we have more than 5 pending/in-progress reports, only display 5
-        displayReports = filteredReports.slice(0, 5);
-      }
-      
-      setReports(displayReports);
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
-        Alert.alert('Error', 'Failed to fetch reports. Please try again later.');
-      }
-      setReports([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTabPress = (key) => {
+  const handleTabPress = useCallback((key) => {
     if (key === activeTab) return;
     setActiveTab(key);
     switch (key) {
@@ -142,14 +187,17 @@ const ReportsScreen = ({ navigation }) => {
       case 'locations':
         navigation.navigate('Locations');
         break;
+      case 'profile':
+        navigation.navigate('Profile');
+        break;
       case 'logout':
         Alert.alert(
           'Logout',
           'Are you sure you want to logout?',
           [
             { text: 'Cancel', style: 'cancel', onPress: () => setActiveTab('reports') },
-            { 
-              text: 'Logout', 
+            {
+              text: 'Logout',
               style: 'destructive',
               onPress: () => logout()
             }
@@ -159,16 +207,16 @@ const ReportsScreen = ({ navigation }) => {
       default:
         break;
     }
-  };
+  }, [activeTab, navigation, logout]);
 
   // Helper function to get status label
-  const getStatusLabel = (statusValue) => {
+  const getStatusLabel = useCallback((statusValue) => {
     const status = STATUS_CHOICES.find(s => s.value === statusValue);
     return status ? status.label : statusValue;
-  };
+  }, []);
 
   // Helper function to get status color
-  const getStatusColor = (status) => {
+  const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'PENDING':
         return '#F59E0B'; // Amber/Yellow
@@ -183,9 +231,17 @@ const ReportsScreen = ({ navigation }) => {
       default:
         return '#6B7280'; // Gray default
     }
-  };
+  }, []);
 
-  const renderReportCard = (report) => (
+  const handleCreateReport = useCallback(() => {
+    navigation.navigate('CreateReport');
+  }, [navigation]);
+
+  const handleViewAllReports = useCallback(() => {
+    navigation.navigate('AllReports');
+  }, [navigation]);
+
+  const renderReportCard = useCallback((report) => (
     <Card
       key={report.id}
       title={`Device: ${report.device?.identifier || 'Unknown'}`}
@@ -193,7 +249,7 @@ const ReportsScreen = ({ navigation }) => {
     >
       <View style={styles.reportContent}>
         <Text style={styles.reportText}>Date: {report.report_date}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => Alert.alert('Type Info', report.type)}
           style={styles.typeRow}
         >
@@ -213,61 +269,129 @@ const ReportsScreen = ({ navigation }) => {
         <Text style={styles.reportText}>Description: {report.description}</Text>
       </View>
     </Card>
-  );
+  ), [getStatusColor, getStatusLabel]);
+
+  // If AuthContext itself has an error state, we could show it here
+  if (authError) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Text style={styles.errorMessage}>{authError}</Text>
+        <Button
+          title="Try Again"
+          onPress={() => {
+            clearError();
+            fetchReports();
+          }}
+          size="medium"
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
+
+      {/* Updated Header Section */}
       <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>
+              My Reports
+            </Text>
+          </View>
+          
+          {/* Profile Button in Header */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {userName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <Button
           title="Create Report"
-          onPress={() => navigation.navigate('CreateReport')}
+          onPress={handleCreateReport}
           size="small"
+          textColor="black"
+          style={[styles.createReportButton, { backgroundColor: ORANGE_COLOR }]}
         />
       </View>
 
       <View style={styles.contentContainer}>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Reports</Text>
-            <Text style={styles.sectionSubtitle}>Showing your pending and in-progress reports</Text>
-            
+            <Text style={styles.sectionSubtitle}>
+              {userData?.name ? `Showing ${userData.name}'s` : 'Showing your'} pending and in-progress reports
+            </Text>
+
             {isLoading ? (
-              <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+            ) : error ? (
+              <View style={styles.errorView}>
+                <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+                <Text style={styles.errorText}>{error}</Text>
+                <Button 
+                  title="Try Again" 
+                  onPress={fetchReports} 
+                  size="small"
+                  style={{ marginTop: 10 }}
+                />
+              </View>
             ) : reports.length > 0 ? (
               <>
                 {reports.map(renderReportCard)}
               </>
             ) : (
-              <Text style={styles.emptyText}>No reports found</Text>
+              <View style={styles.emptyContainer}>
+                <Ionicons name="document-text-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>No reports found</Text>
+                <Button
+                  title="Create Your First Report"
+                  onPress={handleCreateReport}
+                  size="small"
+                  textColor="black"
+                  style={[{ marginTop: 15, backgroundColor: ORANGE_COLOR }]}
+                />
+              </View>
             )}
-            
-            <TouchableOpacity
-              style={styles.viewAllButton}
-              onPress={() => navigation.navigate('AllReports')}
-            >
-              <Text style={styles.viewAllText}>View All Reports</Text>
-              <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-            </TouchableOpacity>
+
+            {reports.length > 0 && (
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={handleViewAllReports}
+              >
+                <Text style={[styles.viewAllText, { color: ORANGE_COLOR }]}>View All My Reports</Text>
+                <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </View>
 
+      {/* Updated TabBar - conditionally filter tabs based on user role */}
       <TabBar
-        tabs={tabs}
+        tabs={tabs.filter(tab => tab.key !== 'locations' || isAdminOrOwner)}
         activeTab={activeTab}
         onTabPress={handleTabPress}
         backgroundColor="#FFFFFF"
-        activeColor="#007AFF"
+        activeColor={ORANGE_COLOR}
         inactiveColor="#666666"
         showIcons={true}
         showLabels={true}
         height={Platform.OS === 'ios' ? 80 : 60}
         containerStyle={styles.tabBarContainer}
+        labelStyle={styles.tabBarLabel}
+        iconStyle={styles.tabBarIcon}
       />
     </SafeAreaView>
   );
@@ -282,24 +406,62 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  // Updated header styling
   header: {
-    padding: 15,
+    paddingHorizontal: '5%',
+    paddingVertical: '3%',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    marginBottom: '3%',
+  },
+  headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  welcomeContainer: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    lineHeight: 30,
+  },
+  profileButton: {
+    marginLeft: 10,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ORANGE_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  createReportButton: {
+    paddingHorizontal: 12,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollViewContent: {
     flexGrow: 1,
+    padding: '4%',
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   section: {
-    padding: 15,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+    width: '100%',
   },
   sectionTitle: {
     fontSize: 18,
@@ -352,34 +514,73 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   viewAllButton: {
-    padding: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 15,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginTop: 15,
+    marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    height: 48,
+    width: '100%',
   },
   viewAllText: {
-    color: '#007AFF',
     fontSize: 16,
-    fontWeight: '500',
-    marginRight: 4,
+    fontWeight: '600',
+    marginRight: 8,
   },
   loader: {
     marginVertical: 20,
+  },
+  // Enhanced empty state
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginVertical: 20,
+    marginTop: 10,
   },
+  // Error state styling
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F5F5F5',
+  },
+  errorView: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  // Tab Bar styles updated to match HomeScreen
   tabBarContainer: {
     paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     borderTopWidth: 1,
@@ -389,6 +590,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 10,
+  },
+  tabBarLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  tabBarIcon: {
+    fontSize: 24,
   },
 });
 

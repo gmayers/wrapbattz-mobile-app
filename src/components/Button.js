@@ -11,39 +11,47 @@ const Button = ({
   title,
   leftIcon,
   rightIcon,
-  
+
   // Style props
   variant = 'filled', // 'filled', 'outlined', 'ghost'
   size = 'medium',    // 'small', 'medium', 'large'
   width: buttonWidth, // optional override for button width
-  backgroundColor = '#007AFF',
-  textColor,
+  backgroundColorProp, // Renamed to avoid confusion with internal logic
+  textColorProp,     // Renamed to avoid confusion with internal logic
   borderRadius = 8,
-  
+
   // State props
   loading = false,
   disabled = false,
-  
+
   // Event handlers
   onPress,
-  
+
   // Custom styles
   style,
   titleStyle,
   loadingColor,
-  
+
   // Custom props
   loadingText = 'Loading...',
   activeOpacity = 0.7,
 }) => {
+  // Determine background color based on variant and prop
+  const getBackgroundColor = () => {
+    if (disabled) return '#ccc';
+    if (backgroundColorProp) return backgroundColorProp;
+    return variant === 'filled' ? '#FF8C00' : 'transparent';
+  };
+
   // Get variant styles
   const getVariantStyles = () => {
+    const backgroundColor = getBackgroundColor();
     switch (variant) {
       case 'outlined':
         return {
           backgroundColor: 'transparent',
           borderWidth: 1,
-          borderColor: disabled ? '#ccc' : backgroundColor,
+          borderColor: disabled ? '#ccc' : '#FF8C00',
         };
       case 'ghost':
         return {
@@ -51,7 +59,7 @@ const Button = ({
         };
       default: // 'filled'
         return {
-          backgroundColor: disabled ? '#ccc' : backgroundColor,
+          backgroundColor: backgroundColor,
         };
     }
   };
@@ -84,16 +92,16 @@ const Button = ({
     }
   };
 
-  // Get text color based on variant
+  // Get text color based on variant and prop
   const getTextColor = () => {
-    if (textColor) return textColor;
+    if (textColorProp) return textColorProp;
     if (disabled) return '#666';
     switch (variant) {
       case 'outlined':
       case 'ghost':
-        return backgroundColor;
-      default:
-        return '#FFFFFF';
+        return '#FF8C00';
+      default: // 'filled'
+        return 'black';
     }
   };
 
@@ -112,9 +120,9 @@ const Button = ({
     >
       {loading ? (
         <>
-          <ActivityIndicator 
-            color={loadingColor || getTextColor()} 
-            style={styles.loadingIndicator} 
+          <ActivityIndicator
+            color={loadingColor || getTextColor()}
+            style={styles.loadingIndicator}
           />
           <Text style={[styles.title, { color: getTextColor() }, titleStyle]}>
             {loadingText}

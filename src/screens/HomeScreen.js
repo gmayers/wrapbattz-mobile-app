@@ -27,8 +27,11 @@ import NfcManagerModal from './home/components/NFCManager/NFCManagerModal';
 
 const { width } = Dimensions.get('window');
 
+// Define the orange color to match other screens
+const ORANGE_COLOR = '#FF9500';
+
 const HomeScreen = ({ navigation }) => {
-  const { logout, deviceService, userData, user, refreshRoleInfo, axiosInstance } = useAuth();
+  const { logout, deviceService, userData, user, refreshRoleInfo } = useAuth();
   const [assignments, setAssignments] = useState([]);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
@@ -48,43 +51,20 @@ const HomeScreen = ({ navigation }) => {
   // Get user's name
   const userName = userData?.name || user?.username || user?.email || 'User';
 
-  // Define tabs based on user role
-  const getTabsForUser = () => {
-    const baseTabs = [
-      { key: 'dashboard', title: 'Home', icon: <Ionicons name="home-outline" size={24} /> },
-      { key: 'reports', title: 'Reports', icon: <Ionicons name="document-text-outline" size={24} /> },
-    ];
-    
-    // Add locations tab only for admin or owner roles
-    if (isAdminOrOwner) {
-      baseTabs.push({ 
-        key: 'locations', 
-        title: 'Locations', 
-        icon: <Ionicons name="location-outline" size={24} /> 
-      });
-    }
-    
-    // Always add logout tab at the end
-    baseTabs.push({ 
-      key: 'logout', 
-      title: 'Logout', 
-      icon: <Ionicons name="log-out-outline" size={24} /> 
-    });
-    
-    return baseTabs;
-  };
-
-  const tabs = getTabsForUser();
+  // Static tabs array
+  const tabs = [
+    { key: 'dashboard', title: 'Home', icon: <Ionicons name="home-outline" size={24} /> },
+    { key: 'reports', title: 'Reports', icon: <Ionicons name="document-text-outline" size={24} /> },
+    { key: 'locations', title: 'Locations', icon: <Ionicons name="location-outline" size={24} /> },
+    { key: 'profile', title: 'Profile', icon: <Ionicons name="person-outline" size={24} /> },
+    { key: 'logout', title: 'Logout', icon: <Ionicons name="log-out-outline" size={24} /> }
+  ];
 
   useEffect(() => {
     // Try to refresh role info from token on component mount
-    refreshRoleInfo().then(success => {
-      if (success) {
-        console.log("[HS-1000] Role info refreshed successfully");
-      } else {
-        console.log("[HS-1001] Could not refresh role info");
-      }
-    });
+    if (refreshRoleInfo) {
+      refreshRoleInfo();
+    }
     
     NfcManager.start();
     fetchInitialData();
@@ -96,20 +76,15 @@ const HomeScreen = ({ navigation }) => {
 
   // Transform locations into dropdown format
   useEffect(() => {
-    console.log('[HS-2000] Locations changed:', locations.length);
-    console.log('[HS-2001] Current selectedReturnLocation:', selectedReturnLocation);
-    
     if (locations.length > 0) {
       const options = locations.map(location => ({
         label: location.name,
         value: location.id
       }));
-      console.log('[HS-2002] Created location options:', options.length);
       setLocationOptions(options);
       
       // Set a default location if we have options and none is selected yet
       if (options.length > 0 && (!selectedReturnLocation || selectedReturnLocation === '')) {
-        console.log('[HS-2003] Setting default location to:', options[0].value);
         setSelectedReturnLocation(options[0].value);
       }
     }
@@ -117,30 +92,19 @@ const HomeScreen = ({ navigation }) => {
 
   // When modal visibility changes
   useEffect(() => {
-    console.log('[HS-3000] Return modal visibility changed:', returnDeviceModalVisible);
-    console.log('[HS-3001] Locations available:', locations.length);
-    console.log('[HS-3002] Location options:', locationOptions.length);
-    
     if (returnDeviceModalVisible) {
-      console.log('[HS-3003] Modal opened, selected location:', selectedReturnLocation);
       // If modal is becoming visible and we have options but no selection, set default
       if (locationOptions.length > 0 && (!selectedReturnLocation || selectedReturnLocation === '')) {
-        console.log('[HS-3004] Setting default location on modal open:', locationOptions[0].value);
         setSelectedReturnLocation(locationOptions[0].value);
       }
     } else {
       // Reset location between openings
       setSelectedReturnLocation('');
-      console.log('[HS-3005] Modal closed, resetting loading state');
       setReturnLoading(false);
     }
   }, [returnDeviceModalVisible, locationOptions, selectedReturnLocation]);
 
   const handleApiError = (error, defaultMessage) => {
-    console.log('[HS-4000] API Error:', error);
-    console.log('[HS-4001] Response data:', error.response?.data);
-    console.log('[HS-4002] Status code:', error.response?.status);
-    
     if (error.response) {
       const errorMessage = error.response.data.detail || defaultMessage;
       Alert.alert('Error', errorMessage);
@@ -175,26 +139,20 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchDevices = async () => {
     try {
-      console.log(`[HS-5000] Fetching devices for user role: ${userRole}`);
+      const myAssignments = await deviceService.getMyActiveAssignments();
       
-      // Use the my_assigned_devices endpoint for all user types
-      const myDevices = await deviceService.getMyAssignedDevices();
-      console.log(`[HS-5001] Found ${myDevices.length} assigned devices`);
-      
-      // Transform device data into assignment-like structure for compatibility with DeviceCard
-      const formattedAssignments = myDevices.map(device => ({
-        id: `device-${device.id}`, // Create unique ID for each item
-        device: device, // Set the device object
-        user: userId, // Add user ID
-        location: null,
-        assigned_date: device.created_at ? new Date(device.created_at).toISOString().split('T')[0] : null,
-        returned_date: null
+      // Transform the data if necessary to match the expected format
+      const formattedAssignments = myAssignments.map(assignment => ({
+        id: assignment.id,
+        device: assignment.device,
+        user: userId,
+        location: assignment.location,
+        assigned_date: assignment.assigned_date,
+        returned_date: assignment.returned_date
       }));
       
-      console.log(`[HS-5002] Formatted ${formattedAssignments.length} assignments`);
       setAssignments(formattedAssignments);
     } catch (error) {
-      console.log('[HS-5003] Error fetching devices:', error);
       handleApiError(error, 'Failed to fetch devices');
     }
   };
@@ -202,7 +160,6 @@ const HomeScreen = ({ navigation }) => {
   const fetchLocations = async () => {
     try {
       const data = await deviceService.getLocations();
-      console.log('[HS-6000] Fetched locations:', data.length);
       setLocations(data);
     } catch (error) {
       handleApiError(error, 'Failed to fetch locations');
@@ -211,7 +168,21 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchDevicesByLocation = async (locationId) => {
     try {
-      return await deviceService.getDevicesByLocation(locationId);
+      // Use the getLocationAssignments method to get devices by location
+      const assignments = await deviceService.getLocationAssignments(locationId);
+      
+      // Process the assignments to extract available devices
+      const availableDevices = assignments
+        .filter(assignment => {
+          // Filter for available devices or devices assigned to location
+          return assignment.device && 
+            (assignment.device.status === 'available' || 
+             (assignment.location && assignment.location.id === parseInt(locationId) &&
+              !assignment.returned_date));
+        })
+        .map(assignment => assignment.device);
+        
+      return availableDevices;
     } catch (error) {
       handleApiError(error, 'Failed to fetch devices for the selected location');
       return [];
@@ -223,33 +194,24 @@ const HomeScreen = ({ navigation }) => {
       Alert.alert('Error', 'Invalid device data');
       return;
     }
-    console.log('[HS-7000] Opening return modal for device:', assignment.device.identifier);
     setSelectedReturnDevice(assignment.device);
     setReturnDeviceModalVisible(true);
   };
 
   const handleConfirmReturn = async () => {
-    console.log('[HS-8000] handleConfirmReturn called');
-    console.log('[HS-8001] Current selectedReturnLocation:', selectedReturnLocation);
-    console.log('[HS-8002] locationOptions:', locationOptions.length);
-    
     // Final check - if no location is selected but options exist, select the first one
     if ((!selectedReturnLocation || selectedReturnLocation === '') && locationOptions.length > 0) {
-      console.log('[HS-8003] Setting default location in handleConfirmReturn:', locationOptions[0].value);
       setSelectedReturnLocation(locationOptions[0].value);
-      console.log('[HS-8004] Returning early to wait for state update');
       // Return early to wait for state update before proceeding
       return;
     }
     
     if (!selectedReturnLocation) {
-      console.log('[HS-8005] ERROR: No location selected');
       Alert.alert('Error', 'Please select a return location.');
       return;
     }
 
     if (!selectedReturnDevice) {
-      console.log('[HS-8006] ERROR: No device selected');
       Alert.alert('Error', 'No device selected for return');
       return;
     }
@@ -257,56 +219,30 @@ const HomeScreen = ({ navigation }) => {
     // Get the assignment ID from the current_assignment field
     const assignmentId = selectedReturnDevice.current_assignment?.id;
     if (!assignmentId) {
-      console.log('[HS-8006b] ERROR: No assignment ID found in device data');
       Alert.alert('Error', 'Device assignment information is missing');
       return;
     }
     
-    console.log('[HS-8007] Proceeding with submission, location:', selectedReturnLocation);
-    console.log('[HS-8007b] Using assignment ID:', assignmentId, 'instead of device ID:', selectedReturnDevice.id);
     setReturnLoading(true);
     
     try {
-      const currentDate = new Date().toISOString();
-      console.log('[HS-8008] Current date:', currentDate);
+      // Using the updated returnDeviceToLocation method from deviceService
+      await deviceService.returnDeviceToLocation(assignmentId, {
+        location: selectedReturnLocation
+      });
       
-      // Update device assignment - now using the correct assignment ID
-      console.log('[HS-8009] Updating device assignment:', assignmentId);
-      await axiosInstance.patch(
-        `/device-assignments/${assignmentId}/`,
-        {
-          returned_date: currentDate.split('T')[0],
-          returned_time: currentDate.split('T')[1].split('.')[0],
-        }
-      );
-      
-      // Create return record
-      console.log('[HS-8010] Creating device return record');
-      await axiosInstance.post(
-        '/device-returns/',
-        {
-          device_id: selectedReturnDevice.id,
-          location: selectedReturnLocation,
-          returned_date_time: currentDate,
-        }
-      );
-      
-      console.log('[HS-8011] Submission successful');
       Alert.alert(
         'Success',
         'Device has been returned successfully',
         [{ text: 'OK', onPress: () => {
-          console.log('[HS-8012] Success alert confirmed');
           setReturnDeviceModalVisible(false);
           fetchDevices();
         }}]
       );
     } catch (error) {
-      console.log('[HS-8013] Return error:', error);
       let errorMessage = 'Failed to return device. Please try again.';
       
       if (error.response && error.response.data) {
-        console.log('[HS-8014] Error response data:', error.response.data);
         if (typeof error.response.data === 'string') {
           errorMessage = error.response.data;
         } else if (error.response.data.detail) {
@@ -316,16 +252,13 @@ const HomeScreen = ({ navigation }) => {
         }
       }
       
-      console.log('[HS-8015] Showing error alert:', errorMessage);
       Alert.alert('Error', errorMessage);
     } finally {
-      console.log('[HS-8016] Resetting loading state');
       setReturnLoading(false);
     }
   };
 
   const handleReturnDeviceModalClose = () => {
-    console.log('[HS-9000] Closing return device modal');
     setReturnDeviceModalVisible(false);
     setSelectedReturnLocation('');
   };
@@ -340,6 +273,9 @@ const HomeScreen = ({ navigation }) => {
       case 'locations':
         navigation.navigate('Locations');
         break;
+      case 'profile':
+        navigation.navigate('Profile');
+        break;
       case 'logout':
         Alert.alert(
           'Logout',
@@ -353,7 +289,6 @@ const HomeScreen = ({ navigation }) => {
                 try {
                   await logout();
                 } catch (error) {
-                  console.log('[HS-10000] Logout error:', error);
                   Alert.alert('Error', 'Failed to logout. Please try again.');
                 }
               },
@@ -384,42 +319,58 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Header Section */}
       <View style={styles.header}>
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>
-            Welcome {userName}
-          </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>
+              Welcome {userName}
+            </Text>
+          </View>
+          
+          {/* Profile Button in Header */}
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {userName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Admin/Owner Buttons */}
-        {isAdminOrOwner ? (
-          <View style={styles.adminButtonContainer}>
-            <Button
-              title="Manage NFC"
-              onPress={() => setNfcManagerModalVisible(true)}
-              size="small"
-              textColor="black"
-              style={styles.headerButton}
-            />
-            <Button
-              title="Assign Device"
-              onPress={() => setAssignDeviceModalVisible(true)}
-              size="small"
-              textColor="black"
-              style={styles.headerButton}
-            />
-          </View>
-        ) : (
-          // Regular User Button
-          <View style={styles.userButtonContainer}>
-            <Button
-              title="Request Device"
-              onPress={() => setAssignDeviceModalVisible(true)}
-              size="small"
-              textColor="black"
-              style={styles.fullWidthButton}
-            />
-          </View>
-        )}
+        {/* Admin/Owner Buttons - Device Fees button removed */}
+        <View style={styles.buttonsContainer}>
+          {isAdminOrOwner ? (
+            <View style={styles.adminButtonContainer}>
+              <Button
+                title="Manage NFC"
+                onPress={() => setNfcManagerModalVisible(true)}
+                size="small"
+                textColor="black"
+                style={[styles.headerButton, { backgroundColor: ORANGE_COLOR }]}
+              />
+              <Button
+                title="Assign Device"
+                onPress={() => setAssignDeviceModalVisible(true)}
+                size="small"
+                textColor="black"
+                style={[styles.headerButton, { backgroundColor: ORANGE_COLOR }]}
+              />
+            </View>
+          ) : (
+            // Regular User Button - Device Fees button removed
+            <View style={styles.userButtonContainer}>
+              <Button
+                title="Request Device"
+                onPress={() => setAssignDeviceModalVisible(true)}
+                size="small"
+                textColor="black"
+                style={[styles.fullWidthButton, { backgroundColor: ORANGE_COLOR }]}
+              />
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Device Assignments Section */}
@@ -438,13 +389,13 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('AddDevice')}
               size="small"
               textColor="black"
-              style={styles.addDeviceButton}
+              style={[styles.addDeviceButton, { backgroundColor: ORANGE_COLOR }]}
             />
           )}
         </View>
         <View style={styles.section}>
           {loading ? (
-            <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+            <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
           ) : (
             <View style={styles.devicesContainer}>
               {assignments.length === 0 ? (
@@ -464,10 +415,10 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => navigation?.navigate('AllDevices', { assignments })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.viewAllText}>
+                <Text style={[styles.viewAllText, { color: ORANGE_COLOR }]}>
                   View All ({assignments.length} Devices)
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="chocolate" />
+                <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
               </TouchableOpacity>
             </View>
           )}
@@ -476,11 +427,11 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Bottom Tab Bar */}
       <TabBar
-        tabs={tabs}
+        tabs={tabs.filter(tab => tab.key !== 'locations' || isAdminOrOwner)}
         activeTab="dashboard"
         onTabPress={handleTabPress}
         backgroundColor="#FFFFFF"
-        activeColor="#007AFF"
+        activeColor={ORANGE_COLOR}
         inactiveColor="#666666"
         showIcons
         showLabels
@@ -518,7 +469,6 @@ const HomeScreen = ({ navigation }) => {
                       <Dropdown
                         value={selectedReturnLocation}
                         onValueChange={(value) => {
-                          console.log('[HS-11000] Dropdown value changed to:', value);
                           setSelectedReturnLocation(value);
                         }}
                         items={locationOptions}
@@ -540,12 +490,9 @@ const HomeScreen = ({ navigation }) => {
                     <View style={styles.modalButtonContainer}>
                       <Button
                         title={returnLoading ? "Returning..." : "Confirm Return"}
-                        onPress={() => {
-                          console.log('[HS-12000] Confirm return button pressed');
-                          handleConfirmReturn();
-                        }}
+                        onPress={handleConfirmReturn}
                         disabled={returnLoading || locationOptions.length === 0}
-                        style={styles.confirmButton}
+                        style={[styles.confirmButton, { backgroundColor: ORANGE_COLOR }]}
                         textColor="black"
                       />
                       <Button
@@ -561,7 +508,7 @@ const HomeScreen = ({ navigation }) => {
                     {returnLoading && (
                       <ActivityIndicator 
                         size="large" 
-                        color="#007AFF" 
+                        color={ORANGE_COLOR}
                         style={styles.loader}
                       />
                     )}
@@ -605,56 +552,76 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: '5%',
     paddingVertical: '3%',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     marginBottom: '3%',
-    flexWrap: 'wrap',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   welcomeContainer: {
     flex: 1,
-    marginRight: 10, // Add spacing between text and buttons
-    maxWidth: '60%', // Limit text width on larger screens
   },
   welcomeText: {
-    fontSize: 24, // Slightly smaller for iOS
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     lineHeight: 30,
-    flexWrap: 'wrap', // Enable text wrapping
+  },
+  profileButton: {
+    marginLeft: 10,
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ORANGE_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  buttonsContainer: {
+    marginTop: 10,
+    marginBottom: 5,
   },
   adminButtonContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap', // Allow buttons to wrap
-    justifyContent: 'flex-end',
-    marginTop: 8, // Add space when wrapped
-    width: '100%', // Full width for wrapping
+    justifyContent: 'space-around', // Changed from space-between to space-around for better spacing
+    paddingHorizontal: 10, // Added padding to give more breathing room
   },
-  // User button container - single button layout
   userButtonContainer: {
-    width: '100%', // Full width for single button
-    marginTop: 8, // Add space when wrapped
+    width: '100%',
+    paddingVertical: 5, // Added vertical padding
+    alignItems: 'center', // Center content horizontally
   },
   headerButton: {
-    marginLeft: 8,
-    paddingHorizontal: 12,
-    height: 40,
-    minWidth: Platform.OS === 'ios' ? 120 : 'auto', // Smaller min width on iOS
-    backgroundColor: 'orange',
+    marginBottom: 8,
+    marginHorizontal: 10, // Added horizontal margin for spacing between buttons
+    paddingHorizontal: 15, // Increased horizontal padding
+    height: 45, // Slightly increased height
+    minWidth: width > 375 ? (width / 2) - 60 : 'auto', // More space between buttons
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 8, // Added explicit border radius
   },
   fullWidthButton: {
-    paddingHorizontal: 12,
-    height: 40,
-    minWidth: Platform.OS === 'ios' ? 160 : 'auto', // Adjust for iOS
-    backgroundColor: 'orange',
+    paddingHorizontal: 15,
+    height: 45, // Increased height to match headerButton
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 8, // Added explicit border radius
+    maxWidth: '80%', // Limit width for better aesthetics on wider screens
+    alignSelf: 'center', // Center the button
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -670,8 +637,7 @@ const styles = StyleSheet.create({
   addDeviceButton: {
     paddingHorizontal: 12,
     height: 40,
-    minWidth: Platform.OS === 'ios' ? 140 : 'auto', // Increased minimum width on iOS
-    backgroundColor: 'orange',
+    minWidth: Platform.OS === 'ios' ? 140 : 'auto',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -709,7 +675,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   viewAllText: {
-    color: 'chocolate',
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
@@ -774,8 +739,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cccccc',
     minHeight: 50,
-    paddingLeft: 0, // Remove left padding to allow text to start at the edge
-    paddingRight: 30, // Add more space for the dropdown arrow
+    paddingLeft: 0,
+    paddingRight: 30,
     paddingVertical: 12,
     justifyContent: 'space-between',
     flexDirection: 'row',
@@ -786,14 +751,14 @@ const styles = StyleSheet.create({
     color: '#333333',
     textAlign: 'left',
     flexShrink: 1,
-    width: '100%', // Take all available width
-    paddingLeft: 15, // Add padding inside the text element instead
+    width: '100%',
+    paddingLeft: 15,
   },
   dropdownPlaceholderStyle: {
     fontSize: 16,
     color: '#999999',
     textAlign: 'left',
-    paddingLeft: 15, // Match the padding with the label
+    paddingLeft: 15,
   },
   dropdownItemStyle: {
     padding: 15,
@@ -807,7 +772,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f8ff',
   },
   dropdownActiveLabelStyle: {
-    color: '#007AFF',
+    color: ORANGE_COLOR,
     fontWeight: 'bold',
   },
   dropdownArrowStyle: {
@@ -817,12 +782,11 @@ const styles = StyleSheet.create({
     marginTop: -6,
   },
   
-  // Button styles to match the screenshot
+  // Button styles
   modalButtonContainer: {
     marginTop: 15,
   },
   confirmButton: {
-    backgroundColor: 'orange',
     marginBottom: 10,
     width: '100%',
     borderRadius: 8,
