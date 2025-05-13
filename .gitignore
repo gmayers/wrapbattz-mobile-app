@@ -39,3 +39,5 @@ yarn-error.*
 # Android/iOS specific
 android/
 ios/
+
+.env
