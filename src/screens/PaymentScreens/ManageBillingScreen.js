@@ -1,5 +1,5 @@
 // ManageBillingScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,82 +8,176 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Orange color to match existing UI
 const ORANGE_COLOR = '#FF9500';
 
-// Mock data for demonstration
-const MOCK_BILLING_DATA = {
-  total_devices: 5,
-  free_devices_remaining: 0,
-  billable_devices: 2,
-  billing: {
-    id: 'bill_123456',
-    stripe_customer_id: 'cus_123456',
-    stripe_subscription_id: 'sub_123456',
-    status: 'active',
-    plan_type: 'monthly',
-    max_devices: 5,
-    free_tier_used: true,
-    next_billing_date: '2025-12-31T23:59:59Z'
-  }
-};
-
-// Mock invoices
-const MOCK_INVOICES = [
-  {
-    id: 'inv_001',
-    stripe_invoice_id: 'in_123456',
-    amount: 7.98,
-    currency: 'USD',
-    status: 'paid',
-    invoice_date: '2025-05-01T12:00:00Z',
-    paid_date: '2025-05-01T12:00:00Z'
-  },
-  {
-    id: 'inv_002',
-    stripe_invoice_id: 'in_234567',
-    amount: 7.98,
-    currency: 'USD',
-    status: 'paid',
-    invoice_date: '2025-04-01T12:00:00Z',
-    paid_date: '2025-04-01T12:00:00Z'
-  },
-  {
-    id: 'inv_003',
-    stripe_invoice_id: 'in_345678',
-    amount: 7.98,
-    currency: 'USD',
-    status: 'paid',
-    invoice_date: '2025-03-01T12:00:00Z',
-    paid_date: '2025-03-01T12:00:00Z'
-  }
-];
-
 const ManageBillingScreen = ({ navigation }) => {
-  // Mock billing data - replace with real data from API
-  const billingData = MOCK_BILLING_DATA;
-  const invoices = MOCK_INVOICES;
+  const [loading, setLoading] = useState(true);
+  const [billingData, setBillingData] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  
+  useEffect(() => {
+    // Simulate API fetch
+    setTimeout(() => {
+      setBillingData({
+        devices: {
+          total: 5,
+          active: 5,
+          inactive: 0,
+          free_quota: 3,
+          billable: 2
+        },
+        tier: {
+          name: "1-100 Stickers",
+          price_per_device: {
+            monthly: 0.40,
+            annual: 0.25
+          }
+        },
+        billing: {
+          status: 'active',
+          cycle: 'monthly',
+          free_quota: 3,
+          next_billing_date: new Date().setMonth(new Date().getMonth() + 1),
+          price_per_device: 0.40,
+          total_monthly_cost: 0.80
+        },
+      });
+      
+      setInvoices([
+        {
+          id: 'inv_001',
+          amount_paid: 0.80,
+          currency: 'gbp',
+          status: 'paid',
+          created: Math.floor(new Date().setDate(new Date().getDate() - 5) / 1000),
+          period_start: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000),
+          period_end: Math.floor(new Date().setDate(new Date().getDate() - 5) / 1000)
+        },
+        {
+          id: 'inv_002',
+          amount_paid: 0.80,
+          currency: 'gbp',
+          status: 'paid',
+          created: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000),
+          period_start: Math.floor(new Date().setDate(new Date().getDate() - 65) / 1000),
+          period_end: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000)
+        }
+      ]);
+      
+      setLoading(false);
+    }, 1000);
+  }, []);
   
   const openBillingPortal = () => {
-    // Placeholder for billing portal navigation
-    Alert.alert('Billing Portal', 'This would open the Stripe Customer Portal for payment management.');
+    // Simulate opening a billing portal
+    Alert.alert(
+      'Payment Methods', 
+      'This would display your payment methods and allow you to add, edit, or remove them.',
+      [{ text: 'OK' }]
+    );
+  };
+  
+  const handleChangePlan = () => {
+    Alert.alert(
+      'Change Billing Plan',
+      `Would you like to switch to ${billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly'} billing?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Change Plan', 
+          onPress: () => {
+            Alert.alert(
+              'Plan Updated', 
+              `Your plan has been changed to ${billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly'} billing. The change will take effect on your next billing date.`
+            );
+            // Update billing data to show the change
+            setBillingData({
+              ...billingData,
+              billing: {
+                ...billingData.billing,
+                cycle: billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly',
+                price_per_device: billingData.billing.cycle === 'monthly' ? 0.25 : 0.40,
+                total_monthly_cost: billingData.billing.cycle === 'monthly' 
+                  ? billingData.devices.billable * 0.25 
+                  : billingData.devices.billable * 0.40
+              }
+            });
+          }
+        }
+      ]
+    );
+  };
+  
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'Are you sure you want to cancel your subscription? You will still have access until the end of your current billing period.',
+      [
+        { text: 'No', style: 'cancel' },
+        { 
+          text: 'Yes, Cancel', 
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Subscription Cancelled', 
+              'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
+              [
+                { 
+                  text: 'OK', 
+                  onPress: () => {
+                    // Update billing status to show as cancelled but still active
+                    setBillingData({
+                      ...billingData,
+                      billing: {
+                        ...billingData.billing,
+                        status: 'cancelled'
+                      }
+                    });
+                  }
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
+  };
+  
+  const formatCurrency = (amount, currency = 'GBP') => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp * 1000); // Convert to milliseconds if timestamp
+    return date.toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
   };
-
+  
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <Text style={styles.loadingText}>Loading billing information...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   // Check if user has an active billing plan
-  const isActive = billingData?.billing?.status === 'active';
+  const isActive = billingData?.billing?.status === 'active' || billingData?.billing?.status === 'cancelled';
   
   if (!isActive) {
     return (
@@ -108,7 +202,7 @@ const ManageBillingScreen = ({ navigation }) => {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Manage Billing</Text>
           <Text style={styles.headerSubtitle}>
-            {`${billingData.billing.plan_type} Plan - ${billingData.billable_devices} billable device${billingData.billable_devices !== 1 ? 's' : ''}`}
+            {`${billingData.billing.cycle} Plan - ${billingData.tier.name}`}
           </Text>
         </View>
 
@@ -119,9 +213,9 @@ const ManageBillingScreen = ({ navigation }) => {
               styles.statusBadge,
               { backgroundColor: 
                 billingData.billing.status === 'active' ? '#4CAF50' :
+                billingData.billing.status === 'cancelled' ? '#FF9800' :
                 billingData.billing.status === 'past_due' ? '#FF9800' :
-                billingData.billing.status === 'canceled' ? '#F44336' :
-                '#757575'
+                '#F44336'
               }
             ]}>
               <Text style={styles.statusBadgeText}>
@@ -133,54 +227,70 @@ const ManageBillingScreen = ({ navigation }) => {
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Plan:</Text>
             <Text style={styles.billingCardValue}>
-              {billingData.billing.plan_type.charAt(0).toUpperCase() + 
-               billingData.billing.plan_type.slice(1)}
+              {billingData.billing.cycle.charAt(0).toUpperCase() + 
+               billingData.billing.cycle.slice(1)}
             </Text>
           </View>
           
           <View style={styles.billingCardRow}>
+            <Text style={styles.billingCardLabel}>Pricing Tier:</Text>
+            <Text style={styles.billingCardValue}>{billingData.tier.name}</Text>
+          </View>
+          
+          <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Free Devices:</Text>
-            <Text style={styles.billingCardValue}>3</Text>
+            <Text style={styles.billingCardValue}>{billingData.billing.free_quota}</Text>
           </View>
           
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Total Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData.total_devices}</Text>
+            <Text style={styles.billingCardValue}>{billingData.devices.total}</Text>
           </View>
           
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Billable Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData.billable_devices}</Text>
+            <Text style={styles.billingCardValue}>{billingData.devices.billable}</Text>
           </View>
           
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Next Billing:</Text>
             <Text style={styles.billingCardValue}>
-              {formatDate(billingData.billing.next_billing_date)}
+              {formatDate(billingData.billing.next_billing_date / 1000)}
             </Text>
           </View>
           
           <View style={styles.feesContainer}>
             <Text style={styles.feesTitle}>Device Management Fees</Text>
             <View style={styles.feesRow}>
-              <Text style={styles.feesDescription}>Free Tier (3 devices)</Text>
-              <Text style={styles.feesAmount}>$0.00</Text>
+              <Text style={styles.feesDescription}>Free Tier ({billingData.billing.free_quota} devices)</Text>
+              <Text style={styles.feesAmount}>£0.00</Text>
             </View>
             <View style={styles.feesRow}>
               <Text style={styles.feesDescription}>
-                {billingData.billable_devices} additional device{billingData.billable_devices !== 1 ? 's' : ''} × ${billingData.billing.plan_type === 'monthly' ? '3.99' : '3.19'}
+                {billingData.devices.billable} additional device{billingData.devices.billable !== 1 ? 's' : ''} × 
+                {formatCurrency(billingData.billing.price_per_device)}
               </Text>
               <Text style={styles.feesAmount}>
-                ${(billingData.billable_devices * (billingData.billing.plan_type === 'monthly' ? 3.99 : 3.19)).toFixed(2)}
+                {formatCurrency(billingData.billing.total_monthly_cost)}
               </Text>
             </View>
             <View style={styles.feesDivider} />
             <View style={styles.feesRow}>
-              <Text style={styles.feesTotalLabel}>Total Monthly Fee</Text>
+              <Text style={styles.feesTotalLabel}>
+                Total {billingData.billing.cycle === 'monthly' ? 'Monthly' : 'Annual'} Fee
+              </Text>
               <Text style={styles.feesTotal}>
-                ${(billingData.billable_devices * (billingData.billing.plan_type === 'monthly' ? 3.99 : 3.19)).toFixed(2)}
+                {formatCurrency(billingData.billing.total_monthly_cost)}
               </Text>
             </View>
+            
+            {billingData.billing.cycle === 'monthly' && (
+              <View style={styles.savingsNote}>
+                <Text style={styles.savingsNoteText}>
+                  Switch to annual billing and save up to 38% on your subscription!
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -188,9 +298,13 @@ const ManageBillingScreen = ({ navigation }) => {
           <View style={styles.invoicesSection}>
             <Text style={styles.invoicesSectionTitle}>Recent Invoices</Text>
             {invoices.map((invoice) => (
-              <View key={invoice.id} style={styles.invoiceCard}>
+              <TouchableOpacity
+                key={invoice.id}
+                style={styles.invoiceCard}
+                onPress={() => Alert.alert('Invoice Details', 'This would show detailed invoice information.')}
+              >
                 <View style={styles.invoiceCardHeader}>
-                  <Text style={styles.invoiceCardDate}>{formatDate(invoice.invoice_date)}</Text>
+                  <Text style={styles.invoiceCardDate}>{formatDate(invoice.created)}</Text>
                   <View style={[
                     styles.invoiceStatusBadge,
                     { backgroundColor: invoice.status === 'paid' ? '#4CAF50' : '#F44336' }
@@ -200,13 +314,13 @@ const ManageBillingScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.invoiceCardBody}>
                   <Text style={styles.invoiceCardAmount}>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: invoice.currency,
-                    }).format(invoice.amount)}
+                    {formatCurrency(invoice.amount_paid, invoice.currency)}
+                  </Text>
+                  <Text style={styles.invoiceCardPeriod}>
+                    {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -217,13 +331,13 @@ const ManageBillingScreen = ({ navigation }) => {
             onPress={openBillingPortal}
           >
             <Ionicons name="card-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-            <Text style={styles.portalButtonText}>Payment Methods</Text>
+            <Text style={styles.portalButtonText}>Manage Payment Methods</Text>
           </TouchableOpacity>
           
           <View style={styles.secondaryActions}>
             <TouchableOpacity 
               style={styles.secondaryButton}
-              onPress={() => Alert.alert('Switch Plan', 'Would you like to change your billing frequency?')}
+              onPress={handleChangePlan}
             >
               <Ionicons name="repeat" size={20} color={ORANGE_COLOR} />
               <Text style={styles.secondaryButtonText}>Change Plan</Text>
@@ -231,16 +345,22 @@ const ManageBillingScreen = ({ navigation }) => {
             
             <TouchableOpacity 
               style={styles.secondaryButton}
-              onPress={() => Alert.alert('Cancel Plan', 'Are you sure you want to cancel your device management plan?')}
+              onPress={handleCancelSubscription}
+              disabled={billingData.billing.status === 'cancelled'}
             >
-              <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
-              <Text style={[styles.secondaryButtonText, { color: '#EF4444' }]}>Cancel Plan</Text>
+              <Ionicons name="close-circle-outline" size={20} color={billingData.billing.status === 'cancelled' ? '#999' : '#EF4444'} />
+              <Text style={[
+                styles.secondaryButtonText, 
+                { color: billingData.billing.status === 'cancelled' ? '#999' : '#EF4444' }
+              ]}>
+                {billingData.billing.status === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
+              </Text>
             </TouchableOpacity>
           </View>
           
           <Text style={styles.portalDescription}>
             Updates to your device count will be reflected in your next billing cycle.
-            The free tier of 3 devices will always be included at no cost.
+            The free tier of {billingData.billing.free_quota} devices will always be included at no cost.
           </Text>
         </View>
       </ScrollView>
@@ -252,6 +372,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     padding: 20,
@@ -300,7 +430,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  feesContainer: {
+feesContainer: {
     marginTop: 15,
     paddingTop: 15,
     borderTopWidth: 1,
@@ -320,11 +450,14 @@ const styles = StyleSheet.create({
   feesDescription: {
     fontSize: 14,
     color: '#555',
+    flex: 3,
   },
   feesAmount: {
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
   },
   feesDivider: {
     height: 1,
@@ -340,6 +473,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  savingsNote: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#FFF8E1',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFC107',
+  },
+  savingsNoteText: {
+    fontSize: 14,
+    color: '#F57C00',
   },
   invoicesSection: {
     margin: 20,
@@ -386,6 +531,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 4,
+  },
+  invoiceCardPeriod: {
+    fontSize: 13,
+    color: '#777',
   },
   actionsContainer: {
     margin: 20,

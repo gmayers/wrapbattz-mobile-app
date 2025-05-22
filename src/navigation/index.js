@@ -11,14 +11,16 @@ import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
 import HomeScreen from '../screens/HomeScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import AllReportsScreen from '../screens/AllReportsScreen';
+import ReportDetailsScreen from '../screens/ReportDetailsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
+import DeviceDetailsScreen from '../screens/DeviceDetailsScreen';
 import AddDeviceScreen from '../screens/AddDeviceScreen';
 import CreateReportScreen from '../screens/CreateReportScreen';
 import LocationsScreen from '../screens/LocationsScreen';
 import LocationDetailsScreen from '../screens/LocationDetailsScreen';
 import PricingScreen from '../screens/PricingScreen';
 import SuggestFeatureScreen from '../screens/SuggestFeatureScreen';
-
+import CreateOrganizationScreen from '../screens/CreateOrganizationScreen';
 // Import new screens
 import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
 import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
@@ -160,8 +162,22 @@ const MainStack = () => (
       }}
     />
     <Stack.Screen
+      name="ReportDetails"
+      component={ReportDetailsScreen}
+      options={{
+        headerShown: false
+      }}
+    />
+    <Stack.Screen
       name="AllDevices"
       component={AllDevicesScreen}
+      options={{
+        headerShown: false
+      }}
+    />
+    <Stack.Screen
+      name="DeviceDetails"
+      component={DeviceDetailsScreen}
       options={{
         headerShown: false
       }}
@@ -184,7 +200,6 @@ const MainStack = () => (
         },
       }}
     />
-    {/* Add new location screens */}
     <Stack.Screen
       name="Locations"
       component={LocationsScreen}
@@ -211,7 +226,6 @@ const MainStack = () => (
       }}
     />
     
-    {/* Add new billing and profile screens */}
     <Stack.Screen
       name="DataHandlingFee"
       component={DataHandlingFeeScreen}
@@ -307,6 +321,26 @@ const MainStack = () => (
         headerTintColor: ORANGE_COLOR,
       }}
     />
+    {/* Add CreateOrganization screen to MainStack for users who need to access it */}
+    <Stack.Screen
+      name="CreateOrganization"
+      component={CreateOrganizationScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Create Organization',
+        headerStyle: {
+          backgroundColor: '#fff',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f4f4f4',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
   </Stack.Navigator>
 );
 
@@ -315,6 +349,41 @@ const LoadingScreen = () => (
     <ActivityIndicator size="large" color={ORANGE_COLOR} />
   </View>
 );
+
+// FIXED: Simplified OnboardingStack that uses the correct field
+const OnboardingStack = () => {
+  const { onboardingComplete, userData } = useAuth();
+
+  // Use the correct onboarding field from your AuthContext
+  const needsOnboarding = !onboardingComplete && !(userData?.has_completed_onboarding);
+
+  if (needsOnboarding) {
+    return (
+      <Stack.Navigator>
+        <Stack.Screen 
+          name="CreateOrganization" 
+          component={CreateOrganizationScreen}
+          options={{ 
+            headerTitle: 'Create Organization',
+            headerStyle: {
+              backgroundColor: '#fff',
+              elevation: 0,
+              shadowOpacity: 0,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f4f4f4',
+            },
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // If onboarding is complete, show main app
+  return <MainStack />;
+};
 
 export const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -325,7 +394,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <MainStack /> : <AuthStack />}
+      {isAuthenticated ? <OnboardingStack /> : <AuthStack />}
     </NavigationContainer>
   );
 };

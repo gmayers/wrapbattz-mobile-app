@@ -6,9 +6,27 @@ import { AppNavigator } from './src/navigation/index';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import NfcManager from 'react-native-nfc-manager';
+import * as SecureStore from 'expo-secure-store';
+
+// IMPORTANT: Replace this with your actual API key
+// This is the key that should match what's expected on your backend
+const MOBILE_API_KEY = 'csG6Ho01W_zFPrAVtP_fhPzyTI-n1GmX8DIJQ6tGzy4'; // Update this with your real key!
 
 export default function App() {
   useEffect(() => {
+    // Set up the API key in SecureStore - using a fixed key name that matches AuthContext
+    const setupApiKey = async () => {
+      try {
+        const API_KEY_STORAGE_KEY = 'apiKey';
+        
+        // Force update the API key every time to ensure it's correct
+        await SecureStore.setItemAsync(API_KEY_STORAGE_KEY, MOBILE_API_KEY);
+        console.log('API key stored successfully:', MOBILE_API_KEY);
+      } catch (error) {
+        console.error('Error storing API key:', error);
+      }
+    };
+
     const requestPermissions = async () => {
       try {
         // Request media library permissions
@@ -38,6 +56,14 @@ export default function App() {
       }
     };
 
+    // Run both setup functions
+    setupApiKey().then(() => {
+      // Verify the key was stored correctly
+      SecureStore.getItemAsync('apiKey').then(key => {
+        console.log('Verification - Stored API key:', key);
+      });
+    });
+    
     requestPermissions();
     
     // Cleanup function

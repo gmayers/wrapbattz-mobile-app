@@ -1,5 +1,5 @@
 // DataHandlingFeeScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,94 +8,146 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Orange color to match existing UI
 const ORANGE_COLOR = '#FF9500';
 
-// Mock data for demonstration
-const MOCK_BILLING_DATA = {
-  total_devices: 5,
-  free_devices_remaining: 0,
-  billable_devices: 2,
-  billing: {
-    status: 'inactive', // Change to 'active' to see active state
-    plan_type: 'monthly',
-    max_devices: 5,
-    next_billing_date: '2025-12-31T23:59:59Z'
-  }
-};
-
 const DataHandlingFeeScreen = ({ navigation }) => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [billingData, setBillingData] = useState(null);
   
-  // Mock billing data - replace with real data from API
-  const billingData = MOCK_BILLING_DATA;
+  useEffect(() => {
+    // Simulate API fetch
+    setTimeout(() => {
+      setBillingData({
+        devices: {
+          total: 5,
+          active: 5,
+          inactive: 0,
+          free_quota: 3,
+          billable: 2
+        },
+        tier: {
+          name: "1-100 Stickers",
+          price_per_device: {
+            monthly: 0.40,
+            annual: 0.25
+          }
+        },
+        billing: {
+          status: 'inactive',
+          cycle: 'monthly',
+          free_quota: 3
+        }
+      });
+      setLoading(false);
+    }, 1000);
+  }, []);
   
-  const isActive = billingData?.billing?.status === 'active';
-  const onFreeTier = billingData.free_devices_remaining > 0 && 
-                    billingData.total_devices <= 3 &&
-                    !isActive;
-
   const handleActivate = () => {
-    // Placeholder for payment logic
-    if (billingData.billable_devices <= 0) {
+    if (billingData.devices.billable <= 0) {
       Alert.alert(
         'Free Tier Available',
         'You can use up to 3 devices for free. Would you like to activate your free tier?',
         [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Activate Free Tier',
             onPress: () => {
               Alert.alert('Free Tier Activated', 'You can now use up to 3 devices at no cost.');
+              navigation.navigate('ManageBilling');
             }
-          },
+          }
         ]
       );
       return;
     }
     
+    // Simulate payment process
     Alert.alert(
-      'Payment Confirmed',
-      'Your device management fee payment has been processed successfully!',
-      [{ text: 'OK' }]
+      'Confirm Subscription',
+      `Are you sure you want to subscribe to the ${selectedPlan} plan?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Subscribe',
+          onPress: () => {
+            Alert.alert(
+              'Subscription Activated', 
+              'Your subscription has been successfully activated!',
+              [{ text: 'OK', onPress: () => navigation.navigate('ManageBilling') }]
+            );
+          }
+        }
+      ]
     );
   };
-
-  const openBillingPortal = () => {
-    // Placeholder for billing portal navigation
-    Alert.alert('Billing Portal', 'This would open the Stripe Customer Portal for payment management.');
-  };
-
-  const renderPlanOption = (planType, title, description, price) => (
-    <TouchableOpacity
-      style={[
-        styles.planOption,
-        selectedPlan === planType && styles.planOptionSelected,
-        (isActive && billingData?.billing?.plan_type === planType) && styles.planOptionCurrent
-      ]}
-      onPress={() => setSelectedPlan(planType)}
-      disabled={isActive}
-    >
-      <View style={styles.planHeader}>
-        <Text style={styles.planTitle}>{title}</Text>
-        {(isActive && billingData?.billing?.plan_type === planType) && (
-          <View style={styles.currentPlanBadge}>
-            <Text style={styles.currentPlanBadgeText}>Current Plan</Text>
+  
+  const renderPlanOption = (planType, title, description) => {
+    // Calculate savings percentage
+    const savingsPercent = Math.round(((0.40 - 0.25) / 0.40) * 100);
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.planOption,
+          selectedPlan === planType && styles.planOptionSelected
+        ]}
+        onPress={() => setSelectedPlan(planType)}
+      >
+        <View style={styles.planHeader}>
+          <Text style={styles.planTitle}>{title}</Text>
+          {planType === 'annual' && (
+            <View style={styles.savingsBadge}>
+              <Text style={styles.savingsBadgeText}>Save {savingsPercent}%</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.planDescription}>{description}</Text>
+        
+        <View style={styles.tieredPricing}>
+          <Text style={styles.tieredPricingTitle}>Tiered Pricing:</Text>
+          
+          <View style={styles.tierRow}>
+            <Text style={styles.tierDescription}>1-100 stickers:</Text>
+            <Text style={styles.tierPrice}>
+              {planType === 'monthly' ? '£0.40' : '£0.25'} per sticker
+            </Text>
           </View>
-        )}
-      </View>
-      <Text style={styles.planDescription}>{description}</Text>
-      <Text style={styles.planPrice}>{price}<Text style={styles.planPriceUnit}> per device</Text></Text>
-    </TouchableOpacity>
-  );
-
+          
+          <View style={styles.tierRow}>
+            <Text style={styles.tierDescription}>101-400 stickers:</Text>
+            <Text style={styles.tierPrice}>
+              {planType === 'monthly' ? '£0.33' : '£0.25'} per sticker
+            </Text>
+          </View>
+          
+          <View style={styles.tierRow}>
+            <Text style={styles.tierDescription}>400+ stickers:</Text>
+            <Text style={styles.tierPrice}>£0.25 per sticker</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+  
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  const isActive = billingData?.billing?.status === 'active';
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -103,27 +155,27 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           <Text style={styles.headerTitle}>Device Management Fee</Text>
           <Text style={styles.headerSubtitle}>
             {isActive
-              ? `You are currently on the ${billingData?.billing?.plan_type} billing plan`
+              ? `You are currently on the ${billingData?.billing?.cycle} billing plan`
               : 'Choose a billing plan for your devices'}
           </Text>
         </View>
-
+        
         <View style={styles.deviceSummary}>
           <Text style={styles.deviceSummaryTitle}>Device Usage</Text>
           <View style={styles.deviceCountRow}>
             <Text style={styles.deviceCountLabel}>Total Devices:</Text>
-            <Text style={styles.deviceCountValue}>{billingData?.total_devices || 0}</Text>
+            <Text style={styles.deviceCountValue}>{billingData?.devices.total || 0}</Text>
           </View>
           <View style={styles.deviceCountRow}>
             <Text style={styles.deviceCountLabel}>Free Devices:</Text>
-            <Text style={styles.deviceCountValue}>{Math.min(3, billingData?.total_devices || 0)}</Text>
+            <Text style={styles.deviceCountValue}>{Math.min(3, billingData?.devices.total || 0)}</Text>
           </View>
           <View style={styles.deviceCountRow}>
             <Text style={styles.deviceCountLabel}>Billable Devices:</Text>
-            <Text style={styles.deviceCountValue}>{billingData?.billable_devices || 0}</Text>
+            <Text style={styles.deviceCountValue}>{billingData?.devices.billable || 0}</Text>
           </View>
           
-          {onFreeTier && (
+          {billingData.devices.billable <= 0 && (
             <View style={styles.freeTierInfo}>
               <Text style={styles.freeTierInfoText}>
                 You're using the free tier (up to 3 devices). Add more devices to upgrade.
@@ -131,47 +183,64 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             </View>
           )}
         </View>
-
+        
         <View style={styles.planOptions}>
           <Text style={styles.planOptionsTitle}>Billing Plans</Text>
           {renderPlanOption(
             'monthly',
             'Monthly Billing',
-            'Pay month-to-month with flexibility to cancel anytime',
-            '$3.99/mo'
+            'Pay month-to-month with flexibility to cancel anytime'
           )}
           {renderPlanOption(
-            'yearly',
+            'annual',
             'Annual Billing',
-            'Save 20% with annual billing',
-            '$3.19/mo'
+            'Lower per-device rate with annual payment'
           )}
         </View>
-
+        
+        <View style={styles.costSummary}>
+          <Text style={styles.costSummaryTitle}>Cost Summary</Text>
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Free Tier (3 devices):</Text>
+            <Text style={styles.costValue}>£0.00</Text>
+          </View>
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>
+              {billingData.devices.billable} additional device{billingData.devices.billable !== 1 ? 's' : ''} × 
+              {selectedPlan === 'monthly' 
+                ? '£0.40' 
+                : '£0.25'}:
+            </Text>
+            <Text style={styles.costValue}>
+              £{((selectedPlan === 'monthly' ? 0.40 : 0.25) * billingData.devices.billable).toFixed(2)}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.costRow}>
+            <Text style={styles.totalLabel}>
+              Total {selectedPlan === 'monthly' ? 'Monthly' : 'Annual'} Cost:
+            </Text>
+            <Text style={styles.totalValue}>
+              £{((selectedPlan === 'monthly' ? 0.40 : 0.25) * billingData.devices.billable).toFixed(2)}
+            </Text>
+          </View>
+        </View>
+        
         <Text style={styles.fineprint}>
           First 3 devices are always free. You will only be charged for devices beyond the free tier.
           Your payment covers the cost of securely handling device data and providing management services.
         </Text>
-
-        {isActive ? (
-          <TouchableOpacity
-            style={styles.manageButton}
-            onPress={openBillingPortal}
-          >
-            <Text style={styles.manageButtonText}>Manage Billing</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.activateButton}
-            onPress={handleActivate}
-          >
-            <Text style={styles.activateButtonText}>
-              {billingData?.billable_devices > 0
-                ? `Activate - ${selectedPlan === 'monthly' ? '$3.99/mo' : '$3.19/mo'} per device`
-                : 'Activate Free Tier'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        
+        <TouchableOpacity
+          style={styles.activateButton}
+          onPress={handleActivate}
+        >
+          <Text style={styles.activateButtonText}>
+            {billingData?.devices.billable > 0
+              ? `Activate ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan`
+              : 'Activate Free Tier'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -263,10 +332,6 @@ const styles = StyleSheet.create({
     borderColor: ORANGE_COLOR,
     backgroundColor: 'rgba(255, 149, 0, 0.05)',
   },
-  planOptionCurrent: {
-    borderColor: '#4CAF50',
-    backgroundColor: 'rgba(76, 175, 80, 0.05)',
-  },
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -278,13 +343,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  currentPlanBadge: {
+  savingsBadge: {
     backgroundColor: '#4CAF50',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
   },
-  currentPlanBadgeText: {
+  savingsBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
@@ -294,22 +359,82 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 12,
   },
-  planPrice: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  tieredPricing: {
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 6,
+    marginVertical: 10,
+  },
+  tieredPricingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  tierRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+  },
+  tierDescription: {
+    fontSize: 14,
+    color: '#555',
+  },
+  tierPrice: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#333',
   },
-  planPriceUnit: {
-    fontSize: 14,
-    fontWeight: 'normal',
-    color: '#666',
+  costSummary: {
+    margin: 20,
+    padding: 16,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  costSummaryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  costRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 6,
+  },
+  costLabel: {
+    fontSize: 15,
+    color: '#555',
+    flex: 2,
+  },
+  costValue: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 10,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'right',
   },
   fineprint: {
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
-    marginVertical: 20,
-    paddingHorizontal: 20,
+    marginHorizontal: 20,
     lineHeight: 18,
   },
   activateButton: {
@@ -317,23 +442,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 8,
     marginHorizontal: 20,
-    marginBottom: 30,
+    marginVertical: 20,
     alignItems: 'center',
   },
   activateButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  manageButton: {
-    backgroundColor: '#333',
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginHorizontal: 20,
-    marginBottom: 30,
-    alignItems: 'center',
-  },
-  manageButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',

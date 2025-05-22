@@ -24,6 +24,16 @@ const { width } = Dimensions.get('window');
 // Define the orange color to match HomeScreen
 const ORANGE_COLOR = '#FF9500';
 
+// Define report type choices for detailed info
+const TYPE_CHOICES = [
+  { value: 'DAMAGED', label: 'Damaged' },
+  { value: 'STOLEN', label: 'Stolen' },
+  { value: 'LOST', label: 'Lost' },
+  { value: 'MALFUNCTIONING', label: 'Malfunctioning' },
+  { value: 'MAINTENANCE', label: 'Needs Maintenance' },
+  { value: 'OTHER', label: 'Other' }
+];
+
 const STATUS_CHOICES = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
@@ -215,6 +225,12 @@ const ReportsScreen = ({ navigation }) => {
     return status ? status.label : statusValue;
   }, []);
 
+  // Helper function to get type label
+  const getTypeLabel = useCallback((typeValue) => {
+    const type = TYPE_CHOICES.find(t => t.value === typeValue);
+    return type ? type.label : typeValue;
+  }, []);
+
   // Helper function to get status color
   const getStatusColor = useCallback((status) => {
     switch (status) {
@@ -240,36 +256,59 @@ const ReportsScreen = ({ navigation }) => {
   const handleViewAllReports = useCallback(() => {
     navigation.navigate('AllReports');
   }, [navigation]);
+  
+  const handleViewReportDetails = useCallback((report) => {
+    navigation.navigate('ReportDetails', { reportId: report.id });
+  }, [navigation]);
 
+  // Updated to make the card clickable
   const renderReportCard = useCallback((report) => (
-    <Card
+    <TouchableOpacity 
       key={report.id}
-      title={`Device: ${report.device?.identifier || 'Unknown'}`}
-      style={styles.reportCard}
+      onPress={() => handleViewReportDetails(report)}
+      activeOpacity={0.7}
     >
-      <View style={styles.reportContent}>
-        <Text style={styles.reportText}>Date: {report.report_date}</Text>
-        <TouchableOpacity
-          onPress={() => Alert.alert('Type Info', report.type)}
-          style={styles.typeRow}
-        >
-          <Text style={styles.reportText}>Type: {report.type}</Text>
-          <Ionicons name="information-circle-outline" size={16} color="#666" />
-        </TouchableOpacity>
-        <View style={styles.statusRow}>
-          <Text style={styles.reportText}>Status: </Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
-            <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
+      <Card
+        title={`Device: ${report.device?.identifier || 'Unknown'}`}
+        style={styles.reportCard}
+      >
+        <View style={styles.reportContent}>
+          <Text style={styles.reportText}>Date: {report.report_date}</Text>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent card click
+              Alert.alert('Type Info', getTypeLabel(report.type));
+            }}
+            style={styles.typeRow}
+          >
+            <Text style={styles.reportText}>Type: {getTypeLabel(report.type)}</Text>
+            <Ionicons name="information-circle-outline" size={16} color="#666" />
+          </TouchableOpacity>
+          <View style={styles.statusRow}>
+            <Text style={styles.reportText}>Status: </Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
+              <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
+            </View>
+          </View>
+          <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
+          {report.resolved_date && (
+            <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
+          )}
+          <Text 
+            style={styles.reportText} 
+            numberOfLines={2} // Limit to 2 lines with ellipsis
+            ellipsizeMode="tail"
+          >
+            Description: {report.description}
+          </Text>
+          <View style={styles.viewDetailsContainer}>
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <Ionicons name="chevron-forward" size={14} color={ORANGE_COLOR} />
           </View>
         </View>
-        <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
-        {report.resolved_date && (
-          <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
-        )}
-        <Text style={styles.reportText}>Description: {report.description}</Text>
-      </View>
-    </Card>
-  ), [getStatusColor, getStatusLabel]);
+      </Card>
+    </TouchableOpacity>
+  ), [getStatusColor, getStatusLabel, getTypeLabel, handleViewReportDetails]);
 
   // If AuthContext itself has an error state, we could show it here
   if (authError) {
@@ -512,6 +551,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '500',
+  },
+  // New style for "View Details" indicator
+  viewDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  viewDetailsText: {
+    fontSize: 12,
+    color: ORANGE_COLOR,
+    fontWeight: '500',
+    marginRight: 2,
   },
   viewAllButton: {
     flexDirection: 'row',

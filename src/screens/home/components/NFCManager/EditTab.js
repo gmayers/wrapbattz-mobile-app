@@ -5,6 +5,7 @@ import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
 
+
 // Import the normalizeJsonString function from ReadTab
 const normalizeJsonString = (jsonString) => {
   // Replace fancy quotes with standard quotes
@@ -55,6 +56,7 @@ const normalizeJsonString = (jsonString) => {
   }
 };
 
+
 // New function to validate JSON structure
 const validateJSON = (jsonString) => {
   try {
@@ -81,10 +83,12 @@ const EditTab = ({ onCancel }) => {
   const [tagData, setTagData] = useState(null);
   const [editedFields, setEditedFields] = useState({});
   const [newField, setNewField] = useState({ key: '', value: '' });
+  const [firstKey, setFirstKey] = useState(null); // New state to track the first key
   
   // New state for field editing
   const [editingKeys, setEditingKeys] = useState({});
   const [jsonValidationState, setJsonValidationState] = useState({});
+
 
 const handleReadTag = async () => {
   let result = false;
@@ -343,8 +347,11 @@ const decodeTagContent = (record) => {
   }
 };
 
-// Helper function to process JSON tag content
+// Helper function to process JSON tag content with console logging
 const processJsonTagContent = (textContent) => {
+  // Add console statement when reading data
+  console.log('[EditTab] Processing tag JSON content:', textContent);
+  
   // Normalize and clean JSON string
   const cleanJson = normalizeJsonString(textContent.trim());
   
@@ -361,7 +368,15 @@ const processJsonTagContent = (textContent) => {
   const editableFields = {};
   const jsonState = {};
   
-  Object.entries(editableData).forEach(([key, value]) => {
+  // Track the first key for making it uneditable
+  let firstKey = null;
+  
+  Object.entries(editableData).forEach(([key, value], index) => {
+    // Track the first key encountered
+    if (index === 0 && firstKey === null) {
+      firstKey = key;
+    }
+    
     if (typeof value === 'object' && value !== null) {
       // Properly stringify objects
       const stringifiedValue = JSON.stringify(value);
@@ -377,14 +392,15 @@ const processJsonTagContent = (textContent) => {
     }
   });
   
+  // Store the first key in state for reference
+  setFirstKey(firstKey);
+  
   setTagData(tagDataObj);
   setEditedFields(editableFields);
   setJsonValidationState(jsonState);
 };
 
-
-
-  // Improved write function using the recommended pattern
+// Improved write function using the recommended pattern
 const handleWriteTag = async () => {
   let result = false;
   
@@ -576,239 +592,290 @@ const handleWriteTag = async () => {
   
   return result;
 };
-
-  const handleFieldChange = (key, value) => {
-    setEditedFields(prev => ({
+const handleFieldChange = (key, value) => {
+  // Prevent changing the value of the first key
+  if (key === firstKey) {
+    Alert.alert('Error', 'The primary field cannot be modified.');
+    return;
+  }
+  
+  setEditedFields(prev => ({
+    ...prev,
+    [key]: value
+  }));
+  
+  // Check JSON validity if the value looks like JSON
+  if (isLikelyJSON(value)) {
+    setJsonValidationState(prev => ({
       ...prev,
-      [key]: value
+      [key]: validateJSON(value)
     }));
-    
-    // Check JSON validity if the value looks like JSON
-    if (isLikelyJSON(value)) {
-      setJsonValidationState(prev => ({
-        ...prev,
-        [key]: validateJSON(value)
-      }));
-    } else {
-      // If it no longer looks like JSON, remove validation state
-      setJsonValidationState(prev => {
-        const updated = { ...prev };
-        delete updated[key];
-        return updated;
-      });
-    }
-  };
-
-  // New improved key change handler with live feedback
-  const handleKeyChange = (oldKey, newKey) => {
-    // Update the editing state
-    setEditingKeys(prev => ({
-      ...prev,
-      [oldKey]: newKey
-    }));
-  };
-
-  // New function to commit key changes when editing is complete
-  const handleKeyChangeComplete = (oldKey) => {
-    const newKey = editingKeys[oldKey]?.trim() || oldKey;
-    
-    // Handle empty keys - revert to original
-    if (!newKey) {
-      setEditingKeys(prev => {
-        const updated = { ...prev };
-        delete updated[oldKey];
-        return updated;
-      });
-      Alert.alert('Error', 'Field name cannot be empty');
-      return;
-    }
-    
-    if (oldKey === newKey) {
-      // No change needed, just clear the editing state
-      setEditingKeys(prev => {
-        const updated = { ...prev };
-        delete updated[oldKey];
-        return updated;
-      });
-      return;
-    }
-    
-    // Check for duplicate keys, but ignore the current key
-    if (oldKey !== newKey && editedFields.hasOwnProperty(newKey)) {
-      Alert.alert('Error', `Field "${newKey}" already exists`);
-      // Revert back to old key in the editing state
-      setEditingKeys(prev => ({
-        ...prev,
-        [oldKey]: oldKey
-      }));
-      return;
-    }
-    
-    // Commit the key change
-    setEditedFields(prev => {
-      const updatedFields = { ...prev };
-      const value = updatedFields[oldKey];
-      delete updatedFields[oldKey];
-      updatedFields[newKey] = value;
-      return updatedFields;
-    });
-    
-    // Update JSON validation state if needed
-    if (jsonValidationState.hasOwnProperty(oldKey)) {
-      setJsonValidationState(prev => {
-        const updated = { ...prev };
-        const validationState = updated[oldKey];
-        delete updated[oldKey];
-        updated[newKey] = validationState;
-        return updated;
-      });
-    }
-    
-    // Clear editing state for this key
-    setEditingKeys(prev => {
-      const updated = { ...prev };
-      delete updated[oldKey];
-      return updated;
-    });
-  };
-
-  const handleAddField = () => {
-    if (!newField.key.trim()) {
-      Alert.alert('Error', 'Please enter a field name.');
-      return;
-    }
-    
-    if (editedFields.hasOwnProperty(newField.key.trim())) {
-      Alert.alert('Error', `Field "${newField.key.trim()}" already exists`);
-      return;
-    }
-    
-    const keyToAdd = newField.key.trim();
-    const valueToAdd = newField.value;
-    
-    // Add the new field to editedFields
-    setEditedFields(prev => ({
-      ...prev,
-      [keyToAdd]: valueToAdd
-    }));
-    
-    // Check if the value looks like JSON and validate if needed
-    if (isLikelyJSON(valueToAdd)) {
-      setJsonValidationState(prev => ({
-        ...prev,
-        [keyToAdd]: validateJSON(valueToAdd)
-      }));
-    }
-    
-    // Reset the new field inputs
-    setNewField({ key: '', value: '' });
-  };
-
-  const handleDeleteField = (key) => {
-    setEditedFields(prev => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
-    });
-    
-    // Also clean up any editing state or validation state
-    setEditingKeys(prev => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
-    });
-    
+  } else {
+    // If it no longer looks like JSON, remove validation state
     setJsonValidationState(prev => {
       const updated = { ...prev };
       delete updated[key];
       return updated;
     });
-  };
+  }
+};
 
-  const cancelOperation = () => {
-    if (isReading || isWriting) {
-      setIsReading(false);
-      setIsWriting(false);
-      NfcManager.cancelTechnologyRequest();
-      onCancel?.();
-    } else {
-      onCancel?.();
-    }
-  };
+// New improved key change handler with live feedback
+const handleKeyChange = (oldKey, newKey) => {
+  // Prevent editing the first key
+  if (oldKey === firstKey) {
+    Alert.alert('Error', 'The primary field cannot be renamed.');
+    return;
+  }
+  
+  // Update the editing state
+  setEditingKeys(prev => ({
+    ...prev,
+    [oldKey]: newKey
+  }));
+};
 
-  // Helper function to get field key border color based on validation
-  const getFieldKeyBorderColor = (key) => {
-    // If the key is being edited and exists in another field, show error
-    const editingValue = editingKeys[key];
-    if (editingValue && 
-        editingValue !== key && 
-        editedFields.hasOwnProperty(editingValue)) {
-      return '#ff4c4c'; // Red for duplicate
-    }
-    return '#ccc'; // Default gray
-  };
+// New function to commit key changes when editing is complete
+const handleKeyChangeComplete = (oldKey) => {
+  // Prevent editing the first key
+  if (oldKey === firstKey) {
+    setEditingKeys(prev => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      return updated;
+    });
+    Alert.alert('Error', 'The primary field cannot be renamed.');
+    return;
+  }
+  
+  const newKey = editingKeys[oldKey]?.trim() || oldKey;
+  
+  // Handle empty keys - revert to original
+  if (!newKey) {
+    setEditingKeys(prev => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      return updated;
+    });
+    Alert.alert('Error', 'Field name cannot be empty');
+    return;
+  }
+  
+  if (oldKey === newKey) {
+    // No change needed, just clear the editing state
+    setEditingKeys(prev => {
+      const updated = { ...prev };
+      delete updated[oldKey];
+      return updated;
+    });
+    return;
+  }
+  
+  // Check for duplicate keys, but ignore the current key
+  if (oldKey !== newKey && editedFields.hasOwnProperty(newKey)) {
+    Alert.alert('Error', `Field "${newKey}" already exists`);
+    // Revert back to old key in the editing state
+    setEditingKeys(prev => ({
+      ...prev,
+      [oldKey]: oldKey
+    }));
+    return;
+  }
+  
+  // Commit the key change
+  setEditedFields(prev => {
+    const updatedFields = { ...prev };
+    const value = updatedFields[oldKey];
+    delete updatedFields[oldKey];
+    updatedFields[newKey] = value;
+    return updatedFields;
+  });
+  
+  // Update JSON validation state if needed
+  if (jsonValidationState.hasOwnProperty(oldKey)) {
+    setJsonValidationState(prev => {
+      const updated = { ...prev };
+      const validationState = updated[oldKey];
+      delete updated[oldKey];
+      updated[newKey] = validationState;
+      return updated;
+    });
+  }
+  
+  // Clear editing state for this key
+  setEditingKeys(prev => {
+    const updated = { ...prev };
+    delete updated[oldKey];
+    return updated;
+  });
+};
 
-  // Helper function to get field value border color based on JSON validation
-  const getFieldValueBorderColor = (key, value) => {
-    // If this is a JSON field with validation state
-    if (jsonValidationState[key]) {
-      return jsonValidationState[key].valid ? '#4CAF50' : '#ff4c4c';
-    }
-    return '#ccc'; // Default gray
-  };
+const handleAddField = () => {
+  if (!newField.key.trim()) {
+    Alert.alert('Error', 'Please enter a field name.');
+    return;
+  }
+  
+  if (editedFields.hasOwnProperty(newField.key.trim())) {
+    Alert.alert('Error', `Field "${newField.key.trim()}" already exists`);
+    return;
+  }
+  
+  const keyToAdd = newField.key.trim();
+  const valueToAdd = newField.value;
+  
+  // Add the new field to editedFields
+  setEditedFields(prev => ({
+    ...prev,
+    [keyToAdd]: valueToAdd
+  }));
+  
+  // Check if the value looks like JSON and validate if needed
+  if (isLikelyJSON(valueToAdd)) {
+    setJsonValidationState(prev => ({
+      ...prev,
+      [keyToAdd]: validateJSON(valueToAdd)
+    }));
+  }
+  
+  // Reset the new field inputs
+  setNewField({ key: '', value: '' });
+};
 
-  return (
-    <View style={styles.nfcTabContent} testID="edit-tab-container">
-      <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
-      <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
-        Read the NFC tag to load existing data into the form, make changes, and save.
-      </Text>
+const handleDeleteField = (key) => {
+  // Prevent deleting the first key
+  if (key === firstKey) {
+    Alert.alert('Error', 'The primary field cannot be deleted.');
+    return;
+  }
+  
+  setEditedFields(prev => {
+    const updated = { ...prev };
+    delete updated[key];
+    return updated;
+  });
+  
+  // Also clean up any editing state or validation state
+  setEditingKeys(prev => {
+    const updated = { ...prev };
+    delete updated[key];
+    return updated;
+  });
+  
+  setJsonValidationState(prev => {
+    const updated = { ...prev };
+    delete updated[key];
+    return updated;
+  });
+};
 
-      {isReading || isWriting ? (
-        <View style={styles.buttonGroup} testID="operation-cancel-container">
-          <Button
-            title="Cancel Operation"
-            onPress={cancelOperation}
-            style={styles.cancelButton}
-            testID="cancel-operation-button"
-          />
-        </View>
-      ) : (
+const cancelOperation = () => {
+  if (isReading || isWriting) {
+    setIsReading(false);
+    setIsWriting(false);
+    NfcManager.cancelTechnologyRequest();
+    onCancel?.();
+  } else {
+    onCancel?.();
+  }
+};
+
+// Helper function to get field key border color based on validation
+const getFieldKeyBorderColor = (key) => {
+  // If the key is being edited and exists in another field, show error
+  const editingValue = editingKeys[key];
+  if (editingValue && 
+      editingValue !== key && 
+      editedFields.hasOwnProperty(editingValue)) {
+    return '#ff4c4c'; // Red for duplicate
+  }
+  return '#ccc'; // Default gray
+};
+
+// Helper function to get field value border color based on JSON validation
+const getFieldValueBorderColor = (key, value) => {
+  // If this is a JSON field with validation state
+  if (jsonValidationState[key]) {
+    return jsonValidationState[key].valid ? '#4CAF50' : '#ff4c4c';
+  }
+  return '#ccc'; // Default gray
+};
+
+
+return (
+  <View style={styles.nfcTabContent} testID="edit-tab-container">
+    <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
+    <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
+      Read the NFC tag to load existing data into the form, make changes, and save.
+    </Text>
+
+    {isReading || isWriting ? (
+      <View style={styles.buttonGroup} testID="operation-cancel-container">
         <Button
-          title={tagData ? "Reload Tag Data" : "Load Tag Data"}
-          onPress={handleReadTag}
-          style={styles.loadButton}
-          disabled={isReading || isWriting}
-          testID="load-tag-button"
+          title="Cancel Operation"
+          onPress={cancelOperation}
+          style={styles.cancelButton}
+          testID="cancel-operation-button"
         />
-      )}
+      </View>
+    ) : (
+      <Button
+        title={tagData ? "Reload Tag Data" : "Load Tag Data"}
+        onPress={handleReadTag}
+        style={styles.loadButton}
+        disabled={isReading || isWriting}
+        testID="load-tag-button"
+      />
+    )}
 
-      {(isReading || isWriting) && (
-        <View style={styles.readingStatusContainer} testID="operation-status-container">
-          <Text style={styles.readingStatusText} testID="operation-status-text">
-            {isReading ? "Ready to read... Place NFC tag near device" : "Ready to write... Place NFC tag near device"}
-          </Text>
-        </View>
-      )}
+    {(isReading || isWriting) && (
+      <View style={styles.readingStatusContainer} testID="operation-status-container">
+        <Text style={styles.readingStatusText} testID="operation-status-text">
+          {isReading ? "Ready to read... Place NFC tag near device" : "Ready to write... Place NFC tag near device"}
+        </Text>
+      </View>
+    )}
 
-      {tagData !== null && !isReading && !isWriting && (
-        <ScrollView 
-          style={styles.editFieldsContainer} 
-          contentContainerStyle={styles.editFieldsContentContainer}
-          testID="edit-fields-scroll"
-        >
-          {tagData.id && (
-            <View style={styles.idField} testID="id-field-container">
-              <Text style={styles.fieldLabel} testID="id-field-label">ID (Not Editable):</Text>
-              <Text style={styles.idValue} testID="id-field-value">{tagData.id}</Text>
-            </View>
-          )}
-          
-          {/* Existing Fields */}
-          {Object.entries(editedFields).map(([key, value], index) => (
-            <View key={key} style={styles.fieldContainer} testID={`field-container-${index}`}>
-              <View style={styles.fieldHeader}>
-                <View style={styles.fieldKeyContainer}>
+    {tagData !== null && !isReading && !isWriting && (
+      <ScrollView 
+        style={styles.editFieldsContainer} 
+        contentContainerStyle={styles.editFieldsContentContainer}
+        testID="edit-fields-scroll"
+      >
+        {tagData.id && (
+          <View style={styles.idField} testID="id-field-container">
+            <Text style={styles.fieldLabel} testID="id-field-label">ID (Not Editable):</Text>
+            
+            {/* Display ID in a read-only TextInput for better visibility and copying functionality */}
+            <TextInput
+              style={[styles.fieldInput, styles.idValueInput]}
+              value={tagData.id}
+              editable={false}  // Make it non-editable
+              selectTextOnFocus={true}  // Allow selection for copying
+              testID="id-field-value-input"
+            />
+            
+            {/* Optional: Add a small helper text */}
+            <Text style={styles.idHelperText}>
+              Tag ID is preserved during editing and cannot be modified.
+              You can select and copy this value if needed.
+            </Text>
+          </View>
+        )}
+        
+        {/* Existing Fields */}
+        {Object.entries(editedFields).map(([key, value], index) => (
+          <View key={key} style={styles.fieldContainer} testID={`field-container-${index}`}>
+            <View style={styles.fieldHeader}>
+              <View style={styles.fieldKeyContainer}>
+                {key === firstKey ? (
+                  // For the first key, render as non-editable
+                  <View style={styles.uneditableKeyContainer}>
+                    <Text style={styles.uneditableKeyText}>{key}</Text>
+                    <Text style={styles.uneditableKeyHelp}>(Primary key - cannot be modified)</Text>
+                  </View>
+                ) : (
+                  // For all other keys, use editable TextInput
                   <TextInput
                     style={[
                       styles.fieldKeyInput, 
@@ -820,86 +887,114 @@ const handleWriteTag = async () => {
                     placeholder="Field Name"
                     testID={`field-key-input-${index}`}
                   />
-                </View>
-                <TouchableOpacity 
-                  onPress={() => handleDeleteField(key)}
-                  testID={`field-delete-button-${index}`}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
-                </TouchableOpacity>
+                )}
               </View>
-              
+              <TouchableOpacity 
+                onPress={() => handleDeleteField(key)}
+                testID={`field-delete-button-${index}`}
+                disabled={key === firstKey} // Disable delete button for first key
+                style={key === firstKey ? { opacity: 0.5 } : {}} // Visual indication that it's disabled
+              >
+                <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* For the first key, show value in a read-only field */}
+            {key === firstKey ? (
+              <View style={styles.uneditableValueContainer}>
+                <TextInput
+                  style={[
+                    styles.fieldInput,
+                    styles.uneditableValueInput,
+                    { minHeight: value && value.length > 40 ? 100 : 40 }
+                  ]}
+                  value={value}
+                  editable={false}
+                  selectTextOnFocus={true}  // Still allow selection for copying
+                  multiline={true}
+                  testID={`field-value-input-${index}`}
+                />
+                <Text style={styles.uneditableValueHelp}>
+                  Primary field value - cannot be modified. Select to copy.
+                </Text>
+              </View>
+            ) : (
+              // For all other fields, use editable TextInput
               <TextInput
                 style={[
                   styles.fieldInput,
-                  { borderColor: getFieldValueBorderColor(key, value) }
+                  { 
+                    borderColor: getFieldValueBorderColor(key, value),
+                    minHeight: value && value.length > 40 ? 100 : 40,
+                    textAlignVertical: 'top'  // Helps with Android text positioning
+                  }
                 ]}
                 value={value}
                 onChangeText={(text) => handleFieldChange(key, text)}
                 placeholder={`Enter ${key}`}
-                multiline={value && value.length > 40}
+                multiline={true}  // Always set to true instead of conditionally
                 testID={`field-value-input-${index}`}
               />
-              
-              {/* Add JSON validation error message if needed */}
-              {jsonValidationState[key] && !jsonValidationState[key].valid && (
-                <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
-              )}
-            </View>
-          ))}
-          
-          {/* Add New Field */}
-          <View style={styles.addFieldContainer} testID="add-field-container">
-            <Text style={styles.addFieldTitle} testID="add-field-title">Add New Field</Text>
-            <View style={styles.newFieldRow}>
-              <TextInput
-                style={[styles.fieldInput, styles.newFieldKey]}
-                value={newField.key}
-                onChangeText={(text) => setNewField(prev => ({ ...prev, key: text }))}
-                placeholder="Field Name"
-                testID="new-field-key-input"
-              />
-              <TextInput
-                style={[
-                  styles.fieldInput, 
-                  styles.newFieldValue,
-                  isLikelyJSON(newField.value) && !validateJSON(newField.value).valid 
-                    ? { borderColor: '#ff4c4c' } 
-                    : {}
-                ]}
-                value={newField.value}
-                onChangeText={(text) => setNewField(prev => ({ ...prev, value: text }))}
-                placeholder="Field Value"
-                testID="new-field-value-input"
-              />
-              <TouchableOpacity 
-                style={styles.addFieldButton}
-                onPress={handleAddField}
-                testID="add-field-button"
-              >
-                <Ionicons name="add-circle" size={26} color="#007aff" />
-              </TouchableOpacity>
-            </View>
+            )}
             
-            {/* Add JSON validation error for new field if needed */}
-            {isLikelyJSON(newField.value) && !validateJSON(newField.value).valid && (
-              <Text style={styles.jsonErrorText}>{validateJSON(newField.value).error}</Text>
+            {/* Add JSON validation error message if needed */}
+            {jsonValidationState[key] && !jsonValidationState[key].valid && (
+              <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
             )}
           </View>
+        ))}
+        
+        {/* Add New Field */}
+        <View style={styles.addFieldContainer} testID="add-field-container">
+          <Text style={styles.addFieldTitle} testID="add-field-title">Add New Field</Text>
+          <View style={styles.newFieldRow}>
+            <TextInput
+              style={[styles.fieldInput, styles.newFieldKey]}
+              value={newField.key}
+              onChangeText={(text) => setNewField(prev => ({ ...prev, key: text }))}
+              placeholder="Field Name"
+              testID="new-field-key-input"
+            />
+            <TextInput
+              style={[
+                styles.fieldInput, 
+                styles.newFieldValue,
+                isLikelyJSON(newField.value) && !validateJSON(newField.value).valid 
+                  ? { borderColor: '#ff4c4c' } 
+                  : {}
+              ]}
+              value={newField.value}
+              onChangeText={(text) => setNewField(prev => ({ ...prev, value: text }))}
+              placeholder="Field Value"
+              testID="new-field-value-input"
+            />
+            <TouchableOpacity 
+              style={styles.addFieldButton}
+              onPress={handleAddField}
+              testID="add-field-button"
+            >
+              <Ionicons name="add-circle" size={26} color="#007aff" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Add JSON validation error for new field if needed */}
+          {isLikelyJSON(newField.value) && !validateJSON(newField.value).valid && (
+            <Text style={styles.jsonErrorText}>{validateJSON(newField.value).error}</Text>
+          )}
+        </View>
 
-          <Button
-            title="Save Changes to Tag"
-            onPress={handleWriteTag}
-            disabled={isWriting}
-            style={[styles.writeButton, { marginTop: 20, marginBottom: 40 }]}
-            testID="save-changes-button"
-          />
-        </ScrollView>
-      )}
-    </View>
-  );
-};
-
+        <Button
+          title="Save Changes to Tag"
+          onPress={handleWriteTag}
+          disabled={isWriting}
+          style={[styles.writeButton, { marginTop: 20, marginBottom: 40 }]}
+          testID="save-changes-button"
+        />
+      </ScrollView>
+    )}
+  </View>
+);
+}
 // Additional styles
 const additionalStyles = {
   nfcTabContent: {
@@ -954,11 +1049,53 @@ const additionalStyles = {
     backgroundColor: '#f5f5f5',
     borderRadius: 5,
   },
-  idValue: {
-    fontSize: 16,
+  idValueInput: {
+    backgroundColor: '#f0f0f0',  // Light gray background to indicate read-only
+    color: '#555',  // Darker text to maintain readability
     fontWeight: '500',
-    color: '#666',
+    marginTop: 5,
   },
+  idHelperText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 5,
+  },
+  // New styles for uneditable primary key
+  uneditableKeyContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  uneditableKeyText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#555',
+  },
+  uneditableKeyHelp: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: '#777',
+    marginTop: 2,
+  },
+
+  uneditableValueContainer: {
+  marginBottom: 5,
+},
+uneditableValueInput: {
+  backgroundColor: '#f0f0f0',
+  color: '#555',
+  fontWeight: '500',
+  textAlignVertical: 'top',
+},
+uneditableValueHelp: {
+  fontSize: 10,
+  fontStyle: 'italic',
+  color: '#777',
+  marginTop: 2,
+},
   addFieldContainer: {
     marginTop: 20,
     marginBottom: 15,
@@ -999,5 +1136,7 @@ const additionalStyles = {
 
 // Merge the additional styles
 Object.assign(styles, additionalStyles);
+
+ // <-- Add this closing brace to end the EditTab component
 
 export default EditTab;

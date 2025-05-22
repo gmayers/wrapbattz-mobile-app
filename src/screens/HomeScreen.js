@@ -157,6 +157,12 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+const handleViewDeviceDetails = (deviceId) => {
+  if (deviceId) {
+    navigation.navigate('DeviceDetails', { deviceId });
+  }
+};
+
   const fetchLocations = async () => {
     try {
       const data = await deviceService.getLocations();
@@ -300,14 +306,20 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const renderDeviceCard = (assignment) => (
+const renderDeviceCard = (assignment) => (
+  <TouchableOpacity 
+    key={assignment.id} 
+    activeOpacity={0.7} 
+    onPress={() => handleViewDeviceDetails(assignment.device?.id)}
+    style={styles.deviceCardWrapper}
+  >
     <DeviceCard
-      key={assignment.id}
       assignment={assignment}
       onReturn={handleDeviceReturn}
+      isClickable={true}
     />
-  );
-
+  </TouchableOpacity>
+);
   const handleAssignComplete = () => {
     setAssignDeviceModalVisible(false);
     fetchDevices();

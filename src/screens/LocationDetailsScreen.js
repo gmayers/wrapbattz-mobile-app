@@ -40,6 +40,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDevicesLoading, setIsDevicesLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [assigningDevice, setAssigningDevice] = useState(null);
 
   // Clear AuthContext errors when component unmounts
   useEffect(() => {
@@ -128,14 +129,58 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     navigation.navigate('DeviceDetails', { deviceId });
   }, [navigation]);
 
-  // Navigate to assign device
-  const handleAssignDevice = useCallback((deviceId) => {
-    navigation.navigate('AssignDevice', { deviceId });
-  }, [navigation]);
+  // Handle direct assignment to current user
+  const handleAssignDevice = useCallback(async (deviceId) => {
+    // Set the currently assigning device
+    setAssigningDevice(deviceId);
+    
+    try {
+      console.log(`Assigning device ${deviceId} to current user`);
+      
+      // Use the dedicated assign-to-me endpoint which assigns to the authenticated user
+      const response = await axiosInstance.post(
+        `/device-assignments/device/${deviceId}/assign-to-me/`
+      );
+      
+      Alert.alert(
+        'Success', 
+        'Device assigned successfully to your account.',
+        [{ text: 'OK', onPress: () => {
+          // Refresh the devices list after successful assignment
+          fetchLocationDevices();
+        }}]
+      );
+    } catch (error) {
+      console.error('Assignment error:', error);
+      
+      // Log error details
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      // Create a user-friendly error message
+      let errorMessage = 'Failed to assign device. Please try again.';
+      
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      Alert.alert('Assignment Error', errorMessage);
+    } finally {
+      setAssigningDevice(null);
+    }
+  }, [axiosInstance, fetchLocationDevices]);
 
-  // Navigate to create device
+  // Navigate to add device screen with the location pre-selected
   const handleAddDevice = useCallback(() => {
-    navigation.navigate('CreateDevice', { locationId });
+    navigation.navigate('AddDevice', { locationId });
   }, [navigation, locationId]);
 
   // Handle try again
@@ -145,47 +190,58 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     fetchLocationDevices();
   }, [fetchLocationDetails, fetchLocationDevices]);
 
-  const renderDeviceCard = useCallback((device) => (
-    <Card
-      key={device.id}
-      title={`${device.device_type}: ${device.identifier}`}
-      style={styles.deviceCard}
-    >
-      <View style={styles.deviceContent}>
-        <Text style={styles.deviceText}>Make: {device.make || 'N/A'}</Text>
-        <Text style={styles.deviceText}>Model: {device.model || 'N/A'}</Text>
-        <Text style={styles.deviceText}>Status: {device.status || 'Unknown'}</Text>
-        {device.serial_number && (
-          <Text style={styles.deviceText}>Serial: {device.serial_number}</Text>
-        )}
-        {device.description && (
-          <Text style={styles.deviceText}>Description: {device.description}</Text>
-        )}
-        
-        <View style={styles.deviceActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleViewDevice(device.id)}
-          >
-            {/* Changed color to orange to match LocationsScreen */}
-            <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
-            <Text style={styles.actionText}>View Device</Text>
-          </TouchableOpacity>
+  const renderDeviceCard = useCallback((device) => {
+    // Check if the device is available for assignment
+    const isAvailable = device.status === 'available';
+    const isAssigning = assigningDevice === device.id;
+    
+    return (
+      <Card
+        key={device.id}
+        title={`${device.device_type}: ${device.identifier}`}
+        style={styles.deviceCard}
+      >
+        <View style={styles.deviceContent}>
+          <Text style={styles.deviceText}>Make: {device.make || 'N/A'}</Text>
+          <Text style={styles.deviceText}>Model: {device.model || 'N/A'}</Text>
+          <Text style={styles.deviceText}>Status: {device.status || 'Unknown'}</Text>
+          {device.serial_number && (
+            <Text style={styles.deviceText}>Serial: {device.serial_number}</Text>
+          )}
+          {device.description && (
+            <Text style={styles.deviceText}>Description: {device.description}</Text>
+          )}
           
-          {isAdminOrOwner && (
+          <View style={styles.deviceActions}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => handleAssignDevice(device.id)}
+              onPress={() => handleViewDevice(device.id)}
             >
-              {/* Changed color to orange to match LocationsScreen */}
-              <Ionicons name="swap-horizontal-outline" size={18} color={ORANGE_COLOR} />
-              <Text style={styles.actionText}>Assign</Text>
+              <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
+              <Text style={styles.actionText}>View Device</Text>
             </TouchableOpacity>
-          )}
+            
+            {isAvailable && (
+              <TouchableOpacity 
+                style={[styles.actionButton, isAssigning && styles.actionButtonDisabled]}
+                onPress={() => handleAssignDevice(device.id)}
+                disabled={isAssigning}
+              >
+                <Ionicons 
+                  name={isAssigning ? "hourglass-outline" : "swap-horizontal-outline"} 
+                  size={18} 
+                  color={isAssigning ? '#999' : ORANGE_COLOR} 
+                />
+                <Text style={[styles.actionText, isAssigning && styles.actionTextDisabled]}>
+                  {isAssigning ? 'Assigning...' : 'Assign to Me'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
-    </Card>
-  ), [handleViewDevice, handleAssignDevice, isAdminOrOwner]);
+      </Card>
+    );
+  }, [handleViewDevice, handleAssignDevice, assigningDevice]);
 
   const renderAddressDetails = useCallback(() => {
     if (!location) return null;
@@ -407,16 +463,20 @@ const styles = StyleSheet.create({
     padding: 8,
     marginRight: 16,
   },
-  // Changed color to orange to match LocationsScreen
+  actionButtonDisabled: {
+    opacity: 0.6,
+  },
   actionText: {
     marginLeft: 6,
-    color: ORANGE_COLOR, // Changed from #007AFF to orange
+    color: ORANGE_COLOR,
     fontSize: 14,
+  },
+  actionTextDisabled: {
+    color: '#999',
   },
   loader: {
     marginVertical: 20,
   },
-  // Enhanced empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -428,7 +488,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 10,
   },
-  // Auth and general error container
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

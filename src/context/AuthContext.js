@@ -1,33 +1,28 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
 
-export const AuthContext = createContext(null);
 
-const AUTH_KEYS = {
-  ACCESS_TOKEN: 'accessToken',
-  REFRESH_TOKEN: 'refreshToken',
-  USER_DATA: 'userData',
-  TOKEN_DATA: 'tokenData', // Store decoded token data
-};
+const API_BASE_URL = 'https://battwrapz.gmayersservices.com/api/';
 
-// Create axios instance with base configuration
+// Create the main axios instance
 const axiosInstance = axios.create({
-  baseURL: 'https://battwrapz.gmayersservices.com/api',
+  baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-  },
+  }
 });
 
-// Add request interceptor to add token to requests
+// Add interceptor to include auth token in requests
 axiosInstance.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
-    
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
-    
     return config;
   },
   (error) => {
@@ -35,39 +30,63 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token refresh
-axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
+// Create mobile-specific API instance (uses API key auth instead of token)
+const mobileApiInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
-        
-        // Updated to match the API schema endpoint
-        const response = await axios.post(
-          'https://battwrapz.gmayersservices.com/api/auth/token/refresh/',
-          { refresh: refreshToken }
-        );
-
-        const { access } = response.data;
-        await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, access);
-
-        originalRequest.headers.Authorization = `Bearer ${access}`;
-        return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        throw refreshError;
-      }
+// Add interceptor to include API key in requests
+mobileApiInstance.interceptors.request.use(
+  async (config) => {
+    const apiKey = await SecureStore.getItemAsync(AUTH_KEYS.API_KEY);
+    if (apiKey) {
+      config.headers['X-API-KEY'] = apiKey;
     }
-
+    return config;
+  },
+  (error) => {
     return Promise.reject(error);
   }
 );
+
+export const AuthContext = createContext(null);
+
+const AUTH_KEYS = {
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  USER_DATA: 'userData',
+  TOKEN_DATA: 'tokenData',
+  API_KEY: 'apiKey',
+};
+
+
+
+
+// Mobile-specific service using API key authentication
+const mobileService = {
+  // Submit feature suggestion
+  submitFeatureSuggestion: async (suggestionData) => {
+    // Ensure required fields are present based on API schema
+    const requiredFields = ['feature_description'];
+    const missingFields = requiredFields.filter(field => !suggestionData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+    
+    try {
+      const response = await mobileApiInstance.post('/mobile/feature-suggestions/', suggestionData);
+      return response.data;
+    } catch (error) {
+      console.error('Feature suggestion submission error:', error);
+      throw error;
+    }
+  },
+};
 
 // Updated deviceService to match the API schema endpoints
 const deviceService = {
@@ -317,7 +336,6 @@ const deviceService = {
   }
 };
 
-// Pure JS function to decode a JWT token without external libraries
 const decodeJWT = (token) => {
   try {
     if (!token) return null;
@@ -361,13 +379,14 @@ const decodeJWT = (token) => {
     return null;
   }
 };
-
+  
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null); // For decoded token data
   const [error, setError] = useState(null);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   // Role-based helper functions
   const isAdmin = userData?.role === 'admin';
@@ -377,6 +396,26 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuthState();
   }, []);
+
+  // Methods to get and set the API key securely
+  const getApiKey = async () => {
+    try {
+      return await SecureStore.getItemAsync(AUTH_KEYS.API_KEY);
+    } catch (error) {
+      console.error("Error retrieving API key:", error);
+      return null;
+    }
+  };
+
+  const setApiKey = async (key) => {
+    try {
+      await SecureStore.setItemAsync(AUTH_KEYS.API_KEY, key);
+      return true;
+    } catch (error) {
+      console.error("Error saving API key:", error);
+      return false;
+    }
+  };
 
   // Store decoded token data in AsyncStorage and state
   const saveTokenData = async (token) => {
@@ -393,6 +432,7 @@ export const AuthProvider = ({ children }) => {
         orgId: decodedToken.org_id,
         role: decodedToken.role,
         name: decodedToken.first_name || 'User',
+        has_completed_onboarding: decodedToken.has_completed_onboarding || false,
       };
       
       // Save token data to AsyncStorage
@@ -400,9 +440,11 @@ export const AuthProvider = ({ children }) => {
       
       // Update state
       setUserData(extractedUserData);
+      setOnboardingComplete(decodedToken.has_completed_onboarding || false);
       
       return decodedToken;
     } catch (error) {
+      console.error("Error saving token data:", error);
       return null;
     }
   };
@@ -429,9 +471,11 @@ export const AuthProvider = ({ children }) => {
           orgId: parsedTokenData.org_id,
           role: parsedTokenData.role, 
           name: parsedTokenData.first_name || 'User',
+          has_completed_onboarding: parsedTokenData.has_completed_onboarding || false,
         };
         
         setUserData(userData);
+        setOnboardingComplete(parsedTokenData.has_completed_onboarding || false);
         setIsAuthenticated(true);
       } 
       // If no saved token data but we have a token, decode and save it
@@ -537,10 +581,12 @@ export const AuthProvider = ({ children }) => {
           user_id: tokenData.user_id,
           first_name: tokenData.first_name || '',
           last_name: tokenData.last_name || '',
+          has_completed_onboarding: tokenData.has_completed_onboarding || false,
         };
         
         await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(extractedUserData));
         setUser(extractedUserData);
+        setOnboardingComplete(tokenData.has_completed_onboarding || false);
       }
 
       setIsAuthenticated(true);
@@ -584,10 +630,14 @@ export const AuthProvider = ({ children }) => {
         AUTH_KEYS.USER_DATA,
         AUTH_KEYS.TOKEN_DATA,
       ]);
+      
+      // We keep the API key for mobile endpoints even after logout
+      // as it's related to the device, not the user
 
       setUser(null);
       setUserData(null);
       setIsAuthenticated(false);
+      setOnboardingComplete(false);
       setError(null);
     } catch (error) {
       setError('Error during logout');
@@ -596,7 +646,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateUser = async (userData) => {
+  
+const updateUser = async (userData) => {
     try {
       await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(userData));
       setUser(userData);
@@ -636,6 +687,61 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Method to create organization
+  const createOrganization = async (organizationData) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await axiosInstance.post('/organizations/', organizationData);
+      
+      // After successfully creating the organization, update onboarding status
+      await updateOnboardingStatus(true);
+      
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.detail || 'Failed to create organization. Please try again.';
+      setError(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to update onboarding status
+  const updateOnboardingStatus = async (status = true) => {
+    try {
+      // Update the backend
+      const response = await axiosInstance.patch('/profile/', {
+        has_completed_onboarding: status
+      });
+      
+      // Update local state
+      setOnboardingComplete(status);
+      
+      // Update userData
+      if (userData) {
+        const updatedUserData = { ...userData, has_completed_onboarding: status };
+        setUserData(updatedUserData);
+      }
+      
+      // Update user
+      if (user) {
+        const updatedUser = { ...user, has_completed_onboarding: status };
+        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      }
+      
+      // Get a fresh token to update token data
+      await refreshToken();
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating onboarding status:", error);
+      return false;
+    }
+  };
+
   // Method to get organization members
   const getOrganizationMembers = async () => {
     try {
@@ -661,9 +767,12 @@ export const AuthProvider = ({ children }) => {
               role: decodedToken.role,
               userId: decodedToken.user_id,
               orgId: decodedToken.org_id,
+              has_completed_onboarding: decodedToken.has_completed_onboarding || false,
             };
             return updated;
           });
+          
+          setOnboardingComplete(decodedToken.has_completed_onboarding || false);
           
           return true;
         }
@@ -681,6 +790,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userData,
     error,
+    onboardingComplete,
     login,
     logout,
     register,
@@ -690,14 +800,20 @@ export const AuthProvider = ({ children }) => {
     refreshToken,
     getAccessToken,
     deviceService,
+    mobileService,
     axiosInstance,
+    mobileApiInstance,
     isAdmin,
     isOwner,
     isAdminOrOwner,
+    createOrganization,
+    updateOnboardingStatus,
     refreshRoleInfo,
     getUserProfile,
     updateUserProfile,
-    getOrganizationMembers
+    getOrganizationMembers,
+    setApiKey,
+    getApiKey
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,47 @@ import {
   SafeAreaView,
   StatusBar,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext'; // Adjust path as needed
 
 const SuggestFeatureScreen = ({ navigation }) => {
+  const { mobileService, getApiKey, mobileApiInstance } = useAuth();
   const [featureSuggestion, setFeatureSuggestion] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiKeyLoaded, setApiKeyLoaded] = useState(false);
+
+  // Check if API key is available on component mount
+  useEffect(() => {
+    const checkApiKey = async () => {
+      try {
+        const key = await getApiKey();
+        console.log("API Key in SuggestFeatureScreen:", key);
+        
+        if (key) {
+          setApiKeyLoaded(true);
+        } else {
+          Alert.alert(
+            'Configuration Error',
+            'API key not found. Please restart the app or contact support.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
+      } catch (error) {
+        console.error('Error checking API key:', error);
+        Alert.alert(
+          'Error',
+          'Failed to verify app configuration. Please try again later.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
+    };
+
+    checkApiKey();
+  }, []);
 
   // Form validation
   const validateForm = () => {
@@ -42,17 +75,37 @@ const SuggestFeatureScreen = ({ navigation }) => {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     Keyboard.dismiss(); // Dismiss the keyboard
     
     if (!validateForm()) return;
     
     setIsSubmitting(true);
     
-    // Here you would typically send the data to your API
-    // For now, we'll simulate an API call with setTimeout
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Get the API key directly before submission
+      const apiKey = await getApiKey();
+      console.log("Using API key for submission:", apiKey);
+      
+      // Format data according to the API schema
+      const suggestionData = {
+        feature_description: featureSuggestion.trim(),
+        additional_feedback: feedbackText.trim() || null,
+        name: name.trim() || null,
+        email: email.trim() || null,
+      };
+      
+      console.log("Submitting data:", JSON.stringify(suggestionData));
+      
+      // Manual approach with direct API key usage
+      const response = await mobileApiInstance.post('/mobile/feature-suggestions/', suggestionData, {
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log("API Response:", response.status, response.data);
       
       // Show success message
       Alert.alert(
@@ -69,7 +122,19 @@ const SuggestFeatureScreen = ({ navigation }) => {
           }
         ]
       );
-    }, 1500);
+    } catch (error) {
+      console.error('Error submitting feature suggestion:', error);
+      console.error('Error details:', error.response?.data);
+      
+      let errorMessage = 'Failed to submit your suggestion. Please try again.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Reset form fields
@@ -84,6 +149,16 @@ const SuggestFeatureScreen = ({ navigation }) => {
     Keyboard.dismiss(); // Dismiss keyboard before navigation
     navigation.goBack();
   };
+
+  // Show loading indicator while API key is being checked
+  if (!apiKeyLoaded) {
+    return (
+      <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#FF7700" />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -168,7 +243,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
             <View style={styles.buttonContainer}>
               <TouchableOpacity 
                 style={styles.cancelButton}
-                onPress={() => navigation.goBack()}
+                onPress={handleCancel}
                 disabled={isSubmitting}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -182,9 +257,11 @@ const SuggestFeatureScreen = ({ navigation }) => {
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >
-                <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Feedback</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -194,10 +271,20 @@ const SuggestFeatureScreen = ({ navigation }) => {
   );
 };
 
+// Existing styles...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   keyboardAvoidView: {
     flex: 1,
@@ -299,6 +386,7 @@ const styles = StyleSheet.create({
     flex: 3,
     alignItems: 'center',
     justifyContent: 'center',
+    height: 50, // Fixed height for consistent appearance
   },
   submitButtonDisabled: {
     backgroundColor: '#FFAA66',
@@ -318,6 +406,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#DDDDDD',
+    height: 50, // Fixed height for consistent appearance
   },
   cancelButtonText: {
     color: '#666666',

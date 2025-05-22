@@ -113,7 +113,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleDeviceReturn = (deviceAssignment) => { // Parameter is an assignment object
+  const handleDeviceReturn = (deviceAssignment, event) => { // Parameter is an assignment object
+    // Stop propagation to prevent navigation to details when clicking return button
+    event.stopPropagation();
+    
     if (!deviceAssignment || !deviceAssignment.device) {
       Alert.alert('Error', 'Invalid device assignment data');
       return;
@@ -122,6 +125,12 @@ const AllDevicesScreen = ({ navigation, route }) => {
     setSelectedReturnDevice(deviceAssignment); // selectedReturnDevice is an assignment
     setReturnDeviceModalVisible(true);
     setSelectedReturnLocation(null);
+  };
+
+  const handleViewDeviceDetails = (deviceId) => {
+    if (deviceId) {
+      navigation.navigate('DeviceDetails', { deviceId });
+    }
   };
 
   const handleConfirmReturn = async () => {
@@ -156,71 +165,86 @@ const AllDevicesScreen = ({ navigation, route }) => {
   };
 
   const renderAssignmentCard = (assignment) => (
-    <Card
+    <TouchableOpacity
       key={assignment.id}
-      title={assignment.device.identifier}
-      subtitle={assignment.device.device_type}
-      style={styles.deviceCard}
+      activeOpacity={0.7}
+      onPress={() => handleViewDeviceDetails(assignment.device?.id)}
+      style={styles.deviceCardWrapper}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.cardInfo}>
-          <Text style={styles.infoText}>Make: {assignment.device.make}</Text>
-          <Text style={styles.infoText}>Model: {assignment.device.model}</Text>
-          <Text style={styles.infoText}>Assigned: {assignment.assigned_date}</Text>
-          {assignment.returned_date && (
-            <Text style={styles.infoText}>Returned: {assignment.returned_date}</Text>
-          )}
-          {assignment.assigned_to_user && (
-            <Text style={styles.infoText}>
-              User: {assignment.assigned_to_user.first_name} {assignment.assigned_to_user.last_name}
-            </Text>
-          )}
-          {assignment.assigned_to_location && (
-            <Text style={styles.infoText}>Location: {assignment.assigned_to_location.name}</Text>
-          )}
+      <Card
+        title={assignment.device.identifier}
+        subtitle={assignment.device.device_type}
+        style={styles.deviceCard}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.cardInfo}>
+            <Text style={styles.infoText}>Make: {assignment.device.make}</Text>
+            <Text style={styles.infoText}>Model: {assignment.device.model}</Text>
+            <Text style={styles.infoText}>Assigned: {assignment.assigned_date}</Text>
+            {assignment.returned_date && (
+              <Text style={styles.infoText}>Returned: {assignment.returned_date}</Text>
+            )}
+            {assignment.assigned_to_user && (
+              <Text style={styles.infoText}>
+                User: {assignment.assigned_to_user.first_name} {assignment.assigned_to_user.last_name}
+              </Text>
+            )}
+            {assignment.assigned_to_location && (
+              <Text style={styles.infoText}>Location: {assignment.assigned_to_location.name}</Text>
+            )}
+          </View>
+          <View style={styles.cardActions}>
+            {!assignment.returned_date && (
+              <Button
+                title="Return"
+                variant="outlined"
+                size="small"
+                onPress={(event) => handleDeviceReturn(assignment, event)}
+                style={styles.returnButton}
+              />
+            )}
+          </View>
         </View>
-        <View style={styles.cardActions}>
-          {!assignment.returned_date && (
-            <Button
-              title="Return"
-              variant="outlined"
-              size="small"
-              onPress={() => handleDeviceReturn(assignment)}
-              style={styles.returnButton}
-            />
-          )}
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 
   // Renders a card for a device (currently not used for list rendering in this screen based on new requirements)
   // Kept for potential future use or if linked from elsewhere (e.g. DeviceDetails screen)
   const renderDeviceCard = (device) => (
-    <Card
+    <TouchableOpacity
       key={device.id}
-      title={device.identifier}
-      subtitle={device.device_type}
-      style={styles.deviceCard}
+      activeOpacity={0.7}
+      onPress={() => handleViewDeviceDetails(device.id)}
+      style={styles.deviceCardWrapper}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.cardInfo}>
-          <Text style={styles.infoText}>Make: {device.make}</Text>
-          <Text style={styles.infoText}>Model: {device.model}</Text>
-          <Text style={styles.infoText}>Serial: {device.serial_number}</Text>
-          <Text style={styles.infoText}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
+      <Card
+        title={device.identifier}
+        subtitle={device.device_type}
+        style={styles.deviceCard}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.cardInfo}>
+            <Text style={styles.infoText}>Make: {device.make}</Text>
+            <Text style={styles.infoText}>Model: {device.model}</Text>
+            <Text style={styles.infoText}>Serial: {device.serial_number}</Text>
+            <Text style={styles.infoText}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
+          </View>
+          <View style={styles.cardActions}>
+            <Button
+              title="View Details"
+              variant="outlined"
+              size="small"
+              onPress={(event) => {
+                event.stopPropagation();
+                navigation.navigate('DeviceDetails', { deviceId: device.id });
+              }}
+              style={styles.returnButton}
+            />
+          </View>
         </View>
-        <View style={styles.cardActions}>
-          <Button
-            title="View Details"
-            variant="outlined"
-            size="small"
-            onPress={() => navigation.navigate('DeviceDetails', { deviceId: device.id })}
-            style={styles.returnButton} // Style might need adjustment if it implies "return"
-          />
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 
   const handleReturnDeviceModalClose = () => {
@@ -446,9 +470,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+  
   deviceCard: {
-    width: (width * 0.45),
-    marginBottom: 15,
     borderColor: '#FFA500', // Subtle orange border
     borderWidth: 1,
     borderRadius: 8,
