@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const CreateOrganizationScreen = ({ navigation }) => {
-  const { createOrganization, isLoading } = useAuth();
+  const { createOrganization, isLoading, updateOnboardingStatus } = useAuth();
   
   // Form state
   const [name, setName] = useState('');
@@ -32,6 +32,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
   
   // Validation state
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   
   // Form validation
   const validateForm = () => {
@@ -72,14 +73,14 @@ const CreateOrganizationScreen = ({ navigation }) => {
       isValid = false;
     }
     
-    // Phone validation if provided
-    if (phone && !/^[\d\+\-\(\) ]{10,15}$/.test(phone)) {
-      formErrors.phone = 'Please enter a valid phone number (10-15 digits)';
+    // Phone validation if provided - More flexible phone validation
+    if (phone && phone.trim() && !/^[\d\+\-\(\) ]{10,15}$/.test(phone.replace(/\s/g, ''))) {
+      formErrors.phone = 'Please enter a valid phone number';
       isValid = false;
     }
     
-    // Website validation if provided
-    if (website && !website.startsWith('http')) {
+    // Website validation if provided - More flexible
+    if (website && website.trim() && !(/^https?:\/\/.+/.test(website))) {
       formErrors.website = 'Website must start with http:// or https://';
       isValid = false;
     }
@@ -90,50 +91,75 @@ const CreateOrganizationScreen = ({ navigation }) => {
   
   // Handle form submission
   const handleSubmit = async () => {
+    console.log('=== CREATE ORGANIZATION SUBMIT ===');
+    console.log('Starting form submission...');
+    
     if (!validateForm()) {
-      // Scroll to the first error
+      console.log('Form validation failed');
       return;
     }
     
+    setSubmitting(true);
+    
     try {
       const organizationData = {
-        name,
-        trading_name: tradingName,
-        email,
-        phone,
-        website,
-        registered_address_line1: addressLine1,
-        registered_address_line2: addressLine2,
-        registered_city: city,
-        registered_county: county,
-        registered_postcode: postcode,
+        name: name.trim(),
+        trading_name: tradingName.trim() || '', // Optional field
+        email: email.trim() || '', // Optional field
+        phone: phone.trim() || '', // Optional field
+        website: website.trim() || '', // Optional field
+        registered_address_line1: addressLine1.trim(),
+        registered_address_line2: addressLine2.trim() || '', // Optional field
+        registered_city: city.trim(),
+        registered_county: county.trim() || '', // Optional field
+        registered_postcode: postcode.trim(),
         // Trading address defaults to registered address for simplicity
-        trading_address_line1: addressLine1,
-        trading_address_line2: addressLine2,
-        trading_city: city,
-        trading_county: county,
-        trading_postcode: postcode
+        trading_address_line1: addressLine1.trim(),
+        trading_address_line2: addressLine2.trim() || '',
+        trading_city: city.trim(),
+        trading_county: county.trim() || '',
+        trading_postcode: postcode.trim()
       };
       
-      // Call the API to create the organization
-      await createOrganization(organizationData);
+      console.log('Organization data:', organizationData);
       
-      // Success message
+      // Call the API to create the organization
+      const result = await createOrganization(organizationData);
+      console.log('Organization creation result:', result);
+      
+      // The createOrganization function in AuthContext should already call updateOnboardingStatus
+      // But let's ensure it's called
+      await updateOnboardingStatus(true);
+      console.log('Onboarding status updated');
+      
+      // Success message and navigation
       Alert.alert(
         "Success",
         "Your organization has been created successfully!",
-        [{ text: "OK", onPress: () => navigation.navigate('Dashboard') }]
+        [{ 
+          text: "Continue", 
+          onPress: () => {
+            console.log('Navigating to Dashboard...');
+            // Navigate to Dashboard which should now show the main app
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.replace('Dashboard');
+            }
+          }
+        }]
       );
       
     } catch (error) {
       console.error('Error creating organization:', error);
       
       // Format error message
-      let errorMessage = 'Failed to create organization';
+      let errorMessage = 'Failed to create organization. Please try again.';
       
       // Check if error has a response
       if (error.response) {
         const responseData = error.response.data;
+        console.log('Error response data:', responseData);
         
         // Handle object errors (field validation errors)
         if (typeof responseData === 'object' && responseData !== null) {
@@ -141,11 +167,18 @@ const CreateOrganizationScreen = ({ navigation }) => {
           
           // Loop through all error fields
           Object.entries(responseData).forEach(([key, value]) => {
-            const errorText = Array.isArray(value) ? value.join(' ') : value;
-            errorMessages.push(`${key}: ${errorText}`);
+            if (Array.isArray(value)) {
+              errorMessages.push(`${key}: ${value.join(', ')}`);
+            } else if (typeof value === 'string') {
+              errorMessages.push(`${key}: ${value}`);
+            } else {
+              errorMessages.push(`${key}: ${JSON.stringify(value)}`);
+            }
           });
           
-          errorMessage = errorMessages.join('\n');
+          if (errorMessages.length > 0) {
+            errorMessage = errorMessages.join('\n');
+          }
         } 
         // Handle string error
         else if (typeof responseData === 'string') {
@@ -155,9 +188,13 @@ const CreateOrganizationScreen = ({ navigation }) => {
         else if (responseData.detail) {
           errorMessage = responseData.detail;
         }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       Alert.alert("Error", errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -186,20 +223,24 @@ const CreateOrganizationScreen = ({ navigation }) => {
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor="#999"
         keyboardType={keyboardType}
         multiline={multiline}
         autoCapitalize={autoCapitalize}
+        editable={!submitting && !isLoading}
       />
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
+  
+  const isFormLoading = isLoading || submitting;
   
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>Create Your Organization</Text>
           <Text style={styles.subtitle}>
@@ -303,11 +344,11 @@ const CreateOrganizationScreen = ({ navigation }) => {
         </View>
         
         <TouchableOpacity
-          style={[styles.submitButton, isLoading && styles.disabledButton]}
+          style={[styles.submitButton, isFormLoading && styles.disabledButton]}
           onPress={handleSubmit}
-          disabled={isLoading}
+          disabled={isFormLoading}
         >
-          {isLoading ? (
+          {isFormLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
@@ -320,6 +361,15 @@ const CreateOrganizationScreen = ({ navigation }) => {
         <Text style={styles.noteText}>
           * Required fields
         </Text>
+        
+        {/* Debug info - remove in production */}
+        {__DEV__ && (
+          <View style={styles.debugInfo}>
+            <Text style={styles.debugText}>Debug Info:</Text>
+            <Text style={styles.debugText}>isLoading: {isLoading.toString()}</Text>
+            <Text style={styles.debugText}>submitting: {submitting.toString()}</Text>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -383,6 +433,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 16,
     backgroundColor: '#fafafa',
+    color: '#333',
   },
   textArea: {
     height: 100,
@@ -427,6 +478,16 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginBottom: 30,
+  },
+  debugInfo: {
+    margin: 20,
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 
