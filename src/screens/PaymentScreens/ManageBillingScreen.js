@@ -9,20 +9,50 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import { useStripe } from '@stripe/stripe-react-native';
+import CustomerSheetManager from '../../components/CustomerSheetManager';
 
 // Orange color to match existing UI
 const ORANGE_COLOR = '#FF9500';
 
 const ManageBillingScreen = ({ navigation }) => {
+  const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { createPaymentMethod, confirmPaymentSheetPayment } = useStripe();
+  
+  // Check permissions
+  React.useEffect(() => {
+    if (!isAdminOrOwner) {
+      Alert.alert(
+        'Access Denied',
+        'Only organization admins and owners can manage billing.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
+  }, [isAdminOrOwner, navigation]);
+  
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [processingAction, setProcessingAction] = useState(false);
   
-  useEffect(() => {
-    // Simulate API fetch
-    setTimeout(() => {
+  const fetchBillingData = async () => {
+    try {
+      // Fetch actual billing data from API
+      const [billingResponse, invoicesResponse] = await Promise.all([
+        axiosInstance.get('/billing/status/'),
+        axiosInstance.get('/billing/invoices/')
+      ]);
+      
+      setBillingData(billingResponse.data);
+      setInvoices(invoicesResponse.data.results || invoicesResponse.data || []);
+    } catch (error) {
+      console.error('Error fetching billing data:', error);
+      // Fall back to mock data if API not ready
+      setTimeout(() => {
       setBillingData({
         devices: {
           total: 5,
@@ -71,42 +101,75 @@ const ManageBillingScreen = ({ navigation }) => {
       
       setLoading(false);
     }, 1000);
+    }
+  };
+  
+  useEffect(() => {
+    fetchBillingData();
   }, []);
   
-  const openBillingPortal = () => {
-    // Simulate opening a billing portal
-    Alert.alert(
-      'Payment Methods', 
-      'This would display your payment methods and allow you to add, edit, or remove them.',
-      [{ text: 'OK' }]
-    );
+  const openBillingPortal = async () => {
+    setProcessingAction(true);
+    try {
+      // Create a Stripe Customer Portal session
+      const response = await axiosInstance.post('/billing/create-portal-session/');
+      
+      if (response.data.url) {
+        // Open the Stripe portal URL in the browser
+        await Linking.openURL(response.data.url);
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error) {
+      console.error('Error opening billing portal:', error);
+      Alert.alert(
+        'Error',
+        'Unable to open billing portal. Please try again later.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setProcessingAction(false);
+    }
   };
   
   const handleChangePlan = () => {
+    const newCycle = billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly';
+    
     Alert.alert(
       'Change Billing Plan',
-      `Would you like to switch to ${billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly'} billing?`,
+      `Would you like to switch to ${newCycle} billing?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Change Plan', 
-          onPress: () => {
-            Alert.alert(
-              'Plan Updated', 
-              `Your plan has been changed to ${billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly'} billing. The change will take effect on your next billing date.`
-            );
-            // Update billing data to show the change
-            setBillingData({
-              ...billingData,
-              billing: {
-                ...billingData.billing,
-                cycle: billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly',
-                price_per_device: billingData.billing.cycle === 'monthly' ? 0.25 : 0.40,
-                total_monthly_cost: billingData.billing.cycle === 'monthly' 
-                  ? billingData.devices.billable * 0.25 
-                  : billingData.devices.billable * 0.40
+          onPress: async () => {
+            setProcessingAction(true);
+            try {
+              // Call API to change plan
+              const response = await axiosInstance.post('/billing/change-plan/', {
+                new_cycle: newCycle
+              });
+              
+              if (response.data.success) {
+                Alert.alert(
+                  'Plan Updated', 
+                  `Your plan has been changed to ${newCycle} billing. The change will take effect on your next billing date.`
+                );
+                // Refresh billing data
+                await fetchBillingData();
+              } else {
+                throw new Error('Plan change failed');
               }
-            });
+            } catch (error) {
+              console.error('Error changing plan:', error);
+              Alert.alert(
+                'Error',
+                'Unable to change plan. Please try again later.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setProcessingAction(false);
+            }
           }
         }
       ]
@@ -122,26 +185,39 @@ const ManageBillingScreen = ({ navigation }) => {
         { 
           text: 'Yes, Cancel', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Subscription Cancelled', 
-              'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
-              [
-                { 
-                  text: 'OK', 
-                  onPress: () => {
-                    // Update billing status to show as cancelled but still active
-                    setBillingData({
-                      ...billingData,
-                      billing: {
-                        ...billingData.billing,
-                        status: 'cancelled'
+          onPress: async () => {
+            setProcessingAction(true);
+            try {
+              // Call API to cancel subscription
+              const response = await axiosInstance.post('/billing/cancel-subscription/');
+              
+              if (response.data.success) {
+                Alert.alert(
+                  'Subscription Cancelled', 
+                  'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
+                  [
+                    { 
+                      text: 'OK', 
+                      onPress: async () => {
+                        // Refresh billing data
+                        await fetchBillingData();
                       }
-                    });
-                  }
-                }
-              ]
-            );
+                    }
+                  ]
+                );
+              } else {
+                throw new Error('Cancellation failed');
+              }
+            } catch (error) {
+              console.error('Error cancelling subscription:', error);
+              Alert.alert(
+                'Error',
+                'Unable to cancel subscription. Please try again later.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setProcessingAction(false);
+            }
           }
         }
       ]
@@ -294,6 +370,18 @@ const ManageBillingScreen = ({ navigation }) => {
           </View>
         </View>
 
+        <CustomerSheetManager
+          customerId={billingData?.customer?.id}
+          onPaymentMethodSelected={(paymentMethod) => {
+            console.log('Payment method selected:', paymentMethod);
+            // Optionally refresh billing data
+            fetchBillingData();
+          }}
+          onError={(error) => {
+            console.error('Payment method error:', error);
+          }}
+        />
+
         {invoices.length > 0 && (
           <View style={styles.invoicesSection}>
             <Text style={styles.invoicesSectionTitle}>Recent Invoices</Text>
@@ -301,7 +389,22 @@ const ManageBillingScreen = ({ navigation }) => {
               <TouchableOpacity
                 key={invoice.id}
                 style={styles.invoiceCard}
-                onPress={() => Alert.alert('Invoice Details', 'This would show detailed invoice information.')}
+                onPress={async () => {
+                  try {
+                    // Download invoice PDF
+                    const response = await axiosInstance.get(`/billing/invoices/${invoice.id}/download/`);
+                    
+                    if (response.data.download_url) {
+                      // Open PDF in browser
+                      await Linking.openURL(response.data.download_url);
+                    } else {
+                      throw new Error('No download URL');
+                    }
+                  } catch (error) {
+                    console.error('Error downloading invoice:', error);
+                    Alert.alert('Error', 'Unable to download invoice. Please try again later.');
+                  }
+                }}
               >
                 <View style={styles.invoiceCardHeader}>
                   <Text style={styles.invoiceCardDate}>{formatDate(invoice.created)}</Text>
@@ -327,8 +430,9 @@ const ManageBillingScreen = ({ navigation }) => {
 
         <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.portalButton}
+            style={[styles.portalButton, processingAction && styles.disabledButton]}
             onPress={openBillingPortal}
+            disabled={processingAction}
           >
             <Ionicons name="card-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
             <Text style={styles.portalButtonText}>Manage Payment Methods</Text>
@@ -336,17 +440,18 @@ const ManageBillingScreen = ({ navigation }) => {
           
           <View style={styles.secondaryActions}>
             <TouchableOpacity 
-              style={styles.secondaryButton}
+              style={[styles.secondaryButton, processingAction && styles.disabledButton]}
               onPress={handleChangePlan}
+              disabled={processingAction}
             >
               <Ionicons name="repeat" size={20} color={ORANGE_COLOR} />
               <Text style={styles.secondaryButtonText}>Change Plan</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.secondaryButton}
+              style={[styles.secondaryButton, (processingAction || billingData.billing.status === 'cancelled') && styles.disabledButton]}
               onPress={handleCancelSubscription}
-              disabled={billingData.billing.status === 'cancelled'}
+              disabled={processingAction || billingData.billing.status === 'cancelled'}
             >
               <Ionicons name="close-circle-outline" size={20} color={billingData.billing.status === 'cancelled' ? '#999' : '#EF4444'} />
               <Text style={[
@@ -608,6 +713,9 @@ feesContainer: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

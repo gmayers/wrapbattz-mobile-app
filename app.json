@@ -55,6 +55,7 @@
         }
       ]
     ],
+    "scheme": "wrapbattz",
     "ios": {
       "jsEngine": "hermes",
       "supportsTablet": true,
@@ -62,6 +63,11 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["wrapbattz"]
+          }
+        ],
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera for device reporting.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos for device reporting.",
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos for device reporting of photos taken..",

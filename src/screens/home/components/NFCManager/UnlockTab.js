@@ -4,7 +4,9 @@ import { View, Text, Alert, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
 import { styles } from './styles';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { nfcSecurityService } from '../../../../services/NFCSecurityService';
+
+const ORANGE_COLOR = '#FF9500';
 
 const UnlockTab = ({ onCancel }) => {
   const [unlockPassword, setUnlockPassword] = useState('');
@@ -19,135 +21,27 @@ const UnlockTab = ({ onCancel }) => {
     try {
       setIsUnlocking(true);
       
-      // Initialize NFC Manager
-      await NfcManager.start();
+      // Use the new NFCSecurityService
+      const result = await nfcSecurityService.unlockTag(unlockPassword);
       
-      // Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      // Get tag instance
-      const tag = await NfcManager.getTag();
-      
-      if (!tag) {
-        throw new Error('No NFC tag detected');
+      if (result.success) {
+        const unlockTypeMessage = result.lockType === 'hardware' 
+          ? 'Hardware password protection removed successfully!'
+          : 'Tag unlocked and content restored successfully!';
+        
+        let message = unlockTypeMessage;
+        if (result.data?.restoredContent && result.data.restoredContent !== 'No content was stored') {
+          message += '\n\nOriginal content has been restored to the tag.';
+        }
+        
+        Alert.alert('Success', message);
+        setUnlockPassword('');
+      } else {
+        throw new Error(result.error || 'Unknown error occurred during unlock operation');
       }
-      
-      // Attempt to unlock the tag based on its type
-      if (tag.techTypes && tag.techTypes.includes('android.nfc.tech.MifareUltralight')) {
-        // For NTAG21x tags (common NFC tags)
-        try {
-          // Send the PWD_AUTH command with the password
-          const authResponse = await NfcManager.transceive([
-            0x1B,                               // PWD_AUTH command
-            ...Array.from(new TextEncoder().encode(unlockPassword.padEnd(4, '\0').slice(0, 4)))
-          ]);
-          
-          // If we get here, the password was correct (otherwise an exception would be thrown)
-          
-          // Reset protection configuration in NTAG
-          await NfcManager.transceive([
-            0xA2,                               // WRITE command
-            0x29,                               // Configuration page address
-            0xFF,                               // AUTH0: disable password authentication (0xFF)
-            0x00,                               // No access restrictions
-            0x00,                               // No password protection
-            0x00                                // Other access config settings
-          ]);
-          
-          Alert.alert('Success', 'Tag password protection removed successfully!');
-        } catch (error) {
-          if (error.message && error.message.toLowerCase().includes('authentication')) {
-            throw new Error('Incorrect password. Please try again.');
-          } else {
-            throw error;
-          }
-        }
-      } 
-      // Use standard NDEF password removal if available
-      else if (NfcManager.ndefHandler && typeof NfcManager.ndefHandler.removePassword === 'function') {
-        try {
-          await NfcManager.ndefHandler.removePassword(unlockPassword);
-          Alert.alert('Success', 'Tag password protection removed successfully!');
-        } catch (error) {
-          if (error.message && (error.message.includes('auth') || error.message.includes('password'))) {
-            throw new Error('Incorrect password. Please try again.');
-          } else {
-            throw error;
-          }
-        }
-      }
-      // For tags without proper password protection
-      else {
-        // First verify that we can read the tag
-        if (!tag.ndefMessage || !tag.ndefMessage.length) {
-          throw new Error('No NDEF message found on tag');
-        }
-        
-        const record = tag.ndefMessage[0];
-        
-        if (!record || !record.payload) {
-          throw new Error('Tag contains an invalid NDEF record format');
-        }
-        
-        // Try to decode and verify with password
-        let textContent;
-        try {
-          textContent = Ndef.text.decodePayload(record.payload);
-        } catch (e) {
-          throw new Error('Failed to decode tag content');
-        }
-        
-        // Check if tag contains JSON data
-        if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
-          try {
-            // Try to parse the JSON
-            const tagData = JSON.parse(textContent);
-            
-            // If the tag wasn't locked using our lock mechanism, notify the user
-            if (tagData.locked !== true && tagData.locked !== 'true') {
-              throw new Error('This tag is not locked or requires a different unlock method');
-            }
-            
-            // Verify password
-            if (tagData.password !== unlockPassword) {
-              throw new Error('Incorrect password. Please try again');
-            }
-            
-            // Remove lock and password properties
-            const { locked, password, ...otherData } = tagData;
-            
-            // Write the updated data back to the tag
-            const jsonString = JSON.stringify(otherData);
-            const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-            
-            if (bytes) {
-              await NfcManager.ndefHandler.writeNdefMessage(bytes);
-              Alert.alert('Success', 'Tag unlocked successfully!');
-              setUnlockPassword('');
-            } else {
-              throw new Error('Failed to encode NDEF message');
-            }
-          } catch (jsonError) {
-            if (jsonError.message.includes('password')) {
-              throw jsonError;
-            }
-            throw new Error('Tag contains invalid data format');
-          }
-        } else {
-          throw new Error('This tag does not appear to be locked or contains an unsupported format');
-        }
-      }
-      
-      setUnlockPassword('');
-      
     } catch (error) {
-      Alert.alert(
-        'Error', 
-        `Failed to unlock tag: ${error.message}`
-      );
+      Alert.alert('Error', error.message || 'Failed to unlock tag');
     } finally {
-      // Always cancel technology request when done
-      NfcManager.cancelTechnologyRequest();
       setIsUnlocking(false);
     }
   };
@@ -155,7 +49,10 @@ const UnlockTab = ({ onCancel }) => {
   const cancelUnlocking = () => {
     if (isUnlocking) {
       setIsUnlocking(false);
-      NfcManager.cancelTechnologyRequest();
+      nfcSecurityService.getInstance().then(service => {
+        // Cancel any ongoing operations
+        service.constructor.prototype.cancelOperation?.();
+      }).catch(() => {});
     }
     onCancel?.();
   };
@@ -189,7 +86,8 @@ const UnlockTab = ({ onCancel }) => {
               title="Unlock Tag"
               onPress={handleUnlockNfc}
               disabled={isUnlocking || !unlockPassword}
-              style={styles.unlockButton}
+              style={[styles.unlockButton, { backgroundColor: ORANGE_COLOR }]}
+              textColor="white"
               testID="unlock-tag-button"
             />
             
@@ -214,7 +112,7 @@ const UnlockTab = ({ onCancel }) => {
       )}
       
       <Text style={styles.infoText}>
-        This will remove the password protection previously set on NTAG213, NTAG215, or NTAG216 tags.
+        This will remove password protection and restore the original content if any was stored before locking.
       </Text>
     </View>
   );

@@ -18,6 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { BaseTextInput } from '../components/TextInput';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +56,7 @@ const AllReportsScreen = ({ navigation, route }) => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [resolvedChecked, setResolvedChecked] = useState(false);
+  const [description, setDescription] = useState('');
 
   useEffect(() => {
     fetchMyReports();
@@ -137,6 +139,7 @@ const AllReportsScreen = ({ navigation, route }) => {
     setSelectedReport(report);
     setSelectedStatus(report.status);
     setResolvedChecked(report.resolved || false);
+    setDescription(report.description || '');
     setUpdateReportModalVisible(true);
   };
 
@@ -150,6 +153,7 @@ const AllReportsScreen = ({ navigation, route }) => {
       const updateData = {
         status: selectedStatus,
         resolved: resolvedChecked,
+        description: description,
       };
 
       // If marked as resolved and there's no resolved date, add it
@@ -202,6 +206,11 @@ const renderReportCard = (report) => (
           <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
         )}
         <Text style={styles.reportText}>Description: {report.description}</Text>
+        {report.created_by && (
+          <Text style={styles.reportText}>
+            Created by: {report.created_by.first_name} {report.created_by.last_name}
+          </Text>
+        )}
         <View style={styles.cardActions}>
           <Button
             title="Update Status"
@@ -366,6 +375,16 @@ const renderReportCard = (report) => (
                         ))}
                       </Picker>
                     </View>
+
+                    <Text style={styles.modalText}>Description:</Text>
+                    <BaseTextInput
+                      value={description}
+                      onChangeText={setDescription}
+                      placeholder="Enter description"
+                      multiline
+                      numberOfLines={4}
+                      style={styles.modalTextInput}
+                    />
 
                     <TouchableOpacity 
                       style={styles.checkboxContainer}
@@ -607,6 +626,15 @@ const styles = StyleSheet.create({
   cancelButton: {
     marginTop: 10,
     borderColor: ORANGE_COLOR,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 15,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
 });
 

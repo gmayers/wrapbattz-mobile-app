@@ -16,7 +16,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import TabBar from '../components/TabBar';
 import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -56,7 +55,6 @@ const ReportsScreen = ({ navigation }) => {
   
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('reports');
   const [error, setError] = useState(null);
 
   // Get role directly from userData
@@ -137,87 +135,12 @@ const ReportsScreen = ({ navigation }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Reset active tab when returning
-      setActiveTab('reports');
       fetchReports();
     });
     return unsubscribe;
   }, [navigation, fetchReports]);
 
-  // Generate tabs based on user role
-  const getTabsForUser = useCallback(() => {
-    const baseTabs = [
-      {
-        key: 'dashboard',
-        title: 'Home',
-        icon: <Ionicons name="home-outline" size={24} />,
-      },
-      {
-        key: 'reports',
-        title: 'Reports',
-        icon: <Ionicons name="document-text-outline" size={24} />,
-      }
-    ];
 
-    // Add locations tab only for admin or owner roles
-    if (isAdminOrOwner) {
-      baseTabs.push({
-        key: 'locations',
-        title: 'Locations',
-        icon: <Ionicons name="location-outline" size={24} />,
-      });
-    }
-
-    // Add profile/settings tab
-    baseTabs.push({
-      key: 'profile',
-      title: 'Profile',
-      icon: <Ionicons name="person-outline" size={24} />
-    });
-
-    // Always add logout tab at the end
-    baseTabs.push({
-      key: 'logout',
-      title: 'Logout',
-      icon: <Ionicons name="log-out-outline" size={24} />,
-    });
-
-    return baseTabs;
-  }, [isAdminOrOwner]);
-
-  const tabs = getTabsForUser();
-
-  const handleTabPress = useCallback((key) => {
-    if (key === activeTab) return;
-    setActiveTab(key);
-    switch (key) {
-      case 'dashboard':
-        navigation.navigate('Dashboard');
-        break;
-      case 'locations':
-        navigation.navigate('Locations');
-        break;
-      case 'profile':
-        navigation.navigate('Profile');
-        break;
-      case 'logout':
-        Alert.alert(
-          'Logout',
-          'Are you sure you want to logout?',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setActiveTab('reports') },
-            {
-              text: 'Logout',
-              style: 'destructive',
-              onPress: () => logout()
-            }
-          ]
-        );
-        break;
-      default:
-        break;
-    }
-  }, [activeTab, navigation, logout]);
 
   // Helper function to get status label
   const getStatusLabel = useCallback((statusValue) => {
@@ -417,21 +340,6 @@ const ReportsScreen = ({ navigation }) => {
         </ScrollView>
       </View>
 
-      {/* Updated TabBar - conditionally filter tabs based on user role */}
-      <TabBar
-        tabs={tabs.filter(tab => tab.key !== 'locations' || isAdminOrOwner)}
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-        backgroundColor="#FFFFFF"
-        activeColor={ORANGE_COLOR}
-        inactiveColor="#666666"
-        showIcons={true}
-        showLabels={true}
-        height={Platform.OS === 'ios' ? 80 : 60}
-        containerStyle={styles.tabBarContainer}
-        labelStyle={styles.tabBarLabel}
-        iconStyle={styles.tabBarIcon}
-      />
     </SafeAreaView>
   );
 };
@@ -497,7 +405,7 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
     padding: '4%',
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+    paddingBottom: 20,
   },
   section: {
     width: '100%',
@@ -631,24 +539,6 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     textAlign: 'center',
     marginTop: 10,
-  },
-  // Tab Bar styles updated to match HomeScreen
-  tabBarContainer: {
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 10,
-  },
-  tabBarLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  tabBarIcon: {
-    fontSize: 24,
   },
 });
 

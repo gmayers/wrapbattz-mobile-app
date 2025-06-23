@@ -23,7 +23,7 @@ const API_BASE_URL = 'https://battwrapz.gmayersservices.com/api';
 
 const ProfileScreen = ({ navigation }) => {
   // Use AuthContext
-  const { user, userData, logout, updateUserProfile, getUserProfile, axiosInstance } = useAuth();
+  const { user, userData, logout, updateUserProfile, getUserProfile, axiosInstance, isAdminOrOwner } = useAuth();
   
   const [profileData, setProfileData] = useState(null);
   const [billingData, setBillingData] = useState(null);
@@ -49,19 +49,27 @@ const ProfileScreen = ({ navigation }) => {
       const profileResponse = await getUserProfile(userId);
       setProfileData(profileResponse);
       
-      // For demo purposes, also fetch mock billing data
-      // In a real implementation, this would come from your API
-      setBillingData({
-        total_devices: 5,
-        free_devices_remaining: 0,
-        billable_devices: 2,
-        billing: {
-          status: 'active',
-          plan_type: 'monthly',
-          max_devices: 5,
-          next_billing_date: '2025-12-31T23:59:59Z'
+      // Only fetch billing data for admin/owner
+      if (isAdminOrOwner) {
+        try {
+          const billingResponse = await axiosInstance.get('/billing/status/');
+          setBillingData(billingResponse.data);
+        } catch (billingError) {
+          console.error('Error fetching billing data:', billingError);
+          // Mock billing data as fallback
+          setBillingData({
+            total_devices: 5,
+            free_devices_remaining: 0,
+            billable_devices: 2,
+            billing: {
+              status: 'active',
+              plan_type: 'monthly',
+              max_devices: 5,
+              next_billing_date: '2025-12-31T23:59:59Z'
+            }
+          });
         }
-      });
+      }
     } catch (err) {
       console.error('Error fetching profile:', err);
       setError('Failed to load profile data');
@@ -249,63 +257,65 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.emailText}>{profileData?.email}</Text>
         </View>
 
-        {/* Device Management Fee Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Device Management</Text>
-            <View style={[styles.billingBadge, { backgroundColor: billingStatus.color }]}>
-              <Text style={styles.billingBadgeText}>{billingStatus.label}</Text>
+        {/* Device Management Fee Section - Only for Admin/Owner */}
+        {isAdminOrOwner && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Device Management</Text>
+              <View style={[styles.billingBadge, { backgroundColor: billingStatus.color }]}>
+                <Text style={styles.billingBadgeText}>{billingStatus.label}</Text>
+              </View>
             </View>
-          </View>
-          
-          {billingData?.billing?.status === 'active' ? (
-            <>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Plan:</Text>
-                <Text style={styles.infoValue}>
-                  {billingData.billing.plan_type === 'monthly' ? 'Monthly' : 'Annual'}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Devices:</Text>
-                <Text style={styles.infoValue}>
-                  {billingData.total_devices} ({billingData.billable_devices} billable)
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Next Billing:</Text>
-                <Text style={styles.infoValue}>
-                  {formatDate(billingData.billing.next_billing_date)}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('ManageBilling')}
-              >
-                <Text style={styles.actionButtonText}>Manage Billing</Text>
-                <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={styles.noBillingContainer}>
-              <Text style={styles.noBillingText}>
-                {billingData?.total_devices <= 3 
-                  ? "You're using the free tier (up to 3 devices at no cost)."
-                  : "You need to set up billing for your devices."}
-              </Text>
-              <TouchableOpacity
-                style={styles.setupButton}
-                onPress={() => navigation.navigate('DataHandlingFee')}
-              >
-                <Text style={styles.setupButtonText}>
+            
+            {billingData?.billing?.status === 'active' ? (
+              <>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Plan:</Text>
+                  <Text style={styles.infoValue}>
+                    {billingData.billing.plan_type === 'monthly' ? 'Monthly' : 'Annual'}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Devices:</Text>
+                  <Text style={styles.infoValue}>
+                    {billingData.total_devices} ({billingData.billable_devices} billable)
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Next Billing:</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDate(billingData.billing.next_billing_date)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate('ManageBilling')}
+                >
+                  <Text style={styles.actionButtonText}>Manage Billing</Text>
+                  <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.noBillingContainer}>
+                <Text style={styles.noBillingText}>
                   {billingData?.total_devices <= 3 
-                    ? "Manage Devices" 
-                    : "Set Up Billing"}
+                    ? "You're using the free tier (up to 3 devices at no cost)."
+                    : "You need to set up billing for your devices."}
                 </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+                <TouchableOpacity
+                  style={styles.setupButton}
+                  onPress={() => navigation.navigate('DataHandlingFee')}
+                >
+                  <Text style={styles.setupButtonText}>
+                    {billingData?.total_devices <= 3 
+                      ? "Manage Devices" 
+                      : "Set Up Billing"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Personal Information Section */}
         <View style={styles.section}>

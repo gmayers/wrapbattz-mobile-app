@@ -19,7 +19,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import TabBar from '../components/TabBar';
 import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -42,7 +41,6 @@ const LocationsScreen = ({ navigation }) => {
 
   const [locations, setLocations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('locations');
   const [modalVisible, setModalVisible] = useState(false);
   const [formData, setFormData] = useState({
     building_name: '',
@@ -105,73 +103,12 @@ const LocationsScreen = ({ navigation }) => {
   // Use useCallback for event handlers to prevent unnecessary re-renders
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Reset active tab when returning
-      setActiveTab('locations');
       fetchLocations();
     });
     return unsubscribe;
   }, [navigation, fetchLocations]);
 
-  // Static tabs to avoid re-renders
-  const tabs = [
-    {
-      key: 'dashboard',
-      title: 'Home',
-      icon: <Ionicons name="home-outline" size={24} />,
-    },
-    {
-      key: 'reports',
-      title: 'Reports',
-      icon: <Ionicons name="document-text-outline" size={24} />,
-    },
-    {
-      key: 'locations',
-      title: 'Locations',
-      icon: <Ionicons name="location-outline" size={24} />,
-    },
-    {
-      key: 'profile',
-      title: 'Profile',
-      icon: <Ionicons name="person-outline" size={24} />
-    },
-    {
-      key: 'logout',
-      title: 'Logout',
-      icon: <Ionicons name="log-out-outline" size={24} />,
-    }
-  ];
 
-  const handleTabPress = useCallback((key) => {
-    if (key === activeTab) return;
-    setActiveTab(key);
-    switch (key) {
-      case 'dashboard':
-        navigation.navigate('Dashboard');
-        break;
-      case 'reports':
-        navigation.navigate('Reports');
-        break;
-      case 'profile':
-        navigation.navigate('Profile');
-        break;
-      case 'logout':
-        Alert.alert(
-          'Logout',
-          'Are you sure you want to logout?',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setActiveTab('locations') },
-            { 
-              text: 'Logout', 
-              style: 'destructive',
-              onPress: () => logout()
-            }
-          ]
-        );
-        break;
-      default:
-        break;
-    }
-  }, [activeTab, navigation, logout]);
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prevData => ({
@@ -267,35 +204,63 @@ const LocationsScreen = ({ navigation }) => {
   }, [deviceService, formData, logout, userData, validateForm, fetchLocations]);
 
   const renderLocationCard = useCallback((location) => (
-    <Card
+    <TouchableOpacity 
       key={location.id}
-      title={location.building_name || `${location.street_number} ${location.street_name}`}
-      style={styles.locationCard}
+      onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
+      activeOpacity={0.7}
     >
-      <View style={styles.locationContent}>
-        <Text style={styles.locationText}>
-          {location.street_number} {location.street_name}
-        </Text>
-        {location.address_2 ? (
-          <Text style={styles.locationText}>{location.address_2}</Text>
-        ) : null}
-        <Text style={styles.locationText}>
-          {location.town_or_city}{location.county ? `, ${location.county}` : ''}
-        </Text>
-        <Text style={styles.locationText}>{location.postcode}</Text>
-        
-        <View style={styles.locationActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
-          >
-            {/* Changed the icon color to orange */}
-            <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
-            <Text style={styles.actionText}>View Devices</Text>
-          </TouchableOpacity>
+      <Card style={styles.locationCard}>
+        <View style={styles.locationContent}>
+          {/* Location Header */}
+          <View style={styles.locationHeader}>
+            <View style={styles.locationTitleContainer}>
+              <Text style={styles.locationTitle}>
+                {location.name || location.building_name || `${location.street_number} ${location.street_name}`}
+              </Text>
+              <View style={styles.locationTypeContainer}>
+                <Ionicons name="location" size={14} color={ORANGE_COLOR} />
+                <Text style={styles.locationType}>Location</Text>
+              </View>
+            </View>
+            <View style={styles.locationIcon}>
+              <Ionicons name="chevron-forward" size={20} color="#CCC" />
+            </View>
+          </View>
+          
+          {/* Address Details */}
+          <View style={styles.addressContainer}>
+            <View style={styles.addressRow}>
+              <Ionicons name="home-outline" size={16} color="#666" />
+              <Text style={styles.addressText}>
+                {location.street_number} {location.street_name}
+              </Text>
+            </View>
+            
+            {location.address_2 && (
+              <View style={styles.addressRow}>
+                <Ionicons name="business-outline" size={16} color="#666" />
+                <Text style={styles.addressText}>{location.address_2}</Text>
+              </View>
+            )}
+            
+            <View style={styles.addressRow}>
+              <Ionicons name="map-outline" size={16} color="#666" />
+              <Text style={styles.addressText}>
+                {location.town_or_city}{location.county ? `, ${location.county}` : ''} {location.postcode}
+              </Text>
+            </View>
+          </View>
+          
+          {/* Action Button */}
+          <View style={styles.locationActions}>
+            <View style={styles.viewDevicesButton}>
+              <Ionicons name="cube-outline" size={18} color={ORANGE_COLOR} />
+              <Text style={styles.viewDevicesText}>View Available Devices</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   ), [navigation]);
 
   const renderCreateLocationModal = () => (
@@ -539,21 +504,6 @@ const LocationsScreen = ({ navigation }) => {
 
       {renderCreateLocationModal()}
 
-      {/* Updated TabBar - conditionally filter tabs based on user role */}
-      <TabBar
-        tabs={tabs.filter(tab => tab.key !== 'locations' || isAdminOrOwner)}
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-        backgroundColor="#FFFFFF"
-        activeColor={ORANGE_COLOR}
-        inactiveColor="#666666"
-        showIcons={true}
-        showLabels={true}
-        height={Platform.OS === 'ios' ? 80 : 60}
-        containerStyle={styles.tabBarContainer}
-        labelStyle={styles.tabBarLabel}
-        iconStyle={styles.tabBarIcon}
-      />
     </SafeAreaView>
   );
 };
@@ -612,7 +562,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: '4%',
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
+    paddingBottom: 20,
   },
   section: {
     width: '100%',
@@ -629,40 +579,89 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   locationCard: {
-    marginBottom: 10,
+    marginBottom: 15,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   locationContent: {
-    padding: 15,
+    padding: 20,
   },
-  locationText: {
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  locationTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  locationTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  locationTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationType: {
+    fontSize: 12,
+    color: ORANGE_COLOR,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  locationIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
+  },
+  addressContainer: {
+    marginBottom: 16,
+    gap: 8,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addressText: {
     fontSize: 14,
     color: '#666',
+    flex: 1,
     lineHeight: 20,
   },
   locationActions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    borderTopColor: '#F0F0F0',
+    paddingTop: 16,
   },
-  actionButton: {
+  viewDevicesButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4B5',
   },
-  // Updated action text color to orange
-  actionText: {
-    marginLeft: 6,
-    color: ORANGE_COLOR, // Changed from #007AFF to orange
+  viewDevicesText: {
+    marginLeft: 8,
+    color: ORANGE_COLOR,
     fontSize: 14,
+    fontWeight: '600',
   },
   loader: {
     marginVertical: 20,
@@ -678,24 +677,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 10,
-  },
-  // Tab Bar styles updated to match HomeScreen
-  tabBarContainer: {
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 10,
-  },
-  tabBarLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  tabBarIcon: {
-    fontSize: 24,
   },
   // Modal styles
   modalContainer: {

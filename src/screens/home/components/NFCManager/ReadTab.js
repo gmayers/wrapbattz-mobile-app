@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
-import NfcManager, { Ndef } from 'react-native-nfc-manager';
+import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 
 const normalizeJsonString = (jsonString) => {

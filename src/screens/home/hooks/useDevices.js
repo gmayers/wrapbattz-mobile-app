@@ -42,7 +42,7 @@ const useDevices = () => {
   };
 
   /**
-   * Fetches all device assignments
+   * Fetches devices and filters using active assignments
    */
   const fetchDevices = useCallback(async () => {
     setLoading(true);
@@ -54,27 +54,54 @@ const useDevices = () => {
         return;
       }
 
-      console.log('Fetching devices with token:', token ? 'Token exists' : 'No token');
+      console.log('Fetching devices and active assignments');
 
-      const response = await axios.get(
-        'https://test.gmayersservices.com/api/device-assignments/',
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Fetch devices and active assignments in parallel
+      const [devicesResponse, activeAssignmentsResponse] = await Promise.all([
+        axios.get(
+          'https://test.gmayersservices.com/api/devices/',
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        ),
+        axios.get(
+          'https://test.gmayersservices.com/api/device-assignments/my_active_assignments/',
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+      ]);
 
-      console.log('Device fetch response status:', response.status);
+      console.log('Device fetch response status:', devicesResponse.status);
+      console.log('Active assignments fetch response status:', activeAssignmentsResponse.status);
 
-      if (response.data) {
-        // Filter to show only active (non-returned) assignments
-        const activeAssignments = response.data.filter(
-          assignment => !assignment.returned_date
-        );
-        setDevices(activeAssignments);
-        console.log('Active assignments count:', activeAssignments.length);
+      if (devicesResponse.data && activeAssignmentsResponse.data) {
+        const allDevices = devicesResponse.data;
+        const activeAssignments = activeAssignmentsResponse.data;
+        
+        // Create a map of device IDs from active assignments
+        const activeDeviceIds = new Set(activeAssignments.map(assignment => assignment.device.id));
+        
+        // Filter devices to only include those with active assignments
+        const activeDevices = allDevices.filter(device => activeDeviceIds.has(device.id));
+        
+        // Enhance devices with assignment information
+        const enhancedDevices = activeDevices.map(device => {
+          const assignment = activeAssignments.find(a => a.device.id === device.id);
+          return {
+            ...assignment,
+            device: device
+          };
+        });
+        
+        setDevices(enhancedDevices);
+        console.log('Active device assignments count:', enhancedDevices.length);
       }
     } catch (error) {
       handleApiError(error);

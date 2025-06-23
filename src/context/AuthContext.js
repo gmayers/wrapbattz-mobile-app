@@ -307,6 +307,16 @@ const deviceService = {
     }
   },
 
+  // Get specific report
+  getReport: async (reportId) => {
+    try {
+      const response = await axiosInstance.get(`/reports/${reportId}/`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Create report
   createReport: async (reportData) => {
     // Ensure required fields are present
@@ -675,10 +685,40 @@ const updateUser = async (userData) => {
     try {
       const response = await axiosInstance.patch(`/profile/${userId}/`, profileData);
       
-      // Update local user data if needed
-      if (user && user.id === userId) {
-        const updatedUserData = { ...user, ...response.data };
-        await updateUser(updatedUserData);
+      // Update local user data
+      const updatedData = response.data;
+      
+      // Update userData state with the new profile info
+      setUserData(prevData => ({
+        ...prevData,
+        name: `${updatedData.first_name} ${updatedData.last_name}`,
+        email: updatedData.email,
+        first_name: updatedData.first_name,
+        last_name: updatedData.last_name,
+        phone_number: updatedData.phone_number
+      }));
+      
+      // Update user state
+      setUser(prevUser => ({
+        ...prevUser,
+        email: updatedData.email,
+        first_name: updatedData.first_name,
+        last_name: updatedData.last_name,
+        phone_number: updatedData.phone_number
+      }));
+      
+      // Persist to AsyncStorage
+      const storedUserData = await AsyncStorage.getItem(AUTH_KEYS.USER_DATA);
+      if (storedUserData) {
+        const parsedData = JSON.parse(storedUserData);
+        const updatedStoredData = {
+          ...parsedData,
+          email: updatedData.email,
+          first_name: updatedData.first_name,
+          last_name: updatedData.last_name,
+          phone_number: updatedData.phone_number
+        };
+        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(updatedStoredData));
       }
       
       return response.data;

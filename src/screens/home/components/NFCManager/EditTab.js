@@ -400,7 +400,7 @@ const processJsonTagContent = (textContent) => {
   setJsonValidationState(jsonState);
 };
 
-// Improved write function using the recommended pattern
+// Improved write function with iOS-specific optimizations
 const handleWriteTag = async () => {
   let result = false;
   
@@ -419,6 +419,16 @@ const handleWriteTag = async () => {
     }
 
     setIsWriting(true);
+    
+    // iOS-specific: Ensure NFC is properly initialized
+    if (Platform.OS === 'ios') {
+      try {
+        await NfcManager.start();
+        console.log('[EditTab] NFC Manager started for iOS');
+      } catch (startError) {
+        console.warn('[EditTab] NFC Manager already started or error:', startError);
+      }
+    }
     
     // Check if there are any fields to write
     if (Object.keys(editedFields).length === 0) {
@@ -457,8 +467,12 @@ const handleWriteTag = async () => {
     const stringByteLength = new TextEncoder().encode(normalizedString).length;
     console.log(`[EditTab] Data size: ${stringByteLength} bytes`);
     
-    // STEP 1: Request NFC technology
-    await NfcManager.requestTechnology(NfcTech.Ndef);
+    // STEP 1: Request NFC technology with iOS-specific timeout
+    const technologyRequest = Platform.OS === 'ios' 
+      ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout: 60000 }) // 60 seconds for iOS
+      : NfcManager.requestTechnology(NfcTech.Ndef);
+    
+    await technologyRequest;
     console.log('[EditTab] NFC technology requested successfully');
     
     // Get tag information to check capacity
@@ -528,19 +542,46 @@ const handleWriteTag = async () => {
       throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
     }
     
-    // STEP 3: Write the message to the tag
+    // STEP 3: Write the message to the tag with platform-specific handling
     try {
-      await NfcManager.ndefHandler.writeNdefMessage(bytes);
-      console.log('[EditTab] Write operation completed successfully');
+      if (Platform.OS === 'ios') {
+        // iOS-specific write with retry mechanism
+        let writeAttempts = 0;
+        const maxAttempts = 3;
+        
+        while (writeAttempts < maxAttempts) {
+          try {
+            await NfcManager.ndefHandler.writeNdefMessage(bytes);
+            console.log(`[EditTab] iOS write operation completed successfully on attempt ${writeAttempts + 1}`);
+            break;
+          } catch (iosWriteError) {
+            writeAttempts++;
+            console.warn(`[EditTab] iOS write attempt ${writeAttempts} failed:`, iosWriteError);
+            
+            if (writeAttempts >= maxAttempts) {
+              throw iosWriteError;
+            }
+            
+            // Short delay before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      } else {
+        // Android write
+        await NfcManager.ndefHandler.writeNdefMessage(bytes);
+        console.log('[EditTab] Android write operation completed successfully');
+      }
       
       result = true;
       Alert.alert('Success', 'Changes saved to NFC tag successfully!');
     } catch (writeError) {
       // Check for specific write errors
       if (writeError.message.includes('timeout')) {
-        throw new Error('Write operation timed out. The tag may have been moved too soon.');
-      } else if (writeError.message.includes('read-only')) {
+        throw new Error('Write operation timed out. Please keep the tag close to your device and try again.');
+      } else if (writeError.message.includes('read-only') || writeError.message.includes('not writable')) {
         throw new Error('This NFC tag is read-only and cannot be written to.');
+      } else if (writeError.message.includes('Tag connection lost')) {
+        throw new Error('Tag connection lost. Please try again and keep the tag steady.');
       } else {
         throw new Error(`Write failed: ${writeError.message}`);
       }

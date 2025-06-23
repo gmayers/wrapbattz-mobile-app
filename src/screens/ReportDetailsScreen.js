@@ -12,13 +12,17 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Platform,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
+import { BaseTextInput } from '../components/TextInput';
 
 const ORANGE_COLOR = '#FF9500';
+const { width } = Dimensions.get('window');
 
 // Define the report type choices
 const TYPE_CHOICES = [
@@ -47,6 +51,13 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // State for images and signatures
+  const [reportImages, setReportImages] = useState([]);
+  const [reportSignatures, setReportSignatures] = useState([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const [selectedImageModal, setSelectedImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  
   // State for update report modal
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(null);
@@ -57,6 +68,32 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     fetchReportDetails();
   }, [reportId]);
+
+  // Fetch device photos associated with this report
+  const fetchReportImages = async () => {
+    try {
+      setLoadingImages(true);
+      
+      // Fetch all device photos and filter by report ID
+      const allPhotos = await deviceService.getDevicePhotos();
+      const photos = Array.isArray(allPhotos) ? allPhotos : allPhotos.results || [];
+      
+      // Filter photos for this specific report
+      const reportPhotos = photos.filter(photo => photo.report === reportId);
+      
+      // Separate images and signatures
+      const images = reportPhotos.filter(photo => !photo.is_signature);
+      const signatures = reportPhotos.filter(photo => photo.is_signature);
+      
+      setReportImages(images);
+      setReportSignatures(signatures);
+    } catch (error) {
+      console.warn('Failed to fetch report images:', error);
+      // Don't show an alert for images, just log the error
+    } finally {
+      setLoadingImages(false);
+    }
+  };
 
   const handleApiError = (error, defaultMessage) => {
     if (error.response) {
@@ -86,12 +123,20 @@ const ReportDetailsScreen = ({ navigation, route }) => {
       setError(null);
       
       // Make API call to get report details
-      // Since there's no specific endpoint for a single report in the provided context,
-      // we'll first get all reports and then filter for the specific one
-      const allReports = await deviceService.getReports();
+      // Try to get specific report, fallback to getting all reports and filtering
+      let foundReport = null;
       
-      // Find the specific report
-      const foundReport = allReports.find(r => r.id === reportId);
+      try {
+        // Try the new getReport method first
+        foundReport = await deviceService.getReport(reportId);
+      } catch (directError) {
+        console.log('Direct report fetch failed, trying to get from all reports:', directError);
+        // Fallback: get all reports and filter
+        const allReports = await deviceService.getReports();
+        foundReport = Array.isArray(allReports) 
+          ? allReports.find(r => r.id === reportId)
+          : (allReports.results || []).find(r => r.id === reportId);
+      }
       
       if (!foundReport) {
         throw new Error('Report not found');
@@ -104,6 +149,9 @@ const ReportDetailsScreen = ({ navigation, route }) => {
       setSelectedType(foundReport.type);
       setResolvedChecked(foundReport.resolved || false);
       setDescription(foundReport.description || '');
+      
+      // Fetch associated images and signatures
+      fetchReportImages();
       
     } catch (error) {
       handleApiError(error, 'Failed to fetch report details');
@@ -145,6 +193,12 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   // Handle update report button
   const handleUpdateReport = () => {
     setUpdateModalVisible(true);
+  };
+
+  // Handle image selection for modal view
+  const handleImagePress = (imageUri) => {
+    setSelectedImage(imageUri);
+    setSelectedImageModal(true);
   };
 
   // Handle update report confirmation
@@ -348,6 +402,50 @@ const ReportDetailsScreen = ({ navigation, route }) => {
           </View>
         </View>
 
+        {/* Report Images Section */}
+        {reportImages.length > 0 && (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>Report Images</Text>
+            <View style={styles.imagesContainer}>
+              {reportImages.map((image, index) => (
+                <TouchableOpacity
+                  key={image.id || index}
+                  onPress={() => handleImagePress(image.image)}
+                  style={styles.imageContainer}
+                >
+                  <Image 
+                    source={{ uri: image.image }} 
+                    style={styles.reportImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Report Signatures Section */}
+        {reportSignatures.length > 0 && (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>Signatures</Text>
+            <View style={styles.signaturesContainer}>
+              {reportSignatures.map((signature, index) => (
+                <TouchableOpacity
+                  key={signature.id || index}
+                  onPress={() => handleImagePress(signature.image)}
+                  style={styles.signatureContainer}
+                >
+                  <Image 
+                    source={{ uri: signature.image }} 
+                    style={styles.signatureImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Device Info Section */}
         {report.device && (
           <View style={styles.detailsCard}>
@@ -385,7 +483,54 @@ const ReportDetailsScreen = ({ navigation, route }) => {
             <Button
               title="View Device Details"
               variant="outlined"
-              onPress={() => navigation.navigate('DeviceDetails', { deviceId: report.device.id })}
+              onPress={() => {
+                // First check if we have source information from route params
+                const { sourceScreen, sourceDeviceId } = route.params || {};
+                
+                if (sourceScreen === 'DeviceDetails' && sourceDeviceId === report.device.id) {
+                  // If we came from the same DeviceDetails, go back instead of navigate
+                  navigation.goBack();
+                  return;
+                }
+                
+                // Fallback: Check if we came from DeviceDetails by looking at navigation state
+                const routes = navigation.getState()?.routes || [];
+                const currentIndex = navigation.getState()?.index || 0;
+                
+                // Look for DeviceDetails in the stack before current screen
+                const deviceDetailsInStack = routes.slice(0, currentIndex).find(
+                  route => route.name === 'DeviceDetails' && route.params?.deviceId === report.device.id
+                );
+                
+                if (deviceDetailsInStack) {
+                  // If we came from the same DeviceDetails, go back instead of navigate
+                  navigation.goBack();
+                } else {
+                  // Check if stack is getting too deep (more than 5 screens)
+                  if (routes.length > 5) {
+                    // Reset to MainTabs and then navigate to DeviceDetails
+                    navigation.reset({
+                      index: 1,
+                      routes: [
+                        { name: 'MainTabs' },
+                        { 
+                          name: 'DeviceDetails', 
+                          params: { 
+                            deviceId: report.device.id,
+                            sourceScreen: 'ReportDetails'
+                          }
+                        }
+                      ],
+                    });
+                  } else {
+                    // If coming from a different device or no device in stack, navigate normally
+                    navigation.navigate('DeviceDetails', { 
+                      deviceId: report.device.id,
+                      sourceScreen: 'ReportDetails'
+                    });
+                  }
+                }
+              }}
               style={styles.viewDeviceButton}
             />
           </View>
@@ -432,6 +577,16 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     </Picker>
                   </View>
                   
+                  <Text style={styles.modalLabel}>Description:</Text>
+                  <BaseTextInput
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Enter description"
+                    multiline
+                    numberOfLines={4}
+                    style={styles.modalTextInput}
+                  />
+                  
                   <TouchableOpacity 
                     style={styles.checkboxContainer}
                     onPress={() => setResolvedChecked(!resolvedChecked)}
@@ -455,6 +610,39 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     style={styles.modalCancelButton}
                   />
                 </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Image Viewing Modal */}
+      <Modal
+        visible={selectedImageModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setSelectedImageModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setSelectedImageModal(false)}>
+          <View style={styles.imageModalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.imageModalContainer}>
+                <View style={styles.imageModalHeader}>
+                  <Text style={styles.imageModalTitle}>Image View</Text>
+                  <TouchableOpacity 
+                    onPress={() => setSelectedImageModal(false)}
+                    style={styles.imageModalCloseButton}
+                  >
+                    <Ionicons name="close" size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+                {selectedImage && (
+                  <Image 
+                    source={{ uri: selectedImage }} 
+                    style={styles.fullScreenImage}
+                    resizeMode="contain"
+                  />
+                )}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -674,6 +862,83 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     borderColor: ORANGE_COLOR,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 15,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  // Image and signature styles
+  imagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  imageContainer: {
+    width: (width - 60) / 2,
+    height: 120,
+    marginRight: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+  },
+  reportImage: {
+    width: '100%',
+    height: '100%',
+  },
+  signaturesContainer: {
+    marginTop: 10,
+  },
+  signatureContainer: {
+    width: '100%',
+    height: 150,
+    marginBottom: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  signatureImage: {
+    width: '100%',
+    height: '100%',
+  },
+  // Image modal styles
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+  },
+  imageModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+  },
+  imageModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  imageModalCloseButton: {
+    padding: 10,
+  },
+  fullScreenImage: {
+    flex: 1,
+    width: '100%',
   },
 });
 

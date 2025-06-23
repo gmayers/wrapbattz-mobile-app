@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import TabBar from '../../../../components/TabBar';
+import NFCManagerNav from './NFCManagerNav';
 import ReadTab from './ReadTab';
 import LockTab from './LockTab';
 import UnlockTab from './UnlockTab';
@@ -20,10 +20,10 @@ const NfcManagerModal = ({ visible, onClose }) => {
 
   // NFC Tabs Configuration
   const nfcTabs = [
-    { key: 'read', title: 'Read', icon: <Ionicons name="scan-outline" size={20} color={nfcActiveTab === 'read' ? '#007AFF' : '#666666'} /> },
-    { key: 'lock', title: 'Lock', icon: <Ionicons name="lock-closed-outline" size={20} color={nfcActiveTab === 'lock' ? '#007AFF' : '#666666'} /> },
-    { key: 'unlock', title: 'Unlock', icon: <Ionicons name="lock-open-outline" size={20} color={nfcActiveTab === 'unlock' ? '#007AFF' : '#666666'} /> },
-    { key: 'edit', title: 'Edit', icon: <Ionicons name="create-outline" size={20} color={nfcActiveTab === 'edit' ? '#007AFF' : '#666666'} /> },
+    { key: 'read', title: 'Read', icon: 'scan-outline' },
+    { key: 'lock', title: 'Lock', icon: 'lock-closed-outline' },
+    { key: 'unlock', title: 'Unlock', icon: 'lock-open-outline' },
+    { key: 'edit', title: 'Edit', icon: 'create-outline' },
   ];
 
   const withNfcManager = async (callback) => {
@@ -293,23 +293,12 @@ const NfcManagerModal = ({ visible, onClose }) => {
             {renderTabContent()}
           </View>
 
-          {/* NFC Tabs - Moved to the bottom */}
-          <View style={styles.tabBarWrapper}>
-            <TabBar
-              tabs={nfcTabs}
-              activeTab={nfcActiveTab}
-              onTabPress={handleNfcTabPress}
-              backgroundColor="#F9F9F9"
-              activeColor="#007AFF"
-              inactiveColor="#666666"
-              showIcons
-              showLabels
-              height={60}
-              containerStyle={styles.nfcTabBarContainer}
-              labelStyle={styles.nfcTabBarLabel}
-              iconStyle={styles.nfcTabBarIcon}
-            />
-          </View>
+          {/* NFC Navigation - Orange color scheme */}
+          <NFCManagerNav
+            tabs={nfcTabs}
+            activeTab={nfcActiveTab}
+            onTabPress={handleNfcTabPress}
+          />
         </View>
       </View>
     </Modal>
@@ -355,31 +344,6 @@ const styles = StyleSheet.create({
       zIndex: 1,
       position: 'relative',
     } : {}),
-  },
-  tabBarWrapper: {
-    // Moved to the bottom
-    zIndex: 10,
-    position: 'relative',
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    marginTop: 10, // Space above the tab bar
-  },
-  nfcTabBarContainer: {
-    paddingVertical: 5,
-    // Improved iOS touch handling
-    ...(Platform.OS === 'ios' ? {
-      zIndex: 10,
-      shadowColor: 'transparent', // Remove shadow that might interfere
-      elevation: 0,
-    } : {}),
-  },
-  nfcTabBarLabel: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  nfcTabBarIcon: {
-    marginBottom: 2,
   },
   emptyTabContent: {
     flex: 1,

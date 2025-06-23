@@ -1,23 +1,59 @@
+// src/components/Button.tsx
 import React from 'react';
 import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
   StyleSheet,
+  ViewStyle,
+  TextStyle,
+  DimensionValue,
 } from 'react-native';
 
-const Button = ({
+interface ButtonProps {
+  // Content props
+  title: string;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+
+  // Style props
+  variant?: 'filled' | 'outlined' | 'ghost';
+  size?: 'small' | 'medium' | 'large';
+  width?: DimensionValue;
+  backgroundColorProp?: string;
+  textColorProp?: string;
+  borderRadius?: number;
+
+  // State props
+  loading?: boolean;
+  disabled?: boolean;
+
+  // Event handlers
+  onPress: () => void;
+
+  // Custom styles
+  style?: ViewStyle;
+  titleStyle?: TextStyle;
+  loadingColor?: string;
+
+  // Custom props
+  loadingText?: string;
+  activeOpacity?: number;
+  testID?: string;
+}
+
+const Button: React.FC<ButtonProps> = ({
   // Content props
   title,
   leftIcon,
   rightIcon,
 
   // Style props
-  variant = 'filled', // 'filled', 'outlined', 'ghost'
-  size = 'medium',    // 'small', 'medium', 'large'
-  width: buttonWidth, // optional override for button width
-  backgroundColorProp, // Renamed to avoid confusion with internal logic
-  textColorProp,     // Renamed to avoid confusion with internal logic
+  variant = 'filled',
+  size = 'medium',
+  width: buttonWidth,
+  backgroundColorProp,
+  textColorProp,
   borderRadius = 8,
 
   // State props
@@ -35,16 +71,17 @@ const Button = ({
   // Custom props
   loadingText = 'Loading...',
   activeOpacity = 0.7,
+  testID,
 }) => {
   // Determine background color based on variant and prop
-  const getBackgroundColor = () => {
+  const getBackgroundColor = (): string => {
     if (disabled) return '#ccc';
     if (backgroundColorProp) return backgroundColorProp;
     return variant === 'filled' ? '#FF8C00' : 'transparent';
   };
 
   // Get variant styles
-  const getVariantStyles = () => {
+  const getVariantStyles = (): ViewStyle => {
     const backgroundColor = getBackgroundColor();
     switch (variant) {
       case 'outlined':
@@ -65,9 +102,7 @@ const Button = ({
   };
 
   // Get size styles
-  const getSizeStyles = () => {
-    // If a custom width was provided, we'll apply it.
-    // Otherwise, we let the button shrink/grow based on its content.
+  const getSizeStyles = (): ViewStyle => {
     const widthStyle = buttonWidth ? { width: buttonWidth } : {};
 
     switch (size) {
@@ -93,7 +128,7 @@ const Button = ({
   };
 
   // Get text color based on variant and prop
-  const getTextColor = () => {
+  const getTextColor = (): string => {
     if (textColorProp) return textColorProp;
     if (disabled) return '#666';
     switch (variant) {
@@ -117,6 +152,7 @@ const Button = ({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={activeOpacity}
+      testID={testID}
     >
       {loading ? (
         <>

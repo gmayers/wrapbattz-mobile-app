@@ -11,18 +11,42 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import SubscriptionSetup from '../../components/SubscriptionSetup';
 
 // Orange color to match existing UI
 const ORANGE_COLOR = '#FF9500';
 
 const DataHandlingFeeScreen = ({ navigation }) => {
+  const { axiosInstance, isAdminOrOwner } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
+  
+  // Check permissions
+  React.useEffect(() => {
+    if (!isAdminOrOwner) {
+      Alert.alert(
+        'Access Denied',
+        'Only organization admins and owners can manage billing.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
+  }, [isAdminOrOwner, navigation]);
   
   useEffect(() => {
-    // Simulate API fetch
-    setTimeout(() => {
+    fetchBillingData();
+  }, []);
+
+  const fetchBillingData = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get('/billing/status/');
+      setBillingData(response.data);
+    } catch (error) {
+      console.error('Error fetching billing data:', error);
+      // Fall back to mock data if API not ready
       setBillingData({
         devices: {
           total: 5,
@@ -44,9 +68,10 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           free_quota: 3
         }
       });
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
   
   const handleActivate = () => {
     if (billingData.devices.billable <= 0) {
@@ -57,9 +82,15 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Activate Free Tier',
-            onPress: () => {
-              Alert.alert('Free Tier Activated', 'You can now use up to 3 devices at no cost.');
-              navigation.navigate('ManageBilling');
+            onPress: async () => {
+              try {
+                await axiosInstance.post('/billing/activate-free-tier/');
+                Alert.alert('Free Tier Activated', 'You can now use up to 3 devices at no cost.');
+                navigation.navigate('ManageBilling');
+              } catch (error) {
+                console.error('Error activating free tier:', error);
+                Alert.alert('Error', 'Failed to activate free tier. Please try again.');
+              }
             }
           }
         ]
@@ -67,24 +98,22 @@ const DataHandlingFeeScreen = ({ navigation }) => {
       return;
     }
     
-    // Simulate payment process
-    Alert.alert(
-      'Confirm Subscription',
-      `Are you sure you want to subscribe to the ${selectedPlan} plan?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Subscribe',
-          onPress: () => {
-            Alert.alert(
-              'Subscription Activated', 
-              'Your subscription has been successfully activated!',
-              [{ text: 'OK', onPress: () => navigation.navigate('ManageBilling') }]
-            );
-          }
-        }
-      ]
-    );
+    // Show payment setup for paid plans
+    setShowPayment(true);
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setShowPayment(false);
+    navigation.navigate('ManageBilling');
+  };
+
+  const handleSubscriptionError = (error) => {
+    setShowPayment(false);
+    console.error('Subscription error:', error);
+  };
+
+  const handleSubscriptionCancel = () => {
+    setShowPayment(false);
   };
   
   const renderPlanOption = (planType, title, description) => {
@@ -231,16 +260,35 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           Your payment covers the cost of securely handling device data and providing management services.
         </Text>
         
-        <TouchableOpacity
-          style={styles.activateButton}
-          onPress={handleActivate}
-        >
-          <Text style={styles.activateButtonText}>
-            {billingData?.devices.billable > 0
-              ? `Activate ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan`
-              : 'Activate Free Tier'}
-          </Text>
-        </TouchableOpacity>
+        {showPayment && billingData?.devices.billable > 0 ? (
+          <SubscriptionSetup
+            selectedPlan={selectedPlan}
+            billableDevices={billingData.devices.billable}
+            onSubscriptionSuccess={handleSubscriptionSuccess}
+            onSubscriptionError={handleSubscriptionError}
+            onCancel={handleSubscriptionCancel}
+          />
+        ) : (
+          <TouchableOpacity
+            style={styles.activateButton}
+            onPress={handleActivate}
+          >
+            <Text style={styles.activateButtonText}>
+              {billingData?.devices.billable > 0
+                ? `Activate ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan`
+                : 'Activate Free Tier'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {showPayment && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleSubscriptionCancel}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -449,6 +497,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

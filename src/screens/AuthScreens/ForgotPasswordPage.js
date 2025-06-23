@@ -18,7 +18,7 @@ const ForgotPasswordPage = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { axiosInstance } = useAuth(); // Use auth context
+  const { requestPasswordReset } = useAuth(); // Use auth context
 
   const validateEmail = () => {
     console.log('FP-1: Validating email:', email);
@@ -50,12 +50,10 @@ const ForgotPasswordPage = ({ navigation }) => {
     
     try {
       console.log('FP-8: Sending password reset request for email:', email);
-      const response = await axiosInstance.post('/auth/password/reset/', {
-        email,
-      });
+      const response = await requestPasswordReset(email);
 
-      console.log('FP-9: Password reset response received:', response.status);
-      console.log('FP-10: Response data:', JSON.stringify(response.data, null, 2));
+      console.log('FP-9: Password reset response received');
+      console.log('FP-10: Response data:', JSON.stringify(response, null, 2));
 
       // Show success message
       Alert.alert(
@@ -76,7 +74,8 @@ const ForgotPasswordPage = ({ navigation }) => {
       console.error('FP-13: Error response status:', error.response?.status);
       console.error('FP-14: Error response data:', JSON.stringify(error.response?.data, null, 2));
       
-      const errorMessage = error.response?.data?.detail || 
+      const errorMessage = error.message || 
+                          error.response?.data?.detail || 
                           error.response?.data?.message || 
                           'An error occurred while sending reset instructions. Please try again.';
       

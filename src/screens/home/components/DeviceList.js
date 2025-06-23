@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../../components/Button';
-import DeviceCard from './DeviceCard';
+import StandardDeviceCard from '../../../components/StandardDeviceCard';
 
 const { width } = Dimensions.get('window');
 
@@ -128,10 +128,14 @@ const DevicesList = ({
 
       <View style={styles.devicesGrid}>
         {devices.slice(0, 6).map((assignment) => (
-          <DeviceCard
+          <StandardDeviceCard
             key={assignment.id}
             assignment={assignment}
             onReturn={onReturnDevice}
+            onViewDetails={(deviceId) => navigation?.navigate('DeviceDetails', { 
+              deviceId,
+              sourceScreen: 'Home'
+            })}
             style={styles.deviceCard}
           />
         ))}

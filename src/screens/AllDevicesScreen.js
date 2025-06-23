@@ -18,6 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import StandardDeviceCard from '../components/StandardDeviceCard';
 
 const { width } = Dimensions.get('window');
 
@@ -72,16 +73,16 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  // Fetches current user's assignments (active ones after filtering)
+  // Fetches current user's assignments using my_assignments endpoint
   const fetchMyAssignments = async () => {
     try {
       setLoadingMyAssignments(true);
-      // Use getMyAssignments for the "My Assignments" tab
-      const data = await deviceService.getMyAssignments();
-
-      // Filter only active assignments
-      const activeUserAssignments = data.filter(assignment => !assignment.returned_date);
-      setMyAssignments(activeUserAssignments);
+      
+      const response = await axiosInstance.get('/device-assignments/my_assignments/');
+      const allAssignments = response.data;
+      
+      setMyAssignments(allAssignments);
+      console.log('My assignments count:', allAssignments.length);
     } catch (error) {
       handleApiError(error, 'Failed to fetch your device assignments');
     } finally {
@@ -129,7 +130,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
 
   const handleViewDeviceDetails = (deviceId) => {
     if (deviceId) {
-      navigation.navigate('DeviceDetails', { deviceId });
+      navigation.navigate('DeviceDetails', { 
+        deviceId,
+        sourceScreen: 'AllDevices'
+      });
     }
   };
 
@@ -165,48 +169,15 @@ const AllDevicesScreen = ({ navigation, route }) => {
   };
 
   const renderAssignmentCard = (assignment) => (
-    <TouchableOpacity
+    <StandardDeviceCard
       key={assignment.id}
-      activeOpacity={0.7}
-      onPress={() => handleViewDeviceDetails(assignment.device?.id)}
-      style={styles.deviceCardWrapper}
-    >
-      <Card
-        title={assignment.device.identifier}
-        subtitle={assignment.device.device_type}
-        style={styles.deviceCard}
-      >
-        <View style={styles.cardContent}>
-          <View style={styles.cardInfo}>
-            <Text style={styles.infoText}>Make: {assignment.device.make}</Text>
-            <Text style={styles.infoText}>Model: {assignment.device.model}</Text>
-            <Text style={styles.infoText}>Assigned: {assignment.assigned_date}</Text>
-            {assignment.returned_date && (
-              <Text style={styles.infoText}>Returned: {assignment.returned_date}</Text>
-            )}
-            {assignment.assigned_to_user && (
-              <Text style={styles.infoText}>
-                User: {assignment.assigned_to_user.first_name} {assignment.assigned_to_user.last_name}
-              </Text>
-            )}
-            {assignment.assigned_to_location && (
-              <Text style={styles.infoText}>Location: {assignment.assigned_to_location.name}</Text>
-            )}
-          </View>
-          <View style={styles.cardActions}>
-            {!assignment.returned_date && (
-              <Button
-                title="Return"
-                variant="outlined"
-                size="small"
-                onPress={(event) => handleDeviceReturn(assignment, event)}
-                style={styles.returnButton}
-              />
-            )}
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
+      assignment={assignment}
+      onReturn={(assignment) => handleDeviceReturn(assignment, { stopPropagation: () => {} })}
+      onViewDetails={handleViewDeviceDetails}
+      style={styles.deviceCard}
+      showActiveStatus={true}
+      showReturnButton={true}
+    />
   );
 
   // Renders a card for a device (currently not used for list rendering in this screen based on new requirements)
@@ -237,7 +208,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
               size="small"
               onPress={(event) => {
                 event.stopPropagation();
-                navigation.navigate('DeviceDetails', { deviceId: device.id });
+                navigation.navigate('DeviceDetails', { 
+                  deviceId: device.id,
+                  sourceScreen: 'AllDevices'
+                });
               }}
               style={styles.returnButton}
             />
@@ -301,7 +275,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
               styles.tabText,
               activeTab === 'all' && styles.activeTabText
             ]}>
-              Organization Assignments
+              Organization Devices
             </Text>
           </TouchableOpacity>
         )}
@@ -472,33 +446,7 @@ const styles = StyleSheet.create({
   },
   
   deviceCard: {
-    borderColor: '#FFA500', // Subtle orange border
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: '#FFF3E0', // Light orange background
-  },
-  cardContent: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    padding: 10,
-  },
-  cardInfo: {
-    marginBottom: 10,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#4A3B31', // Darker text for contrast on light orange
-    marginBottom: 4,
-  },
-  cardActions: {
-    width: '100%',
-    marginTop: 5,
-  },
-  returnButton: {
-    width: '100%',
-    borderColor: '#FF8C00', // Orange border for button
-    backgroundColor: 'transparent',
-    borderRadius: 5,
+    marginBottom: 15,
   },
   loader: {
     marginTop: 20,

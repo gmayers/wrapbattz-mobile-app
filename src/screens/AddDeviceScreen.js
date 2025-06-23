@@ -17,61 +17,13 @@ import Button from '../components/Button';
 import CustomModal from '../components/Modal';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { nfcService } from '../services/NFCService';
+import { DeviceNFCData } from '../types/nfc';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FF9500';
 
 
-// Function to normalize JSON string from EditTab
-const normalizeJsonString = (jsonString) => {
-  // Replace fancy quotes with standard quotes
-  let normalized = jsonString
-    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace various fancy double quotes
-    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'"); // Replace various fancy single quotes
-  
-  // Remove any control characters
-  normalized = normalized.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-  
-  // Fix any malformed JSON that might have occurred from improper encoding
-  try {
-    // Test if it's valid after normalization
-    JSON.parse(normalized);
-    return normalized;
-  } catch (e) {
-    // Further repairs for common issues
-    
-    // Replace unquoted property names - find words followed by colon
-    normalized = normalized.replace(/(\s*)(\w+)(\s*):(\s*)/g, (match, before, word, middle, after) => {
-      // Don't replace if it's already part of a properly quoted structure
-      if ((/"\w+"(\s*):/.test(match) || /'?\w+'?(\s*):/.test(match))) {
-        return match;
-      }
-      return `${before}"${word}"${middle}:${after}`;
-    });
-    
-    // Try to fix dangling quote issues
-    let quoteCount = 0;
-    for (let i = 0; i < normalized.length; i++) {
-      if (normalized[i] === '"' && (i === 0 || normalized[i-1] !== '\\')) {
-        quoteCount++;
-      }
-    }
-    
-    if (quoteCount % 2 !== 0) {
-      // Unbalanced quotes - try to identify and fix the issue
-      console.log("Detected unbalanced quotes, attempting fix");
-      
-      // Add a closing quote before any commas or closing braces
-      normalized = normalized.replace(/([^"\s,{}[\]]+)(\s*)(,|\}|\])/g, '$1"$2$3');
-      
-      // Fix any values that should start with a quote but don't
-      normalized = normalized.replace(/:(\s*)([^"\s,{}[\]][^,{}[\]]*)/g, ':$1"$2"');
-    }
-    
-    return normalized;
-  }
-};
 
 
 const AddDevicePage = ({ navigation }) => {
@@ -94,7 +46,7 @@ const AddDevicePage = ({ navigation }) => {
 
   const MAKES = [
     { label: 'Makita', value: 'Makita', key: 'make-makita' },
-    { label: 'Mawkee', value: 'Mawkee', key: 'make-mawkee' },
+    { label: 'Milwaukee', value: 'Milwaukee', key: 'make-milwaukee' },
     { label: 'Dewalt', value: 'Dewalt', key: 'make-dewalt' },
     { label: 'Bosch', value: 'Bosch', key: 'make-bosch' },
     { label: 'Hilti', value: 'Hilti', key: 'make-hilti' },
@@ -142,11 +94,11 @@ const [formData, setFormData] = useState({
   useEffect(() => {
     const initNfc = async () => {
       try {
-        await NfcManager.start();
-        logMessage('NFC initialized successfully');
+        await nfcService.initialize();
+        logMessage('NFC Service initialized successfully');
       } catch (error) {
-        logMessage(`Error initializing NFC: ${error.message}`);
-        console.error('Error initializing NFC:', error);
+        logMessage(`Error initializing NFC Service: ${error.message}`);
+        console.error('Error initializing NFC Service:', error);
       }
     };
 
@@ -154,7 +106,7 @@ const [formData, setFormData] = useState({
 
     // Clean up NFC when component unmounts
     return () => {
-      NfcManager.cancelTechnologyRequest().catch(() => {});
+      nfcService.cancelOperation().catch(() => {});
     };
   }, []);
 
@@ -548,7 +500,7 @@ const formatDate = (date) => {
     setNfcWriteSuccess(true);
   };
 
-// Improved NFC write function based on EditTab implementation
+// Improved NFC write function using the new NFCService
 const handleNFCWrite = async () => {
   let result = false;
   
@@ -556,141 +508,32 @@ const handleNFCWrite = async () => {
     setIsWritingNfc(true);
     logMessage('Starting NFC write operation');
 
-    // Prepare data to write to the NFC tag
-    const dataToWrite = {
-      ID: deviceIdentifier,
-      description: formData.description,
+    // Prepare device data for NFC writing (only specified fields)
+    const deviceData: DeviceNFCData = {
+      deviceId: deviceIdentifier,
       make: formData.make === 'Other' ? otherMake : formData.make,
       model: formData.model,
-      device_type: formData.device_type === 'Other' ? otherDeviceType : formData.device_type,
-      serial_number: formData.serial_number || '',
-      next_maintenance_date: formatDate(formData.next_maintenance_date)
+      serialNumber: formData.serial_number || '',
+      maintenanceInterval: parseInt(formData.maintenance_interval) || 0,
+      description: formData.description
     };
     
-    // Add assignment info but keep it concise
-    if (isUserAssignment) {
-      const userOption = userOptions.find(u => u.value === formData.user);
-      dataToWrite.assigned_to = userOption ? userOption.label : 'Unknown User';
-    } else {
-      const locationOption = locationOptions.find(l => l.value === formData.location);
-      dataToWrite.location = locationOption ? locationOption.label : 'Unknown Location';
-    }
-    
-    // Convert to JSON string
-    const jsonString = JSON.stringify(dataToWrite);
-    const stringByteLength = new TextEncoder().encode(jsonString).length;
-    
-    logMessage(`Data to write: ${jsonString}`);
-    logMessage(`Data size: ${stringByteLength} bytes`);
+    logMessage(`Device data to write: ${JSON.stringify(deviceData)}`);
 
-    // STEP 1: Request NFC technology
-    await NfcManager.requestTechnology(NfcTech.Ndef);
-    logMessage('NFC technology requested successfully');
+    // Use the new NFCService to write device data
+    const writeResult = await nfcService.writeDeviceToNFC(deviceData);
     
-    // STEP 2: Get tag info to check capacity
-    const tag = await NfcManager.getTag();
-    if (!tag) {
-      throw new Error('Could not read NFC tag. Make sure the tag is properly positioned.');
-    }
-    
-    // Check tag type and capacity
-    logMessage(`Tag detected: ${JSON.stringify({
-      type: tag.type,
-      maxSize: tag.maxSize || 'unknown',
-      id: tag.id ? tag.id.toString() : 'unknown'
-    })}`);
-    
-    // Check if tag is NDEF formatted
-    if (!tag.ndefMessage && !tag.isWritable) {
-      throw new Error('Tag is not NDEF formatted or not writable. Please use an NDEF formatted tag.');
-    }
-    
-    // Check capacity if available
-    if (tag.maxSize && stringByteLength > tag.maxSize) {
-      // Create a smaller version of the data if too large
-      const compactData = {
-        ID: deviceIdentifier,
-        desc: formData.description.substring(0, 30),
-        make: (formData.make === 'Other' ? otherMake : formData.make).substring(0, 15),
-        model: formData.model.substring(0, 15)
-      };
-      
-      const compactJson = JSON.stringify(compactData);
-      const compactSize = new TextEncoder().encode(compactJson).length;
-      
-      if (compactSize > tag.maxSize) {
-        throw new Error(`Data size (${stringByteLength} bytes) exceeds tag capacity (${tag.maxSize} bytes). Even a compact version (${compactSize} bytes) is too large.`);
-      } else {
-        // Use the compact version instead
-        logMessage(`Using compact data format to fit tag capacity: ${compactJson}`);
-        Alert.alert(
-          'Warning', 
-          'Full device data is too large for this tag. Writing a compact version instead.',
-          [{ text: 'Continue', style: 'default' }]
-        );
-        // Update jsonString to use compact version
-        dataToWrite = compactData;
-        jsonString = compactJson;
-      }
-    }
-
-    // STEP 3: Create NDEF message bytes
-    let bytes;
-    try {
-      bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-      logMessage('NDEF message encoded successfully');
-    } catch (encodeError) {
-      throw new Error(`Failed to encode message: ${encodeError.message}`);
-    }
-    
-    if (!bytes) {
-      throw new Error('Failed to create NDEF message bytes. Encoding returned null.');
-    }
-    
-    // Final size check
-    if (tag.maxSize && bytes.length > tag.maxSize) {
-      throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
-    }
-    
-    // STEP 4: Write the message to the tag
-    try {
-      await NfcManager.ndefHandler.writeNdefMessage(bytes);
-      logMessage('Write operation completed successfully');
-      
+    if (writeResult.success) {
+      logMessage('NFC write operation completed successfully');
       result = true;
       setNfcWriteSuccess(true);
-    } catch (writeError) {
-      // Check for specific write errors
-      if (writeError.message.includes('timeout')) {
-        throw new Error('Write operation timed out. Tag may have been moved too soon.');
-      } else if (writeError.message.includes('read-only')) {
-        throw new Error('This tag appears to be read-only and cannot be written to.');
-      } else {
-        throw new Error(`Write failed: ${writeError.message}`);
-      }
+    } else {
+      throw new Error(writeResult.error || 'Unknown error occurred during NFC write');
     }
   } catch (error) {
     logMessage(`Error in NFC write operation: ${error.message}`);
     
-    // Create user-friendly error message based on error type
-    let userErrorMessage;
-    
-    if (error.message.includes('NFC hardware')) {
-      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
-    } else if (error.message.includes('cancelled')) {
-      userErrorMessage = 'NFC operation was cancelled.';
-    } else if (error.message.includes('tag capacity')) {
-      userErrorMessage = error.message; // Already formatted for user
-    } else if (error.message.includes('timeout')) {
-      userErrorMessage = 'The tag was not held close enough to the device. Please try again and keep the tag steady.';
-    } else if (error.message.includes('not writable') || error.message.includes('read-only')) {
-      userErrorMessage = 'This tag cannot be written to. Please use a writable NFC tag.';
-    } else {
-      // Generic error with the technical message included
-      userErrorMessage = `Failed to write to NFC tag: ${error.message}`;
-    }
-    
-    Alert.alert('NFC Write Error', userErrorMessage, [
+    Alert.alert('NFC Write Error', error.message, [
       { 
         text: 'Retry', 
         onPress: () => handleNFCWrite(),
@@ -698,21 +541,14 @@ const handleNFCWrite = async () => {
       },
       {
         text: 'Cancel',
-        style: 'cancel'
+        style: 'cancel',
+        onPress: () => {
+          setIsWritingNfc(false);
+        }
       }
     ]);
-    
-    result = false;
   } finally {
-    // STEP 5: Always cancel technology request when done
-    try {
-      await NfcManager.cancelTechnologyRequest();
-      logMessage('NFC technology request canceled');
-    } catch (error) {
-      logMessage(`Error canceling NFC technology request: ${error.message}`);
-    }
     setIsWritingNfc(false);
-    logMessage('NFC write process completed');
   }
   
   return result;

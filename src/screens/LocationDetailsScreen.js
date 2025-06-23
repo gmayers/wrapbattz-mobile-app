@@ -76,20 +76,26 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     }
   }, [locationId, axiosInstance, logout]);
 
-  // Fetch devices at this location using direct API call
+  // Fetch devices at this location using the location-specific endpoint
   const fetchLocationDevices = useCallback(async () => {
     setIsDevicesLoading(true);
     
     try {
-      // Use direct axios call for consistency with original implementation
-      const response = await axiosInstance.get(`/devices/?location=${locationId}`);
+      // Use the specific endpoint that automatically returns only available devices at this location
+      const response = await axiosInstance.get(`/device-assignments/location/${locationId}/`);
       
-      // Adapt to your response format
-      let locationDevices = Array.isArray(response.data)
-        ? response.data
+      // The endpoint returns assignment objects with nested device info
+      const locationAssignments = Array.isArray(response.data) 
+        ? response.data 
         : response.data.results || [];
       
-      setDevices(locationDevices);
+      // Map the assignments to extract device information with unique assignment IDs
+      const availableDevices = locationAssignments.map(assignment => ({
+        ...assignment.device,
+        assignmentId: assignment.id // Add assignment ID for unique keys
+      }));
+      
+      setDevices(availableDevices);
     } catch (error) {
       console.error('Error fetching location devices:', error);
       
@@ -118,7 +124,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (location) {
       navigation.setOptions({
-        title: location.building_name || `${location.street_number} ${location.street_name}`,
+        title: location.name || `${location.street_number} ${location.street_name}`,
         headerBackTitle: 'Locations',
       });
     }
@@ -126,7 +132,10 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 
   // Navigate to device details
   const handleViewDevice = useCallback((deviceId) => {
-    navigation.navigate('DeviceDetails', { deviceId });
+    navigation.navigate('DeviceDetails', { 
+      deviceId,
+      sourceScreen: 'LocationDetails'
+    });
   }, [navigation]);
 
   // Handle direct assignment to current user
@@ -191,52 +200,75 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   }, [fetchLocationDetails, fetchLocationDevices]);
 
   const renderDeviceCard = useCallback((device) => {
-    // Check if the device is available for assignment
-    const isAvailable = device.status === 'available';
+    // Since we're only showing unassigned devices, all should be available for assignment
     const isAssigning = assigningDevice === device.id;
     
     return (
       <Card
-        key={device.id}
-        title={`${device.device_type}: ${device.identifier}`}
         style={styles.deviceCard}
       >
         <View style={styles.deviceContent}>
-          <Text style={styles.deviceText}>Make: {device.make || 'N/A'}</Text>
-          <Text style={styles.deviceText}>Model: {device.model || 'N/A'}</Text>
-          <Text style={styles.deviceText}>Status: {device.status || 'Unknown'}</Text>
-          {device.serial_number && (
-            <Text style={styles.deviceText}>Serial: {device.serial_number}</Text>
-          )}
-          {device.description && (
-            <Text style={styles.deviceText}>Description: {device.description}</Text>
-          )}
+          {/* Device Header */}
+          <View style={styles.deviceHeader}>
+            <View style={styles.deviceTitleContainer}>
+              <Text style={styles.deviceTitle}>{device.identifier}</Text>
+              <Text style={styles.deviceType}>{device.device_type}</Text>
+            </View>
+            <View style={styles.statusContainer}>
+              <View style={[styles.statusBadge, { backgroundColor: '#10B981' }]}>
+                <Text style={styles.statusText}>Available</Text>
+              </View>
+            </View>
+          </View>
           
+          {/* Device Details */}
+          <View style={styles.deviceDetails}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Make:</Text>
+              <Text style={styles.detailValue}>{device.make || 'N/A'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Model:</Text>
+              <Text style={styles.detailValue}>{device.model || 'N/A'}</Text>
+            </View>
+            {device.serial_number && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Serial:</Text>
+                <Text style={styles.detailValue}>{device.serial_number}</Text>
+              </View>
+            )}
+            {device.description && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Description:</Text>
+                <Text style={styles.detailValue}>{device.description}</Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Action Buttons */}
           <View style={styles.deviceActions}>
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={styles.viewButton}
               onPress={() => handleViewDevice(device.id)}
             >
               <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
-              <Text style={styles.actionText}>View Device</Text>
+              <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
             
-            {isAvailable && (
-              <TouchableOpacity 
-                style={[styles.actionButton, isAssigning && styles.actionButtonDisabled]}
-                onPress={() => handleAssignDevice(device.id)}
-                disabled={isAssigning}
-              >
-                <Ionicons 
-                  name={isAssigning ? "hourglass-outline" : "swap-horizontal-outline"} 
-                  size={18} 
-                  color={isAssigning ? '#999' : ORANGE_COLOR} 
-                />
-                <Text style={[styles.actionText, isAssigning && styles.actionTextDisabled]}>
-                  {isAssigning ? 'Assigning...' : 'Assign to Me'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity 
+              style={[styles.assignButton, isAssigning && styles.assignButtonDisabled]}
+              onPress={() => handleAssignDevice(device.id)}
+              disabled={isAssigning}
+            >
+              <Ionicons 
+                name={isAssigning ? "hourglass-outline" : "person-add-outline"} 
+                size={18} 
+                color="#FFFFFF" 
+              />
+              <Text style={styles.assignButtonText}>
+                {isAssigning ? 'Assigning...' : 'Assign to Me'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Card>
@@ -249,8 +281,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     return (
       <Card title="Location Details" style={styles.addressCard}>
         <View style={styles.addressContent}>
-          {location.building_name && (
-            <Text style={styles.addressText}>{location.building_name}</Text>
+          {location.name && (
+            <Text style={styles.addressText}>{location.name}</Text>
           )}
           <Text style={styles.addressText}>
             {location.street_number} {location.street_name}
@@ -333,7 +365,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Devices at this Location</Text>
+            <Text style={styles.sectionTitle}>Available Devices</Text>
             {isAdminOrOwner && (
               <Button
                 title="Add Device"
@@ -347,15 +379,20 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
           ) : devices.length > 0 ? (
             <>
-              {devices.map(renderDeviceCard)}
+              {devices.map((device) => (
+                <View key={device.assignmentId || `device-${device.id}`}>
+                  {renderDeviceCard(device)}
+                </View>
+              ))}
             </>
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="cube-outline" size={48} color="#CCCCCC" />
-              <Text style={styles.emptyText}>No devices assigned to this location</Text>
+              <Text style={styles.emptyText}>No available devices at this location</Text>
+              <Text style={styles.emptySubtext}>All devices are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
                 <Button
-                  title="Add First Device"
+                  title="Add Device"
                   onPress={handleAddDevice}
                   size="small"
                   style={{ marginTop: 15 }}
@@ -433,46 +470,120 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   deviceCard: {
-    marginBottom: 10,
+    marginBottom: 15,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   deviceContent: {
-    padding: 15,
+    padding: 20,
   },
-  deviceText: {
+  deviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  deviceTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  deviceTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  deviceType: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
+    fontWeight: '500',
+  },
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deviceDetails: {
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    width: 80,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
   },
   deviceActions: {
     flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
+    gap: 12,
   },
-  actionButton: {
+  viewButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    marginRight: 16,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: ORANGE_COLOR,
+    backgroundColor: 'transparent',
   },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  actionText: {
-    marginLeft: 6,
+  viewButtonText: {
+    marginLeft: 8,
     color: ORANGE_COLOR,
     fontSize: 14,
+    fontWeight: '600',
   },
-  actionTextDisabled: {
-    color: '#999',
+  assignButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: ORANGE_COLOR,
+    shadowColor: ORANGE_COLOR,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  assignButtonDisabled: {
+    backgroundColor: '#CCC',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  assignButtonText: {
+    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   loader: {
     marginVertical: 20,
@@ -487,6 +598,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 10,
+  },
+  emptySubtext: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
   errorContainer: {
     flex: 1,

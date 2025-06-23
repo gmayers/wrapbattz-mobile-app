@@ -4,7 +4,9 @@ import { View, Text, Alert, Platform, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
 import { styles } from './styles';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { nfcSecurityService } from '../../../../services/NFCSecurityService';
+
+const ORANGE_COLOR = '#FF9500';
 
 const LockTab = ({ onCancel }) => {
   const [lockPassword, setLockPassword] = useState('');
@@ -16,127 +18,30 @@ const LockTab = ({ onCancel }) => {
       return;
     }
 
+    if (lockPassword.length < 4) {
+      Alert.alert('Error', 'Password must be at least 4 characters long');
+      return;
+    }
+
     try {
       setIsLocking(true);
       
-      // Initialize NFC Manager
-      await NfcManager.start();
+      // Use the new NFCSecurityService
+      const result = await nfcSecurityService.lockTag(lockPassword);
       
-      // Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      // Get tag instance
-      const tag = await NfcManager.getTag();
-      
-      if (!tag) {
-        throw new Error('No NFC tag detected');
-      }
-      
-      // Check if the tag supports password protection
-      if (!tag.ndefSupported || !tag.isWritable) {
-        throw new Error('This tag does not support password protection');
-      }
-      
-      // Attempt to set password protection on the tag
-      // Note: This is the correct way to password protect an NDEF tag
-      // instead of just writing the password to the payload
-      try {
-        // Get NFC adapter for direct commands
-        const ndefAdapter = NfcManager.ndefHandler;
+      if (result.success) {
+        const lockTypeMessage = result.lockType === 'hardware' 
+          ? 'Tag locked with hardware password protection!'
+          : 'Tag locked with encrypted content protection!';
         
-        // Use the setPassword API if available
-        if (ndefAdapter && typeof ndefAdapter.setPassword === 'function') {
-          await ndefAdapter.setPassword(lockPassword);
-          Alert.alert('Success', 'Tag locked successfully with password protection!');
-        } 
-        // For NXP NTAG21x
-        else if (tag.techTypes && tag.techTypes.includes('android.nfc.tech.MifareUltralight')) {
-          // Implement NTAG21x password protection commands
-          // PWD_AUTH command (0x1B) - password authentication command
-          await NfcManager.transceive([
-            0x1B,                               // PWD_AUTH command
-            ...Array.from(new TextEncoder().encode(lockPassword.padEnd(4, '\0').slice(0, 4)))
-          ]);
-          
-          // Set protection configuration in NTAG
-          await NfcManager.transceive([
-            0xA2,                               // WRITE command
-            0x29,                               // Configuration page address
-            0x04,                               // AUTH0: page from which password protection starts
-            0x00,                               // No more access without password
-            0x00,                               // No password prot. for reading, password prot. for writing
-            0x00                                // Other access config settings
-          ]);
-          
-          Alert.alert('Success', 'Tag locked successfully with password protection!');
-        }
-        // For other tag types we'll add a special marker in the NDEF record
-        else {
-          // Read existing NDEF message
-          let existingMessage = null;
-          
-          // Try to read current content
-          if (tag.ndefMessage && tag.ndefMessage.length > 0) {
-            try {
-              const record = tag.ndefMessage[0];
-              if (record && record.payload) {
-                const textContent = Ndef.text.decodePayload(record.payload);
-                existingMessage = textContent;
-              }
-            } catch (error) {
-              // If we can't read, we'll start fresh
-              existingMessage = null;
-            }
-          }
-          
-          // Encrypt the content with password (simple XOR for demonstration)
-          // In a real implementation, you'd use a proper encryption algorithm
-          const encryptContent = (content, password) => {
-            let result = '';
-            for (let i = 0; i < content.length; i++) {
-              const charCode = content.charCodeAt(i) ^ password.charCodeAt(i % password.length);
-              result += String.fromCharCode(charCode);
-            }
-            return result;
-          };
-          
-          // Create a special locked message format
-          const lockedData = {
-            _locked: true,
-            _hint: "This tag is password protected",
-            _content: existingMessage ? encryptContent(existingMessage, lockPassword) : ""
-          };
-          
-          const jsonString = JSON.stringify(lockedData);
-          
-          // Write the protected data
-          const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-          
-          if (bytes) {
-            await NfcManager.ndefHandler.writeNdefMessage(bytes);
-            Alert.alert('Success', 'Tag content encrypted and locked with password!');
-          } else {
-            throw new Error('Failed to encode message for locking');
-          }
-        }
-        
+        Alert.alert('Success', lockTypeMessage);
         setLockPassword('');
-      } catch (lockError) {
-        // Handle specific password setting errors
-        if (lockError.message && lockError.message.includes('not supported')) {
-          throw new Error('Password protection not supported on this tag type');
-        } else {
-          throw lockError;
-        }
+      } else {
+        throw new Error(result.error || 'Unknown error occurred during lock operation');
       }
     } catch (error) {
-      Alert.alert(
-        'Error', 
-        `Failed to lock tag: ${error.message}`
-      );
+      Alert.alert('Error', error.message || 'Failed to lock tag');
     } finally {
-      // Always cancel technology request when done
-      NfcManager.cancelTechnologyRequest();
       setIsLocking(false);
     }
   };
@@ -144,7 +49,10 @@ const LockTab = ({ onCancel }) => {
   const cancelLocking = () => {
     if (isLocking) {
       setIsLocking(false);
-      NfcManager.cancelTechnologyRequest();
+      nfcSecurityService.getInstance().then(service => {
+        // Cancel any ongoing operations
+        service.constructor.prototype.cancelOperation?.();
+      }).catch(() => {});
     }
     onCancel?.();
   };
@@ -179,8 +87,9 @@ const LockTab = ({ onCancel }) => {
             <Button
               title="Lock Tag"
               onPress={handleLockNfc}
-              disabled={isLocking || !lockPassword}
-              primary
+              disabled={isLocking || !lockPassword || lockPassword.length < 4}
+              style={[styles.lockButton, { backgroundColor: ORANGE_COLOR }]}
+              textColor="white"
               testID="lock-tag-button"
             />
             
@@ -205,7 +114,7 @@ const LockTab = ({ onCancel }) => {
       )}
       
       <Text style={styles.infoText}>
-        Note: Only certain NFC tags support password protection. For best results, use NTAG213, NTAG215, or NTAG216 tags.
+        Note: NTAG213/215/216 tags support hardware password protection. Other NDEF tags will use encrypted content protection.
       </Text>
     </View>
   );

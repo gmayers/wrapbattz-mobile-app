@@ -221,7 +221,11 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   // Navigate to report details when clicking on a report
   const handleViewReport = (reportId) => {
-    navigation.navigate('ReportDetails', { reportId });
+    navigation.navigate('ReportDetails', { 
+      reportId,
+      sourceScreen: 'DeviceDetails',
+      sourceDeviceId: deviceId 
+    });
   };
 
   if (loading) {
@@ -399,43 +403,92 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
           {historyLoading ? (
             <ActivityIndicator size="small" color={ORANGE_COLOR} style={styles.sectionLoader} />
           ) : deviceHistory.length > 0 ? (
-            deviceHistory.map((assignment, index) => (
-              <View key={assignment.id} style={styles.historyItem}>
-                <View style={styles.historyHeader}>
-                  <Text style={styles.historyDate}>
-                    {formatDate(assignment.assigned_date)}
-                    {assignment.returned_date ? 
-                      ` - ${formatDate(assignment.returned_date)}` : 
-                      ' - Present'}
-                  </Text>
-                </View>
-                
-                <View style={styles.historyDetails}>
-                  {assignment.assigned_to_user && (
-                    <Text style={styles.historyText}>
-                      <Text style={styles.historyLabel}>Assigned to: </Text>
-                      {assignment.assigned_to_user.first_name} {assignment.assigned_to_user.last_name}
+            deviceHistory.map((assignment, index) => {
+              const isActive = !assignment.returned_date;
+              
+              return (
+                <View key={assignment.id} style={[styles.historyItem, isActive && styles.activeHistoryItem]}>
+                  {/* Assignment Status Badge */}
+                  <View style={styles.historyHeader}>
+                    <View style={styles.historyDateContainer}>
+                      <Text style={styles.historyDate}>
+                        {formatDate(assignment.assigned_date)}
+                        {assignment.returned_date ? 
+                          ` → ${formatDate(assignment.returned_date)}` : 
+                          ' → Current'}
+                      </Text>
+                      {isActive && (
+                        <View style={styles.activeBadge}>
+                          <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.assignmentType}>
+                      {assignment.user ? 'User Assignment' : 'Location Assignment'}
                     </Text>
-                  )}
+                  </View>
                   
-                  {assignment.assigned_to_location && (
-                    <Text style={styles.historyText}>
-                      <Text style={styles.historyLabel}>Location: </Text>
-                      {assignment.assigned_to_location.name}
-                    </Text>
-                  )}
+                  <View style={styles.historyDetails}>
+                    {/* User Assignment */}
+                    {assignment.user && assignment.user_name && (
+                      <View style={styles.assignmentInfo}>
+                        <View style={styles.assignmentIcon}>
+                          <Ionicons name="person" size={16} color={ORANGE_COLOR} />
+                        </View>
+                        <View style={styles.assignmentText}>
+                          <Text style={styles.assignmentLabel}>Assigned to Person:</Text>
+                          <Text style={styles.assignmentValue}>{assignment.user_name}</Text>
+                          {assignment.user_email && (
+                            <Text style={styles.assignmentSubtext}>{assignment.user_email}</Text>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                    
+                    {/* Location Assignment */}
+                    {assignment.location && assignment.location_name && (
+                      <View style={styles.assignmentInfo}>
+                        <View style={styles.assignmentIcon}>
+                          <Ionicons name="location" size={16} color={ORANGE_COLOR} />
+                        </View>
+                        <View style={styles.assignmentText}>
+                          <Text style={styles.assignmentLabel}>Assigned to Location:</Text>
+                          <Text style={styles.assignmentValue}>{assignment.location_name}</Text>
+                        </View>
+                      </View>
+                    )}
+                    
+                    {/* Assigned By */}
+                    {assignment.assigned_by_name && (
+                      <View style={styles.assignmentInfo}>
+                        <View style={styles.assignmentIcon}>
+                          <Ionicons name="person-add" size={16} color="#666" />
+                        </View>
+                        <View style={styles.assignmentText}>
+                          <Text style={styles.assignmentLabel}>Assigned by:</Text>
+                          <Text style={styles.assignmentValue}>{assignment.assigned_by_name}</Text>
+                        </View>
+                      </View>
+                    )}
+                    
+                    {/* Previous Assignment Link */}
+                    {assignment.previous_assignment_details && (
+                      <View style={styles.previousAssignmentInfo}>
+                        <Text style={styles.previousAssignmentLabel}>Previous Assignment:</Text>
+                        <Text style={styles.previousAssignmentText}>
+                          {assignment.previous_assignment_details.user_name 
+                            ? `${assignment.previous_assignment_details.user_name} (${formatDate(assignment.previous_assignment_details.assigned_date)} - ${formatDate(assignment.previous_assignment_details.returned_date)})`
+                            : `Location assignment (${formatDate(assignment.previous_assignment_details.assigned_date)} - ${formatDate(assignment.previous_assignment_details.returned_date)})`
+                          }
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   
-                  {assignment.notes && (
-                    <Text style={styles.historyText}>
-                      <Text style={styles.historyLabel}>Notes: </Text>
-                      {assignment.notes}
-                    </Text>
-                  )}
+                  {index < deviceHistory.length - 1 && <View style={styles.historySeparator} />}
                 </View>
-                
-                {index < deviceHistory.length - 1 && <View style={styles.historySeparator} />}
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={styles.emptyText}>No assignment history available</Text>
           )}
@@ -654,31 +707,103 @@ const styles = StyleSheet.create({
     marginVertical: 15,
   },
   historyItem: {
-    marginBottom: 10,
+    marginBottom: 15,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  activeHistoryItem: {
+    backgroundColor: '#fff3cd',
+    borderColor: ORANGE_COLOR,
+    borderWidth: 2,
   },
   historyHeader: {
-    marginBottom: 5,
+    marginBottom: 12,
+  },
+  historyDateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   historyDate: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-  historyDetails: {
-    paddingLeft: 5,
+  activeBadge: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
-  historyText: {
+  activeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  assignmentType: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 3,
-  },
-  historyLabel: {
+    color: '#6c757d',
     fontWeight: '500',
+    fontStyle: 'italic',
+  },
+  historyDetails: {
+    gap: 12,
+  },
+  assignmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingLeft: 8,
+  },
+  assignmentIcon: {
+    width: 24,
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  assignmentText: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  assignmentLabel: {
+    fontSize: 13,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  assignmentValue: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '600',
+  },
+  assignmentSubtext: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  previousAssignmentInfo: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#dee2e6',
+  },
+  previousAssignmentLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  previousAssignmentText: {
+    fontSize: 13,
+    color: '#495057',
+    fontStyle: 'italic',
   },
   historySeparator: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 10,
+    marginVertical: 15,
   },
   reportItem: {
     marginBottom: 15,
