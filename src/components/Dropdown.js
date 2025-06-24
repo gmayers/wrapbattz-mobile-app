@@ -1,7 +1,9 @@
 // components/Dropdown/index.js
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal, Animated, Dimensions } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const Dropdown = ({
   // Required props
@@ -27,9 +29,47 @@ const Dropdown = ({
 }) => {
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
+  const [overlayOpacity] = useState(new Animated.Value(0));
 
   // Find the selected item's label
   const selectedLabel = items.find(item => item.value === value)?.label || placeholder;
+
+  // Enhanced animation functions for iOS
+  const showModal = () => {
+    setIsPickerVisible(true);
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 65,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const hideModal = () => {
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsPickerVisible(false);
+      setIsFocused(false);
+    });
+  };
 
   // Render different picker variants for iOS and Android
   const renderPicker = () => {
@@ -37,40 +77,62 @@ const Dropdown = ({
       return (
         <Modal
           visible={isPickerVisible}
-          animationType="slide"
+          animationType="none"
           transparent={true}
-          onRequestClose={() => setIsPickerVisible(false)}
+          onRequestClose={hideModal}
+          statusBarTranslucent={true}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            onPress={() => setIsPickerVisible(false)}
-            activeOpacity={1}
+          <Animated.View 
+            style={[
+              styles.modalOverlay, 
+              { 
+                opacity: overlayOpacity,
+                backgroundColor: 'rgba(0, 0, 0, 0.4)'
+              }
+            ]}
           >
-            <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.modalOverlayTouchable}
+              onPress={hideModal}
+              activeOpacity={1}
+            />
+            <Animated.View 
+              style={[
+                styles.modalContent,
+                {
+                  transform: [{ translateY: slideAnim }]
+                }
+              ]}
+            >
               <View style={styles.pickerHeader}>
-                <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
+                <TouchableOpacity onPress={hideModal} style={styles.doneButtonContainer}>
                   <Text style={styles.doneButton}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <Picker
-                selectedValue={value}
-                onValueChange={(itemValue) => {
-                  onValueChange(itemValue);
-                  setIsPickerVisible(false);
-                }}
-                testID={testID}
-              >
-                {items.map((item) => (
-                  <Picker.Item 
-                    key={item.value} 
-                    label={item.label} 
-                    value={item.value}
-                    color={disabled ? '#999' : '#000'}
-                  />
-                ))}
-              </Picker>
-            </View>
-          </TouchableOpacity>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={value}
+                  onValueChange={(itemValue) => {
+                    onValueChange(itemValue);
+                    setTimeout(hideModal, 100); // Slight delay for better UX
+                  }}
+                  testID={testID}
+                  style={styles.iosPicker}
+                >
+                  {items.map((item) => (
+                    <Picker.Item 
+                      key={item.value} 
+                      label={item.label} 
+                      value={item.value}
+                      color={disabled ? '#999' : '#000'}
+                    />
+                  ))}
+                </Picker>
+              </View>
+              {/* Safe area bottom padding */}
+              <View style={styles.safeAreaBottom} />
+            </Animated.View>
+          </Animated.View>
         </Modal>
       );
     }
@@ -99,8 +161,12 @@ const Dropdown = ({
 
   const handlePress = () => {
     if (!disabled) {
-      setIsPickerVisible(true);
       setIsFocused(true);
+      if (Platform.OS === 'ios') {
+        showModal();
+      } else {
+        setIsPickerVisible(true);
+      }
     }
   };
 
@@ -213,25 +279,53 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0, // Extra padding for iOS home indicator
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: SCREEN_HEIGHT * 0.6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  pickerContainer: {
+    paddingHorizontal: 16,
   },
   pickerHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     alignItems: 'flex-end',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#F2F2F7',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  doneButtonContainer: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   doneButton: {
     color: '#007AFF',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
+    lineHeight: 22,
+  },
+  iosPicker: {
+    height: 216, // Standard iOS picker height
+  },
+  safeAreaBottom: {
+    height: Platform.OS === 'ios' ? 34 : 16, // iOS home indicator safe area
+    backgroundColor: '#FFFFFF',
   },
 });
 

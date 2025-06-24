@@ -1,60 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import Button from '../../../../components/Button';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
 
 
-// Import the normalizeJsonString function from ReadTab
-const normalizeJsonString = (jsonString) => {
-  // Replace fancy quotes with standard quotes
-  let normalized = jsonString
-    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace various fancy double quotes
-    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'"); // Replace various fancy single quotes
-  
-  // Remove any control characters
-  normalized = normalized.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-  
-  // Fix any malformed JSON that might have occurred from improper encoding
-  try {
-    // Test if it's valid after normalization
-    JSON.parse(normalized);
-    return normalized;
-  } catch (e) {
-    // Further repairs for common issues
-    
-    // Replace unquoted property names - find words followed by colon
-    normalized = normalized.replace(/(\s*)(\w+)(\s*):(\s*)/g, (match, before, word, middle, after) => {
-      // Don't replace if it's already part of a properly quoted structure
-      if ((/"\w+"(\s*):/.test(match) || /'?\w+'?(\s*):/.test(match))) {
-        return match;
-      }
-      return `${before}"${word}"${middle}:${after}`;
-    });
-    
-    // Try to fix dangling quote issues
-    let quoteCount = 0;
-    for (let i = 0; i < normalized.length; i++) {
-      if (normalized[i] === '"' && (i === 0 || normalized[i-1] !== '\\')) {
-        quoteCount++;
-      }
-    }
-    
-    if (quoteCount % 2 !== 0) {
-      // Unbalanced quotes - try to identify and fix the issue
-      console.log("[EditTab] Detected unbalanced quotes, attempting fix");
-      
-      // Add a closing quote before any commas or closing braces
-      normalized = normalized.replace(/([^"\s,{}[\]]+)(\s*)(,|\}|\])/g, '$1"$2$3');
-      
-      // Fix any values that should start with a quote but don't
-      normalized = normalized.replace(/:(\s*)([^"\s,{}[\]][^,{}[\]]*)/g, ':$1"$2"');
-    }
-    
-    return normalized;
-  }
-};
+// NFCService handles normalization, so we don't need this function anymore
 
 
 // New function to validate JSON structure
@@ -96,108 +48,77 @@ const handleReadTag = async () => {
   try {
     setIsReading(true);
     setTagData(null);
+    setEditedFields({});
     
-    console.log('[EditTab] Starting tag read operation');
+    console.log('[EditTab] Starting enhanced tag read with NFCService');
     
-    // Initialize NFC Manager
-    await NfcManager.start();
-    console.log('[EditTab] NFC Manager started');
+    // Use the enhanced NFCService for reading
+    const readResult = await nfcService.readNFC({ timeout: 60000 });
     
-    // STEP 1: Request Technology
-    await NfcManager.requestTechnology(NfcTech.Ndef);
-    console.log('[EditTab] NFC technology requested successfully');
-    
-    // Get tag information
-    const tag = await NfcManager.getTag();
-    
-    if (!tag) {
-      throw new Error('No NFC tag detected. Please position the tag correctly.');
-    }
-    
-    console.log(`[EditTab] Tag detected: ${JSON.stringify({
-      type: tag.type || 'unknown',
-      maxSize: tag.maxSize || 'unknown',
-      isWritable: tag.isWritable || false,
-      id: tag.id ? tag.id.toString('hex') : 'unknown'
-    })}`);
-    
-    // Check for NDEF message
-    if (!tag.ndefMessage || !tag.ndefMessage.length) {
-      // Try to check if this is a Mifare tag
-      if (tag.techTypes && tag.techTypes.some(tech => tech.includes('MifareUltralight'))) {
-        console.log('[EditTab] Detected Mifare tag, attempting to read');
-        try {
-          // Cancel the current technology request
-          await NfcManager.cancelTechnologyRequest();
-          
-          // Switch to Mifare technology
-          await NfcManager.requestTechnology(NfcTech.MifareUltralight);
-          
-          // Read Mifare pages
-          const mifareData = await readMifarePagesWithRetry();
-          
-          // Process Mifare data
-          if (mifareData && mifareData.length > 0) {
-            // Handle Mifare data...
-            console.log('[EditTab] Successfully read Mifare tag');
-            
-            // Convert Mifare data to a usable format
-            // ... processing code here
-            
-            Alert.alert('Success', 'Read Mifare tag data successfully!');
-            result = true;
-            return;
-          }
-        } catch (mifare_error) {
-          console.warn('[EditTab] Mifare read failed:', mifare_error);
-          // Continue with standard error handling
-        }
-      }
+    if (readResult.success) {
+      console.log('[EditTab] Successfully read tag using NFCService');
       
-      throw new Error('No NDEF message found on tag. This may not be an NDEF formatted tag or it may be empty.');
-    }
-    
-    // Process first NDEF record
-    const record = tag.ndefMessage[0];
-    
-    if (record && record.payload) {
-      try {
-        // Try multiple decoding approaches to maximize success
-        let textContent = decodeTagContent(record);
+      if (readResult.data?.parsedData) {
+        // Handle structured JSON data
+        const jsonData = readResult.data.parsedData;
         
-        if (textContent) {
-          console.log('[EditTab] Successfully decoded tag content');
+        if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
+          // Set the first key to maintain EditTab functionality
+          const keys = Object.keys(jsonData);
+          if (keys.length > 0) {
+            setFirstKey(keys[0]);
+          }
           
-          // Process the content based on its format
-          if (isLikelyJSON(textContent)) {
-            try {
-              // Process JSON content
-              processJsonTagContent(textContent);
-              Alert.alert('Success', 'NFC tag data loaded successfully!');
-              result = true;
-            } catch (jsonError) {
-              console.warn('[EditTab] JSON processing error:', jsonError);
-              setTagData({});
-              setEditedFields({ "content": textContent });
-              Alert.alert('Partial Success', 'Could not parse structured data. Loaded raw content.');
-              result = true;
+          setTagData(jsonData);
+          setEditedFields({ ...jsonData });
+          
+          Alert.alert('Success', 'NFC tag data loaded successfully!');
+          result = true;
+        } else {
+          // Handle non-object data
+          setTagData({});
+          setEditedFields({ "content": JSON.stringify(jsonData) });
+          Alert.alert('Success', 'Tag content loaded.');
+          result = true;
+        }
+      } else if (readResult.data?.content) {
+        // Handle plain text content
+        setTagData({});
+        setEditedFields({ "content": readResult.data.content });
+        Alert.alert('Success', 'Plain text content loaded.');
+        result = true;
+      } else if (readResult.data?.jsonString) {
+        // Try to parse JSON string
+        try {
+          const parsed = JSON.parse(readResult.data.jsonString);
+          
+          if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+            const keys = Object.keys(parsed);
+            if (keys.length > 0) {
+              setFirstKey(keys[0]);
             }
+            
+            setTagData(parsed);
+            setEditedFields({ ...parsed });
+            Alert.alert('Success', 'NFC tag data loaded successfully!');
+            result = true;
           } else {
-            // Not JSON format, just use the text content
             setTagData({});
-            setEditedFields({ "content": textContent });
-            Alert.alert('Success', 'Plain text content loaded.');
+            setEditedFields({ "content": readResult.data.jsonString });
+            Alert.alert('Success', 'Tag content loaded.');
             result = true;
           }
-        } else {
-          throw new Error('Failed to decode tag content. The format may be unsupported.');
+        } catch (e) {
+          setTagData({});
+          setEditedFields({ "content": readResult.data.jsonString });
+          Alert.alert('Success', 'Raw content loaded.');
+          result = true;
         }
-      } catch (decodeError) {
-        console.error('[EditTab] Decode error:', decodeError);
-        throw new Error(`Failed to decode tag content: ${decodeError.message}`);
+      } else {
+        throw new Error('No valid data found on tag');
       }
     } else {
-      throw new Error('Tag contains an invalid or empty NDEF record.');
+      throw new Error(readResult.error || 'Failed to read NFC tag');
     }
   } catch (error) {
     console.error('[EditTab] Error in handleReadTag:', error);

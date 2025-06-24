@@ -22,54 +22,92 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
 
   const readNfcTag = async () => {
     try {
-      // Use the new NFCService to read the tag
-      const readResult = await nfcService.readNFC();
+      console.log('[NFCScanTab] Starting enhanced NFC read with validation');
+      
+      // Use the enhanced NFCService with longer timeout for reliability
+      const readResult = await nfcService.readNFC({ timeout: 60000 });
       
       if (!readResult.success) {
+        // Use the detailed error messages from NFCService
         throw new Error(readResult.error || 'Failed to read NFC tag');
       }
       
-      // Extract the JSON data from the result
+      console.log('[NFCScanTab] NFC read successful, processing data');
+      
+      // Extract the JSON data from the result with enhanced handling
       let jsonData;
       if (readResult.data?.parsedData) {
         jsonData = readResult.data.parsedData;
+        console.log('[NFCScanTab] Using parsed JSON data');
       } else if (readResult.data?.jsonString) {
-        jsonData = JSON.parse(readResult.data.jsonString);
+        try {
+          jsonData = JSON.parse(readResult.data.jsonString);
+          console.log('[NFCScanTab] Parsed JSON string successfully');
+        } catch (parseError) {
+          throw new Error('Tag contains invalid JSON format. Please ensure the tag was written correctly.');
+        }
       } else if (readResult.data?.content) {
         // Try to parse as JSON
         try {
           jsonData = JSON.parse(readResult.data.content);
+          console.log('[NFCScanTab] Parsed content as JSON');
         } catch (e) {
-          throw new Error('Tag does not contain valid JSON data');
+          throw new Error('Tag does not contain valid JSON data. This may not be a device tag.');
         }
       } else {
-        throw new Error('No valid data found on tag');
+        throw new Error('No valid data found on tag. The tag may be empty or corrupted.');
+      }
+      
+      // Validate that we have an object (not array or primitive)
+      if (!jsonData || typeof jsonData !== 'object' || Array.isArray(jsonData)) {
+        throw new Error('Tag does not contain valid device data format.');
       }
       
       // Extract device ID or identifier using various possible field names
       let deviceIdentifier = null;
       
-      // Check for various possible identifier field names
-      if (jsonData.deviceId) {
-        deviceIdentifier = jsonData.deviceId;
-      } else if (jsonData.identifier) {
-        deviceIdentifier = jsonData.identifier;
-      } else if (jsonData.ID) {
-        deviceIdentifier = jsonData.ID;
-      } else if (jsonData.id) {
-        deviceIdentifier = jsonData.id;
-      } else if (jsonData.device_id) {
-        deviceIdentifier = jsonData.device_id;
+      // Check for various possible identifier field names (case-insensitive)
+      const possibleKeys = ['deviceId', 'identifier', 'ID', 'id', 'device_id', 'serialNumber', 'serial_number'];
+      
+      for (const key of possibleKeys) {
+        if (jsonData[key] && String(jsonData[key]).trim()) {
+          deviceIdentifier = String(jsonData[key]).trim();
+          console.log(`[NFCScanTab] Found device identifier in field '${key}': ${deviceIdentifier}`);
+          break;
+        }
+      }
+      
+      // Also check case-insensitive variations
+      if (!deviceIdentifier) {
+        const lowerKeys = Object.keys(jsonData).map(k => k.toLowerCase());
+        for (const possibleKey of possibleKeys) {
+          const lowerKey = possibleKey.toLowerCase();
+          const foundKey = Object.keys(jsonData).find(k => k.toLowerCase() === lowerKey);
+          if (foundKey && jsonData[foundKey] && String(jsonData[foundKey]).trim()) {
+            deviceIdentifier = String(jsonData[foundKey]).trim();
+            console.log(`[NFCScanTab] Found device identifier in field '${foundKey}': ${deviceIdentifier}`);
+            break;
+          }
+        }
       }
       
       if (!deviceIdentifier) {
-        throw new Error('No device identifier found on this tag');
+        const availableFields = Object.keys(jsonData).join(', ');
+        throw new Error(`No device identifier found on this tag. Available fields: ${availableFields}. Please ensure this is a valid device tag.`);
       }
       
+      // Additional validation for identifier format
+      if (deviceIdentifier.length < 3) {
+        throw new Error('Device identifier is too short. This may not be a valid device tag.');
+      }
+      
+      console.log('[NFCScanTab] Successfully extracted device identifier:', deviceIdentifier);
       return deviceIdentifier;
     } catch (error) {
-      // Re-throw with appropriate error message
-      throw new Error(error.message || 'Failed to read NFC tag');
+      console.error('[NFCScanTab] Error reading NFC tag:', error);
+      // Re-throw with enhanced error context
+      const errorMessage = error.message || 'Failed to read NFC tag';
+      throw new Error(errorMessage);
     }
   };
 

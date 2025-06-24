@@ -6,7 +6,12 @@ export interface NFCTagData {
 
 export interface NFCOperationResult {
   success: boolean;
-  data?: NFCTagData;
+  data?: {
+    jsonString?: string;
+    parsedData?: any;
+    content?: string;
+    [key: string]: any;
+  };
   error?: string;
 }
 

@@ -4,61 +4,20 @@ import Button from '../../../../components/Button';
 import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 
-const normalizeJsonString = (jsonString) => {
-  // Replace fancy quotes with standard quotes
-  let normalized = jsonString
-    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace various fancy double quotes
-    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'"); // Replace various fancy single quotes
-  
-  // Remove any control characters
-  normalized = normalized.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
-  
-  // Fix any malformed JSON that might have occurred from improper encoding
-  try {
-    // Test if it's valid after normalization
-    JSON.parse(normalized);
-    return normalized;
-  } catch (e) {
-    // Further repairs for common issues
-    
-    // Replace unquoted property names - find words followed by colon
-    normalized = normalized.replace(/(\s*)(\w+)(\s*):(\s*)/g, (match, before, word, middle, after) => {
-      // Don't replace if it's already part of a properly quoted structure
-      if ((/"\w+"(\s*):/.test(match) || /'?\w+'?(\s*):/.test(match))) {
-        return match;
-      }
-      return `${before}"${word}"${middle}:${after}`;
-    });
-    
-    // Try to fix dangling quote issues
-    let quoteCount = 0;
-    for (let i = 0; i < normalized.length; i++) {
-      if (normalized[i] === '"' && (i === 0 || normalized[i-1] !== '\\')) {
-        quoteCount++;
-      }
-    }
-    
-    if (quoteCount % 2 !== 0) {
-      // Unbalanced quotes - try to identify and fix the issue
-      console.log("[ReadTab] Detected unbalanced quotes, attempting fix");
-      
-      // Add a closing quote before any commas or closing braces
-      normalized = normalized.replace(/([^"\s,{}[\]]+)(\s*)(,|\}|\])/g, '$1"$2$3');
-      
-      // Fix any values that should start with a quote but don't
-      normalized = normalized.replace(/:(\s*)([^"\s,{}[\]][^,{}[\]]*)/g, ':$1"$2"');
-    }
-    
-    return normalized;
-  }
-};
+// Remove the manual normalization logic - NFCService handles this now
 
 const ReadTab = ({ withNfcManager, onCancel }) => {
   const [isReading, setIsReading] = useState(false);
   const [readResult, setReadResult] = useState(null);
 
   const cancelNfcRead = async () => {
-    setIsReading(false);
+    try {
+      setIsReading(false);
+      await nfcService.cancelOperation();
+      console.log('[ReadTab] NFC operation cancelled');
+    } catch (error) {
+      console.warn('[ReadTab] Error cancelling NFC operation:', error);
+    }
     onCancel?.();
   };
 
@@ -67,138 +26,64 @@ const ReadTab = ({ withNfcManager, onCancel }) => {
       setIsReading(true);
       setReadResult(null);
       
-      await withNfcManager(async () => {
-        const tag = await NfcManager.getTag();
-        
-        if (!tag) {
-          Alert.alert('Error', 'No NFC tag detected.');
-          return;
-        }
-        
-        if (!tag.ndefMessage || !tag.ndefMessage.length) {
-          Alert.alert('Error', 'No NDEF message found on tag.');
-          return;
-        }
-        
-        // Process first NDEF record
-        const record = tag.ndefMessage[0];
-        
-        if (record && record.payload && record.tnf === 1) {
-          try {
-            // Properly decode the NDEF Text Record payload
-            let textContent;
-            try {
-              textContent = Ndef.text.decodePayload(record.payload);
-            } catch (e) {
-              // Manual decoding fallback
-              try {
-                // Get a byte array from the payload
-                const bytes = [...new Uint8Array(record.payload)];
-                
-                // First byte contains status and language length
-                const statusByte = bytes[0];
-                const languageLength = statusByte & 0x3F;
-                const isUTF16 = !(statusByte & 0x80);
-                
-                // Skip language code and status byte
-                const textBytes = bytes.slice(1 + languageLength);
-                
-                // Convert to string based on encoding
-                if (isUTF16) {
-                  // UTF-16 encoding
-                  const uint16Array = new Uint16Array(textBytes.length / 2);
-                  for (let i = 0; i < textBytes.length; i += 2) {
-                    uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
-                  }
-                  textContent = String.fromCharCode.apply(null, uint16Array);
-                } else {
-                  // UTF-8 encoding
-                  textContent = String.fromCharCode.apply(null, textBytes);
-                }
-              } catch (manualError) {
-                throw e; // rethrow the original error
-              }
-            }
-            
-            // Check if it's valid JSON and process accordingly
-            if (textContent && (textContent.startsWith('{') || textContent.startsWith('['))) {
-              try {
-                // Normalize and clean JSON string
-                const cleanJson = normalizeJsonString(textContent.trim());
-                
-                // Standard JSON parsing
-                const jsonData = JSON.parse(cleanJson);
-                
-                // Format as key-value pairs
-                const formattedData = {};
-                if (Array.isArray(jsonData)) {
-                  // Handle array data
-                  formattedData["Array Data"] = JSON.stringify(jsonData);
-                } else {
-                  // Handle object data
-                  Object.entries(jsonData).forEach(([key, value]) => {
-                    formattedData[key] = typeof value === 'object' ? JSON.stringify(value) : value;
-                  });
-                }
-                
-                setReadResult(formattedData);
-                Alert.alert('Success', 'NFC tag read successfully!');
-                return;
-              } catch (jsonError) {
-                // If not valid JSON, use text directly
-                setReadResult({ 
-                  "Content": textContent,
-                  "Parse Error": jsonError.message
-                });
-                Alert.alert('Partial Success', 'NFC tag read as text (invalid JSON format)');
-                return;
-              }
-            } else if (textContent) {
-              // Not JSON, use text directly
-              setReadResult({ "Content": textContent });
-              Alert.alert('Success', 'NFC tag read successfully!');
-              return;
-            } else {
-              throw new Error('Empty or invalid text content');
-            }
-          } catch (e) {
-            // Last resort: try to use the raw payload as a buffer
-            try {
-              const rawBuffer = new Uint8Array(record.payload);
-              const rawHex = Array.from(rawBuffer)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join(' ');
-              
-              setReadResult({ 
-                "Raw Payload (Hex)": rawHex,
-                "Record Type": record.type ? new TextDecoder().decode(record.type) : 'Unknown',
-                "TNF": record.tnf
-              });
-              Alert.alert('Partial Success', 'Could not decode tag text. Showing raw data.');
-              return;
-            } catch (rawError) {
-              // Failed to extract raw data
-            }
-          }
-        } else {
-          // Invalid record format
-        }
-        
-        // If we reached here, we couldn't extract the data properly
-        setReadResult({
-          "Error": "Could not read data from tag"
-        });
-        Alert.alert('Error', 'Could not read data from tag.');
-      });
-    } catch (error) {
-      setReadResult({
-        "Error": error.message
-      });
+      console.log('[ReadTab] Starting NFC read using NFCService');
       
-      Alert.alert(
-        'Error', 
-        'Failed to read NFC tag.'
-      );
+      // Use the enhanced NFCService for reading
+      const result = await nfcService.readNFC({ timeout: 60000 });
+      
+      if (result.success) {
+        let formattedData = {};
+        
+        if (result.data?.parsedData) {
+          // Handle parsed JSON data
+          const jsonData = result.data.parsedData;
+          
+          if (Array.isArray(jsonData)) {
+            formattedData["Array Data"] = JSON.stringify(jsonData, null, 2);
+          } else if (typeof jsonData === 'object') {
+            // Format object as key-value pairs
+            Object.entries(jsonData).forEach(([key, value]) => {
+              if (typeof value === 'object' && value !== null) {
+                formattedData[key] = JSON.stringify(value, null, 2);
+              } else {
+                formattedData[key] = String(value);
+              }
+            });
+          } else {
+            formattedData["Content"] = String(jsonData);
+          }
+        } else if (result.data?.content) {
+          // Handle plain text content
+          formattedData["Content"] = result.data.content;
+        } else if (result.data?.jsonString) {
+          // Handle raw JSON string
+          try {
+            const parsed = JSON.parse(result.data.jsonString);
+            Object.entries(parsed).forEach(([key, value]) => {
+              if (typeof value === 'object' && value !== null) {
+                formattedData[key] = JSON.stringify(value, null, 2);
+              } else {
+                formattedData[key] = String(value);
+              }
+            });
+          } catch (e) {
+            formattedData["Raw JSON"] = result.data.jsonString;
+          }
+        }
+        
+        setReadResult(formattedData);
+        Alert.alert('Success', 'NFC tag read successfully!');
+      } else {
+        // Handle NFCService errors
+        const errorMessage = result.error || 'Unknown error occurred';
+        setReadResult({ "Error": errorMessage });
+        Alert.alert('Error', errorMessage);
+      }
+    } catch (error) {
+      console.error('[ReadTab] Unexpected error:', error);
+      const errorMessage = error.message || 'Unexpected error occurred';
+      setReadResult({ "Error": errorMessage });
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsReading(false);
     }
