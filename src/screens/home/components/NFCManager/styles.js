@@ -74,6 +74,38 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  emptyTagText: {
+    color: '#ff9800',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  // Helper Container Styles
+  helperContainer: {
+    marginTop: 20,
+    padding: 20,
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c9e0ff',
+    alignItems: 'center',
+  },
+  helperTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0056b3',
+    marginTop: 12,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  helperText: {
+    fontSize: 15,
+    color: '#004085',
+    lineHeight: 24,
+    textAlign: 'left',
+  },
 
   // Input Field Styles
   input: {

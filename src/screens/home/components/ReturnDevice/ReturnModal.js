@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Dropdown from '../../../../components/Dropdown';
@@ -191,7 +192,8 @@ const ReturnModal = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.modalContainer}>
+            <SafeAreaView style={styles.modalSafeArea}>
+              <View style={styles.modalContainer}>
               {/* Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Return Device</Text>
@@ -281,6 +283,7 @@ const ReturnModal = ({
                 )}
               </ScrollView>
             </View>
+            </SafeAreaView>
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
@@ -295,9 +298,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
+  modalSafeArea: {
     width: '90%',
     maxHeight: '80%',
+  },
+  modalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     overflow: 'hidden',
@@ -309,6 +314,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    height: '100%',
   },
   modalHeader: {
     flexDirection: 'row',

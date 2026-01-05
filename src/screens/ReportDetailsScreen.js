@@ -67,6 +67,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchReportDetails();
+    fetchReportImages();
   }, [reportId]);
 
   // Fetch device photos associated with this report
@@ -96,6 +97,11 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleApiError = (error, defaultMessage) => {
+    // Skip 401 errors - they're handled globally by the axios interceptor
+    if (error.response?.status === 401) {
+      return;
+    }
+
     if (error.response) {
       const errorMessage = error.response.data.detail || defaultMessage;
       setError(errorMessage);
@@ -106,14 +112,6 @@ const ReportDetailsScreen = ({ navigation, route }) => {
     } else {
       setError(error.message || defaultMessage);
       Alert.alert('Error', error.message || defaultMessage);
-    }
-
-    if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: async () => await logout() }]
-      );
     }
   };
 
@@ -384,11 +382,13 @@ const ReportDetailsScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.actionButtons}>
-            <Button
-              title="Update Report"
-              onPress={handleUpdateReport}
-              style={styles.updateButton}
-            />
+            {isAdminOrOwner && (
+              <Button
+                title="Update Report"
+                onPress={handleUpdateReport}
+                style={styles.updateButton}
+              />
+            )}
             
             {isAdminOrOwner && (
               <Button
@@ -403,9 +403,14 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         </View>
 
         {/* Report Images Section */}
-        {reportImages.length > 0 && (
+        {loadingImages ? (
           <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Report Images</Text>
+            <Text style={styles.sectionTitle}>Loading Images...</Text>
+            <ActivityIndicator size="small" color={ORANGE_COLOR} />
+          </View>
+        ) : reportImages.length > 0 ? (
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionTitle}>Report Images ({reportImages.length})</Text>
             <View style={styles.imagesContainer}>
               {reportImages.map((image, index) => (
                 <TouchableOpacity
@@ -413,21 +418,22 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                   onPress={() => handleImagePress(image.image)}
                   style={styles.imageContainer}
                 >
-                  <Image 
-                    source={{ uri: image.image }} 
+                  <Image
+                    source={{ uri: image.image }}
                     style={styles.reportImage}
-                    resizeMode="cover"
+                    resizeMode="contain"
+                    onError={(e) => console.warn('Image load error:', e.nativeEvent.error)}
                   />
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-        )}
+        ) : null}
 
         {/* Report Signatures Section */}
         {reportSignatures.length > 0 && (
           <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Signatures</Text>
+            <Text style={styles.sectionTitle}>Signatures ({reportSignatures.length})</Text>
             <View style={styles.signaturesContainer}>
               {reportSignatures.map((signature, index) => (
                 <TouchableOpacity
@@ -439,6 +445,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     source={{ uri: signature.image }} 
                     style={styles.signatureImage}
                     resizeMode="contain"
+                    onError={(e) => console.warn('Signature load error:', e.nativeEvent.error)}
                   />
                 </TouchableOpacity>
               ))}

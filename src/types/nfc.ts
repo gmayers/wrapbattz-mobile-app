@@ -7,9 +7,14 @@ export interface NFCTagData {
 export interface NFCOperationResult {
   success: boolean;
   data?: {
+    tagId?: string;           // NFC hardware UUID (hex format, uppercase)
     jsonString?: string;
     parsedData?: any;
     content?: string;
+    isEmpty?: boolean;
+    message?: string;
+    wasFormatted?: boolean;
+    wasCleared?: boolean;
     [key: string]: any;
   };
   error?: string;
@@ -31,4 +36,10 @@ export interface NFCWriteOptions {
 
 export interface NFCReadOptions {
   timeout?: number;
+}
+
+// Minimal data structure for simplified NFC tag writes
+export interface DeviceNFCDataMinimal {
+  id: string;           // Device readable identifier (from server)
+  contact?: string;     // Company/organization contact info
 }

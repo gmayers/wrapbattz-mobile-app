@@ -20,18 +20,15 @@ const useDevices = () => {
 
   /**
    * Handles API errors with appropriate user feedback
+   * Note: 401 errors are handled globally by the axios interceptor
    * @param {Error} error - The error object from the API call
    * @param {string} customMessage - Custom error message to display
    */
   const handleApiError = (error, customMessage = 'Failed to fetch devices') => {
     console.error('API Error:', error);
 
+    // Skip 401 errors - they're handled globally by the axios interceptor
     if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: () => logout() }]
-      );
       return;
     }
 
@@ -59,7 +56,7 @@ const useDevices = () => {
       // Fetch devices and active assignments in parallel
       const [devicesResponse, activeAssignmentsResponse] = await Promise.all([
         axios.get(
-          'https://test.gmayersservices.com/api/devices/',
+          'https://webportal.battwrapz.com/api/devices/',
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -68,7 +65,7 @@ const useDevices = () => {
           }
         ),
         axios.get(
-          'https://test.gmayersservices.com/api/device-assignments/my_active_assignments/',
+          'https://webportal.battwrapz.com/api/device-assignments/my_active_assignments/',
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -124,7 +121,7 @@ const useDevices = () => {
       console.log('Fetching devices for location:', locationId);
 
       const response = await axios.get(
-        `https://test.gmayersservices.com/api/devices/?location=${locationId}`,
+        `https://webportal.battwrapz.com/api/devices/?location=${locationId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -156,7 +153,7 @@ const useDevices = () => {
       console.log('Assigning device with data:', assignmentData);
 
       const response = await axios.post(
-        'https://test.gmayersservices.com/api/assign-device/',
+        'https://webportal.battwrapz.com/api/assign-device/',
         assignmentData,
         {
           headers: {
@@ -195,7 +192,7 @@ const useDevices = () => {
 
       // Update assignment status
       await axios.patch(
-        `https://test.gmayersservices.com/api/device-assignments/${returnData.deviceId}/`,
+        `https://webportal.battwrapz.com/api/device-assignments/${returnData.deviceId}/`,
         {
           returned_date: new Date().toISOString().split('T')[0],
           returned_time: new Date().toISOString().split('T')[1].split('.')[0],
@@ -210,7 +207,7 @@ const useDevices = () => {
 
       // Create return record
       await axios.post(
-        'https://test.gmayersservices.com/api/device-returns/',
+        'https://webportal.battwrapz.com/api/device-returns/',
         {
           device_id: returnData.deviceId,
           location: returnData.locationId,

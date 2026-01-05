@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TabBar from '../../../../components/TabBar';
 import NFCScanTab from './NFCScanTab';
@@ -78,17 +78,18 @@ const AssignDeviceModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          {/* Header with improved close button */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Assign Device</Text>
-            <TouchableOpacity 
-              onPress={onClose}
-              hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
-            >
-              <Ionicons name="close-outline" size={28} color="#666" />
-            </TouchableOpacity>
-          </View>
+        <SafeAreaView style={styles.modalSafeArea}>
+          <View style={styles.modalContainer}>
+            {/* Header with improved close button */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Assign Device</Text>
+              <TouchableOpacity 
+                onPress={onClose}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+              >
+                <Ionicons name="close-outline" size={28} color="#666" />
+              </TouchableOpacity>
+            </View>
           
           {/* Tab Navigation Bar */}
           <View style={styles.tabBarContainer}>
@@ -131,7 +132,8 @@ const AssignDeviceModal = ({
               textColor="white"
             />
           </View>
-        </View>
+          </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -144,14 +146,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
+  modalSafeArea: {
     width: '90%',
-    height: '80%',
+    maxHeight: '80%',
+  },
+  modalContainer: {
     backgroundColor: '#fff',
     borderRadius: 10,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
+    height: '100%',
   },
   modalHeader: {
     flexDirection: 'row',

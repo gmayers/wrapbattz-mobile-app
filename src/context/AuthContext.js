@@ -3,9 +3,11 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { AppState } from 'react-native';
+import { createBillingService } from '../services/BillingService';
 
 
-const API_BASE_URL = 'https://battwrapz.gmayersservices.com/api/';
+const API_BASE_URL = 'https://webportal.battwrapz.com/api/';
 
 // Create the main axios instance
 const axiosInstance = axios.create({
@@ -15,6 +17,11 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   }
 });
+
+// Flag to prevent duplicate session expiry alerts
+// Set immediately when first 401 is detected to batch multiple simultaneous errors
+let isSessionExpiredAlertShowing = false;
+let logoutTimeoutId = null;
 
 // Add interceptor to include auth token in requests
 axiosInstance.interceptors.request.use(
@@ -29,6 +36,100 @@ axiosInstance.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// Add response interceptor to handle token expiration globally
+axiosInstance.interceptors.response.use(
+  (response) => {
+    // If request succeeds, return response normally
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 (Unauthorized) and we haven't already tried to refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Try to refresh the token
+        const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        // Attempt token refresh
+        const response = await axios.post(`${API_BASE_URL}auth/token/refresh/`, {
+          refresh: refreshToken,
+        });
+
+        const newAccessToken = response.data.access;
+
+        // Save the new access token
+        await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, newAccessToken);
+
+        // Update the failed request's authorization header
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+
+        // Retry the original request
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        // Refresh token failed or expired - handle session expiry
+        // Set flag IMMEDIATELY to prevent duplicate alerts from parallel requests
+        if (!isSessionExpiredAlertShowing) {
+          isSessionExpiredAlertShowing = true;
+
+          // Clear any pending logout timeout
+          if (logoutTimeoutId) {
+            clearTimeout(logoutTimeoutId);
+          }
+
+          // Add small delay to batch multiple simultaneous 401 errors
+          // This ensures only ONE alert shows even if multiple API calls fail at once
+          logoutTimeoutId = setTimeout(async () => {
+            const { Alert } = require('react-native');
+
+            Alert.alert(
+              'Session Expired',
+              'Your session has expired. Please login again.',
+              [
+                {
+                  text: 'OK',
+                  onPress: async () => {
+                    // Clear all auth data
+                    await AsyncStorage.multiRemove([
+                      AUTH_KEYS.ACCESS_TOKEN,
+                      AUTH_KEYS.REFRESH_TOKEN,
+                      AUTH_KEYS.USER_DATA,
+                      AUTH_KEYS.TOKEN_DATA,
+                    ]);
+
+                    // Reset the flag after logout completes
+                    isSessionExpiredAlertShowing = false;
+                    logoutTimeoutId = null;
+
+                    // The logout will be handled by AuthContext state change
+                    // which will redirect to login screen
+                  },
+                },
+              ],
+              { cancelable: false }
+            );
+          }, 100); // 100ms delay to batch simultaneous 401s
+        }
+
+        return Promise.reject(refreshError);
+      }
+    }
+
+    // For all other errors, reject normally
+    return Promise.reject(error);
+  }
+);
+
+// Initialize BillingService with the axiosInstance
+// This makes the billingService export work throughout the app
+createBillingService(axiosInstance);
 
 // Create mobile-specific API instance (uses API key auth instead of token)
 const mobileApiInstance = axios.create({
@@ -131,15 +232,26 @@ const deviceService = {
     // Ensure all required fields are present according to the API schema
     const requiredFields = ['organization', 'street_number', 'street_name', 'town_or_city', 'postcode'];
     const missingFields = requiredFields.filter(field => !locationData[field]);
-    
+
     if (missingFields.length > 0) {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
-    
+
     try {
       const response = await axiosInstance.post('/locations/', locationData);
       return response.data;
     } catch (error) {
+      throw error;
+    }
+  },
+
+  // Update a location
+  updateLocation: async (locationId, locationData) => {
+    try {
+      const response = await axiosInstance.patch(`/locations/${locationId}/`, locationData);
+      return response.data;
+    } catch (error) {
+      console.error('Update location error:', error);
       throw error;
     }
   },
@@ -154,6 +266,19 @@ const deviceService = {
   getDevice: async (deviceId) => {
     const response = await axiosInstance.get(`/devices/${deviceId}/`);
     return response.data;
+  },
+
+  // Get device by NFC UUID (hardware tag ID)
+  getDeviceByNfcUuid: async (nfcUuid) => {
+    try {
+      const response = await axiosInstance.get(`/devices/nfc/${nfcUuid}/`);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return null; // Device not found for this NFC UUID
+      }
+      throw error;
+    }
   },
 
   // Create a new device
@@ -403,9 +528,174 @@ export const AuthProvider = ({ children }) => {
   const isOwner = userData?.role === 'owner';
   const isAdminOrOwner = isAdmin || isOwner;
 
+  // Session expiry monitoring
+  const sessionCheckIntervalRef = React.useRef(null);
+
   useEffect(() => {
     checkAuthState();
   }, []);
+
+  // Monitor session expiry
+  useEffect(() => {
+    if (isAuthenticated) {
+      startSessionMonitoring();
+    } else {
+      stopSessionMonitoring();
+    }
+
+    return () => {
+      stopSessionMonitoring();
+    };
+  }, [isAuthenticated]);
+
+  // Monitor app state to check session when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && isAuthenticated) {
+        // App came to foreground, check session immediately
+        checkSessionExpiry();
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [isAuthenticated]);
+
+  // Get token expiry time in milliseconds
+  const getTokenExpiry = async () => {
+    try {
+      const token = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
+      if (!token) return null;
+
+      const decoded = decodeJWT(token);
+      if (!decoded || !decoded.exp) return null;
+
+      // JWT exp is in seconds, convert to milliseconds
+      return decoded.exp * 1000;
+    } catch (error) {
+      console.error('Error getting token expiry:', error);
+      return null;
+    }
+  };
+
+  // Check if session has expired
+  const checkSessionExpiry = async () => {
+    try {
+      // Only check if currently authenticated
+      if (!isAuthenticated) {
+        return;
+      }
+
+      const expiryTime = await getTokenExpiry();
+      if (!expiryTime) {
+        // No valid token, logout
+        await handleSessionExpired();
+        return;
+      }
+
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+
+      // If token has expired or will expire in the next 30 seconds
+      if (timeUntilExpiry <= 30000) {
+        console.log('Session expired or expiring soon, attempting refresh...');
+
+        try {
+          // Try to refresh the token
+          await refreshToken();
+          console.log('Token refreshed successfully');
+        } catch (refreshError) {
+          console.log('Token refresh failed, logging out...');
+          await handleSessionExpired();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking session expiry:', error);
+    }
+  };
+
+  // Handle session expiry
+  const handleSessionExpired = async () => {
+    try {
+      // Prevent duplicate alerts (check global flag from axios interceptor)
+      if (isSessionExpiredAlertShowing) {
+        // Just clear auth data silently, alert is already showing
+        await AsyncStorage.multiRemove([
+          AUTH_KEYS.ACCESS_TOKEN,
+          AUTH_KEYS.REFRESH_TOKEN,
+          AUTH_KEYS.USER_DATA,
+          AUTH_KEYS.TOKEN_DATA,
+        ]);
+
+        setUser(null);
+        setUserData(null);
+        setIsAuthenticated(false);
+        setOnboardingComplete(false);
+        setError(null);
+        return;
+      }
+
+      // Set flag to prevent duplicate alerts
+      isSessionExpiredAlertShowing = true;
+
+      // Clear all auth data
+      await AsyncStorage.multiRemove([
+        AUTH_KEYS.ACCESS_TOKEN,
+        AUTH_KEYS.REFRESH_TOKEN,
+        AUTH_KEYS.USER_DATA,
+        AUTH_KEYS.TOKEN_DATA,
+      ]);
+
+      // Update state
+      setUser(null);
+      setUserData(null);
+      setIsAuthenticated(false);
+      setOnboardingComplete(false);
+      setError(null);
+
+      // Show alert to user
+      const { Alert } = require('react-native');
+      Alert.alert(
+        'Session Expired',
+        'Your session has expired. Please login again.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              isSessionExpiredAlertShowing = false;
+            }
+          }
+        ],
+        { cancelable: false }
+      );
+    } catch (error) {
+      console.error('Error handling session expiry:', error);
+      isSessionExpiredAlertShowing = false;
+    }
+  };
+
+  // Start monitoring session expiry
+  const startSessionMonitoring = () => {
+    // Clear any existing interval
+    stopSessionMonitoring();
+
+    // Check immediately
+    checkSessionExpiry();
+
+    // Then check every 30 seconds
+    sessionCheckIntervalRef.current = setInterval(() => {
+      checkSessionExpiry();
+    }, 30000); // 30 seconds
+  };
+
+  // Stop monitoring session expiry
+  const stopSessionMonitoring = () => {
+    if (sessionCheckIntervalRef.current) {
+      clearInterval(sessionCheckIntervalRef.current);
+      sessionCheckIntervalRef.current = null;
+    }
+  };
 
   // Methods to get and set the API key securely
   const getApiKey = async () => {
@@ -462,32 +752,42 @@ export const AuthProvider = ({ children }) => {
   const checkAuthState = async () => {
     try {
       setIsLoading(true);
-      
+
       const savedUserData = await AsyncStorage.getItem(AUTH_KEYS.USER_DATA);
       const savedTokenData = await AsyncStorage.getItem(AUTH_KEYS.TOKEN_DATA);
       const accessToken = await AsyncStorage.getItem(AUTH_KEYS.ACCESS_TOKEN);
-      
+
+      // If no access token, user is not authenticated
+      if (!accessToken) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setUserData(null);
+        setOnboardingComplete(false);
+        setIsLoading(false);
+        return;
+      }
+
       if (savedUserData) {
         const parsedUserData = JSON.parse(savedUserData);
         setUser(parsedUserData);
       }
-      
+
       // First check if we have saved token data
       if (savedTokenData) {
         const parsedTokenData = JSON.parse(savedTokenData);
-        
+
         const userData = {
           userId: parsedTokenData.user_id,
           orgId: parsedTokenData.org_id,
-          role: parsedTokenData.role, 
+          role: parsedTokenData.role,
           name: parsedTokenData.first_name || 'User',
           has_completed_onboarding: parsedTokenData.has_completed_onboarding || false,
         };
-        
+
         setUserData(userData);
         setOnboardingComplete(parsedTokenData.has_completed_onboarding || false);
         setIsAuthenticated(true);
-      } 
+      }
       // If no saved token data but we have a token, decode and save it
       else if (accessToken) {
         await saveTokenData(accessToken);
@@ -495,6 +795,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       setError('Error checking authentication state');
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -569,21 +870,24 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
 
+      // Reset session expired alert flag on new login
+      isSessionExpiredAlertShowing = false;
+
       // Updated to match API schema
       const response = await axiosInstance.post('/auth/token/', {
         email,
         password,
       });
-      
+
       const accessToken = response.data.access;
       const refreshToken = response.data.refresh;
-      
+
       await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
       await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, refreshToken);
-      
+
       // Save the decoded token data
       const tokenData = await saveTokenData(accessToken);
-      
+
       // Extract user data from token if available
       if (tokenData) {
         const extractedUserData = {
@@ -593,7 +897,7 @@ export const AuthProvider = ({ children }) => {
           last_name: tokenData.last_name || '',
           has_completed_onboarding: tokenData.has_completed_onboarding || false,
         };
-        
+
         await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(extractedUserData));
         setUser(extractedUserData);
         setOnboardingComplete(tokenData.has_completed_onboarding || false);

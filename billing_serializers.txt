@@ -1,0 +1,261 @@
+"""
+Billing API serializers using dj-stripe models for PCI compliance
+All sensitive payment data is handled by Stripe directly
+"""
+from rest_framework import serializers
+from djstripe.models import Customer, Subscription as DjStripeSubscription, Invoice, PaymentMethod, Price, Product
+from subscription.models import Subscription, SubscriptionPlan, Invoice as LocalInvoice, BillingNotificationPreferences
+from organizations.models import Organization
+from decimal import Decimal
+
+
+class DjStripeSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for dj-stripe Subscription model"""
+    plan_name = serializers.CharField(source='plan.product.name', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    device_count = serializers.SerializerMethodField()
+    billable_devices = serializers.SerializerMethodField()
+    current_price = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DjStripeSubscription
+        fields = [
+            'id', 'status', 'current_period_start', 'current_period_end',
+            'trial_end', 'cancel_at_period_end', 'canceled_at',
+            'plan_name', 'organization_name', 'device_count',
+            'billable_devices', 'current_price', 'currency'
+        ]
+        read_only_fields = fields
+    
+    def get_organization_name(self, obj):
+        """Get organization name from metadata"""
+        return obj.metadata.get('organization_name', '')
+    
+    def get_device_count(self, obj):
+        """Get current device count from metadata or local subscription"""
+        device_count = obj.metadata.get('device_count')
+        if device_count:
+            return int(device_count)
+        
+        # Fallback to local subscription
+        try:
+            local_sub = Subscription.objects.get(stripe_subscription_id=obj.id)
+            return local_sub.device_count
+        except Subscription.DoesNotExist:
+            return 0
+    
+    def get_billable_devices(self, obj):
+        """Get billable device count"""
+        device_count = self.get_device_count(obj)
+        free_devices = int(obj.metadata.get('free_devices', 3))
+        return max(0, device_count - free_devices)
+    
+    def get_current_price(self, obj):
+        """Calculate current price based on device count"""
+        if obj.items.exists():
+            item = obj.items.first()
+            if item and item.price:
+                return float(item.price.unit_amount / 100)  # Convert from cents
+        return 0.0
+
+
+class DjStripeInvoiceSerializer(serializers.ModelSerializer):
+    """Serializer for dj-stripe Invoice model"""
+    total_display = serializers.SerializerMethodField()
+    amount_due_display = serializers.SerializerMethodField()
+    amount_paid_display = serializers.SerializerMethodField()
+    invoice_pdf = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = Invoice
+        fields = [
+            'id', 'number', 'status', 'created', 'due_date',
+            'period_start', 'period_end', 'total', 'subtotal',
+            'amount_due', 'amount_paid', 'currency',
+            'hosted_invoice_url', 'invoice_pdf',
+            'total_display', 'amount_due_display', 'amount_paid_display'
+        ]
+        read_only_fields = fields
+    
+    def get_total_display(self, obj):
+        """Format total for display"""
+        return f"£{obj.total / 100:.2f}"
+    
+    def get_amount_due_display(self, obj):
+        """Format amount due for display"""
+        return f"£{obj.amount_due / 100:.2f}"
+    
+    def get_amount_paid_display(self, obj):
+        """Format amount paid for display"""
+        return f"£{obj.amount_paid / 100:.2f}"
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    """Serializer for payment methods - only exposes safe data"""
+    display_brand = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PaymentMethod
+        fields = [
+            'id', 'type', 'billing_details', 'created',
+            'display_brand', 'card'
+        ]
+        read_only_fields = fields
+    
+    def get_display_brand(self, obj):
+        """Get card brand for display"""
+        if obj.type == 'card' and hasattr(obj, 'card'):
+            return obj.card.get('brand', 'Card')
+        return obj.type.title()
+    
+    def to_representation(self, instance):
+        """Override to only return safe card details"""
+        data = super().to_representation(instance)
+        
+        # Only return last4 and brand for card details
+        if data.get('card'):
+            safe_card = {
+                'brand': data['card'].get('brand'),
+                'last4': data['card'].get('last4'),
+                'exp_month': data['card'].get('exp_month'),
+                'exp_year': data['card'].get('exp_year'),
+            }
+            data['card'] = safe_card
+        
+        return data
+
+
+class SetupIntentSerializer(serializers.Serializer):
+    """Serializer for creating SetupIntents"""
+    client_secret = serializers.CharField(read_only=True)
+    setup_intent_id = serializers.CharField(read_only=True)
+    
+    def create(self, validated_data):
+        """Create a SetupIntent for adding payment methods"""
+        # This will be handled in the view
+        return validated_data
+
+
+class ConfirmPaymentMethodSerializer(serializers.Serializer):
+    """Serializer for confirming payment methods"""
+    payment_method_id = serializers.CharField(required=True)
+    set_as_default = serializers.BooleanField(default=True)
+    
+    def validate_payment_method_id(self, value):
+        """Validate that payment method ID starts with pm_"""
+        if not value.startswith('pm_'):
+            raise serializers.ValidationError(
+                "Invalid payment method ID format"
+            )
+        return value
+
+
+class CustomerPortalSerializer(serializers.Serializer):
+    """Serializer for creating customer portal sessions"""
+    return_url = serializers.URLField(required=False)
+    portal_url = serializers.URLField(read_only=True)
+
+
+class BillingUsageSerializer(serializers.Serializer):
+    """Serializer for billing usage summary"""
+    organization_name = serializers.CharField()
+    device_count = serializers.IntegerField()
+    free_devices = serializers.IntegerField()
+    billable_devices = serializers.IntegerField()
+    current_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    billing_period = serializers.CharField()
+    next_billing_date = serializers.DateTimeField()
+    subscription_status = serializers.CharField()
+    has_payment_method = serializers.BooleanField()
+    trial_end = serializers.DateTimeField(allow_null=True)
+    is_trialing = serializers.BooleanField()
+
+
+class LocalSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for local Subscription model"""
+    plan_details = serializers.SerializerMethodField()
+    organization_details = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'status', 'device_count', 'current_period_start',
+            'current_period_end', 'trial_end', 'created_at',
+            'plan_details', 'organization_details'
+        ]
+        read_only_fields = fields
+    
+    def get_plan_details(self, obj):
+        """Get plan details"""
+        return {
+            'name': obj.plan.name,
+            'billing_period': obj.plan.billing_period,
+            'free_devices': obj.plan.free_devices,
+            'price_per_device': str(obj.plan.price_per_device)
+        }
+    
+    def get_organization_details(self, obj):
+        """Get organization details"""
+        return {
+            'id': obj.organization.id,
+            'name': obj.organization.name,
+            'email': obj.organization.get_billing_contact_email()
+        }
+
+
+class SubscriptionPlanSerializer(serializers.ModelSerializer):
+    """Serializer for subscription plans"""
+    pricing_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SubscriptionPlan
+        fields = [
+            'id', 'name', 'slug', 'description', 'billing_period',
+            'free_devices', 'price_per_device', 'tier_1_max',
+            'tier_1_price', 'tier_2_max', 'tier_2_price',
+            'tier_3_price', 'is_active', 'pricing_display'
+        ]
+        read_only_fields = fields
+    
+    def get_pricing_display(self, obj):
+        """Get human-readable pricing information"""
+        if obj.billing_period == 'monthly':
+            return {
+                'tier_1': f"£{obj.tier_1_price}/device (4-{obj.tier_1_max} devices)",
+                'tier_2': f"£{obj.tier_2_price}/device ({obj.tier_1_max+1}-{obj.tier_2_max} devices)",
+                'tier_3': f"£{obj.tier_3_price}/device ({obj.tier_2_max}+ devices)"
+            }
+        else:
+            return {
+                'flat_rate': f"£{obj.price_per_device}/device/year"
+            }
+
+
+class BillingNotificationPreferencesSerializer(serializers.ModelSerializer):
+    """Serializer for billing notification preferences"""
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    notification_email_list = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BillingNotificationPreferences
+        fields = [
+            'id', 'organization_name', 'payment_success_email', 'payment_failure_email',
+            'invoice_created_email', 'subscription_changes_email', 'payment_success_push',
+            'payment_failure_push', 'device_limit_warning_push', 'cost_threshold_warning',
+            'device_count_warning', 'notification_emails', 'notification_email_list',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization_name', 'created_at', 'updated_at', 'notification_email_list']
+    
+    def get_notification_email_list(self, obj):
+        """Get list of all notification emails"""
+        return obj.get_notification_emails()
+    
+    def validate_notification_emails(self, value):
+        """Validate comma-separated email list"""
+        if value:
+            emails = [email.strip() for email in value.split(',')]
+            for email in emails:
+                if email and '@' not in email:
+                    raise serializers.ValidationError(f"Invalid email address: {email}")
+        return value

@@ -10,7 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert
+  Alert,
+  SafeAreaView
 } from 'react-native';
 import { useAuth } from '../context/AuthContext'; 
 import { Ionicons } from '@expo/vector-icons';
@@ -236,11 +237,12 @@ const CreateOrganizationScreen = ({ navigation }) => {
   const isFormLoading = isLoading || submitting;
   
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>Create Your Organization</Text>
           <Text style={styles.subtitle}>
@@ -372,13 +374,17 @@ const CreateOrganizationScreen = ({ navigation }) => {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  container: {
+    flex: 1,
   },
   header: {
     padding: 20,

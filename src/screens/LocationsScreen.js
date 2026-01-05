@@ -15,10 +15,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Dimensions,
+  Switch,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import SearchBar from '../components/SearchBar';
 import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -28,21 +31,27 @@ const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
 
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext
-  const { 
-    deviceService, 
-    logout, 
-    isAdminOrOwner, 
+  const {
+    deviceService,
+    axiosInstance,
+    logout,
+    isAdminOrOwner,
     userData,
     user,
     refreshRoleInfo,
-    error: authError, 
-    clearError 
+    error: authError,
+    clearError
   } = useAuth();
 
   const [locations, setLocations] = useState([]);
+  const [filteredLocations, setFilteredLocations] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingLocationId, setEditingLocationId] = useState(null);
   const [formData, setFormData] = useState({
+    name: '',
     building_name: '',
     street_number: '',
     street_name: '',
@@ -50,9 +59,12 @@ const LocationsScreen = ({ navigation }) => {
     town_or_city: '',
     county: '',
     postcode: '',
+    is_active: true,
+    signature: null,
   });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [togglingLocation, setTogglingLocation] = useState(null);
   
   // Get user's name
   const userName = userData?.name || user?.username || user?.email || 'User';
@@ -86,15 +98,15 @@ const LocationsScreen = ({ navigation }) => {
         : locationsData.results || [];
       
       setLocations(allLocations);
+      setFilteredLocations(allLocations);
     } catch (error) {
       console.error('Error fetching locations:', error);
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         Alert.alert('Error', 'Failed to fetch locations. Please try again later.');
       }
       setLocations([]);
+      setFilteredLocations([]);
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +120,27 @@ const LocationsScreen = ({ navigation }) => {
     return unsubscribe;
   }, [navigation, fetchLocations]);
 
-
+  // Search functionality
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setFilteredLocations(locations);
+      return;
+    }
+    
+    const filtered = locations.filter((location) => {
+      const searchText = query.toLowerCase();
+      return (
+        (location.building_name?.toLowerCase().includes(searchText)) ||
+        (location.street_name?.toLowerCase().includes(searchText)) ||
+        (location.town_or_city?.toLowerCase().includes(searchText)) ||
+        (location.postcode?.toLowerCase().includes(searchText))
+      );
+    });
+    
+    setFilteredLocations(filtered);
+  }, [locations]);
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prevData => ({
@@ -171,6 +203,7 @@ const LocationsScreen = ({ navigation }) => {
       // Close modal and reset form
       setModalVisible(false);
       setFormData({
+        name: '',
         building_name: '',
         street_number: '',
         street_name: '',
@@ -186,15 +219,17 @@ const LocationsScreen = ({ navigation }) => {
       Alert.alert('Success', 'Location created successfully');
     } catch (error) {
       console.error('Error creating location:', error);
-      
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status === 401) {
+        return;
+      }
+
       if (error.response?.data?.errors) {
         setFormErrors(error.response.data.errors);
-      } else if (error.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
       } else {
         Alert.alert(
-          'Error', 
+          'Error',
           error.response?.data?.message || 'Failed to create location. Please try again.'
         );
       }
@@ -203,13 +238,139 @@ const LocationsScreen = ({ navigation }) => {
     }
   }, [deviceService, formData, logout, userData, validateForm, fetchLocations]);
 
+  const handleToggleActive = useCallback(async (locationId, currentStatus) => {
+    setTogglingLocation(locationId);
+
+    const newStatus = currentStatus === undefined ? false : !currentStatus;
+
+    console.log('Toggling location:', {
+      locationId,
+      currentStatus,
+      newStatus,
+      endpoint: `/locations/${locationId}/`
+    });
+
+    try {
+      const response = await deviceService.updateLocation(locationId, {
+        is_active: newStatus
+      });
+
+      console.log('Toggle response:', response);
+
+      // Update local state
+      setLocations(prevLocations =>
+        prevLocations.map(loc =>
+          loc.id === locationId ? { ...loc, is_active: newStatus } : loc
+        )
+      );
+      setFilteredLocations(prevLocations =>
+        prevLocations.map(loc =>
+          loc.id === locationId ? { ...loc, is_active: newStatus } : loc
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling location status:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
+
+      if (error.response?.status !== 401) {
+        const errorMessage = error.response?.data?.detail ||
+                            error.response?.data?.message ||
+                            error.message ||
+                            'Failed to update location status. Please try again.';
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setTogglingLocation(null);
+    }
+  }, [deviceService]);
+
+  const handleEditLocation = useCallback((location) => {
+    setEditMode(true);
+    setEditingLocationId(location.id);
+    setFormData({
+      name: location.name || '',
+      building_name: location.building_name || '',
+      street_number: location.street_number || '',
+      street_name: location.street_name || '',
+      address_2: location.address_2 || '',
+      town_or_city: location.town_or_city || '',
+      county: location.county || '',
+      postcode: location.postcode || '',
+      is_active: location.is_active !== undefined ? location.is_active : true,
+      signature: null,
+    });
+    setModalVisible(true);
+  }, []);
+
+  const handleUpdateLocation = useCallback(async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const updateData = { ...formData };
+      delete updateData.signature; // Remove signature from update for now
+
+      await deviceService.updateLocation(editingLocationId, updateData);
+
+      // Close modal and reset form
+      setModalVisible(false);
+      setEditMode(false);
+      setEditingLocationId(null);
+      setFormData({
+        name: '',
+        building_name: '',
+        street_number: '',
+        street_name: '',
+        address_2: '',
+        town_or_city: '',
+        county: '',
+        postcode: '',
+        is_active: true,
+        signature: null,
+      });
+
+      // Refresh locations list
+      fetchLocations();
+
+      Alert.alert('Success', 'Location updated successfully');
+    } catch (error) {
+      console.error('Error updating location:', error);
+
+      if (error.response?.status === 401) {
+        return;
+      }
+
+      if (error.response?.data?.errors) {
+        setFormErrors(error.response.data.errors);
+      } else {
+        Alert.alert(
+          'Error',
+          error.response?.data?.message || 'Failed to update location. Please try again.'
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [deviceService, formData, editingLocationId, validateForm, fetchLocations]);
+
   const renderLocationCard = useCallback((location) => (
-    <TouchableOpacity 
-      key={location.id}
-      onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
-      activeOpacity={0.7}
-    >
-      <Card style={styles.locationCard}>
+    <Card key={location.id} style={styles.locationCard}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
+        activeOpacity={0.7}
+      >
         <View style={styles.locationContent}>
           {/* Location Header */}
           <View style={styles.locationHeader}>
@@ -259,9 +420,35 @@ const LocationsScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
-      </Card>
-    </TouchableOpacity>
-  ), [navigation]);
+      </TouchableOpacity>
+
+      {/* Toggle and Edit Section (outside touchable to prevent conflict) */}
+      {isAdminOrOwner && (
+        <View style={styles.locationFooter}>
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Active:</Text>
+            <Switch
+              value={location.is_active !== undefined ? location.is_active : true}
+              onValueChange={() => handleToggleActive(location.id, location.is_active)}
+              trackColor={{ false: '#CCCCCC', true: '#FFD699' }}
+              thumbColor={location.is_active ? ORANGE_COLOR : '#f4f3f4'}
+              disabled={togglingLocation === location.id}
+            />
+          </View>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleEditLocation(location);
+            }}
+          >
+            <Ionicons name="create-outline" size={20} color={ORANGE_COLOR} />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </Card>
+  ), [navigation, isAdminOrOwner, togglingLocation, handleToggleActive, handleEditLocation]);
 
   const renderCreateLocationModal = () => (
     <Modal
@@ -276,16 +463,32 @@ const LocationsScreen = ({ navigation }) => {
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Create New Location</Text>
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
+            <Text style={styles.modalTitle}>
+              {editMode ? 'Edit Location' : 'Create New Location'}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setModalVisible(false);
+              setEditMode(false);
+              setEditingLocationId(null);
+            }}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
           
-          <ScrollView 
+          <ScrollView
             style={styles.formContainer}
             keyboardShouldPersistTaps="handled"
           >
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Location Name (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                placeholder="Enter location name (e.g., Main Office, Warehouse A)"
+              />
+            </View>
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Building Name (Optional)</Text>
               <TextInput
@@ -383,19 +586,39 @@ const LocationsScreen = ({ navigation }) => {
                 ) : null}
               </View>
             </View>
+
+            {/* Edit Mode: Show Created By Signature */}
+            {editMode && editingLocationId && (
+              <View style={styles.signatureSection}>
+                <Text style={styles.sectionLabel}>Created By:</Text>
+                <View style={styles.signatureBox}>
+                  <Ionicons name="person-circle-outline" size={24} color={ORANGE_COLOR} />
+                  <Text style={styles.signatureText}>
+                    {locations.find(l => l.id === editingLocationId)?.created_by?.first_name || 'N/A'} {locations.find(l => l.id === editingLocationId)?.created_by?.last_name || ''}
+                  </Text>
+                </View>
+                <Text style={styles.createdAtText}>
+                  Created: {locations.find(l => l.id === editingLocationId)?.created_at ? new Date(locations.find(l => l.id === editingLocationId).created_at).toLocaleString() : 'N/A'}
+                </Text>
+              </View>
+            )}
           </ScrollView>
-          
+
           <View style={styles.modalFooter}>
             <Button
               title="Cancel"
-              onPress={() => setModalVisible(false)}
+              onPress={() => {
+                setModalVisible(false);
+                setEditMode(false);
+                setEditingLocationId(null);
+              }}
               type="secondary"
               size="medium"
               style={{ marginRight: 10 }}
             />
             <Button
-              title={isSubmitting ? "Creating..." : "Create Location"}
-              onPress={handleCreateLocation}
+              title={isSubmitting ? (editMode ? "Updating..." : "Creating...") : (editMode ? "Update Location" : "Create Location")}
+              onPress={editMode ? handleUpdateLocation : handleCreateLocation}
               size="medium"
               disabled={isSubmitting}
               textColor="black"
@@ -464,6 +687,13 @@ const LocationsScreen = ({ navigation }) => {
         )}
       </View>
 
+      {/* Search Bar */}
+      <SearchBar
+        value={searchQuery}
+        onChangeText={handleSearch}
+        placeholder="Search locations..."
+      />
+
       <View style={styles.contentContainer}>
         <ScrollView 
           style={styles.scrollView}
@@ -479,15 +709,17 @@ const LocationsScreen = ({ navigation }) => {
             
             {isLoading ? (
               <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
-            ) : locations.length > 0 ? (
+            ) : filteredLocations.length > 0 ? (
               <>
-                {locations.map(renderLocationCard)}
+                {filteredLocations.map(renderLocationCard)}
               </>
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="location-outline" size={48} color="#CCCCCC" />
-                <Text style={styles.emptyText}>No locations found</Text>
-                {isAdminOrOwner && (
+                <Text style={styles.emptyText}>
+                  {searchQuery.trim() ? `No locations found matching "${searchQuery}"` : "No locations found"}
+                </Text>
+                {!searchQuery.trim() && isAdminOrOwner && (
                   <Button
                     title="Add Your First Location"
                     onPress={() => setModalVisible(true)}
@@ -710,7 +942,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 15,
-    maxHeight: 400,
+    maxHeight: 600,
   },
   formGroup: {
     marginBottom: 16,
@@ -761,6 +993,77 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  // Location footer with toggle and edit
+  locationFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: ORANGE_COLOR,
+    backgroundColor: '#FFF',
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ORANGE_COLOR,
+  },
+  // Signature section in edit mode
+  signatureSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  signatureBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  signatureText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  createdAtText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
 });
 

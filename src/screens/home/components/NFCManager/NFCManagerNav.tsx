@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ORANGE_COLOR = '#FF9500';
 
@@ -22,8 +23,10 @@ const NFCManagerNav: React.FC<NFCManagerNavProps> = ({
   activeTab,
   onTabPress
 }) => {
+  const insets = useSafeAreaInsets();
+  
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.tabContainer}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -70,7 +73,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

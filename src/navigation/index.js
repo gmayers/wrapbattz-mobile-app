@@ -2,7 +2,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -22,6 +23,9 @@ import CreateOrganizationScreen from '../screens/CreateOrganizationScreen';
 // Import new screens
 import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
 import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
+import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
+import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
+import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 
@@ -108,36 +112,42 @@ const AuthStack = () => (
   </Stack.Navigator>
 );
 
-const MainStack = () => (
-  <Stack.Navigator>
-    {/* Main Tab Navigation */}
-    <Stack.Screen
-      name="MainTabs"
-      component={TabNavigation}
-      options={{ 
-        headerShown: false
-      }}
-    />
-    
-    {/* Modal/Detail Screens that should be above tabs */}
-    <Stack.Screen
-      name="CreateReport"
-      component={CreateReportScreen}
-      options={{
-        headerTitle: 'Create Report',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
-      }}
-    />
+const MainStack = () => {
+  const insets = useSafeAreaInsets();
+  
+  const getHeaderStyle = () => ({
+    backgroundColor: '#fff',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f4f4f4',
+    height: Platform.OS === 'ios' ? 44 + insets.top : 56,
+  });
+
+  return (
+    <Stack.Navigator>
+      {/* Main Tab Navigation */}
+      <Stack.Screen
+        name="MainTabs"
+        component={TabNavigation}
+        options={{ 
+          headerShown: false
+        }}
+      />
+      
+      {/* Modal/Detail Screens that should be above tabs */}
+      <Stack.Screen
+        name="CreateReport"
+        component={CreateReportScreen}
+        options={{
+          headerTitle: 'Create Report',
+          headerStyle: getHeaderStyle(),
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerTintColor: ORANGE_COLOR,
+        }}
+      />
     <Stack.Screen
       name="AllReports"
       component={AllReportsScreen}
@@ -172,13 +182,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Add New Device',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -191,13 +195,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Location Details',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -210,13 +208,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Device Management Fee',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -229,13 +221,46 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Manage Billing',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle: {
+          fontWeight: 'bold',
         },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="PaymentHistory"
+      component={PaymentHistoryScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Payment History',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="BillingAnalytics"
+      component={BillingAnalyticsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Billing Analytics',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerTintColor: ORANGE_COLOR,
+      }}
+    />
+    <Stack.Screen
+      name="NotificationPreferences"
+      component={NotificationPreferencesScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Notification Preferences',
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -248,13 +273,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Edit Profile',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -267,13 +286,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Change Password',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -287,13 +300,7 @@ const MainStack = () => (
       options={{
         headerShown: true,
         headerTitle: 'Create Organization',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
+        headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -301,7 +308,8 @@ const MainStack = () => (
       }}
     />
   </Stack.Navigator>
-);
+  );
+};
 
 const LoadingScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

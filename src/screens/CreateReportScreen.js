@@ -9,6 +9,7 @@ import {
   Image,
   Modal,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -95,11 +96,9 @@ const CreateReportScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error fetching devices:', error);
-      
-      if (error.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         setError('Failed to fetch devices. Please try again.');
         Alert.alert('Error', 'Failed to fetch devices');
       }
@@ -427,11 +426,9 @@ const CreateReportScreen = ({ navigation, route }) => {
       );
     } catch (error) {
       console.error('Error submitting report:', error);
-      
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         const errorMsg = error.response?.data?.message || 'Failed to submit report. Please try again.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
@@ -489,7 +486,8 @@ const CreateReportScreen = ({ navigation, route }) => {
   }
 
   return (
-    <ScrollView style={styles.formContainer}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.formContainer}>
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{error}</Text>
@@ -683,10 +681,15 @@ const CreateReportScreen = ({ navigation, route }) => {
         </View>
       </Modal>
     </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   formContainer: {
     padding: 20,
     backgroundColor: '#FFFFFF',

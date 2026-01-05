@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, Alert, TouchableOpacity, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import Button from '../../../../components/Button';
 import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
+import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 
 
 // NFCService handles normalization, so we don't need this function anymore
@@ -36,10 +37,26 @@ const EditTab = ({ onCancel }) => {
   const [editedFields, setEditedFields] = useState({});
   const [newField, setNewField] = useState({ key: '', value: '' });
   const [firstKey, setFirstKey] = useState(null); // New state to track the first key
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   
   // New state for field editing
   const [editingKeys, setEditingKeys] = useState({});
   const [jsonValidationState, setJsonValidationState] = useState({});
+
+  // Keyboard event listeners
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
 
 const handleReadTag = async () => {
@@ -57,7 +74,18 @@ const handleReadTag = async () => {
     
     if (readResult.success) {
       console.log('[EditTab] Successfully read tag using NFCService');
-      
+
+      // Handle empty tags - allow editing from scratch
+      if (readResult.data?.isEmpty) {
+        console.log('[EditTab] Tag is empty, starting with blank editor');
+        setTagData({});
+        setEditedFields({});
+        setFirstKey(null);
+        Alert.alert('Empty Tag', 'Tag is formatted but empty. You can add new fields below.');
+        result = true;
+        return result;
+      }
+
       if (readResult.data?.parsedData) {
         // Handle structured JSON data
         const jsonData = readResult.data.parsedData;
@@ -272,10 +300,10 @@ const decodeTagContent = (record) => {
 const processJsonTagContent = (textContent) => {
   // Add console statement when reading data
   console.log('[EditTab] Processing tag JSON content:', textContent);
-  
-  // Normalize and clean JSON string
-  const cleanJson = normalizeJsonString(textContent.trim());
-  
+
+  // NFCService already handles normalization, so we just trim and parse
+  const cleanJson = textContent.trim();
+
   // Parse the JSON
   const jsonData = JSON.parse(cleanJson);
   
@@ -380,10 +408,10 @@ const handleWriteTag = async () => {
       }
     });
     
-    // Convert to JSON string with normalized quotes
+    // Convert to JSON string (NFCService handles normalization)
     const jsonString = JSON.stringify(processedData);
-    const normalizedString = normalizeJsonString(jsonString);
-    
+    let normalizedString = jsonString; // Use let so we can reassign if needed for compact version
+
     // Calculate byte length for capacity check
     const stringByteLength = new TextEncoder().encode(normalizedString).length;
     console.log(`[EditTab] Data size: ${stringByteLength} bytes`);
@@ -765,11 +793,16 @@ const getFieldValueBorderColor = (key, value) => {
 
 
 return (
-  <View style={styles.nfcTabContent} testID="edit-tab-container">
-    <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
-    <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
-      Read the NFC tag to load existing data into the form, make changes, and save.
-    </Text>
+  <KeyboardAvoidingView 
+    style={styles.nfcTabContent} 
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+  >
+    <View testID="edit-tab-container">
+      <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
+      <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
+        Read the NFC tag to load existing data into the form, make changes, and save.
+      </Text>
 
     {isReading || isWriting ? (
       <View style={styles.buttonGroup} testID="operation-cancel-container">
@@ -790,6 +823,20 @@ return (
       />
     )}
 
+    {/* Helper text when no tag data is loaded */}
+    {tagData === null && !isReading && !isWriting && (
+      <View style={styles.helperContainer} testID="helper-container">
+        <Ionicons name="information-circle-outline" size={48} color="#17a2b8" />
+        <Text style={styles.helperTitle}>How to Edit NFC Tags</Text>
+        <Text style={styles.helperText}>
+          1. Tap "Load Tag Data" above{'\n'}
+          2. Hold your NFC tag near the device{'\n'}
+          3. Edit the tag's data fields below{'\n'}
+          4. Tap "Write to Tag" to save changes
+        </Text>
+      </View>
+    )}
+
     {(isReading || isWriting) && (
       <View style={styles.readingStatusContainer} testID="operation-status-container">
         <Text style={styles.readingStatusText} testID="operation-status-text">
@@ -803,6 +850,8 @@ return (
         style={styles.editFieldsContainer} 
         contentContainerStyle={styles.editFieldsContentContainer}
         testID="edit-fields-scroll"
+        scrollEnabled={!isKeyboardVisible || Platform.OS === 'ios'}
+        keyboardShouldPersistTaps="handled"
       >
         {tagData.id && (
           <View style={styles.idField} testID="id-field-container">
@@ -954,7 +1003,8 @@ return (
         />
       </ScrollView>
     )}
-  </View>
+    </View>
+  </KeyboardAvoidingView>
 );
 }
 // Additional styles

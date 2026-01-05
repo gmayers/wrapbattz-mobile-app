@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
+import DeviceInfoDisplay from '../../../../components/DeviceInfoDisplay';
 import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
-
-// Remove the manual normalization logic - NFCService handles this now
 
 const ReadTab = ({ withNfcManager, onCancel }) => {
   const [isReading, setIsReading] = useState(false);
@@ -25,86 +24,88 @@ const ReadTab = ({ withNfcManager, onCancel }) => {
     try {
       setIsReading(true);
       setReadResult(null);
-      
+
       console.log('[ReadTab] Starting NFC read using NFCService');
-      
+
       // Use the enhanced NFCService for reading
       const result = await nfcService.readNFC({ timeout: 60000 });
-      
+
       if (result.success) {
-        let formattedData = {};
-        
+        // Get the tag hardware UUID (always available on successful read)
+        const tagId = result.data?.tagId;
+
+        // Handle empty tags
+        if (result.data?.isEmpty) {
+          setReadResult({
+            isEmpty: true,
+            ...(tagId && { 'Tag UUID': tagId })
+          });
+          Alert.alert('Empty Tag', result.data.message || 'Tag is formatted but contains no data.');
+          return;
+        }
+
+        // Extract parsed data for DeviceInfoDisplay
+        let deviceData = null;
+
         if (result.data?.parsedData) {
           // Handle parsed JSON data
           const jsonData = result.data.parsedData;
-          
-          if (Array.isArray(jsonData)) {
-            formattedData["Array Data"] = JSON.stringify(jsonData, null, 2);
-          } else if (typeof jsonData === 'object') {
-            // Format object as key-value pairs
-            Object.entries(jsonData).forEach(([key, value]) => {
-              if (typeof value === 'object' && value !== null) {
-                formattedData[key] = JSON.stringify(value, null, 2);
-              } else {
-                formattedData[key] = String(value);
-              }
-            });
+
+          if (typeof jsonData === 'object' && !Array.isArray(jsonData)) {
+            // Object data - use directly for DeviceInfoDisplay
+            deviceData = jsonData;
+          } else if (Array.isArray(jsonData)) {
+            // Array data - convert to object
+            deviceData = { "Array Data": JSON.stringify(jsonData, null, 2) };
           } else {
-            formattedData["Content"] = String(jsonData);
+            // Primitive data
+            deviceData = { "Content": String(jsonData) };
           }
-        } else if (result.data?.content) {
-          // Handle plain text content
-          formattedData["Content"] = result.data.content;
         } else if (result.data?.jsonString) {
           // Handle raw JSON string
           try {
             const parsed = JSON.parse(result.data.jsonString);
-            Object.entries(parsed).forEach(([key, value]) => {
-              if (typeof value === 'object' && value !== null) {
-                formattedData[key] = JSON.stringify(value, null, 2);
-              } else {
-                formattedData[key] = String(value);
-              }
-            });
+            if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+              deviceData = parsed;
+            } else {
+              deviceData = { "Raw JSON": result.data.jsonString };
+            }
           } catch (e) {
-            formattedData["Raw JSON"] = result.data.jsonString;
+            deviceData = { "Raw JSON": result.data.jsonString };
           }
+        } else if (result.data?.content) {
+          // Handle plain text content
+          deviceData = { "Content": result.data.content };
         }
-        
-        setReadResult(formattedData);
+
+        // Include tag UUID in the displayed data (at the top)
+        if (tagId && deviceData) {
+          deviceData = { 'Tag UUID': tagId, ...deviceData };
+        }
+
+        setReadResult(deviceData);
         Alert.alert('Success', 'NFC tag read successfully!');
       } else {
         // Handle NFCService errors
         const errorMessage = result.error || 'Unknown error occurred';
-        setReadResult({ "Error": errorMessage });
+        setReadResult({ error: errorMessage });
         Alert.alert('Error', errorMessage);
       }
     } catch (error) {
       console.error('[ReadTab] Unexpected error:', error);
       const errorMessage = error.message || 'Unexpected error occurred';
-      setReadResult({ "Error": errorMessage });
+      setReadResult({ error: errorMessage });
       Alert.alert('Error', errorMessage);
     } finally {
       setIsReading(false);
     }
   };
 
-  // Render the key-value pairs
-  const renderKeyValuePairs = () => {
-    if (!readResult) return null;
-    
-    return Object.entries(readResult).map(([key, value]) => (
-      <Text key={key} style={styles.resultText}>
-        <Text style={styles.resultKey}>{key}:</Text> {String(value)}
-      </Text>
-    ));
-  };
-
   return (
     <View style={styles.nfcTabContent}>
       <Text style={styles.nfcTabTitle}>Read NFC Tag</Text>
       <Text style={styles.nfcTabSubtitle}>Place your device near an NFC tag to read data.</Text>
-      
+
       {isReading ? (
         <View style={styles.buttonGroup}>
           <Button
@@ -131,10 +132,21 @@ const ReadTab = ({ withNfcManager, onCancel }) => {
       )}
 
       {readResult && !isReading && (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultTitle}>Data:</Text>
-          {renderKeyValuePairs()}
-        </View>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          {readResult.isEmpty ? (
+            <View style={styles.resultContainer}>
+              <Text style={styles.emptyTagText}>
+                Tag is formatted but contains no data. You can write data to it using the Edit tab.
+              </Text>
+            </View>
+          ) : readResult.error ? (
+            <View style={styles.resultContainer}>
+              <Text style={styles.errorText}>Error: {readResult.error}</Text>
+            </View>
+          ) : (
+            <DeviceInfoDisplay deviceData={readResult} />
+          )}
+        </ScrollView>
       )}
     </View>
   );

@@ -1,61 +1,86 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { CustomerSheetBeta } from '@stripe/stripe-react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { usePaymentSheet } from '@stripe/stripe-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { billingService } from '../services/BillingService';
 import Button from './Button';
 
 const ORANGE_COLOR = '#FF9500';
 
-const CustomerSheetManager = ({ 
+/**
+ * CustomerSheetManager - Manages payment methods using Stripe PaymentSheet
+ *
+ * This component provides a UI for users to:
+ * - View their current default payment method
+ * - Add new payment methods via PaymentSheet
+ * - Manage (add/remove) payment methods
+ *
+ * Uses PaymentSheet API with SetupIntent for collecting payment methods
+ * without immediate charge. Backend uses ephemeral keys for authentication.
+ */
+const CustomerSheetManager = ({
   customerId,
   onPaymentMethodSelected,
   onError,
-  style 
+  style
 }) => {
   const { axiosInstance } = useAuth();
+  const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
+
   const [loading, setLoading] = useState(false);
-  const [customerSheetVisible, setCustomerSheetVisible] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
-  const [sheetInitialized, setSheetInitialized] = useState(false);
-  const [setupIntentSecret, setSetupIntentSecret] = useState('');
-  const [ephemeralKeySecret, setEphemeralKeySecret] = useState('');
 
-  // Initialize Customer Sheet
-  const initializeCustomerSheet = async () => {
+  // Fetch current payment methods from API
+  const fetchPaymentMethods = async () => {
     try {
-      setLoading(true);
+      const methods = await billingService.getPaymentMethods();
 
-      // Fetch ephemeral key and setup intent from backend
-      const [ephemeralResponse, setupIntentResponse] = await Promise.all([
-        axiosInstance.post('/billing/customer-ephemeral-key/', {
-          customer_id: customerId,
-        }),
-        axiosInstance.post('/billing/create-setup-intent/', {
-          customer_id: customerId,
-        })
-      ]);
+      // Find the default payment method
+      const defaultMethod = methods.find(m => m.is_default);
 
-      setEphemeralKeySecret(ephemeralResponse.data.ephemeral_key_secret);
-      setSetupIntentSecret(setupIntentResponse.data.setup_intent_client_secret);
+      if (defaultMethod) {
+        setSelectedPaymentMethod(defaultMethod);
+        onPaymentMethodSelected && onPaymentMethodSelected(defaultMethod);
+      } else if (methods.length > 0) {
+        // If no default but methods exist, use the first one
+        setSelectedPaymentMethod(methods[0]);
+        onPaymentMethodSelected && onPaymentMethodSelected(methods[0]);
+      } else {
+        setSelectedPaymentMethod(null);
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      // Don't alert here - this might be first time setup
+      setSelectedPaymentMethod(null);
+    }
+  };
 
-      // Initialize the Customer Sheet
-      const { error } = await CustomerSheetBeta.initialize({
-        setupIntentClientSecret: setupIntentResponse.data.setup_intent_client_secret,
-        customerEphemeralKeySecret: ephemeralResponse.data.ephemeral_key_secret,
-        customerId: customerId,
-        headerTextForSelectionScreen: 'Manage your payment methods',
+  // Initialize Payment Sheet with SetupIntent
+  const initializePaymentSheet = async () => {
+    try {
+      setInitializing(true);
+
+      // Fetch setup intent from backend
+      const setupIntentData = await billingService.createSetupIntent();
+
+      // Validate response
+      if (!setupIntentData.setup_intent_client_secret || !setupIntentData.customer_id) {
+        throw new Error('Invalid setup intent response from server. Please try again or contact support.');
+      }
+
+      // Initialize PaymentSheet with SetupIntent mode
+      const { error } = await initPaymentSheet({
+        customerId: setupIntentData.customer_id,
+        customerEphemeralKeySecret: setupIntentData.ephemeral_key_secret,
+        setupIntentClientSecret: setupIntentData.setup_intent_client_secret,
+        merchantDisplayName: 'WrapBattz',
         returnURL: 'wrapbattz://stripe-redirect',
         defaultBillingDetails: {
-          email: ephemeralResponse.data.customer_email || '',
+          email: setupIntentData.customer_email || '',
         },
-        billingDetailsCollectionConfiguration: {
-          name: 'always',
-          email: 'never', // We already have it
-          phone: 'automatic',
-          address: 'automatic',
-          attachDefaultsToPaymentMethod: true,
-        },
+        allowsDelayedPaymentMethods: false,
         appearance: {
           colors: {
             primary: ORANGE_COLOR,
@@ -67,7 +92,6 @@ const CustomerSheetManager = ({
             secondaryText: '#6c6c6c',
             componentText: '#000000',
             placeholderText: '#a8a8a8',
-            icon: ORANGE_COLOR,
           },
           shapes: {
             borderRadius: 8,
@@ -77,19 +101,88 @@ const CustomerSheetManager = ({
       });
 
       if (error) {
-        throw new Error(`CustomerSheet initialization error: ${error.message}`);
+        throw new Error(`PaymentSheet initialization error: ${error.message}`);
       }
 
-      setSheetInitialized(true);
-
-      // Retrieve the current selection
-      await retrieveCurrentSelection();
+      return true;
 
     } catch (error) {
-      console.error('CustomerSheet initialization error:', error);
+      console.error('PaymentSheet initialization error:', error);
+
+      // Provide user-friendly error messages based on error type
+      let errorTitle = 'Payment Setup Error';
+      let errorMessage = 'Failed to initialize payment methods. Please try again.';
+
+      if (error.response) {
+        // API error
+        const status = error.response.status;
+        const detail = error.response.data?.detail || error.response.data?.error;
+
+        if (status === 404) {
+          errorTitle = 'Setup Not Available';
+          errorMessage = 'Billing service is not available. Please contact support.';
+        } else if (status === 500) {
+          errorTitle = 'Server Error';
+          errorMessage = detail || 'A server error occurred. This usually happens when billing is not fully configured. Please contact support.';
+        } else if (status === 403) {
+          errorTitle = 'Access Denied';
+          errorMessage = 'You don\'t have permission to manage payment methods. Please contact your organization administrator.';
+        } else if (status === 400) {
+          errorTitle = 'Invalid Request';
+          errorMessage = detail || 'Invalid payment setup request. Please try again.';
+        } else if (detail) {
+          errorMessage = detail;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert(errorTitle, errorMessage);
+      onError && onError(error);
+      return false;
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  // Present Payment Sheet to add/manage payment methods
+  const openPaymentSheet = async () => {
+    try {
+      setLoading(true);
+
+      // Initialize payment sheet
+      const initialized = await initializePaymentSheet();
+      if (!initialized) {
+        return;
+      }
+
+      // Present the payment sheet
+      const { error } = await presentPaymentSheet();
+
+      if (error) {
+        if (error.code === 'Canceled') {
+          // User canceled - no action needed
+          console.log('Payment sheet canceled by user');
+          return;
+        }
+        throw new Error(error.message || 'An error occurred while processing payment method');
+      }
+
+      // Success! Payment method was added
       Alert.alert(
-        'Error', 
-        error.message || 'Failed to initialize payment methods. Please try again.'
+        'Success',
+        'Payment method added successfully',
+        [{ text: 'OK' }]
+      );
+
+      // Refresh payment methods list
+      await fetchPaymentMethods();
+
+    } catch (error) {
+      console.error('Error presenting payment sheet:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to add payment method. Please try again.'
       );
       onError && onError(error);
     } finally {
@@ -97,66 +190,22 @@ const CustomerSheetManager = ({
     }
   };
 
-  // Retrieve current payment method selection
-  const retrieveCurrentSelection = async () => {
-    try {
-      const { error, paymentOption, paymentMethod } = 
-        await CustomerSheetBeta.retrievePaymentOptionSelection();
-
-      if (!error && paymentMethod) {
-        setSelectedPaymentMethod(paymentMethod);
-        onPaymentMethodSelected && onPaymentMethodSelected(paymentMethod);
-      }
-    } catch (error) {
-      console.error('Error retrieving payment selection:', error);
-    }
-  };
-
-  // Open the Customer Sheet
-  const openCustomerSheet = async () => {
-    if (!sheetInitialized) {
-      await initializeCustomerSheet();
-    }
-    setCustomerSheetVisible(true);
-  };
-
-  // Handle Customer Sheet result
-  const handleCustomerSheetResult = ({ error, paymentOption, paymentMethod }) => {
-    setCustomerSheetVisible(false);
-
-    if (error) {
-      if (error.code === 'Canceled') {
-        // User canceled - no action needed
-        return;
-      }
-      Alert.alert('Error', error.message || 'An error occurred');
-      onError && onError(error);
-      return;
-    }
-
-    if (paymentMethod) {
-      setSelectedPaymentMethod(paymentMethod);
-      onPaymentMethodSelected && onPaymentMethodSelected(paymentMethod);
-      
-      // Update default payment method on backend
-      axiosInstance.post('/billing/set-default-payment-method/', {
-        payment_method_id: paymentMethod.id,
-        customer_id: customerId,
-      }).catch(err => {
-        console.error('Error setting default payment method:', err);
-      });
-    }
-  };
-
-  // Initialize on mount
+  // Fetch payment methods on mount
   useEffect(() => {
-    if (customerId) {
-      initializeCustomerSheet();
-    }
-  }, [customerId]);
+    fetchPaymentMethods();
+  }, []);
 
   // Render current payment method
   const renderCurrentPaymentMethod = () => {
+    if (initializing) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={ORANGE_COLOR} />
+          <Text style={styles.loadingText}>Loading payment methods...</Text>
+        </View>
+      );
+    }
+
     if (!selectedPaymentMethod) {
       return (
         <Text style={styles.noPaymentText}>
@@ -165,39 +214,59 @@ const CustomerSheetManager = ({
       );
     }
 
-    const { card } = selectedPaymentMethod;
-    if (card) {
-      return (
-        <View style={styles.paymentMethodRow}>
-          <Ionicons 
-            name="card-outline" 
-            size={24} 
-            color={ORANGE_COLOR} 
-            style={styles.cardIcon}
-          />
-          <View style={styles.cardDetails}>
-            <Text style={styles.cardBrand}>
-              {card.brand.charAt(0).toUpperCase() + card.brand.slice(1)}
-            </Text>
-            <Text style={styles.cardNumber}>
-              •••• {card.last4}
-            </Text>
-            <Text style={styles.cardExpiry}>
-              Expires {card.expMonth}/{card.expYear}
-            </Text>
-          </View>
-        </View>
-      );
-    }
+    // Card details from API response
+    const brand = selectedPaymentMethod.brand || selectedPaymentMethod.card?.brand || 'Card';
+    const last4 = selectedPaymentMethod.last4 || selectedPaymentMethod.card?.last4 || '****';
+    const expMonth = selectedPaymentMethod.exp_month || selectedPaymentMethod.card?.exp_month;
+    const expYear = selectedPaymentMethod.exp_year || selectedPaymentMethod.card?.exp_year;
 
-    return null;
+    // Get appropriate icon based on card brand
+    const getCardIcon = (cardBrand) => {
+      const brandLower = cardBrand?.toLowerCase() || '';
+      if (brandLower.includes('visa')) return 'card';
+      if (brandLower.includes('mastercard')) return 'card';
+      if (brandLower.includes('amex')) return 'card';
+      if (brandLower.includes('discover')) return 'card';
+      return 'card-outline';
+    };
+
+    return (
+      <View style={styles.paymentMethodRow}>
+        <Ionicons
+          name={getCardIcon(brand)}
+          size={24}
+          color={ORANGE_COLOR}
+          style={styles.cardIcon}
+        />
+        <View style={styles.cardDetails}>
+          <Text style={styles.cardBrand}>
+            {brand.charAt(0).toUpperCase() + brand.slice(1)}
+          </Text>
+          <Text style={styles.cardNumber}>
+            •••• {last4}
+          </Text>
+          {expMonth && expYear && (
+            <Text style={styles.cardExpiry}>
+              Expires {String(expMonth).padStart(2, '0')}/{String(expYear).slice(-2)}
+            </Text>
+          )}
+          {selectedPaymentMethod.is_default && (
+            <View style={styles.defaultBadge}>
+              <Text style={styles.defaultBadgeText}>Default</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
   };
 
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
         <Text style={styles.title}>Payment Methods</Text>
-        {loading && <ActivityIndicator size="small" color={ORANGE_COLOR} />}
+        {(loading || initializing) && (
+          <ActivityIndicator size="small" color={ORANGE_COLOR} />
+        )}
       </View>
 
       <View style={styles.paymentMethodContainer}>
@@ -205,24 +274,12 @@ const CustomerSheetManager = ({
       </View>
 
       <Button
-        title="Manage Payment Methods"
-        onPress={openCustomerSheet}
-        disabled={loading}
+        title={selectedPaymentMethod ? "Manage Payment Methods" : "Add Payment Method"}
+        onPress={openPaymentSheet}
+        disabled={loading || initializing}
         style={styles.manageButton}
         icon={<Ionicons name="card-outline" size={20} color="white" />}
       />
-
-      {sheetInitialized && (
-        <CustomerSheetBeta.CustomerSheet
-          visible={customerSheetVisible}
-          setupIntentClientSecret={setupIntentSecret}
-          customerEphemeralKeySecret={ephemeralKeySecret}
-          customerId={customerId}
-          headerTextForSelectionScreen="Manage your payment methods"
-          returnURL="wrapbattz://stripe-redirect"
-          onResult={handleCustomerSheetResult}
-        />
-      )}
     </View>
   );
 };
@@ -291,6 +348,31 @@ const styles = StyleSheet.create({
   manageButton: {
     backgroundColor: ORANGE_COLOR,
     borderColor: ORANGE_COLOR,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  defaultBadge: {
+    backgroundColor: ORANGE_COLOR,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  defaultBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+    textTransform: 'uppercase',
   },
 });
 

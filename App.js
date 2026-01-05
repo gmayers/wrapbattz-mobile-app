@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 
 console.log('🎯 App.js - File loaded successfully!');
 import { Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { SQLiteProvider } from './src/context/SQLiteContext';
 import { AppNavigator } from './src/navigation/index';
@@ -126,20 +127,22 @@ export default function App() {
   console.log('🏗️ App.js - Rendering component tree...');
 
   return (
-    <StripeProvider 
-      publishableKey={STRIPE_CONFIG.publishableKey}
-      merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
-      urlScheme={STRIPE_CONFIG.urlScheme}
-    >
-      {console.log('💳 App.js - StripeProvider rendered')}
-      <AuthProvider>
-        {console.log('🔐 App.js - AuthProvider rendered')}
-        <SQLiteProvider>
-          {console.log('🗄️ App.js - SQLiteProvider rendered')}
-          <AppNavigator />
-          {console.log('🧭 App.js - AppNavigator rendered')}
-        </SQLiteProvider>
-      </AuthProvider>
-    </StripeProvider>
+    <SafeAreaProvider>
+      <StripeProvider
+        publishableKey={STRIPE_CONFIG.publishableKey}
+        merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
+        urlScheme={STRIPE_CONFIG.urlScheme}
+      >
+        {console.log('💳 App.js - StripeProvider rendered')}
+        <AuthProvider>
+          {console.log('🔐 App.js - AuthProvider rendered')}
+          <SQLiteProvider>
+            {console.log('🗄️ App.js - SQLiteProvider rendered')}
+            <AppNavigator />
+            {console.log('🧭 App.js - AppNavigator rendered')}
+          </SQLiteProvider>
+        </AuthProvider>
+      </StripeProvider>
+    </SafeAreaProvider>
   );
 }

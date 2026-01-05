@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [customDeviceCount, setCustomDeviceCount] = useState(null); // null means use current count
   
   // Check permissions
   React.useEffect(() => {
@@ -45,59 +47,93 @@ const DataHandlingFeeScreen = ({ navigation }) => {
       const response = await axiosInstance.get('/billing/status/');
       setBillingData(response.data);
     } catch (error) {
-      console.error('Error fetching billing data:', error);
-      // Fall back to mock data if API not ready
-      setBillingData({
-        devices: {
-          total: 5,
-          active: 5,
-          inactive: 0,
-          free_quota: 3,
-          billable: 2
-        },
-        tier: {
-          name: "1-100 Stickers",
-          price_per_device: {
-            monthly: 0.40,
-            annual: 0.25
+      console.log('ℹ️ Billing status not available (expected if not set up):', error.response?.status || 'Network error');
+
+      // Try to fetch device count from devices endpoint as fallback
+      try {
+        const devicesResponse = await axiosInstance.get('/devices/');
+        const deviceCount = devicesResponse.data?.length || 0;
+
+        setBillingData({
+          devices: {
+            total: deviceCount,
+            active: deviceCount,
+            inactive: 0,
+            free_quota: 3,
+            billable: Math.max(0, deviceCount - 3)
+          },
+          tier: {
+            name: "1-100 Stickers",
+            price_per_device: {
+              monthly: 0.40,
+              annual: 0.25
+            }
+          },
+          billing: {
+            status: 'inactive',
+            cycle: 'monthly',
+            free_quota: 3
           }
-        },
-        billing: {
-          status: 'inactive',
-          cycle: 'monthly',
-          free_quota: 3
-        }
-      });
+        });
+      } catch (deviceError) {
+        console.log('ℹ️ Device list not available, using defaults');
+        // If we can't get device count either, use 0
+        setBillingData({
+          devices: {
+            total: 0,
+            active: 0,
+            inactive: 0,
+            free_quota: 3,
+            billable: 0
+          },
+          tier: {
+            name: "1-100 Stickers",
+            price_per_device: {
+              monthly: 0.40,
+              annual: 0.25
+            }
+          },
+          billing: {
+            status: 'inactive',
+            cycle: 'monthly',
+            free_quota: 3
+          }
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
   
-  const handleActivate = () => {
-    if (billingData.devices.billable <= 0) {
-      Alert.alert(
-        'Free Tier Available',
-        'You can use up to 3 devices for free. Would you like to activate your free tier?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Activate Free Tier',
-            onPress: async () => {
-              try {
-                await axiosInstance.post('/billing/activate-free-tier/');
-                Alert.alert('Free Tier Activated', 'You can now use up to 3 devices at no cost.');
-                navigation.navigate('ManageBilling');
-              } catch (error) {
-                console.error('Error activating free tier:', error);
-                Alert.alert('Error', 'Failed to activate free tier. Please try again.');
-              }
+  const handleActivate = async () => {
+    // Check effective billable devices
+    if (getBillableDevices() <= 0) {
+      // Free tier - activate directly without confirmation
+      try {
+        setLoading(true);
+        await axiosInstance.post('/billing/activate-free-tier/');
+        Alert.alert(
+          'Free Tier Activated',
+          'You can now use up to 3 devices at no cost.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('ManageBilling')
             }
-          }
-        ]
-      );
+          ]
+        );
+      } catch (error) {
+        console.error('Error activating free tier:', error);
+        Alert.alert(
+          'Error',
+          error.response?.data?.detail || 'Failed to activate free tier. Please try again.'
+        );
+      } finally {
+        setLoading(false);
+      }
       return;
     }
-    
+
     // Show payment setup for paid plans
     setShowPayment(true);
   };
@@ -115,7 +151,107 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   const handleSubscriptionCancel = () => {
     setShowPayment(false);
   };
-  
+
+  // Get effective device count (custom or actual)
+  const getEffectiveDeviceCount = () => {
+    return customDeviceCount !== null ? customDeviceCount : (billingData?.devices.total || 0);
+  };
+
+  // Calculate billable devices based on effective count
+  const getBillableDevices = () => {
+    const totalDevices = getEffectiveDeviceCount();
+    return Math.max(0, totalDevices - 3); // 3 free devices
+  };
+
+  // Get the tier based on TOTAL devices
+  const getTierInfo = () => {
+    const totalDevices = getEffectiveDeviceCount();
+
+    // Tier determined by total device count
+    if (totalDevices <= 100) {
+      // 1-100 stickers tier
+      return {
+        name: '1-100 Stickers',
+        monthlyRate: 0.40,
+        annualRate: 0.25
+      };
+    } else if (totalDevices <= 400) {
+      // 101-400 stickers tier (triggers at 101 total)
+      return {
+        name: '101-400 Stickers',
+        monthlyRate: 0.33,
+        annualRate: 0.25
+      };
+    } else {
+      // 401+ stickers tier
+      return {
+        name: '400+ Stickers',
+        monthlyRate: 0.25,
+        annualRate: 0.25
+      };
+    }
+  };
+
+  // Calculate cost - all billable devices at the same rate
+  const calculateTieredCost = (totalDevices, planType) => {
+    const billableDevices = Math.max(0, totalDevices - 3);
+    if (billableDevices <= 0) return 0;
+
+    const tierInfo = getTierInfo();
+    const rate = planType === 'monthly' ? tierInfo.monthlyRate : tierInfo.annualRate;
+
+    return billableDevices * rate;
+  };
+
+  // Get minimum device count (can't subscribe to less than you currently have)
+  const getMinimumDeviceCount = () => {
+    return billingData?.devices.total || 0;
+  };
+
+  // Handle device count change
+  const handleDeviceCountChange = (increment) => {
+    const currentCount = getEffectiveDeviceCount();
+    const minCount = getMinimumDeviceCount();
+    const newCount = Math.max(minCount, currentCount + increment);
+    setCustomDeviceCount(newCount);
+  };
+
+  // Handle direct text input for device count - allow any input during typing
+  const handleDeviceCountInput = (text) => {
+    // Remove non-numeric characters
+    const numericValue = text.replace(/[^0-9]/g, '');
+
+    // Allow empty or any number during typing
+    if (numericValue === '') {
+      // Set to null to show placeholder or current value
+      setCustomDeviceCount(null);
+      return;
+    }
+
+    const count = parseInt(numericValue, 10);
+    // Allow setting any number during typing - validation happens on blur
+    setCustomDeviceCount(count);
+  };
+
+  // Handle when user finishes editing (blur) - validate here
+  const handleDeviceCountBlur = () => {
+    const currentCount = getEffectiveDeviceCount();
+    const minCount = getMinimumDeviceCount();
+
+    // Validate and correct if needed
+    if (!currentCount || currentCount < minCount) {
+      // Show alert if user tried to go below minimum
+      if (currentCount > 0 && currentCount < minCount) {
+        Alert.alert(
+          'Minimum Devices',
+          `You currently have ${minCount} device${minCount !== 1 ? 's' : ''} in your system. You cannot subscribe to fewer devices than you currently have. Resetting to ${minCount}.`,
+          [{ text: 'OK' }]
+        );
+      }
+      setCustomDeviceCount(minCount);
+    }
+  };
+
   const renderPlanOption = (planType, title, description) => {
     // Calculate savings percentage
     const savingsPercent = Math.round(((0.40 - 0.25) / 0.40) * 100);
@@ -192,19 +328,67 @@ const DataHandlingFeeScreen = ({ navigation }) => {
         <View style={styles.deviceSummary}>
           <Text style={styles.deviceSummaryTitle}>Device Usage</Text>
           <View style={styles.deviceCountRow}>
-            <Text style={styles.deviceCountLabel}>Total Devices:</Text>
+            <Text style={styles.deviceCountLabel}>Current Devices in System:</Text>
             <Text style={styles.deviceCountValue}>{billingData?.devices.total || 0}</Text>
           </View>
+
+          {/* Device Count Selector */}
+          <View style={styles.deviceSelector}>
+            <Text style={styles.deviceSelectorLabel}>Devices to Subscribe:</Text>
+            <View style={styles.deviceSelectorControls}>
+              <TouchableOpacity
+                style={styles.deviceSelectorButton}
+                onPress={() => handleDeviceCountChange(-1)}
+                disabled={getEffectiveDeviceCount() <= getMinimumDeviceCount()}
+              >
+                <Ionicons
+                  name="remove-circle"
+                  size={32}
+                  color={getEffectiveDeviceCount() <= getMinimumDeviceCount() ? '#ccc' : ORANGE_COLOR}
+                />
+              </TouchableOpacity>
+              <TextInput
+                style={styles.deviceSelectorValue}
+                value={String(getEffectiveDeviceCount())}
+                onChangeText={handleDeviceCountInput}
+                onBlur={handleDeviceCountBlur}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                maxLength={4}
+                selectTextOnFocus={true}
+              />
+              <TouchableOpacity
+                style={styles.deviceSelectorButton}
+                onPress={() => handleDeviceCountChange(1)}
+              >
+                <Ionicons name="add-circle" size={32} color={ORANGE_COLOR} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.helperText}>
+              Minimum: {getMinimumDeviceCount()} (current devices in system)
+            </Text>
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() => setCustomDeviceCount(null)}
+            >
+              <Text style={styles.resetButtonText}>
+                Reset to current ({billingData?.devices.total || 0})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.divider} />
+
           <View style={styles.deviceCountRow}>
             <Text style={styles.deviceCountLabel}>Free Devices:</Text>
-            <Text style={styles.deviceCountValue}>{Math.min(3, billingData?.devices.total || 0)}</Text>
+            <Text style={styles.deviceCountValue}>{Math.min(3, getEffectiveDeviceCount())}</Text>
           </View>
           <View style={styles.deviceCountRow}>
             <Text style={styles.deviceCountLabel}>Billable Devices:</Text>
-            <Text style={styles.deviceCountValue}>{billingData?.devices.billable || 0}</Text>
+            <Text style={styles.deviceCountValue}>{getBillableDevices()}</Text>
           </View>
-          
-          {billingData.devices.billable <= 0 && (
+
+          {getBillableDevices() <= 0 && (
             <View style={styles.freeTierInfo}>
               <Text style={styles.freeTierInfoText}>
                 You're using the free tier (up to 3 devices). Add more devices to upgrade.
@@ -229,28 +413,59 @@ const DataHandlingFeeScreen = ({ navigation }) => {
         
         <View style={styles.costSummary}>
           <Text style={styles.costSummaryTitle}>Cost Summary</Text>
-          <View style={styles.costRow}>
-            <Text style={styles.costLabel}>Free Tier (3 devices):</Text>
-            <Text style={styles.costValue}>£0.00</Text>
+
+          {/* Show current tier */}
+          <View style={styles.tierBadgeContainer}>
+            <Text style={styles.tierBadge}>Tier: {getTierInfo().name}</Text>
           </View>
+
           <View style={styles.costRow}>
-            <Text style={styles.costLabel}>
-              {billingData.devices.billable} additional device{billingData.devices.billable !== 1 ? 's' : ''} × 
-              {selectedPlan === 'monthly' 
-                ? '£0.40' 
-                : '£0.25'}:
-            </Text>
-            <Text style={styles.costValue}>
-              £{((selectedPlan === 'monthly' ? 0.40 : 0.25) * billingData.devices.billable).toFixed(2)}
-            </Text>
+            <Text style={styles.costLabel}>Free Devices:</Text>
+            <Text style={styles.costValue}>3 × £0.00 = £0.00</Text>
           </View>
+
+          {getBillableDevices() > 0 && (
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>
+                Billable Devices:
+              </Text>
+              <Text style={styles.costValue}>
+                {getBillableDevices()} × £{(selectedPlan === 'monthly' ? getTierInfo().monthlyRate : getTierInfo().annualRate).toFixed(2)}/month
+              </Text>
+            </View>
+          )}
+
+          {getBillableDevices() > 0 && (
+            <View style={styles.costRow}>
+              <Text style={[styles.costLabel, { fontWeight: '600' }]}>
+                Subtotal:
+              </Text>
+              <Text style={[styles.costValue, { fontWeight: '600' }]}>
+                £{calculateTieredCost(getEffectiveDeviceCount(), selectedPlan).toFixed(2)}/month
+              </Text>
+            </View>
+          )}
+
+          {selectedPlan === 'annual' && getBillableDevices() > 0 && (
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Annual billing (×12 months):</Text>
+              <Text style={styles.costValue}>
+                £{(calculateTieredCost(getEffectiveDeviceCount(), selectedPlan) * 12).toFixed(2)}/year
+              </Text>
+            </View>
+          )}
+
           <View style={styles.divider} />
+
           <View style={styles.costRow}>
             <Text style={styles.totalLabel}>
               Total {selectedPlan === 'monthly' ? 'Monthly' : 'Annual'} Cost:
             </Text>
             <Text style={styles.totalValue}>
-              £{((selectedPlan === 'monthly' ? 0.40 : 0.25) * billingData.devices.billable).toFixed(2)}
+              £{(selectedPlan === 'monthly'
+                ? calculateTieredCost(getEffectiveDeviceCount(), selectedPlan).toFixed(2)
+                : (calculateTieredCost(getEffectiveDeviceCount(), selectedPlan) * 12).toFixed(2))}
+              {selectedPlan === 'monthly' ? '/month' : '/year'}
             </Text>
           </View>
         </View>
@@ -260,10 +475,11 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           Your payment covers the cost of securely handling device data and providing management services.
         </Text>
         
-        {showPayment && billingData?.devices.billable > 0 ? (
+        {showPayment && getBillableDevices() > 0 ? (
           <SubscriptionSetup
             selectedPlan={selectedPlan}
-            billableDevices={billingData.devices.billable}
+            billableDevices={getBillableDevices()}
+            totalDevices={getEffectiveDeviceCount()}
             onSubscriptionSuccess={handleSubscriptionSuccess}
             onSubscriptionError={handleSubscriptionError}
             onCancel={handleSubscriptionCancel}
@@ -274,7 +490,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             onPress={handleActivate}
           >
             <Text style={styles.activateButtonText}>
-              {billingData?.devices.billable > 0
+              {getBillableDevices() > 0
                 ? `Activate ${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan`
                 : 'Activate Free Tier'}
             </Text>
@@ -348,6 +564,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  deviceSelector: {
+    marginVertical: 16,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: ORANGE_COLOR,
+  },
+  deviceSelectorLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deviceSelectorControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  deviceSelectorButton: {
+    padding: 8,
+  },
+  deviceSelectorValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginHorizontal: 24,
+    minWidth: 80,
+    textAlign: 'center',
+    padding: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: ORANGE_COLOR,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  resetButton: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  resetButtonText: {
+    fontSize: 13,
+    color: ORANGE_COLOR,
+    textDecorationLine: 'underline',
   },
   freeTierInfo: {
     marginTop: 12,
@@ -444,6 +712,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  tierBadgeContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tierBadge: {
+    backgroundColor: ORANGE_COLOR,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   costRow: {
     flexDirection: 'row',

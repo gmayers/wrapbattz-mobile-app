@@ -2,7 +2,7 @@
   "expo": {
     "name": "battwrapz",
     "slug": "battwrapz",
-    "version": "1.4.5",
+    "version": "1.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -19,6 +19,11 @@
         {
           "ios": {
             "deploymentTarget": "17.0"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
           }
         }
       ],

@@ -20,18 +20,15 @@ const useLocations = () => {
 
   /**
    * Handles API errors with appropriate user feedback
+   * Note: 401 errors are handled globally by the axios interceptor
    * @param {Error} error - The error object from the API call
    * @param {string} customMessage - Custom error message to display
    */
   const handleApiError = (error, customMessage = 'Failed to fetch locations') => {
     console.error('Location API Error:', error);
 
+    // Skip 401 errors - they're handled globally by the axios interceptor
     if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: () => logout() }]
-      );
       return;
     }
 
@@ -57,7 +54,7 @@ const useLocations = () => {
       console.log('Fetching locations with token:', token ? 'Token exists' : 'No token');
 
       const response = await axios.get(
-        'https://test.gmayersservices.com/api/locations/',
+        'https://webportal.battwrapz.com/api/locations/',
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -91,7 +88,7 @@ const useLocations = () => {
       console.log('Creating location with data:', locationData);
 
       const response = await axios.post(
-        'https://test.gmayersservices.com/api/locations/',
+        'https://webportal.battwrapz.com/api/locations/',
         locationData,
         {
           headers: {
@@ -128,7 +125,7 @@ const useLocations = () => {
       console.log('Updating location:', locationId, 'with data:', updateData);
 
       const response = await axios.patch(
-        `https://test.gmayersservices.com/api/locations/${locationId}/`,
+        `https://webportal.battwrapz.com/api/locations/${locationId}/`,
         updateData,
         {
           headers: {
@@ -164,7 +161,7 @@ const useLocations = () => {
       console.log('Deleting location:', locationId);
 
       const response = await axios.delete(
-        `https://test.gmayersservices.com/api/locations/${locationId}/`,
+        `https://webportal.battwrapz.com/api/locations/${locationId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -199,7 +196,7 @@ const useLocations = () => {
       console.log('Fetching details for location:', locationId);
 
       const response = await axios.get(
-        `https://test.gmayersservices.com/api/locations/${locationId}/`,
+        `https://webportal.battwrapz.com/api/locations/${locationId}/`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

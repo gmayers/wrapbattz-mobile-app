@@ -3,6 +3,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 // Import screens
@@ -16,6 +17,7 @@ const ORANGE_COLOR = '#FF9500';
 
 const TabNavigation = () => {
   const { logout, userData } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // User role and permissions
   const userRole = userData?.role;
@@ -86,8 +88,8 @@ const TabNavigation = () => {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
-          paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-          height: Platform.OS === 'ios' ? 80 : 60,
+          paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10),
+          height: Platform.OS === 'ios' ? 80 + insets.bottom : 60 + Math.max(insets.bottom, 10),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,

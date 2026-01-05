@@ -19,7 +19,7 @@ import axios from 'axios';
 const ORANGE_COLOR = '#FF9500';
 
 // API endpoints
-const API_BASE_URL = 'https://battwrapz.gmayersservices.com/api';
+const API_BASE_URL = 'https://webportal.battwrapz.com/api';
 
 const ProfileScreen = ({ navigation }) => {
   // Use AuthContext
@@ -27,47 +27,74 @@ const ProfileScreen = ({ navigation }) => {
   
   const [profileData, setProfileData] = useState(null);
   const [billingData, setBillingData] = useState(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Fetch profile data
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Get user profile from AuthContext 
+      // Get user profile from AuthContext
       // (This should have been implemented in your AuthContext as described in your earlier code)
       const userId = userData?.userId || user?.id;
-      
+
       if (!userId) {
         throw new Error('User ID not found');
       }
-      
+
       // Get user profile using authContext method
       const profileResponse = await getUserProfile(userId);
       setProfileData(profileResponse);
-      
+
+      // Sync notification states with fetched profile data
+      if (profileResponse) {
+        setNotificationsEnabled(profileResponse.push_notifications_enabled ?? false);
+        setEmailNotificationsEnabled(profileResponse.email_notifications_enabled ?? false);
+      }
+
       // Only fetch billing data for admin/owner
       if (isAdminOrOwner) {
         try {
           const billingResponse = await axiosInstance.get('/billing/status/');
           setBillingData(billingResponse.data);
         } catch (billingError) {
-          console.error('Error fetching billing data:', billingError);
-          // Mock billing data as fallback
-          setBillingData({
-            total_devices: 5,
-            free_devices_remaining: 0,
-            billable_devices: 2,
-            billing: {
-              status: 'active',
-              plan_type: 'monthly',
-              max_devices: 5,
-              next_billing_date: '2025-12-31T23:59:59Z'
-            }
-          });
+          console.log('ℹ️ Billing status not available, fetching device count...');
+
+          // Don't use mock data - fetch real device count and show "not set up" state
+          try {
+            const devicesResponse = await axiosInstance.get('/devices/');
+            const deviceCount = devicesResponse.data?.length || 0;
+
+            setBillingData({
+              total_devices: deviceCount,
+              free_devices_remaining: Math.max(0, 3 - deviceCount),
+              billable_devices: Math.max(0, deviceCount - 3),
+              billing: {
+                status: 'inactive',  // Show as inactive, not fake "active"
+                plan_type: null,
+                max_devices: deviceCount,
+                next_billing_date: null
+              }
+            });
+          } catch (deviceError) {
+            console.log('ℹ️ Device list not available, using defaults');
+            // If we can't get device count either, show 0
+            setBillingData({
+              total_devices: 0,
+              free_devices_remaining: 3,
+              billable_devices: 0,
+              billing: {
+                status: 'inactive',
+                plan_type: null,
+                max_devices: 0,
+                next_billing_date: null
+              }
+            });
+          }
         }
       }
     } catch (err) {
@@ -76,8 +103,8 @@ const ProfileScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [user, userData, getUserProfile]);
-  
+  }, [user, userData, getUserProfile, isAdminOrOwner, axiosInstance]);
+
   // Load profile data on component mount
   useEffect(() => {
     fetchProfileData();
@@ -87,17 +114,17 @@ const ProfileScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const userId = userData?.userId || user?.id;
-      
+
       if (!userId) {
         throw new Error('User ID not found');
       }
-      
+
       // Update profile using the AuthContext method
       await updateUserProfile(userId, updatedData);
-      
-      // Refresh profile data
-      fetchProfileData();
-      
+
+      // Refresh profile data to get updated values from server
+      await fetchProfileData();
+
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -134,25 +161,69 @@ const ProfileScreen = ({ navigation }) => {
     }
   }, [axiosInstance]);
   
-  const handleNotificationToggle = useCallback(async (value) => {
+  const handlePushNotificationToggle = useCallback(async (value) => {
+    // Optimistically update UI
+    const previousValue = notificationsEnabled;
+    setNotificationsEnabled(value);
+
     try {
-      setNotificationsEnabled(value);
-      
-      // Update notification preferences in profile
       const userId = userData?.userId || user?.id;
-      
-      if (userId) {
-        await updateUserProfile(userId, {
-          push_notifications_enabled: value
-        });
+
+      if (!userId) {
+        throw new Error('User ID not found');
       }
+
+      // Update push notification preference in profile
+      await updateUserProfile(userId, {
+        push_notifications_enabled: value
+      });
+
+      // Update profileData state directly instead of re-fetching
+      setProfileData(prevData => ({
+        ...prevData,
+        push_notifications_enabled: value
+      }));
+
     } catch (err) {
-      console.error('Error updating notification preferences:', err);
+      console.error('Error updating push notification preferences:', err);
       // Revert the switch if update fails
-      setNotificationsEnabled(!value);
-      Alert.alert('Error', 'Failed to update notification preferences');
+      setNotificationsEnabled(previousValue);
+      Alert.alert('Error', 'Failed to update push notification preferences');
     }
-  }, [userData, user, updateUserProfile]);
+  }, [userData, user, updateUserProfile, notificationsEnabled]);
+
+  const handleEmailNotificationToggle = useCallback(async (value) => {
+    // Optimistically update UI
+    const previousValue = emailNotificationsEnabled;
+    setEmailNotificationsEnabled(value);
+
+    try {
+      const userId = userData?.userId || user?.id;
+
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+
+      // Update email notification preference in profile
+      await updateUserProfile(userId, {
+        email_notifications_enabled: value
+      });
+
+      // Update profileData state directly instead of re-fetching
+      setProfileData(prevData => ({
+        ...prevData,
+        email_notifications_enabled: value
+      }));
+
+      Alert.alert('Success', 'Email notification preferences updated');
+
+    } catch (err) {
+      console.error('Error updating email notification preferences:', err);
+      // Revert the switch if update fails
+      setEmailNotificationsEnabled(previousValue);
+      Alert.alert('Error', 'Failed to update email notification preferences');
+    }
+  }, [userData, user, updateUserProfile, emailNotificationsEnabled]);
   
   const handleLogout = useCallback(() => {
     Alert.alert(
@@ -354,7 +425,7 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={styles.settingLabel}>Push Notifications</Text>
             <Switch
               value={notificationsEnabled}
-              onValueChange={handleNotificationToggle}
+              onValueChange={handlePushNotificationToggle}
               trackColor={{ false: '#D1D5DB', true: ORANGE_COLOR }}
               thumbColor={'#FFFFFF'}
             />
@@ -362,8 +433,8 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Email Notifications</Text>
             <Switch
-              value={profileData?.email_notifications_enabled || false}
-              onValueChange={(value) => handleUpdateProfile({ email_notifications_enabled: value })}
+              value={emailNotificationsEnabled}
+              onValueChange={handleEmailNotificationToggle}
               trackColor={{ false: '#D1D5DB', true: ORANGE_COLOR }}
               thumbColor={'#FFFFFF'}
             />

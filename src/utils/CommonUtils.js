@@ -168,29 +168,27 @@ export const getStatusColor = (status, type = 'device') => {
 };
 
 // Common error handling
+// NOTE: 401 errors are handled globally by the axios interceptor in AuthContext
+// This function should only be used for other error types
 export const handleApiError = (error, logout, defaultMessage = 'An error occurred') => {
   let errorMessage = defaultMessage;
-  
+
   if (error.response) {
-    errorMessage = error.response.data?.detail || 
-                  error.response.data?.message || 
+    errorMessage = error.response.data?.detail ||
+                  error.response.data?.message ||
                   defaultMessage;
-    
-    // Handle 401 errors (unauthorized)
+
+    // Skip 401 errors - they're handled globally by axios interceptor
     if (error.response.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: logout }]
-      );
-      return;
+      // Don't show alert - global interceptor handles this
+      return errorMessage;
     }
   } else if (error.request) {
     errorMessage = 'No response from server. Please check your connection.';
   } else if (error.message) {
     errorMessage = error.message;
   }
-  
+
   Alert.alert('Error', errorMessage);
   return errorMessage;
 };

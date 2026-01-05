@@ -131,12 +131,14 @@ const CreateLocationScreen = ({ navigation, route }) => {
       );
     } catch (error) {
       console.error('Error creating location:', error);
-      
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status === 401) {
+        return;
+      }
+
       if (error.response?.data?.errors) {
         setFormErrors(error.response.data.errors);
-      } else if (error.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
       } else {
         const errorMsg = error.response?.data?.message || 'Failed to create location. Please try again.';
         setError(errorMsg);

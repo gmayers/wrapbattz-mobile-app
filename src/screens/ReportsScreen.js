@@ -119,10 +119,9 @@ const ReportsScreen = ({ navigation }) => {
       setReports(displayReports);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         const errorMsg = error.response?.data?.message || 'Failed to fetch your reports. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);

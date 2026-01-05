@@ -9,20 +9,19 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
-import { useStripe } from '@stripe/stripe-react-native';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
+import { billingService } from '../../services/BillingService';
 
 // Orange color to match existing UI
 const ORANGE_COLOR = '#FF9500';
 
 const ManageBillingScreen = ({ navigation }) => {
-  const { axiosInstance, isAdminOrOwner } = useAuth();
-  const { createPaymentMethod, confirmPaymentSheetPayment } = useStripe();
-  
+  const { isAdminOrOwner } = useAuth();
+
   // Check permissions
   React.useEffect(() => {
     if (!isAdminOrOwner) {
@@ -33,7 +32,7 @@ const ManageBillingScreen = ({ navigation }) => {
       );
     }
   }, [isAdminOrOwner, navigation]);
-  
+
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -41,66 +40,72 @@ const ManageBillingScreen = ({ navigation }) => {
   
   const fetchBillingData = async () => {
     try {
-      // Fetch actual billing data from API
-      const [billingResponse, invoicesResponse] = await Promise.all([
-        axiosInstance.get('/billing/status/'),
-        axiosInstance.get('/billing/invoices/')
+      setLoading(true);
+      // Fetch actual billing data using new service
+      const [usageData, invoicesData] = await Promise.all([
+        billingService.getUsage(),
+        billingService.getInvoices()
       ]);
-      
-      setBillingData(billingResponse.data);
-      setInvoices(invoicesResponse.data.results || invoicesResponse.data || []);
+
+      setBillingData(usageData);
+      setInvoices(invoicesData.results || invoicesData || []);
     } catch (error) {
-      console.error('Error fetching billing data:', error);
-      // Fall back to mock data if API not ready
-      setTimeout(() => {
-      setBillingData({
-        devices: {
-          total: 5,
-          active: 5,
-          inactive: 0,
-          free_quota: 3,
-          billable: 2
-        },
-        tier: {
-          name: "1-100 Stickers",
-          price_per_device: {
-            monthly: 0.40,
-            annual: 0.25
-          }
-        },
-        billing: {
-          status: 'active',
-          cycle: 'monthly',
-          free_quota: 3,
-          next_billing_date: new Date().setMonth(new Date().getMonth() + 1),
-          price_per_device: 0.40,
-          total_monthly_cost: 0.80
-        },
-      });
-      
-      setInvoices([
-        {
-          id: 'inv_001',
-          amount_paid: 0.80,
-          currency: 'gbp',
-          status: 'paid',
-          created: Math.floor(new Date().setDate(new Date().getDate() - 5) / 1000),
-          period_start: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000),
-          period_end: Math.floor(new Date().setDate(new Date().getDate() - 5) / 1000)
-        },
-        {
-          id: 'inv_002',
-          amount_paid: 0.80,
-          currency: 'gbp',
-          status: 'paid',
-          created: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000),
-          period_start: Math.floor(new Date().setDate(new Date().getDate() - 65) / 1000),
-          period_end: Math.floor(new Date().setDate(new Date().getDate() - 35) / 1000)
+      // Check if it's a 404 (no subscription/billing not set up yet)
+      if (error.response?.status === 404) {
+        console.log('ℹ️ No billing data found - user may not have a subscription yet');
+        // Don't show error, just set empty state
+        setBillingData(null);
+        setInvoices([]);
+        return;
+      }
+
+      // Check for network errors
+      if (error.message === 'Network Error' || !error.response) {
+        console.log('ℹ️ Network error fetching billing data (expected if backend not running)');
+        setBillingData(null);
+        setInvoices([]);
+        return;
+      }
+
+      console.log('ℹ️ Billing data not available, trying fallback...');
+
+      try {
+        // Fallback to legacy endpoints
+        const [billingResponse, invoicesResponse] = await Promise.all([
+          billingService.getBillingStatus(),
+          axiosInstance.get('/billing/invoices/')
+        ]);
+
+        setBillingData(billingResponse);
+        setInvoices(invoicesResponse.data.results || invoicesResponse.data || []);
+      } catch (fallbackError) {
+        // Check if fallback also got 404 or network error
+        if (fallbackError.response?.status === 404 ||
+            error.response?.status === 404 ||
+            fallbackError.message === 'Network Error' ||
+            !fallbackError.response) {
+          console.log('ℹ️ No billing data available - billing may not be set up yet');
+          setBillingData(null);
+          setInvoices([]);
+          return;
         }
-      ]);
-      
+
+        // For 500 errors or other server errors, also show "not set up" state
+        // because the billing backend may not be properly configured
+        if (fallbackError.response?.status >= 500 || error.response?.status >= 500) {
+          console.log('ℹ️ Server error - billing backend may not be configured');
+          setBillingData(null);
+          setInvoices([]);
+          return;
+        }
+
+        // For any other errors, set to null to show "not set up" state
+        console.log('ℹ️ Fallback endpoints also unavailable, showing setup screen');
+        setBillingData(null);
+        setInvoices([]);
+      }
+    } finally {
       setLoading(false);
-    }, 1000);
     }
   };
   
@@ -111,12 +116,21 @@ const ManageBillingScreen = ({ navigation }) => {
   const openBillingPortal = async () => {
     setProcessingAction(true);
     try {
-      // Create a Stripe Customer Portal session
-      const response = await axiosInstance.post('/billing/create-portal-session/');
-      
-      if (response.data.url) {
-        // Open the Stripe portal URL in the browser
-        await Linking.openURL(response.data.url);
+      // Create a Stripe Customer Portal session using new service
+      const response = await billingService.createCustomerPortalSession();
+
+      if (response.url) {
+        // Open the Stripe portal URL in native in-app browser
+        // Uses Safari View Controller (iOS) or Chrome Custom Tabs (Android)
+        const result = await WebBrowser.openBrowserAsync(response.url, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+          controlsColor: ORANGE_COLOR,
+        });
+
+        // Refresh billing data after user closes the portal
+        if (result.type === 'dismiss' || result.type === 'cancel') {
+          await fetchBillingData();
+        }
       } else {
         throw new Error('No portal URL returned');
       }
@@ -133,40 +147,60 @@ const ManageBillingScreen = ({ navigation }) => {
   };
   
   const handleChangePlan = () => {
-    const newCycle = billingData.billing.cycle === 'monthly' ? 'annual' : 'monthly';
-    
+    // Prerequisite check: Must have active subscription
+    if (!billingData?.subscription || !['active', 'past_due'].includes(billingData.subscription?.status)) {
+      Alert.alert(
+        'No Active Subscription',
+        'You need an active subscription to change plans. Would you like to set up billing now?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Set Up Billing',
+            onPress: () => navigation.navigate('DataHandlingFee')
+          }
+        ]
+      );
+      return;
+    }
+
+    const currentCycle = billingData.subscription?.cycle || 'monthly';
+    const newCycle = currentCycle === 'monthly' ? 'annual' : 'monthly';
+    const newPlanSlug = newCycle === 'annual' ? 'annual-device-billing' : 'monthly-device-billing';
+
     Alert.alert(
       'Change Billing Plan',
       `Would you like to switch to ${newCycle} billing?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Change Plan', 
+        {
+          text: 'Change Plan',
           onPress: async () => {
             setProcessingAction(true);
             try {
-              // Call API to change plan
-              const response = await axiosInstance.post('/billing/change-plan/', {
-                new_cycle: newCycle
+              // Call API to change plan using new service
+              await billingService.switchPlan({
+                plan_slug: newPlanSlug,
+                prorate: true
               });
-              
-              if (response.data.success) {
-                Alert.alert(
-                  'Plan Updated', 
-                  `Your plan has been changed to ${newCycle} billing. The change will take effect on your next billing date.`
-                );
-                // Refresh billing data
-                await fetchBillingData();
-              } else {
-                throw new Error('Plan change failed');
-              }
+
+              Alert.alert(
+                'Plan Updated',
+                `Your plan has been changed to ${newCycle} billing. The change will take effect on your next billing date.`
+              );
+              // Refresh billing data
+              await fetchBillingData();
             } catch (error) {
               console.error('Error changing plan:', error);
-              Alert.alert(
-                'Error',
-                'Unable to change plan. Please try again later.',
-                [{ text: 'OK' }]
-              );
+
+              // Provide detailed error message
+              let errorMessage = 'Unable to change plan. Please try again later.';
+              if (error.response?.status === 404) {
+                errorMessage = 'No subscription found. Please set up billing first.';
+              } else if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+              }
+
+              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
             } finally {
               setProcessingAction(false);
             }
@@ -177,44 +211,68 @@ const ManageBillingScreen = ({ navigation }) => {
   };
   
   const handleCancelSubscription = () => {
+    // Prerequisite check: Must have active subscription
+    if (!billingData?.subscription) {
+      Alert.alert(
+        'No Active Subscription',
+        'You don\'t have an active subscription to cancel.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Check if already cancelled
+    if (billingData.subscription.status === 'cancelled' || billingData.subscription.cancel_at_period_end) {
+      Alert.alert(
+        'Subscription Already Cancelled',
+        'Your subscription is already cancelled and will end on ' +
+          formatDate(billingData.subscription.current_period_end) + '.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'Cancel Subscription',
       'Are you sure you want to cancel your subscription? You will still have access until the end of your current billing period.',
       [
         { text: 'No', style: 'cancel' },
-        { 
-          text: 'Yes, Cancel', 
+        {
+          text: 'Yes, Cancel',
           style: 'destructive',
           onPress: async () => {
             setProcessingAction(true);
             try {
-              // Call API to cancel subscription
-              const response = await axiosInstance.post('/billing/cancel-subscription/');
-              
-              if (response.data.success) {
-                Alert.alert(
-                  'Subscription Cancelled', 
-                  'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
-                  [
-                    { 
-                      text: 'OK', 
-                      onPress: async () => {
-                        // Refresh billing data
-                        await fetchBillingData();
-                      }
+              // Call API to cancel subscription using new service
+              await billingService.cancelSubscription({
+                at_period_end: true
+              });
+
+              Alert.alert(
+                'Subscription Cancelled',
+                'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: async () => {
+                      // Refresh billing data
+                      await fetchBillingData();
                     }
-                  ]
-                );
-              } else {
-                throw new Error('Cancellation failed');
-              }
+                  }
+                ]
+              );
             } catch (error) {
               console.error('Error cancelling subscription:', error);
-              Alert.alert(
-                'Error',
-                'Unable to cancel subscription. Please try again later.',
-                [{ text: 'OK' }]
-              );
+
+              // Provide detailed error message
+              let errorMessage = 'Unable to cancel subscription. Please try again later.';
+              if (error.response?.status === 404) {
+                errorMessage = 'No subscription found. Please contact support.';
+              } else if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+              }
+
+              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
             } finally {
               setProcessingAction(false);
             }
@@ -223,7 +281,134 @@ const ManageBillingScreen = ({ navigation }) => {
       ]
     );
   };
-  
+
+  const handleReactivateSubscription = () => {
+    // Check if subscription can be reactivated
+    if (!billingData?.subscription?.cancel_at_period_end) {
+      Alert.alert(
+        'Subscription Active',
+        'Your subscription is already active.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Reactivate Subscription',
+      'Would you like to reactivate your subscription? It will continue after the current billing period.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reactivate',
+          onPress: async () => {
+            setProcessingAction(true);
+            try {
+              await billingService.reactivateSubscription();
+
+              Alert.alert(
+                'Subscription Reactivated',
+                'Your subscription has been reactivated and will continue automatically.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: async () => {
+                      await fetchBillingData();
+                    }
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error reactivating subscription:', error);
+
+              let errorMessage = 'Unable to reactivate subscription. Please try again later.';
+              if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+              }
+
+              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+            } finally {
+              setProcessingAction(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUpdateDeviceCount = () => {
+    if (!billingData?.subscription) {
+      Alert.alert(
+        'No Active Subscription',
+        'You need an active subscription to update device count.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const currentCount = billingData?.current_device_count || 0;
+
+    Alert.prompt(
+      'Update Device Count',
+      `Enter the total number of devices you want to manage.\n\nCurrent: ${currentCount} devices\nFree tier: ${billingData?.free_quota || 3} devices\n\nYou will be charged for devices exceeding the free tier.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: async (value) => {
+            const newCount = parseInt(value);
+
+            if (isNaN(newCount) || newCount < 0) {
+              Alert.alert('Invalid Input', 'Please enter a valid number.', [{ text: 'OK' }]);
+              return;
+            }
+
+            if (newCount < (billingData?.free_quota || 3)) {
+              Alert.alert(
+                'Invalid Count',
+                `Device count cannot be less than the free tier (${billingData?.free_quota || 3} devices).`,
+                [{ text: 'OK' }]
+              );
+              return;
+            }
+
+            setProcessingAction(true);
+            try {
+              await billingService.updateDeviceCount({ device_count: newCount });
+
+              const billableDevices = Math.max(0, newCount - (billingData?.free_quota || 3));
+
+              Alert.alert(
+                'Device Count Updated',
+                `Your device count has been updated to ${newCount} (${billableDevices} billable). Changes will be reflected in your next billing cycle.`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: async () => {
+                      await fetchBillingData();
+                    }
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error updating device count:', error);
+
+              let errorMessage = 'Unable to update device count. Please try again later.';
+              if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+              }
+
+              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+            } finally {
+              setProcessingAction(false);
+            }
+          }
+        }
+      ],
+      'plain-text',
+      String(currentCount)
+    );
+  };
+
   const formatCurrency = (amount, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -231,9 +416,21 @@ const ManageBillingScreen = ({ navigation }) => {
     }).format(amount);
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = new Date(timestamp * 1000); // Convert to milliseconds if timestamp
+  const formatDate = (dateInput) => {
+    if (!dateInput) return 'N/A';
+
+    let date;
+    if (typeof dateInput === 'string') {
+      date = new Date(dateInput);
+    } else if (typeof dateInput === 'number') {
+      // Handle both Unix timestamps (seconds) and JavaScript timestamps (milliseconds)
+      date = new Date(dateInput < 10000000000 ? dateInput * 1000 : dateInput);
+    } else {
+      return 'N/A';
+    }
+
+    if (isNaN(date.getTime())) return 'N/A';
+
     return date.toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
@@ -252,15 +449,26 @@ const ManageBillingScreen = ({ navigation }) => {
     );
   }
   
-  // Check if user has an active billing plan
-  const isActive = billingData?.billing?.status === 'active' || billingData?.billing?.status === 'cancelled';
-  
-  if (!isActive) {
+  // Check if user has billing data
+  const subscription = billingData?.subscription;
+  const isActive = subscription?.status === 'active' || subscription?.status === 'cancelled';
+
+  // If no billing data or not active, show setup screen
+  if (!billingData || !isActive) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.noBillingContainer}>
           <Ionicons name="alert-circle-outline" size={60} color="#888" />
-          <Text style={styles.noBillingText}>You don't have an active billing plan</Text>
+          <Text style={styles.noBillingText}>
+            {!billingData
+              ? 'Billing not set up yet'
+              : 'You don\'t have an active billing plan'}
+          </Text>
+          <Text style={styles.noBillingSubtext}>
+            {!billingData
+              ? 'Contact your administrator or set up billing to get started'
+              : 'Set up a billing plan to continue using premium features'}
+          </Text>
           <TouchableOpacity
             style={styles.activateButton}
             onPress={() => navigation.navigate('DataHandlingFee')}
@@ -278,7 +486,7 @@ const ManageBillingScreen = ({ navigation }) => {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Manage Billing</Text>
           <Text style={styles.headerSubtitle}>
-            {`${billingData.billing.cycle} Plan - ${billingData.tier.name}`}
+            {`${subscription?.cycle || 'Monthly'} Plan - ${subscription?.plan_name || 'Device Management'}`}
           </Text>
         </View>
 
@@ -287,80 +495,80 @@ const ManageBillingScreen = ({ navigation }) => {
             <Text style={styles.billingCardLabel}>Status:</Text>
             <View style={[
               styles.statusBadge,
-              { backgroundColor: 
-                billingData.billing.status === 'active' ? '#4CAF50' :
-                billingData.billing.status === 'cancelled' ? '#FF9800' :
-                billingData.billing.status === 'past_due' ? '#FF9800' :
+              { backgroundColor:
+                subscription?.status === 'active' ? '#4CAF50' :
+                subscription?.status === 'cancelled' ? '#FF9800' :
+                subscription?.status === 'past_due' ? '#FF9800' :
                 '#F44336'
               }
             ]}>
               <Text style={styles.statusBadgeText}>
-                {billingData.billing.status.toUpperCase()}
+                {(subscription?.status || 'unknown').toUpperCase()}
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Plan:</Text>
             <Text style={styles.billingCardValue}>
-              {billingData.billing.cycle.charAt(0).toUpperCase() + 
-               billingData.billing.cycle.slice(1)}
+              {(subscription?.cycle || 'monthly').charAt(0).toUpperCase() +
+               (subscription?.cycle || 'monthly').slice(1)}
             </Text>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Pricing Tier:</Text>
-            <Text style={styles.billingCardValue}>{billingData.tier.name}</Text>
+            <Text style={styles.billingCardValue}>{subscription?.plan_name || 'Device Management'}</Text>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Free Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData.billing.free_quota}</Text>
+            <Text style={styles.billingCardValue}>{billingData?.free_quota || 3}</Text>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Total Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData.devices.total}</Text>
+            <Text style={styles.billingCardValue}>{billingData?.current_device_count || 0}</Text>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Billable Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData.devices.billable}</Text>
+            <Text style={styles.billingCardValue}>{billingData?.billable_devices || 0}</Text>
           </View>
-          
+
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Next Billing:</Text>
             <Text style={styles.billingCardValue}>
-              {formatDate(billingData.billing.next_billing_date / 1000)}
+              {formatDate(billingData?.next_billing_date)}
             </Text>
           </View>
           
           <View style={styles.feesContainer}>
             <Text style={styles.feesTitle}>Device Management Fees</Text>
             <View style={styles.feesRow}>
-              <Text style={styles.feesDescription}>Free Tier ({billingData.billing.free_quota} devices)</Text>
+              <Text style={styles.feesDescription}>Free Tier ({billingData?.free_quota || 3} devices)</Text>
               <Text style={styles.feesAmount}>£0.00</Text>
             </View>
             <View style={styles.feesRow}>
               <Text style={styles.feesDescription}>
-                {billingData.devices.billable} additional device{billingData.devices.billable !== 1 ? 's' : ''} × 
-                {formatCurrency(billingData.billing.price_per_device)}
+                {billingData?.billable_devices || 0} additional device{(billingData?.billable_devices || 0) !== 1 ? 's' : ''} ×
+                {formatCurrency((subscription?.amount || 0) / Math.max(billingData?.billable_devices || 1, 1))}
               </Text>
               <Text style={styles.feesAmount}>
-                {formatCurrency(billingData.billing.total_monthly_cost)}
+                {formatCurrency(billingData?.current_cost || 0)}
               </Text>
             </View>
             <View style={styles.feesDivider} />
             <View style={styles.feesRow}>
               <Text style={styles.feesTotalLabel}>
-                Total {billingData.billing.cycle === 'monthly' ? 'Monthly' : 'Annual'} Fee
+                Total {(subscription?.cycle || 'monthly') === 'monthly' ? 'Monthly' : 'Annual'} Fee
               </Text>
               <Text style={styles.feesTotal}>
-                {formatCurrency(billingData.billing.total_monthly_cost)}
+                {formatCurrency(billingData?.current_cost || 0)}
               </Text>
             </View>
-            
-            {billingData.billing.cycle === 'monthly' && (
+
+            {(subscription?.cycle || 'monthly') === 'monthly' && (
               <View style={styles.savingsNote}>
                 <Text style={styles.savingsNoteText}>
                   Switch to annual billing and save up to 38% on your subscription!
@@ -390,19 +598,30 @@ const ManageBillingScreen = ({ navigation }) => {
                 key={invoice.id}
                 style={styles.invoiceCard}
                 onPress={async () => {
-                  try {
-                    // Download invoice PDF
-                    const response = await axiosInstance.get(`/billing/invoices/${invoice.id}/download/`);
-                    
-                    if (response.data.download_url) {
-                      // Open PDF in browser
-                      await Linking.openURL(response.data.download_url);
-                    } else {
-                      throw new Error('No download URL');
+                  // Use Stripe's native hosted invoice URL
+                  const invoiceUrl = invoice.hosted_invoice_url || invoice.invoice_pdf;
+
+                  if (invoiceUrl) {
+                    try {
+                      // Open invoice in native in-app browser
+                      await WebBrowser.openBrowserAsync(invoiceUrl, {
+                        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                        controlsColor: ORANGE_COLOR,
+                      });
+                    } catch (error) {
+                      console.log('Error opening invoice:', error);
+                      Alert.alert(
+                        'Error',
+                        'Unable to open invoice. Please try again.',
+                        [{ text: 'OK' }]
+                      );
                     }
-                  } catch (error) {
-                    console.error('Error downloading invoice:', error);
-                    Alert.alert('Error', 'Unable to download invoice. Please try again later.');
+                  } else {
+                    Alert.alert(
+                      'Invoice Unavailable',
+                      'This invoice is not yet available. Please try again later.',
+                      [{ text: 'OK' }]
+                    );
                   }
                 }}
               >
@@ -439,7 +658,7 @@ const ManageBillingScreen = ({ navigation }) => {
           </TouchableOpacity>
           
           <View style={styles.secondaryActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.secondaryButton, processingAction && styles.disabledButton]}
               onPress={handleChangePlan}
               disabled={processingAction}
@@ -447,25 +666,88 @@ const ManageBillingScreen = ({ navigation }) => {
               <Ionicons name="repeat" size={20} color={ORANGE_COLOR} />
               <Text style={styles.secondaryButtonText}>Change Plan</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.secondaryButton, (processingAction || billingData.billing.status === 'cancelled') && styles.disabledButton]}
-              onPress={handleCancelSubscription}
-              disabled={processingAction || billingData.billing.status === 'cancelled'}
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, processingAction && styles.disabledButton]}
+              onPress={handleUpdateDeviceCount}
+              disabled={processingAction}
             >
-              <Ionicons name="close-circle-outline" size={20} color={billingData.billing.status === 'cancelled' ? '#999' : '#EF4444'} />
-              <Text style={[
-                styles.secondaryButtonText, 
-                { color: billingData.billing.status === 'cancelled' ? '#999' : '#EF4444' }
-              ]}>
-                {billingData.billing.status === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
-              </Text>
+              <Ionicons name="phone-portrait-outline" size={20} color={ORANGE_COLOR} />
+              <Text style={styles.secondaryButtonText}>Update Devices</Text>
             </TouchableOpacity>
           </View>
-          
+
+          <View style={styles.secondaryActions}>
+            {subscription?.cancel_at_period_end ? (
+              <TouchableOpacity
+                style={[styles.reactivateButton, processingAction && styles.disabledButton]}
+                onPress={handleReactivateSubscription}
+                disabled={processingAction}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color="#4CAF50" />
+                <Text style={styles.reactivateButtonText}>Reactivate Plan</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.cancelButton, (processingAction || subscription?.status === 'cancelled') && styles.disabledButton]}
+                onPress={handleCancelSubscription}
+                disabled={processingAction || subscription?.status === 'cancelled'}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={subscription?.status === 'cancelled' ? '#999' : '#EF4444'} />
+                <Text style={[
+                  styles.cancelButtonText,
+                  { color: subscription?.status === 'cancelled' ? '#999' : '#EF4444' }
+                ]}>
+                  {subscription?.status === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Additional Billing Features */}
+          <View style={styles.additionalFeaturesContainer}>
+            <Text style={styles.additionalFeaturesTitle}>Additional Features</Text>
+
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => navigation.navigate('PaymentHistory')}
+            >
+              <Ionicons name="receipt" size={20} color={ORANGE_COLOR} />
+              <View style={styles.featureButtonContent}>
+                <Text style={styles.featureButtonText}>Payment History</Text>
+                <Text style={styles.featureButtonSubtext}>View all payment records and receipts</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CCC" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => navigation.navigate('BillingAnalytics')}
+            >
+              <Ionicons name="analytics" size={20} color={ORANGE_COLOR} />
+              <View style={styles.featureButtonContent}>
+                <Text style={styles.featureButtonText}>Usage Analytics</Text>
+                <Text style={styles.featureButtonSubtext}>View usage trends and cost projections</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CCC" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureButton}
+              onPress={() => navigation.navigate('NotificationPreferences')}
+            >
+              <Ionicons name="notifications" size={20} color={ORANGE_COLOR} />
+              <View style={styles.featureButtonContent}>
+                <Text style={styles.featureButtonText}>Notification Settings</Text>
+                <Text style={styles.featureButtonSubtext}>Configure billing notifications</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CCC" />
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.portalDescription}>
             Updates to your device count will be reflected in your next billing cycle.
-            The free tier of {billingData.billing.free_quota} devices will always be included at no cost.
+            The free tier of {billingData?.free_quota || 3} devices will always be included at no cost.
           </Text>
         </View>
       </ScrollView>
@@ -666,7 +948,7 @@ feesContainer: {
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   secondaryButton: {
     flexDirection: 'row',
@@ -684,6 +966,40 @@ feesContainer: {
     fontWeight: '500',
     color: ORANGE_COLOR,
   },
+  reactivateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    borderRadius: 8,
+    width: '100%',
+    backgroundColor: '#F1F8F4',
+  },
+  reactivateButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+    borderRadius: 8,
+    width: '100%',
+    backgroundColor: '#FFF5F5',
+  },
+  cancelButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#EF4444',
+  },
   portalDescription: {
     fontSize: 14,
     color: '#666',
@@ -698,10 +1014,19 @@ feesContainer: {
   },
   noBillingText: {
     fontSize: 18,
-    color: '#666',
+    fontWeight: '600',
+    color: '#333',
     textAlign: 'center',
     marginTop: 20,
+    marginBottom: 12,
+  },
+  noBillingSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
     marginBottom: 30,
+    paddingHorizontal: 40,
+    lineHeight: 20,
   },
   activateButton: {
     backgroundColor: ORANGE_COLOR,
@@ -716,6 +1041,40 @@ feesContainer: {
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  additionalFeaturesContainer: {
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  additionalFeaturesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  featureButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  featureButtonContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  featureButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  featureButtonSubtext: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 

@@ -227,12 +227,6 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
               )}
             </View>
 
-            <TouchableOpacity
-              style={styles.forgotPasswordButton}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -296,15 +290,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  forgotPasswordButton: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  forgotPasswordText: {
-    fontSize: 16,
-    color: ORANGE_COLOR,
-    textDecorationLine: 'underline',
   },
 });
 

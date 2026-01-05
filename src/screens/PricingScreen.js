@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -14,26 +15,42 @@ const { width, height } = Dimensions.get('window');
 
 const PricingScreen = ({ navigation }) => {
   const [isAnnual, setIsAnnual] = useState(true);
-  
+
   const toggleBilling = () => {
     setIsAnnual(!isAnnual);
   };
-  
+
   // Price calculations based on billing period
   const professionalPrice = isAnnual ? '25p' : '30p';
-  const professionalPeriod = isAnnual ? 'per asset/month, billed annually' : 'per asset/month, billed monthly';
+  const professionalPeriod = isAnnual ? 'per asset/month,\nbilled annually' : 'per asset/month,\nbilled monthly';
+
+  const handlePlanSelection = (planType) => {
+    // Navigate to Register screen with selected plan
+    navigation.navigate('Register', {
+      selectedPlan: {
+        type: planType,
+        billing: isAnnual ? 'annual' : 'monthly',
+        price: planType === 'starter' ? 'FREE' : professionalPrice,
+      }
+    });
+  };
   
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.appScreen}>
-        <View style={styles.bgGradient} />
-        <View style={styles.bgGradient2} />
-        
-        <View style={styles.titleSection}>
-          <Text style={styles.pageTitle}>Choose Your Plan</Text>
-          <Text style={styles.pageSubtitle}>Simple, transparent pricing that scales with your needs</Text>
-        </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.appScreen}>
+          <View style={styles.bgGradient} />
+          <View style={styles.bgGradient2} />
+
+          <View style={styles.titleSection}>
+            <Text style={styles.pageTitle}>Choose Your Plan</Text>
+            <Text style={styles.pageSubtitle}>Simple, transparent pricing that scales with your needs</Text>
+          </View>
         
         <View style={styles.toggleContainer}>
           <Text style={[styles.toggleOption, !isAnnual && styles.toggleOptionActive]}>Monthly</Text>
@@ -55,7 +72,7 @@ const PricingScreen = ({ navigation }) => {
               <FeatureItem text="Basic reporting tools" />
               <FeatureItem text="Email support" />
             </View>
-            <TouchableOpacity style={styles.ctaButtonOutline}>
+            <TouchableOpacity style={styles.ctaButtonOutline} onPress={() => handlePlanSelection('starter')}>
               <Text style={[styles.ctaButtonText, {color: '#FF7700'}]}>Get Started</Text>
             </TouchableOpacity>
           </View>
@@ -72,7 +89,7 @@ const PricingScreen = ({ navigation }) => {
               <FeatureItem text="Advanced analytics" />
               <FeatureItem text="Priority support" />
             </View>
-            <TouchableOpacity style={styles.ctaButton}>
+            <TouchableOpacity style={styles.ctaButton} onPress={() => handlePlanSelection('professional')}>
               <Text style={styles.ctaButtonText}>Choose Plan</Text>
             </TouchableOpacity>
           </View>
@@ -98,8 +115,9 @@ const PricingScreen = ({ navigation }) => {
 >
   <Text style={styles.ctaButtonText}>Suggest a Feature</Text>
 </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -123,10 +141,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   appScreen: {
     flex: 1,
     backgroundColor: '#1E1E1E',
-    justifyContent: 'space-between',
     paddingBottom: 16,
   },
   bgGradient: {
@@ -153,28 +176,28 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 12,
+    marginTop: 24,
+    marginBottom: 24,
     paddingHorizontal: 20,
     zIndex: 1,
   },
   pageTitle: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   pageSubtitle: {
     color: '#AAA',
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 20,
     textAlign: 'center',
   },
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
     zIndex: 1,
   },
   toggleOption: {
@@ -214,15 +237,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
     zIndex: 1,
+    marginBottom: 24,
   },
   pricingCard: {
     flex: 1,
     backgroundColor: '#2A2A2A',
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     position: 'relative',
     overflow: 'hidden',
-    height: height * 0.25, // Responsive height
+    minHeight: height * 0.35,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -231,15 +255,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 3,
+    justifyContent: 'space-between',
   },
   pricingCardFeatured: {
     flex: 1,
     backgroundColor: '#2A2A2A',
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     position: 'relative',
     overflow: 'hidden',
-    height: height * 0.25, // Responsive height
+    minHeight: height * 0.35,
     borderWidth: 1,
     borderColor: '#FF7700',
     shadowColor: "#FF7700",
@@ -250,6 +275,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.29,
     shadowRadius: 4.65,
     elevation: 5,
+    justifyContent: 'space-between',
   },
   cardBadge: {
     position: 'absolute',
@@ -267,56 +293,61 @@ const styles = StyleSheet.create({
   },
   planName: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   planPrice: {
     color: '#FF7700',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   pricePeriod: {
     color: '#AAA',
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 11,
+    marginBottom: 12,
+    minHeight: 36,
+    lineHeight: 16,
   },
   planFeatures: {
-    marginBottom: 10,
+    marginBottom: 16,
     flex: 1,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   featureIcon: {
     color: '#FF7700',
-    marginRight: 6,
+    marginRight: 8,
     fontSize: 14,
     fontWeight: 'bold',
   },
   featureText: {
     color: '#DDD',
     fontSize: 13,
-    lineHeight: 16,
+    lineHeight: 17,
+    flex: 1,
   },
   ctaButton: {
     backgroundColor: '#FF7700',
     borderRadius: 25,
-    paddingVertical: 8,
+    paddingVertical: 12,
     width: '100%',
     alignItems: 'center',
+    marginTop: 'auto', // Push to bottom of card
   },
   ctaButtonOutline: {
     backgroundColor: 'transparent',
     borderRadius: 25,
-    paddingVertical: 8,
+    paddingVertical: 12,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FF7700',
+    marginTop: 'auto', // Push to bottom of card
   },
   ctaButtonText: {
     color: '#FFFFFF',
@@ -325,15 +356,14 @@ const styles = StyleSheet.create({
   },
   volumeSection: {
     paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
+    marginBottom: 24,
     zIndex: 1,
   },
   sectionHeading: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   volumeGrid: {
     flexDirection: 'row',
@@ -343,38 +373,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(255, 119, 0, 0.1)',
     borderRadius: 12,
-    padding: 10,
+    padding: 14,
     alignItems: 'center',
   },
   volumeRange: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   volumePrice: {
     color: '#AAA',
-    fontSize: 11,
+    fontSize: 12,
   },
   missingFeature: {
     backgroundColor: 'rgba(255, 119, 0, 0.05)',
     borderRadius: 16,
-    padding: 12,
+    padding: 20,
     alignItems: 'center',
     marginHorizontal: 16,
+    marginBottom: 20,
     zIndex: 1,
   },
   missingTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 8,
     color: '#FF7700',
   },
   missingText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#CCC',
-    marginBottom: 10,
+    marginBottom: 16,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

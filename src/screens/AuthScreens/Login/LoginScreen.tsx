@@ -33,6 +33,7 @@ const LoginScreen: React.FC = () => {
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string>('');
   const passwordInputRef = useRef<RNTextInput>(null);
 
   const validateForm = (): boolean => {
@@ -62,30 +63,54 @@ const LoginScreen: React.FC = () => {
         [field]: '',
       }));
     }
+
+    // Clear login error when user starts typing
+    if (loginError) {
+      setLoginError('');
+    }
   };
 
   const handleLogin = async (): Promise<void> => {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setLoginError(''); // Clear any previous errors
+
     try {
       await login(formData.email, formData.password);
+      // Login successful - navigation will happen automatically via AuthContext
     } catch (error: any) {
       console.error('Login error:', error);
-      
+
       let errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
-      
+
       if (error.response) {
-        errorMessage = error.response.data?.detail || 
-                      error.response.data?.message || 
-                      'Invalid credentials';
+        const status = error.response.status;
+
+        // Handle specific error codes
+        if (status === 401) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (status === 400) {
+          errorMessage = error.response.data?.detail ||
+                        error.response.data?.message ||
+                        'Invalid credentials. Please check your email and password.';
+        } else if (status === 403) {
+          errorMessage = 'Your account has been disabled. Please contact support.';
+        } else if (status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = error.response.data?.detail ||
+                        error.response.data?.message ||
+                        'Login failed. Please try again.';
+        }
       } else if (error.request) {
         errorMessage = 'No response from server. Please check your internet connection.';
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert('Login Failed', errorMessage);
+      // Set the error to display in the UI
+      setLoginError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +138,13 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.welcomeText}>Welcome Back</Text>
               <Text style={styles.subtitleText}>Sign in to continue</Text>
             </View>
+
+            {/* Error Banner */}
+            {loginError ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{loginError}</Text>
+              </View>
+            ) : null}
 
             {/* Form Section */}
             <View style={styles.formContainer}>
@@ -219,6 +251,21 @@ const styles = StyleSheet.create({
   subtitleText: {
     fontSize: 16,
     color: '#666',
+  },
+  errorBanner: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    width: '100%',
+  },
+  errorBannerText: {
+    color: '#991B1B',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   formContainer: {
     width: '100%',

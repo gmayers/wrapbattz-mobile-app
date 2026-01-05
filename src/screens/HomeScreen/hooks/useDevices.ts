@@ -58,7 +58,7 @@ export const useDevices = (): UseDevicesReturn => {
       setLoading(true);
       const myAssignments = await deviceService.getMyActiveAssignments();
       
-      // Transform the data if necessary to match the expected format
+      // Transform and sort the data - active assignments first
       const formattedAssignments = myAssignments.map((assignment: any) => ({
         id: assignment.id,
         device: assignment.device,
@@ -68,7 +68,17 @@ export const useDevices = (): UseDevicesReturn => {
         returned_date: assignment.returned_date
       }));
       
-      setAssignments(formattedAssignments);
+      // Sort assignments: active (no returned_date) first, then by assigned_date (newest first)
+      const sortedAssignments = formattedAssignments.sort((a, b) => {
+        // First priority: active assignments (no returned_date) come first
+        if (!a.returned_date && b.returned_date) return -1;
+        if (a.returned_date && !b.returned_date) return 1;
+        
+        // Second priority: sort by assigned_date (newest first)
+        return new Date(b.assigned_date).getTime() - new Date(a.assigned_date).getTime();
+      });
+      
+      setAssignments(sortedAssignments);
     } catch (error) {
       handleApiError(error, 'Failed to fetch devices');
     } finally {

@@ -18,7 +18,6 @@ import CustomModal from '../components/Modal';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import { nfcService } from '../services/NFCService';
-import { DeviceNFCData } from '../types/nfc';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FF9500';
@@ -72,6 +71,8 @@ const [formData, setFormData] = useState({
   const [deviceIdentifier, setDeviceIdentifier] = useState('');
   const [isWritingNfc, setIsWritingNfc] = useState(false);
   const [nfcWriteSuccess, setNfcWriteSuccess] = useState(false);
+  const [scannedNfcUuid, setScannedNfcUuid] = useState(null); // NFC tag hardware UUID for registration
+  const [isScanningNfc, setIsScanningNfc] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
@@ -483,6 +484,8 @@ const formatDate = (date) => {
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
+    setScannedNfcUuid(null); // Clear NFC UUID when resetting
+    setIsScanningNfc(false);
   };
 
   const handleAddAnother = () => {
@@ -500,29 +503,29 @@ const formatDate = (date) => {
     setNfcWriteSuccess(true);
   };
 
-// Improved NFC write function using the new NFCService
+// Simplified NFC write function - writes minimal data (ID + contact info)
 const handleNFCWrite = async () => {
   let result = false;
-  
+
   try {
     setIsWritingNfc(true);
-    logMessage('Starting NFC write operation');
+    logMessage('Starting NFC write operation (minimal data)');
 
-    // Prepare device data for NFC writing (only specified fields)
-    const deviceData: DeviceNFCData = {
-      deviceId: deviceIdentifier,
-      make: formData.make === 'Other' ? otherMake : formData.make,
-      model: formData.model,
-      serialNumber: formData.serial_number || '',
-      maintenanceInterval: parseInt(formData.maintenance_interval) || 0,
-      description: formData.description
+    // Get organization contact info from userData context
+    // Falls back to empty string if not available
+    const orgContact = userData?.orgEmail || userData?.orgPhone || '';
+
+    // Prepare minimal device data for NFC writing
+    const nfcData = {
+      id: deviceIdentifier,
+      contact: orgContact
     };
-    
-    logMessage(`Device data to write: ${JSON.stringify(deviceData)}`);
 
-    // Use the new NFCService to write device data
-    const writeResult = await nfcService.writeDeviceToNFC(deviceData);
-    
+    logMessage(`Minimal NFC data to write: ${JSON.stringify(nfcData)}`);
+
+    // Use the NFCService to write minimal data
+    const writeResult = await nfcService.writeNFC(JSON.stringify(nfcData));
+
     if (writeResult.success) {
       logMessage('NFC write operation completed successfully');
       result = true;
@@ -532,10 +535,10 @@ const handleNFCWrite = async () => {
     }
   } catch (error) {
     logMessage(`Error in NFC write operation: ${error.message}`);
-    
+
     Alert.alert('NFC Write Error', error.message, [
-      { 
-        text: 'Retry', 
+      {
+        text: 'Retry',
         onPress: () => handleNFCWrite(),
         style: 'default'
       },
@@ -550,10 +553,58 @@ const handleNFCWrite = async () => {
   } finally {
     setIsWritingNfc(false);
   }
-  
+
   return result;
 };
 
+/**
+ * Scan NFC tag to capture hardware UUID for device registration
+ * This registers the tag's UUID with the device in the database
+ */
+const handleScanNfcForRegistration = async () => {
+  try {
+    setIsScanningNfc(true);
+    logMessage('Scanning NFC tag for UUID registration');
+
+    const readResult = await nfcService.readNFC({ timeout: 60000 });
+
+    if (!readResult.success) {
+      throw new Error(readResult.error || 'Failed to read NFC tag');
+    }
+
+    const tagId = readResult.data?.tagId;
+    if (!tagId) {
+      throw new Error('Could not read tag ID. Please try again.');
+    }
+
+    logMessage(`Captured NFC UUID: ${tagId}`);
+    setScannedNfcUuid(tagId);
+
+    // Register the NFC UUID with the device via API
+    if (apiResponse?.id) {
+      try {
+        await axiosInstance.patch(`/devices/${apiResponse.id}/`, {
+          nfc_uuid: tagId
+        });
+        logMessage(`Registered NFC UUID ${tagId} with device ${apiResponse.id}`);
+
+        Alert.alert(
+          'NFC Tag Registered',
+          `Tag has been registered with device ${deviceIdentifier}.\n\nYou can now scan this tag to identify and assign the device.`
+        );
+      } catch (patchError) {
+        logMessage(`Error registering NFC UUID: ${patchError.message}`);
+        throw new Error('Failed to register NFC tag with device. Please try again.');
+      }
+    }
+  } catch (error) {
+    logMessage(`Error scanning NFC for registration: ${error.message}`);
+    Alert.alert('NFC Scan Error', error.message);
+    setScannedNfcUuid(null);
+  } finally {
+    setIsScanningNfc(false);
+  }
+};
 
 return (
     <SafeAreaView style={styles.container}>
@@ -780,109 +831,96 @@ return (
           title="Device Created Successfully"
           style={styles.modal}
         >
-          {!nfcWriteSuccess ? (
-            <>
-              <Text style={styles.successText}>Device Added Successfully!</Text>
-              <Text style={styles.modalText}>Device ID: {deviceIdentifier}</Text>
-              
-              <View style={styles.dataPreview}>
-                <Text style={styles.dataPreviewTitle}>Data to be written to NFC tag:</Text>
-                <Text style={styles.dataPreviewItem}>
-                  Make: {formData.make === 'Other' ? otherMake : formData.make}
-                </Text>
-                <Text style={styles.dataPreviewItem}>
-                  Model: {formData.model}
-                </Text>
-                <Text style={styles.dataPreviewItem}>
-                  Type: {formData.device_type === 'Other' ? otherDeviceType : formData.device_type}
-                </Text>
-                {formData.serial_number ? (
-                  <Text style={styles.dataPreviewItem}>
-                    Serial: {formData.serial_number}
-                  </Text>
-                ) : null}
-                {formData.maintenance_interval ? (
-                  <Text style={styles.dataPreviewItem}>
-                    Maintenance Interval: {formData.maintenance_interval}
-                  </Text>
-                ) : null}
-                <Text style={styles.dataPreviewItem}>
-                  Next Maintenance: {formatDate(formData.next_maintenance_date)}
-                </Text>
-                <Text style={styles.dataPreviewItem}>
-                  {isUserAssignment ? 
-                    `Assigned to: ${userOptions.find(u => u.value === formData.user)?.label || 'Unknown'}` : 
-                    `Location: ${locationOptions.find(l => l.value === formData.location)?.label || 'Unknown'}`
-                  }
-                </Text>
-              </View>
-              
-              <View style={styles.buttonRow}>
-                <Button
-                  title="Write NFC Tag"
-                  onPress={async () => {
-                    const success = await handleNFCWrite();
-                    if (success) {
-                      handleNFCSuccess();
-                    }
-                  }}
-                  style={[styles.actionButton, styles.nfcButton]}
-                  textColor="white"
-                />
-              </View>
-              
-              <View style={styles.buttonRow}>
-                <Button
-                  title="Add Another Device"
-                  onPress={handleAddAnother}
-                  style={[styles.actionButton, styles.addButton]}
-                  textColor="white"
-                />
-                <Button
-                  title="Finish"
-                  onPress={handleFinish}
-                  style={[styles.actionButton, styles.finishButton]}
-                  textColor="white"
-                />
-              </View>
-              
-              {isWritingNfc && (
-                <View style={styles.nfcWritingContainer}>
-                  <Text style={styles.nfcInstructionText}>
-                    Hold your device near the NFC tag...
-                  </Text>
-                  <Button
-                    title="Cancel"
-                    onPress={() => {
-                      NfcManager.cancelTechnologyRequest();
-                      setIsWritingNfc(false);
-                    }}
-                    style={styles.cancelButton}
-                    textColor="white"
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              <Text style={styles.successText}>NFC Tag Written Successfully!</Text>
-              <Text style={styles.modalText}>All device data has been saved to the NFC tag.</Text>
-              <View style={styles.buttonRow}>
-                <Button
-                  title="Add Another Device"
-                  onPress={handleAddAnother}
-                  style={[styles.actionButton, styles.addButton]}
-                  textColor="white"
-                />
-                <Button
-                  title="Finish"
-                  onPress={handleFinish}
-                  style={[styles.actionButton, styles.finishButton]}
-                  textColor="white"
-                />
-              </View>
-            </>
+          <Text style={styles.successText}>Device Added Successfully!</Text>
+          <Text style={styles.modalText}>Device ID: {deviceIdentifier}</Text>
+
+          {/* NFC Tag Registration Section */}
+          <View style={styles.dataPreview}>
+            <Text style={styles.dataPreviewTitle}>
+              {scannedNfcUuid
+                ? 'NFC Tag Registered!'
+                : 'Optional: Register an NFC tag with this device'}
+            </Text>
+
+            {scannedNfcUuid ? (
+              <Text style={styles.dataPreviewItem}>Tag UUID: {scannedNfcUuid}</Text>
+            ) : (
+              <Text style={styles.dataPreviewHint}>
+                Scan an NFC tag to link it with this device. You can then use the tag to quickly identify and assign the device.
+              </Text>
+            )}
+          </View>
+
+          {/* NFC Registration Button */}
+          {!scannedNfcUuid && (
+            <Button
+              title={isScanningNfc ? 'Scanning...' : 'Scan NFC Tag to Register'}
+              onPress={handleScanNfcForRegistration}
+              disabled={isScanningNfc}
+              isLoading={isScanningNfc}
+              style={[styles.actionButton, styles.nfcButton]}
+              textColor="white"
+            />
           )}
+
+          {/* Write ID to tag (optional, after registration) */}
+          {scannedNfcUuid && !nfcWriteSuccess && (
+            <View style={styles.buttonRow}>
+              <Button
+                title={isWritingNfc ? 'Writing...' : 'Write ID to NFC Tag'}
+                onPress={async () => {
+                  const success = await handleNFCWrite();
+                  if (success) {
+                    handleNFCSuccess();
+                  }
+                }}
+                disabled={isWritingNfc}
+                isLoading={isWritingNfc}
+                style={[styles.actionButton, styles.nfcButton]}
+                textColor="white"
+              />
+            </View>
+          )}
+
+          {nfcWriteSuccess && (
+            <View style={styles.successBadge}>
+              <Text style={styles.successBadgeText}>Device ID written to NFC tag</Text>
+            </View>
+          )}
+
+          {/* Cancel scanning indicator */}
+          {isScanningNfc && (
+            <View style={styles.nfcWritingContainer}>
+              <Text style={styles.nfcInstructionText}>
+                Hold your device near the NFC tag...
+              </Text>
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  nfcService.cancelOperation();
+                  setIsScanningNfc(false);
+                }}
+                style={styles.cancelButton}
+                textColor="white"
+              />
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.buttonRow}>
+            <Button
+              title="Add Another Device"
+              onPress={handleAddAnother}
+              style={[styles.actionButton, styles.addButton]}
+              textColor="white"
+            />
+            <Button
+              title="Finish"
+              onPress={handleFinish}
+              style={[styles.actionButton, styles.finishButton]}
+              textColor="white"
+            />
+          </View>
         </CustomModal>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -967,6 +1005,23 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  dataPreviewHint: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  successBadge: {
+    backgroundColor: '#d4edda',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  successBadgeText: {
+    color: '#155724',
+    fontWeight: '600',
+    fontSize: 14,
   },
   nfcButton: {
     marginTop: 20,

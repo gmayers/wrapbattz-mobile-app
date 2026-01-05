@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import NFCManagerNav from './NFCManagerNav';
 import ReadTab from './ReadTab';
 import LockTab from './LockTab';
 import UnlockTab from './UnlockTab';
 import EditTab from './EditTab';
+import FormatTab from './FormatTab';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { ndefToJson } from '../../../../../utils/NfcUtils';
 
@@ -21,9 +22,10 @@ const NfcManagerModal = ({ visible, onClose }) => {
   // NFC Tabs Configuration
   const nfcTabs = [
     { key: 'read', title: 'Read', icon: 'scan-outline' },
+    { key: 'edit', title: 'Edit', icon: 'create-outline' },
+    { key: 'format', title: 'Format', icon: 'refresh-outline' },
     { key: 'lock', title: 'Lock', icon: 'lock-closed-outline' },
     { key: 'unlock', title: 'Unlock', icon: 'lock-open-outline' },
-    { key: 'edit', title: 'Edit', icon: 'create-outline' },
   ];
 
   const withNfcManager = async (callback) => {
@@ -262,6 +264,13 @@ const NfcManagerModal = ({ visible, onClose }) => {
             onCancel={handleNfcCancel}
           />
         );
+      case 'format':
+        return (
+          <FormatTab
+            withNfcManager={withNfcManager}
+            onCancel={handleNfcCancel}
+          />
+        );
       default:
         return <View style={styles.emptyTabContent}><Text>No content available</Text></View>;
     }
@@ -275,31 +284,33 @@ const NfcManagerModal = ({ visible, onClose }) => {
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.nfcModalContainer}>
-          {/* NFC Manager Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>NFC Manager</Text>
-            <TouchableOpacity 
-              onPress={onClose} 
-              hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close-circle" size={32} color="#FF3B30" />
-            </TouchableOpacity>
-          </View>
+        <SafeAreaView style={styles.modalSafeArea}>
+          <View style={styles.nfcModalContainer}>
+            {/* NFC Manager Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>NFC Manager</Text>
+              <TouchableOpacity 
+                onPress={onClose} 
+                hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close-circle" size={32} color="#FF3B30" />
+              </TouchableOpacity>
+            </View>
 
-          {/* NFC Tab Content - Takes up the middle section */}
-          <View style={styles.tabContentContainer}>
-            {renderTabContent()}
-          </View>
+            {/* NFC Tab Content - Takes up the middle section */}
+            <View style={styles.tabContentContainer}>
+              {renderTabContent()}
+            </View>
 
-          {/* NFC Navigation - Orange color scheme */}
-          <NFCManagerNav
-            tabs={nfcTabs}
-            activeTab={nfcActiveTab}
-            onTabPress={handleNfcTabPress}
-          />
-        </View>
+            {/* NFC Navigation - Orange color scheme */}
+            <NFCManagerNav
+              tabs={nfcTabs}
+              activeTab={nfcActiveTab}
+              onTabPress={handleNfcTabPress}
+            />
+          </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -312,14 +323,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  nfcModalContainer: {
+  modalSafeArea: {
     width: '95%',
-    height: '90%',
+    maxHeight: '90%',
+  },
+  nfcModalContainer: {
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 10,
     overflow: 'hidden', // Important for iOS rendering
     flexDirection: 'column', // Ensure the container uses column layout
+    height: '100%',
   },
   modalHeader: {
     flexDirection: 'row',

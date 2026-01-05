@@ -93,6 +93,11 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleApiError = (error, defaultMessage) => {
+    // Skip 401 errors - they're handled globally by the axios interceptor
+    if (error.response?.status === 401) {
+      return;
+    }
+
     if (error.response) {
       const errorMessage = error.response.data.detail || defaultMessage;
       setError(errorMessage);
@@ -103,14 +108,6 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     } else {
       setError(error.message || defaultMessage);
       Alert.alert('Error', error.message || defaultMessage);
-    }
-
-    if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: async () => await logout() }]
-      );
     }
   };
 

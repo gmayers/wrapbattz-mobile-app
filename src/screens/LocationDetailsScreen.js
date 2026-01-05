@@ -62,11 +62,9 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       setLocation(locationData);
     } catch (error) {
       console.error('Error fetching location details:', error);
-      
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         const errorMsg = error.response?.data?.message || 'Failed to fetch location details. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
@@ -98,16 +96,14 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       setDevices(availableDevices);
     } catch (error) {
       console.error('Error fetching location devices:', error);
-      
-      if (error.response && error.response.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        logout();
-      } else {
+
+      // Skip 401 errors - they're handled globally by the axios interceptor
+      if (error.response?.status !== 401) {
         const errorMsg = error.response?.data?.message || 'Failed to fetch location devices. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
-      
+
       setDevices([]);
     } finally {
       setIsDevicesLoading(false);

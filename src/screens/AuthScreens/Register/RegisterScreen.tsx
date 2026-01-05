@@ -21,11 +21,23 @@ import { FormValidation } from '../../../utils/FormValidation';
 
 interface RegisterScreenProps {
   navigation: NavigationProp;
+  route?: {
+    params?: {
+      selectedPlan?: {
+        type: string;
+        billing: string;
+        price: string;
+      };
+    };
+  };
 }
 
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
+const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
   const { axiosInstance } = useAuth();
-  
+
+  // Get selected plan from navigation params
+  const selectedPlan = route?.params?.selectedPlan;
+
   const [formData, setFormData] = useState<RegisterForm>({
     email: '',
     password: '',
@@ -35,6 +47,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     organization_invite_code: '',
     phone_number: '',
   });
+
+  // State for plan selection when not coming from pricing page
+  const [selectedPlanType, setSelectedPlanType] = useState<string>(
+    selectedPlan?.type || 'starter'
+  );
+  const [billingCycle, setBillingCycle] = useState<string>(
+    selectedPlan?.billing || 'annual'
+  );
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -81,7 +101,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       first_name: formData.first_name,
       last_name: formData.last_name,
       organization_invite_code: formData.organization_invite_code || '',
-      phone_number: formData.phone_number || ''
+      phone_number: formData.phone_number || '',
+      subscription_plan: selectedPlanType,
+      billing_cycle: billingCycle
     };
     
     console.log('Registration data:', JSON.stringify(registrationData, null, 2));
@@ -149,6 +171,28 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     navigation.navigate('Login');
   };
 
+  const navigateToPricing = (): void => {
+    navigation.navigate('Pricing');
+  };
+
+  const toggleBillingCycle = (): void => {
+    setBillingCycle(billingCycle === 'annual' ? 'monthly' : 'annual');
+  };
+
+  const getPlanPrice = (): string => {
+    if (selectedPlanType === 'starter') return 'FREE';
+    return billingCycle === 'annual' ? '25p' : '30p';
+  };
+
+  const getPlanDescription = (): string => {
+    if (selectedPlanType === 'starter') {
+      return 'First 3 assets free forever';
+    }
+    return billingCycle === 'annual'
+      ? 'per asset/month, billed annually'
+      : 'per asset/month, billed monthly';
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
@@ -169,6 +213,73 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             <Text style={styles.subHeaderText}>
               Join us to track and manage your devices
             </Text>
+
+            {/* Subscription Plan Selection */}
+            <View style={styles.planSection}>
+              <View style={styles.planHeader}>
+                <Text style={styles.planSectionTitle}>Select Your Plan</Text>
+                <TouchableOpacity onPress={navigateToPricing}>
+                  <Text style={styles.viewAllPlansLink}>View all plans →</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Billing Toggle */}
+              {selectedPlanType !== 'starter' && (
+                <View style={styles.billingToggle}>
+                  <Text style={[styles.billingOption, billingCycle === 'monthly' && styles.billingOptionActive]}>
+                    Monthly
+                  </Text>
+                  <TouchableOpacity style={styles.toggleSwitch} onPress={toggleBillingCycle}>
+                    <View style={[styles.toggleThumb, billingCycle === 'monthly' && styles.toggleThumbLeft]} />
+                  </TouchableOpacity>
+                  <Text style={[styles.billingOption, billingCycle === 'annual' && styles.billingOptionActive]}>
+                    Annually {billingCycle === 'annual' && '(Save 16%)'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Plan Cards */}
+              <View style={styles.planCards}>
+                <TouchableOpacity
+                  style={[
+                    styles.planCard,
+                    selectedPlanType === 'starter' && styles.planCardSelected,
+                  ]}
+                  onPress={() => setSelectedPlanType('starter')}
+                >
+                  <View style={styles.planRadio}>
+                    {selectedPlanType === 'starter' && <View style={styles.planRadioSelected} />}
+                  </View>
+                  <View style={styles.planContent}>
+                    <Text style={styles.planName}>Starter</Text>
+                    <Text style={styles.planPrice}>FREE</Text>
+                    <Text style={styles.planDesc}>First 3 assets free</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.planCard,
+                    selectedPlanType === 'professional' && styles.planCardSelected,
+                  ]}
+                  onPress={() => setSelectedPlanType('professional')}
+                >
+                  {selectedPlanType === 'professional' && (
+                    <View style={styles.popularBadge}>
+                      <Text style={styles.popularText}>Popular</Text>
+                    </View>
+                  )}
+                  <View style={styles.planRadio}>
+                    {selectedPlanType === 'professional' && <View style={styles.planRadioSelected} />}
+                  </View>
+                  <View style={styles.planContent}>
+                    <Text style={styles.planName}>Professional</Text>
+                    <Text style={styles.planPrice}>{getPlanPrice()}</Text>
+                    <Text style={styles.planDesc}>{getPlanDescription()}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             <View style={styles.inputRow}>
               <View style={styles.halfInput}>
@@ -321,6 +432,131 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: 'bold',
     marginLeft: 5,
+  },
+  // Plan Selection Styles
+  planSection: {
+    marginBottom: 20,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 16,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  planSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  viewAllPlansLink: {
+    fontSize: 14,
+    color: '#FF9500',
+    fontWeight: '500',
+  },
+  billingToggle: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  billingOption: {
+    fontSize: 14,
+    color: '#999',
+    paddingHorizontal: 10,
+  },
+  billingOptionActive: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF9500',
+    position: 'relative',
+    marginHorizontal: 8,
+  },
+  toggleThumb: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 9,
+    top: 3,
+    right: 3,
+  },
+  toggleThumbLeft: {
+    right: 'auto',
+    left: 3,
+  },
+  planCards: {
+    gap: 12,
+  },
+  planCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    position: 'relative',
+  },
+  planCardSelected: {
+    borderColor: '#FF9500',
+    backgroundColor: '#FFF5E6',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  popularText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  planRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planRadioSelected: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF9500',
+  },
+  planContent: {
+    flex: 1,
+  },
+  planName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  planPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF9500',
+    marginBottom: 2,
+  },
+  planDesc: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

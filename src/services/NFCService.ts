@@ -55,42 +55,56 @@ export class NFCService {
 
   /**
    * Validate if a tag is NDEF formatted and compatible
+   * Note: Empty NDEF tags (formatted but no data) are considered valid
    */
-  private async validateNDEFTag(tag: any): Promise<{ isValid: boolean; error?: string }> {
+  private async validateNDEFTag(tag: any): Promise<{ isValid: boolean; error?: string; isEmpty?: boolean }> {
     try {
-      // Check if tag has NDEF message structure
-      if (!tag.ndefMessage) {
-        return { 
-          isValid: false, 
-          error: 'Tag is not NDEF formatted. Please use an NDEF-compatible tag.' 
-        };
+      // Check if tag has NDEF capability (not just message presence)
+      // Empty but formatted NDEF tags may have ndefMessage: [] or ndefMessage: undefined
+      const hasNdefCapability = tag.ndefMessage !== undefined ||
+                                tag.type?.toLowerCase().includes('ndef') ||
+                                tag.techTypes?.some((t: string) => t.toLowerCase().includes('ndef'));
+
+      if (!hasNdefCapability) {
+        // Check for supported tag types that should support NDEF
+        const tagType = tag.type?.toLowerCase() || '';
+        const techTypes = tag.techTypes || [];
+
+        // NDEF-supported tag types
+        const supportedTypes = [
+          'mifare_ultralight', 'ntag', 'type1', 'type2', 'type3', 'type4',
+          'iso14443_3a', 'iso14443_4', 'nfca', 'isodep'
+        ];
+
+        const isNDEFCompatible = supportedTypes.some(type =>
+          tagType.includes(type) ||
+          techTypes.some((tech: string) => tech.toLowerCase().includes(type))
+        );
+
+        if (!isNDEFCompatible) {
+          return {
+            isValid: false,
+            error: 'Tag is not NDEF formatted. Please use an NDEF-compatible tag.'
+          };
+        }
+
+        // Tag type suggests NDEF support but no capability detected - warn but allow
+        console.warn('[NFCService] Tag type suggests NDEF support but capability not detected, allowing...');
       }
 
-      // Check for supported tag types - focus on NDEF-compatible tags
-      const tagType = tag.type?.toLowerCase() || '';
-      const techTypes = tag.techTypes || [];
-      
-      // NDEF-supported tag types
-      const supportedTypes = [
-        'mifare_ultralight', 'ntag', 'type1', 'type2', 'type3', 'type4',
-        'iso14443_3a', 'iso14443_4', 'nfca', 'isodep'
-      ];
-      
-      const isNDEFCompatible = supportedTypes.some(type => 
-        tagType.includes(type) || 
-        techTypes.some((tech: string) => tech.toLowerCase().includes(type))
-      );
+      // Check if tag is empty (formatted but no data)
+      const isEmpty = !tag.ndefMessage ||
+                     (Array.isArray(tag.ndefMessage) && tag.ndefMessage.length === 0);
 
-      if (!isNDEFCompatible) {
-        console.warn('[NFCService] Tag type may not be fully NDEF compatible:', { tagType, techTypes });
-        // Don't fail here, just warn - many tags work even if type detection is imperfect
+      if (isEmpty) {
+        console.log('[NFCService] Tag is NDEF formatted but empty (no data)');
       }
 
       // Check tag capacity if available
       if (tag.maxSize && tag.maxSize < 48) {
-        return { 
-          isValid: false, 
-          error: 'Tag capacity is too small for NDEF operations (minimum 48 bytes required).' 
+        return {
+          isValid: false,
+          error: 'Tag capacity is too small for NDEF operations (minimum 48 bytes required).'
         };
       }
 
@@ -100,12 +114,12 @@ export class NFCService {
         // Don't fail here for read operations
       }
 
-      return { isValid: true };
+      return { isValid: true, isEmpty };
     } catch (error) {
       console.error('[NFCService] Error validating NDEF tag:', error);
-      return { 
-        isValid: false, 
-        error: 'Could not validate tag format. Tag may be incompatible.' 
+      return {
+        isValid: false,
+        error: 'Could not validate tag format. Tag may be incompatible.'
       };
     }
   }
@@ -113,18 +127,18 @@ export class NFCService {
   /**
    * Enhanced tag detection with NDEF validation
    */
-  private async detectAndValidateTag(): Promise<{ tag: any; isValid: boolean; error?: string }> {
+  private async detectAndValidateTag(): Promise<{ tag: any; isValid: boolean; error?: string; isEmpty?: boolean }> {
     try {
       const tag = await NfcManager.getTag();
-      
+
       if (!tag) {
-        return { 
-          tag: null, 
-          isValid: false, 
-          error: 'No NFC tag detected. Please position the tag correctly near your device.' 
+        return {
+          tag: null,
+          isValid: false,
+          error: 'No NFC tag detected. Please position the tag correctly near your device.'
         };
       }
-      
+
       console.log(`[NFCService] Tag detected: ${JSON.stringify({
         type: tag.type || 'unknown',
         maxSize: tag.maxSize || 'unknown',
@@ -132,21 +146,22 @@ export class NFCService {
         id: tag.id ? tag.id.toString('hex') : 'unknown',
         techTypes: tag.techTypes || []
       })}`);
-      
+
       // Validate NDEF compatibility
       const validation = await this.validateNDEFTag(tag);
-      
-      return { 
-        tag, 
-        isValid: validation.isValid, 
-        error: validation.error 
+
+      return {
+        tag,
+        isValid: validation.isValid,
+        error: validation.error,
+        isEmpty: validation.isEmpty
       };
     } catch (error) {
       console.error('[NFCService] Error detecting tag:', error);
-      return { 
-        tag: null, 
-        isValid: false, 
-        error: 'Failed to detect NFC tag. Please try again.' 
+      return {
+        tag: null,
+        isValid: false,
+        error: 'Failed to detect NFC tag. Please try again.'
       };
     }
   }
@@ -319,17 +334,25 @@ export class NFCService {
         console.log('[NFCService] NFC technology requested successfully');
         
         // Detect and validate tag with enhanced validation
-        const { tag, isValid, error } = await this.detectAndValidateTag();
-        
+        const { tag, isValid, error, isEmpty } = await this.detectAndValidateTag();
+
         if (!isValid || !tag) {
           throw new Error(error || 'Invalid or incompatible NFC tag detected.');
         }
-        
-        // Additional check for NDEF message
-        if (!tag.ndefMessage || !tag.ndefMessage.length) {
-          throw new Error('No NDEF message found on tag. This may not be an NDEF formatted tag or it may be empty.');
+
+        // Handle empty but valid NDEF tags
+        if (isEmpty || !tag.ndefMessage || !tag.ndefMessage.length) {
+          console.log('[NFCService] Tag is empty but NDEF formatted');
+          return {
+            success: true,
+            data: {
+              tagId: tag.id ? tag.id.toString('hex').toUpperCase() : undefined,
+              isEmpty: true,
+              message: 'Tag is formatted but contains no data. You can write data to it.'
+            }
+          };
         }
-        
+
         // Process first NDEF record
         const record = tag.ndefMessage[0];
         
@@ -347,19 +370,35 @@ export class NFCService {
                   // Normalize and validate JSON
                   const cleanJson = this.normalizeJsonString(textContent.trim());
                   const jsonData = JSON.parse(cleanJson);
-                  
-                  // Return the JSON string directly
-                  return { 
-                    success: true, 
-                    data: { jsonString: cleanJson, parsedData: jsonData }
+
+                  // Return the JSON string directly with tag ID
+                  return {
+                    success: true,
+                    data: {
+                      tagId: tag.id ? tag.id.toString('hex').toUpperCase() : undefined,
+                      jsonString: cleanJson,
+                      parsedData: jsonData
+                    }
                   };
                 } catch (jsonError) {
                   console.warn('[NFCService] JSON processing error:', jsonError);
-                  return { success: true, data: { content: textContent } };
+                  return {
+                    success: true,
+                    data: {
+                      tagId: tag.id ? tag.id.toString('hex').toUpperCase() : undefined,
+                      content: textContent
+                    }
+                  };
                 }
               } else {
                 // Not JSON format, just use the text content
-                return { success: true, data: { content: textContent } };
+                return {
+                  success: true,
+                  data: {
+                    tagId: tag.id ? tag.id.toString('hex').toUpperCase() : undefined,
+                    content: textContent
+                  }
+                };
               }
             } else {
               throw new Error('Failed to decode tag content. The format may be unsupported.');
@@ -594,6 +633,200 @@ export class NFCService {
       console.error('[NFCService] Error writing device data to NFC:', error);
       return { success: false, error: `Failed to write device data: ${(error as Error).message}` };
     }
+  }
+
+  /**
+   * Format a non-NDEF tag to NDEF format
+   */
+  public async formatTag(): Promise<NFCOperationResult> {
+    const maxAttempts = Platform.OS === 'ios' ? 3 : 2;
+    
+    return this.withRetry(async () => {
+      try {
+        console.log('[NFCService] Starting NFC format operation');
+        
+        // Ensure NFC is initialized
+        if (!await this.initialize()) {
+          throw new Error('NFC is not available or could not be initialized');
+        }
+
+        // iOS-specific: Ensure NFC is properly initialized
+        if (Platform.OS === 'ios') {
+          try {
+            await NfcManager.start();
+            console.log('[NFCService] NFC Manager started for iOS');
+          } catch (startError) {
+            console.warn('[NFCService] NFC Manager already started or error:', startError);
+          }
+        }
+
+        // Try to request NdefFormatable technology first (for unformatted tags)
+        let isFormatable = false;
+        let isNdef = false;
+        
+        try {
+          await NfcManager.requestTechnology(NfcTech.NdefFormatable);
+          isFormatable = true;
+          console.log('[NFCService] Tag is formatable (not yet NDEF formatted)');
+        } catch (formatableError) {
+          console.log('[NFCService] Tag is not NdefFormatable, trying Ndef technology');
+          
+          // If not formatable, try NDEF technology (tag might already be NDEF)
+          try {
+            await NfcManager.requestTechnology(NfcTech.Ndef);
+            isNdef = true;
+            console.log('[NFCService] Tag already supports NDEF');
+          } catch (ndefError) {
+            throw new Error('Tag is not compatible with NDEF formatting');
+          }
+        }
+
+        // Get tag info
+        const tag = await NfcManager.getTag();
+        if (!tag) {
+          throw new Error('No NFC tag detected. Please position the tag correctly near your device.');
+        }
+
+        console.log(`[NFCService] Tag detected during format: ${JSON.stringify({
+          type: tag.type || 'unknown',
+          techTypes: tag.techTypes || [],
+          id: tag.id ? tag.id.toString('hex') : 'unknown'
+        })}`);
+
+        // Format based on tag state
+        if (isFormatable) {
+          // Tag needs formatting to NDEF
+
+          // Android supports true NDEF formatting
+          if (Platform.OS === 'android') {
+            try {
+              // Create empty NDEF message using empty text record
+              const emptyMessage = Ndef.encodeMessage([Ndef.textRecord('')]);
+
+              // Format the tag with empty NDEF message (Android only)
+              await NfcManager.ndefFormatableHandlerAndroid.formatNdef(emptyMessage);
+
+              console.log('[NFCService] Tag formatted to NDEF successfully');
+              return {
+                success: true,
+                data: {
+                  message: 'Tag formatted to NDEF successfully. You can now write data to it.',
+                  wasFormatted: true
+                }
+              };
+            } catch (formatError) {
+              console.error('[NFCService] Error formatting tag on Android:', formatError);
+              throw new Error('Failed to format tag. The tag may not support NDEF formatting or may be write-protected.');
+            }
+          } else {
+            // iOS does not support true NDEF formatting via NdefFormatable
+            // Try alternative approach: request NDEF tech and write empty message
+            try {
+              // Cancel current technology and try with NDEF
+              await NfcManager.cancelTechnologyRequest();
+              await NfcManager.requestTechnology(NfcTech.Ndef);
+
+              // Write empty NDEF message
+              const emptyTextRecord = Ndef.textRecord('');
+              await NfcManager.ndefHandler.writeNdefMessage([emptyTextRecord]);
+
+              console.log('[NFCService] Tag formatted using iOS method');
+              return {
+                success: true,
+                data: {
+                  message: 'Tag formatted to NDEF successfully. You can now write data to it.',
+                  wasFormatted: true
+                }
+              };
+            } catch (iosError) {
+              console.error('[NFCService] iOS formatting failed:', iosError);
+              throw new Error('iOS does not support formatting blank tags. Please use pre-formatted NDEF tags.');
+            }
+          }
+        } else if (isNdef) {
+          // Tag already supports NDEF, clear existing data
+          try {
+            // Write empty NDEF message to clear the tag
+            const emptyTextRecord = Ndef.textRecord('');
+            const bytes = Ndef.encodeMessage([emptyTextRecord]);
+            
+            if (Platform.OS === 'ios') {
+              // iOS-specific write with retry
+              let writeAttempts = 0;
+              const maxWriteAttempts = 3;
+              
+              while (writeAttempts < maxWriteAttempts) {
+                try {
+                  await NfcManager.ndefHandler.writeNdefMessage(bytes);
+                  break;
+                } catch (iosWriteError) {
+                  writeAttempts++;
+                  if (writeAttempts >= maxWriteAttempts) {
+                    throw iosWriteError;
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                }
+              }
+            } else {
+              await NfcManager.ndefHandler.writeNdefMessage(bytes);
+            }
+            
+            console.log('[NFCService] NDEF tag cleared/formatted successfully');
+            return { 
+              success: true, 
+              data: { 
+                message: 'Tag already NDEF formatted. Existing data has been cleared.',
+                wasFormatted: false,
+                wasCleared: true
+              }
+            };
+          } catch (clearError) {
+            console.error('[NFCService] Error clearing NDEF tag:', clearError);
+            
+            // Check if tag is write-protected
+            if (tag.hasOwnProperty('isWritable') && tag.isWritable === false) {
+              throw new Error('This tag is write-protected and cannot be formatted.');
+            }
+            
+            throw new Error('Failed to clear tag data. The tag may be write-protected or damaged.');
+          }
+        }
+        
+        throw new Error('Unable to determine tag format state');
+      } catch (error) {
+        console.error('[NFCService] Error in formatTag:', error);
+        
+        // Create user-friendly error message
+        let userErrorMessage: string;
+        const errorMessage = (error as Error).message;
+        
+        if (errorMessage.includes('not available')) {
+          userErrorMessage = 'NFC is not available or is disabled on this device.';
+        } else if (errorMessage.includes('cancelled')) {
+          userErrorMessage = 'Format operation was cancelled.';
+        } else if (errorMessage.includes('No NFC tag detected')) {
+          userErrorMessage = errorMessage;
+        } else if (errorMessage.includes('not compatible')) {
+          userErrorMessage = 'This tag type is not compatible with NDEF formatting.';
+        } else if (errorMessage.includes('write-protected')) {
+          userErrorMessage = errorMessage;
+        } else if (errorMessage.includes('already NDEF')) {
+          userErrorMessage = errorMessage;
+        } else {
+          userErrorMessage = `Failed to format tag: ${errorMessage}`;
+        }
+        
+        return { success: false, error: userErrorMessage };
+      } finally {
+        // Always cancel technology request
+        try {
+          await NfcManager.cancelTechnologyRequest();
+          console.log('[NFCService] Format technology request canceled');
+        } catch (cancelError) {
+          console.warn('[NFCService] Error canceling technology request:', cancelError);
+        }
+      }
+    }, maxAttempts);
   }
 
   /**
