@@ -23,9 +23,6 @@ import CreateOrganizationScreen from '../screens/CreateOrganizationScreen';
 // Import new screens
 import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
 import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
-import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
-import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
-import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 
@@ -221,45 +218,6 @@ const MainStack = () => {
       options={{
         headerShown: true,
         headerTitle: 'Manage Billing',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
-      }}
-    />
-    <Stack.Screen
-      name="PaymentHistory"
-      component={PaymentHistoryScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Payment History',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
-      }}
-    />
-    <Stack.Screen
-      name="BillingAnalytics"
-      component={BillingAnalyticsScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Billing Analytics',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
-      }}
-    />
-    <Stack.Screen
-      name="NotificationPreferences"
-      component={NotificationPreferencesScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Notification Preferences',
         headerStyle: getHeaderStyle(),
         headerTitleStyle: {
           fontWeight: 'bold',

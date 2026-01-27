@@ -73,11 +73,11 @@ const ManageBillingScreen = ({ navigation }) => {
         // Fallback to legacy endpoints
         const [billingResponse, invoicesResponse] = await Promise.all([
           billingService.getBillingStatus(),
-          axiosInstance.get('/billing/invoices/')
+          billingService.getInvoices()
         ]);
 
         setBillingData(billingResponse);
-        setInvoices(invoicesResponse.data.results || invoicesResponse.data || []);
+        setInvoices(invoicesResponse.results || invoicesResponse || []);
       } catch (fallbackError) {
         // Check if fallback also got 404 or network error
         if (fallbackError.response?.status === 404 ||
@@ -718,46 +718,6 @@ const ManageBillingScreen = ({ navigation }) => {
             )}
           </View>
 
-          {/* Additional Billing Features */}
-          <View style={styles.additionalFeaturesContainer}>
-            <Text style={styles.additionalFeaturesTitle}>Additional Features</Text>
-
-            <TouchableOpacity
-              style={styles.featureButton}
-              onPress={() => navigation.navigate('PaymentHistory')}
-            >
-              <Ionicons name="receipt" size={20} color={ORANGE_COLOR} />
-              <View style={styles.featureButtonContent}>
-                <Text style={styles.featureButtonText}>Payment History</Text>
-                <Text style={styles.featureButtonSubtext}>View all payment records and receipts</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CCC" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureButton}
-              onPress={() => navigation.navigate('BillingAnalytics')}
-            >
-              <Ionicons name="analytics" size={20} color={ORANGE_COLOR} />
-              <View style={styles.featureButtonContent}>
-                <Text style={styles.featureButtonText}>Usage Analytics</Text>
-                <Text style={styles.featureButtonSubtext}>View usage trends and cost projections</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CCC" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureButton}
-              onPress={() => navigation.navigate('NotificationPreferences')}
-            >
-              <Ionicons name="notifications" size={20} color={ORANGE_COLOR} />
-              <View style={styles.featureButtonContent}>
-                <Text style={styles.featureButtonText}>Notification Settings</Text>
-                <Text style={styles.featureButtonSubtext}>Configure billing notifications</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#CCC" />
-            </TouchableOpacity>
-          </View>
 
           <Text style={styles.portalDescription}>
             Updates to your device count will be reflected in your next billing cycle.
@@ -1055,40 +1015,6 @@ feesContainer: {
   },
   disabledButton: {
     opacity: 0.6,
-  },
-  additionalFeaturesContainer: {
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  additionalFeaturesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  featureButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
-  featureButtonContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  featureButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  featureButtonSubtext: {
-    fontSize: 14,
-    color: '#666',
   },
 });
 

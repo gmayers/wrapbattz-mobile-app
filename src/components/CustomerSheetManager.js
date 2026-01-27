@@ -32,7 +32,9 @@ const CustomerSheetManager = ({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
 
   // Fetch current payment methods from API
-  const fetchPaymentMethods = async () => {
+  // notifyParent: only true after user interaction (e.g. openCustomerSheet),
+  // false on initial mount to avoid triggering a re-render loop
+  const fetchPaymentMethods = async (notifyParent = false) => {
     try {
       const methods = await billingService.getPaymentMethods();
 
@@ -41,11 +43,15 @@ const CustomerSheetManager = ({
 
       if (defaultMethod) {
         setSelectedPaymentMethod(defaultMethod);
-        onPaymentMethodSelected && onPaymentMethodSelected(defaultMethod);
+        if (notifyParent) {
+          onPaymentMethodSelected && onPaymentMethodSelected(defaultMethod);
+        }
       } else if (methods.length > 0) {
         // If no default but methods exist, use the first one
         setSelectedPaymentMethod(methods[0]);
-        onPaymentMethodSelected && onPaymentMethodSelected(methods[0]);
+        if (notifyParent) {
+          onPaymentMethodSelected && onPaymentMethodSelected(methods[0]);
+        }
       } else {
         setSelectedPaymentMethod(null);
       }
@@ -126,8 +132,8 @@ const CustomerSheetManager = ({
         );
       }
 
-      // Refresh payment methods list
-      await fetchPaymentMethods();
+      // Refresh payment methods list and notify parent since user took action
+      await fetchPaymentMethods(true);
 
     } catch (error) {
       console.error('Error with CustomerSheet:', error);

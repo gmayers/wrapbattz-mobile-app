@@ -41,7 +41,8 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
   const fetchPaymentHistory = async () => {
     try {
-      const payments = await billingService.getPaymentHistory();
+      const response = await billingService.getPaymentHistory();
+      const payments = Array.isArray(response) ? response : response?.results || [];
       setPaymentHistory(payments);
 
       // Calculate statistics

@@ -5,7 +5,6 @@ console.log('🎯 App.js - File loaded successfully!');
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
-import { SQLiteProvider } from './src/context/SQLiteContext';
 import { AppNavigator } from './src/navigation/index';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -22,7 +21,6 @@ const MOBILE_API_KEY = 'csG6Ho01W_zFPrAVtP_fhPzyTI-n1GmX8DIJQ6tGzy4'; // Update 
 
 console.log('📦 App.js - All imports loaded successfully');
 console.log('🔍 App.js - AuthProvider:', typeof AuthProvider);
-console.log('🔍 App.js - SQLiteProvider:', typeof SQLiteProvider);
 console.log('🔍 App.js - AppNavigator:', typeof AppNavigator);
 
 export default function App() {
@@ -136,11 +134,8 @@ export default function App() {
         {console.log('💳 App.js - StripeProvider rendered')}
         <AuthProvider>
           {console.log('🔐 App.js - AuthProvider rendered')}
-          <SQLiteProvider>
-            {console.log('🗄️ App.js - SQLiteProvider rendered')}
-            <AppNavigator />
-            {console.log('🧭 App.js - AppNavigator rendered')}
-          </SQLiteProvider>
+          <AppNavigator />
+          {console.log('🧭 App.js - AppNavigator rendered')}
         </AuthProvider>
       </StripeProvider>
     </SafeAreaProvider>
