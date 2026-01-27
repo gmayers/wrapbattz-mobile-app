@@ -168,6 +168,12 @@ export interface SetupIntentResponse {
   ephemeral_key_secret: string;
 }
 
+export interface CustomerSessionResponse {
+  customer_id: string;
+  ephemeral_key_secret: string;
+  setup_intent_client_secret?: string;
+}
+
 export interface CustomerPortalResponse {
   url: string;
 }
@@ -226,7 +232,7 @@ export interface ConfirmPaymentMethodData {
 
 export interface CreateSubscriptionData {
   plan_slug: string;
-  payment_method_id: string;
+  payment_method_id?: string; // Optional - uses customer's default payment method if not provided
   device_count?: number;
   organization_id?: string;
 }

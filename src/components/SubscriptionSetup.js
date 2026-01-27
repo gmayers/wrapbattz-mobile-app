@@ -71,7 +71,8 @@ const SubscriptionSetup = ({
   };
 
   const getPlanSlug = () => {
-    return selectedPlan === 'monthly' ? 'monthly-device-billing' : 'annual-device-billing';
+    // Plan slugs must match backend: 'monthly-device-billing' or 'yearly-device-billing'
+    return selectedPlan === 'monthly' ? 'monthly-device-billing' : 'yearly-device-billing';
   };
 
   const setupFreeTier = async () => {

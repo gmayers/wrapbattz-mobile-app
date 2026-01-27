@@ -118,6 +118,16 @@ export class BillingService {
     return response.data;
   }
 
+  async createCustomerSession(): Promise<{
+    customer_id: string;
+    ephemeral_key_secret: string;
+    setup_intent_client_secret?: string;
+  }> {
+    // Use the same endpoint as createSetupIntent - it now returns full customer session data
+    const response = await this.axiosInstance.post('/billing/setup-intent/');
+    return response.data;
+  }
+
   // Billing Dashboard & Analytics
   async getUsage(): Promise<UsageData> {
     const response = await this.axiosInstance.get('/billing/usage/');
@@ -158,6 +168,12 @@ export class BillingService {
 
   async updateNotificationPreferences(data: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
     const response = await this.axiosInstance.put('/billing/notification-preferences/', data);
+    return response.data;
+  }
+
+  // Diagnostics
+  async getDiagnostics(): Promise<any> {
+    const response = await this.axiosInstance.get('/billing/diagnostics/');
     return response.data;
   }
 

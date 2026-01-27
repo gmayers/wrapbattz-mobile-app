@@ -321,8 +321,9 @@ const LoadingScreen = () => (
 const OnboardingStack = () => {
   const { onboardingComplete, userData } = useAuth();
 
-  // Use the correct onboarding field from your AuthContext
-  const needsOnboarding = !onboardingComplete && !(userData?.has_completed_onboarding);
+  // User needs onboarding only if they don't have an org AND haven't completed onboarding
+  // This fixes the issue where admins (who have an orgId) were incorrectly routed to Create Organization
+  const needsOnboarding = !userData?.orgId && !onboardingComplete && !(userData?.has_completed_onboarding);
 
   if (needsOnboarding) {
     return (

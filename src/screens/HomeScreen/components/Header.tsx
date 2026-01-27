@@ -76,12 +76,12 @@ const Header: React.FC<HeaderProps> = ({
         ) : (
           <View style={styles.userButtonContainer}>
             <Button
-              title="Request Device"
+              title="Assign Device"
               onPress={onAssignDevicePress}
               size="small"
               textColor="black"
               style={[styles.fullWidthButton, { backgroundColor: ORANGE_COLOR }]}
-              testID="request-device-button"
+              testID="assign-device-button"
             />
           </View>
         )}

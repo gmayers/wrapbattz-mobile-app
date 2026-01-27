@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const CreateOrganizationScreen = ({ navigation }) => {
-  const { createOrganization, isLoading, updateOnboardingStatus } = useAuth();
+  const { createOrganization, isLoading, updateOnboardingStatus, logout } = useAuth();
   
   // Form state
   const [name, setName] = useState('');
@@ -363,7 +363,25 @@ const CreateOrganizationScreen = ({ navigation }) => {
         <Text style={styles.noteText}>
           * Required fields
         </Text>
-        
+
+        <TouchableOpacity
+          style={styles.logoutLink}
+          onPress={() => {
+            Alert.alert(
+              "Log Out",
+              "Are you sure you want to log out?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Log Out", style: "destructive", onPress: logout }
+              ]
+            );
+          }}
+          disabled={isFormLoading}
+        >
+          <Ionicons name="log-out-outline" size={16} color="#666" />
+          <Text style={styles.logoutLinkText}>Log out and try a different account</Text>
+        </TouchableOpacity>
+
         {/* Debug info - remove in production */}
         {__DEV__ && (
           <View style={styles.debugInfo}>
@@ -483,7 +501,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
+    marginBottom: 20,
+  },
+  logoutLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 30,
+    paddingVertical: 10,
+  },
+  logoutLinkText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
+    textDecorationLine: 'underline',
   },
   debugInfo: {
     margin: 20,

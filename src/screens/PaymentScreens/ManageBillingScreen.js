@@ -148,7 +148,8 @@ const ManageBillingScreen = ({ navigation }) => {
   
   const handleChangePlan = () => {
     // Prerequisite check: Must have active subscription
-    if (!billingData?.subscription || !['active', 'past_due'].includes(billingData.subscription?.status)) {
+    const status = billingData?.subscription_status || billingData?.subscription?.status;
+    if (!status || !['active', 'past_due', 'trialing'].includes(status)) {
       Alert.alert(
         'No Active Subscription',
         'You need an active subscription to change plans. Would you like to set up billing now?',
@@ -163,9 +164,9 @@ const ManageBillingScreen = ({ navigation }) => {
       return;
     }
 
-    const currentCycle = billingData.subscription?.cycle || 'monthly';
+    const currentCycle = billingData.billing_period || billingData.subscription?.cycle || 'monthly';
     const newCycle = currentCycle === 'monthly' ? 'annual' : 'monthly';
-    const newPlanSlug = newCycle === 'annual' ? 'annual-device-billing' : 'monthly-device-billing';
+    const newPlanSlug = newCycle === 'annual' ? 'yearly-device-billing' : 'monthly-device-billing';
 
     Alert.alert(
       'Change Billing Plan',
@@ -212,7 +213,8 @@ const ManageBillingScreen = ({ navigation }) => {
   
   const handleCancelSubscription = () => {
     // Prerequisite check: Must have active subscription
-    if (!billingData?.subscription) {
+    const status = billingData?.subscription_status || billingData?.subscription?.status;
+    if (!status || status === 'inactive') {
       Alert.alert(
         'No Active Subscription',
         'You don\'t have an active subscription to cancel.',
@@ -222,11 +224,12 @@ const ManageBillingScreen = ({ navigation }) => {
     }
 
     // Check if already cancelled
-    if (billingData.subscription.status === 'cancelled' || billingData.subscription.cancel_at_period_end) {
+    const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
+    if (status === 'cancelled' || cancelAtPeriodEnd) {
       Alert.alert(
         'Subscription Already Cancelled',
         'Your subscription is already cancelled and will end on ' +
-          formatDate(billingData.subscription.current_period_end) + '.',
+          formatDate(billingData?.next_billing_date || billingData?.subscription?.current_period_end) + '.',
         [{ text: 'OK' }]
       );
       return;
@@ -284,7 +287,8 @@ const ManageBillingScreen = ({ navigation }) => {
 
   const handleReactivateSubscription = () => {
     // Check if subscription can be reactivated
-    if (!billingData?.subscription?.cancel_at_period_end) {
+    const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
+    if (!cancelAtPeriodEnd) {
       Alert.alert(
         'Subscription Active',
         'Your subscription is already active.',
@@ -336,7 +340,8 @@ const ManageBillingScreen = ({ navigation }) => {
   };
 
   const handleUpdateDeviceCount = () => {
-    if (!billingData?.subscription) {
+    const status = billingData?.subscription_status || billingData?.subscription?.status;
+    if (!status || status === 'inactive') {
       Alert.alert(
         'No Active Subscription',
         'You need an active subscription to update device count.',
@@ -450,8 +455,9 @@ const ManageBillingScreen = ({ navigation }) => {
   }
   
   // Check if user has billing data
-  const subscription = billingData?.subscription;
-  const isActive = subscription?.status === 'active' || subscription?.status === 'cancelled';
+  // Backend returns flat fields: subscription_status, billing_period, etc.
+  const subscriptionStatus = billingData?.subscription_status || billingData?.subscription?.status;
+  const isActive = subscriptionStatus === 'active' || subscriptionStatus === 'trialing';
 
   // If no billing data or not active, show setup screen
   if (!billingData || !isActive) {
@@ -480,13 +486,22 @@ const ManageBillingScreen = ({ navigation }) => {
     );
   }
 
+  // Get values from flat fields or nested subscription object for backwards compatibility
+  const billingPeriod = billingData?.billing_period || billingData?.subscription?.cycle || 'monthly';
+  const planName = billingData?.plan_name || billingData?.subscription?.plan_name || 'Device Management';
+  const freeDevices = billingData?.free_devices || billingData?.free_quota || 3;
+  const deviceCount = billingData?.device_count || billingData?.current_device_count || 0;
+  const billableDevices = billingData?.billable_devices || 0;
+  const currentPrice = billingData?.current_price || billingData?.current_cost || 0;
+  const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Manage Billing</Text>
           <Text style={styles.headerSubtitle}>
-            {`${subscription?.cycle || 'Monthly'} Plan - ${subscription?.plan_name || 'Device Management'}`}
+            {`${billingPeriod.charAt(0).toUpperCase() + billingPeriod.slice(1)} Plan - ${planName}`}
           </Text>
         </View>
 
@@ -496,14 +511,15 @@ const ManageBillingScreen = ({ navigation }) => {
             <View style={[
               styles.statusBadge,
               { backgroundColor:
-                subscription?.status === 'active' ? '#4CAF50' :
-                subscription?.status === 'cancelled' ? '#FF9800' :
-                subscription?.status === 'past_due' ? '#FF9800' :
+                subscriptionStatus === 'active' ? '#4CAF50' :
+                subscriptionStatus === 'trialing' ? '#2196F3' :
+                subscriptionStatus === 'cancelled' ? '#FF9800' :
+                subscriptionStatus === 'past_due' ? '#FF9800' :
                 '#F44336'
               }
             ]}>
               <Text style={styles.statusBadgeText}>
-                {(subscription?.status || 'unknown').toUpperCase()}
+                {(subscriptionStatus || 'unknown').toUpperCase()}
               </Text>
             </View>
           </View>
@@ -511,29 +527,28 @@ const ManageBillingScreen = ({ navigation }) => {
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Plan:</Text>
             <Text style={styles.billingCardValue}>
-              {(subscription?.cycle || 'monthly').charAt(0).toUpperCase() +
-               (subscription?.cycle || 'monthly').slice(1)}
+              {billingPeriod.charAt(0).toUpperCase() + billingPeriod.slice(1)}
             </Text>
           </View>
 
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Pricing Tier:</Text>
-            <Text style={styles.billingCardValue}>{subscription?.plan_name || 'Device Management'}</Text>
+            <Text style={styles.billingCardValue}>{planName}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Free Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData?.free_quota || 3}</Text>
+            <Text style={styles.billingCardValue}>{freeDevices}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Total Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData?.current_device_count || 0}</Text>
+            <Text style={styles.billingCardValue}>{deviceCount}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Billable Devices:</Text>
-            <Text style={styles.billingCardValue}>{billingData?.billable_devices || 0}</Text>
+            <Text style={styles.billingCardValue}>{billableDevices}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
@@ -542,33 +557,32 @@ const ManageBillingScreen = ({ navigation }) => {
               {formatDate(billingData?.next_billing_date)}
             </Text>
           </View>
-          
+
           <View style={styles.feesContainer}>
             <Text style={styles.feesTitle}>Device Management Fees</Text>
             <View style={styles.feesRow}>
-              <Text style={styles.feesDescription}>Free Tier ({billingData?.free_quota || 3} devices)</Text>
+              <Text style={styles.feesDescription}>Free Tier ({freeDevices} devices)</Text>
               <Text style={styles.feesAmount}>£0.00</Text>
             </View>
             <View style={styles.feesRow}>
               <Text style={styles.feesDescription}>
-                {billingData?.billable_devices || 0} additional device{(billingData?.billable_devices || 0) !== 1 ? 's' : ''} ×
-                {formatCurrency((subscription?.amount || 0) / Math.max(billingData?.billable_devices || 1, 1))}
+                {billableDevices} additional device{billableDevices !== 1 ? 's' : ''}
               </Text>
               <Text style={styles.feesAmount}>
-                {formatCurrency(billingData?.current_cost || 0)}
+                {formatCurrency(currentPrice)}
               </Text>
             </View>
             <View style={styles.feesDivider} />
             <View style={styles.feesRow}>
               <Text style={styles.feesTotalLabel}>
-                Total {(subscription?.cycle || 'monthly') === 'monthly' ? 'Monthly' : 'Annual'} Fee
+                Total {billingPeriod === 'monthly' ? 'Monthly' : 'Annual'} Fee
               </Text>
               <Text style={styles.feesTotal}>
-                {formatCurrency(billingData?.current_cost || 0)}
+                {formatCurrency(currentPrice)}
               </Text>
             </View>
 
-            {(subscription?.cycle || 'monthly') === 'monthly' && (
+            {billingPeriod === 'monthly' && (
               <View style={styles.savingsNote}>
                 <Text style={styles.savingsNoteText}>
                   Switch to annual billing and save up to 38% on your subscription!
@@ -678,7 +692,7 @@ const ManageBillingScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.secondaryActions}>
-            {subscription?.cancel_at_period_end ? (
+            {cancelAtPeriodEnd ? (
               <TouchableOpacity
                 style={[styles.reactivateButton, processingAction && styles.disabledButton]}
                 onPress={handleReactivateSubscription}
@@ -689,16 +703,16 @@ const ManageBillingScreen = ({ navigation }) => {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.cancelButton, (processingAction || subscription?.status === 'cancelled') && styles.disabledButton]}
+                style={[styles.cancelButton, (processingAction || subscriptionStatus === 'cancelled') && styles.disabledButton]}
                 onPress={handleCancelSubscription}
-                disabled={processingAction || subscription?.status === 'cancelled'}
+                disabled={processingAction || subscriptionStatus === 'cancelled'}
               >
-                <Ionicons name="close-circle-outline" size={20} color={subscription?.status === 'cancelled' ? '#999' : '#EF4444'} />
+                <Ionicons name="close-circle-outline" size={20} color={subscriptionStatus === 'cancelled' ? '#999' : '#EF4444'} />
                 <Text style={[
                   styles.cancelButtonText,
-                  { color: subscription?.status === 'cancelled' ? '#999' : '#EF4444' }
+                  { color: subscriptionStatus === 'cancelled' ? '#999' : '#EF4444' }
                 ]}>
-                  {subscription?.status === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
+                  {subscriptionStatus === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
                 </Text>
               </TouchableOpacity>
             )}

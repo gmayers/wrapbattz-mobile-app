@@ -59,8 +59,22 @@ const ProfileScreen = ({ navigation }) => {
       // Only fetch billing data for admin/owner
       if (isAdminOrOwner) {
         try {
-          const billingResponse = await axiosInstance.get('/billing/status/');
-          setBillingData(billingResponse.data);
+          // Use /billing/usage/ endpoint (the correct endpoint)
+          const billingResponse = await axiosInstance.get('/billing/usage/');
+          const data = billingResponse.data;
+
+          // Map flat response fields to expected structure
+          setBillingData({
+            total_devices: data.device_count || 0,
+            free_devices_remaining: Math.max(0, (data.free_devices || 3) - (data.device_count || 0)),
+            billable_devices: data.billable_devices || 0,
+            billing: {
+              status: data.subscription_status || 'inactive',
+              plan_type: data.billing_period || null,
+              max_devices: data.device_count || 0,
+              next_billing_date: data.next_billing_date || null
+            }
+          });
         } catch (billingError) {
           console.log('ℹ️ Billing status not available, fetching device count...');
 

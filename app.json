@@ -2,7 +2,7 @@
   "expo": {
     "name": "battwrapz",
     "slug": "battwrapz",
-    "version": "1.7.0",
+    "version": "1.7.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -32,8 +32,12 @@
         "react-native-nfc-manager",
         {
           "nfcPermission": "Allow $(PRODUCT_NAME) to access NFC features for device management.",
-          "selectIdentifiers": ["A0000002471001"],
-          "systemCodes": ["8008"],
+          "selectIdentifiers": [
+            "A0000002471001"
+          ],
+          "systemCodes": [
+            "8008"
+          ],
           "includeNdefEntitlement": false,
           "nfcReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user."
         }
@@ -58,7 +62,8 @@
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos for device reporting of photos taken.",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "wrapbattz",
     "ios": {
@@ -70,17 +75,23 @@
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["wrapbattz"]
+            "CFBundleURLSchemes": [
+              "wrapbattz"
+            ]
           }
         ],
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access camera for device reporting.",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos for device reporting.",
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos for device reporting of photos taken..",
         "NFCReaderUsageDescription": "Allow $(PRODUCT_NAME) to read NFC tags as it is used with devices to assign to user.",
-        "com.apple.developer.nfc.readersession.iso7816.select-identifiers": ["A0000002471001"]
+        "com.apple.developer.nfc.readersession.iso7816.select-identifiers": [
+          "A0000002471001"
+        ]
       },
       "entitlements": {
-        "com.apple.developer.nfc.readersession.formats": ["TAG"]
+        "com.apple.developer.nfc.readersession.formats": [
+          "TAG"
+        ]
       },
       "bundleIdentifier": "com.garanmayers7262.battwrapz"
     },

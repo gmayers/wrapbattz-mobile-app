@@ -139,8 +139,8 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   };
 
   const handleSubscriptionSuccess = () => {
-    setShowPayment(false);
-    navigation.navigate('ManageBilling');
+    // Replace current screen with ManageBilling to avoid flash of activate button
+    navigation.replace('ManageBilling');
   };
 
   const handleSubscriptionError = (error) => {
@@ -275,26 +275,44 @@ const DataHandlingFeeScreen = ({ navigation }) => {
         <Text style={styles.planDescription}>{description}</Text>
         
         <View style={styles.tieredPricing}>
-          <Text style={styles.tieredPricingTitle}>Tiered Pricing:</Text>
-          
-          <View style={styles.tierRow}>
-            <Text style={styles.tierDescription}>1-100 stickers:</Text>
-            <Text style={styles.tierPrice}>
-              {planType === 'monthly' ? '£0.40' : '£0.25'} per sticker
-            </Text>
-          </View>
-          
-          <View style={styles.tierRow}>
-            <Text style={styles.tierDescription}>101-400 stickers:</Text>
-            <Text style={styles.tierPrice}>
-              {planType === 'monthly' ? '£0.33' : '£0.25'} per sticker
-            </Text>
-          </View>
-          
-          <View style={styles.tierRow}>
-            <Text style={styles.tierDescription}>400+ stickers:</Text>
-            <Text style={styles.tierPrice}>£0.25 per sticker</Text>
-          </View>
+          {planType === 'monthly' ? (
+            <>
+              <Text style={styles.tieredPricingTitle}>Tiered Pricing:</Text>
+              <View style={styles.tierRow}>
+                <Text style={styles.tierDescription}>1-100 stickers:</Text>
+                <Text style={styles.tierPrice}>£0.40 per sticker</Text>
+              </View>
+              <View style={styles.tierRow}>
+                <Text style={styles.tierDescription}>101-400 stickers:</Text>
+                <Text style={styles.tierPrice}>£0.33 per sticker</Text>
+              </View>
+              <View style={styles.tierRow}>
+                <Text style={styles.tierDescription}>400+ stickers:</Text>
+                <Text style={styles.tierPrice}>£0.25 per sticker</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.tieredPricingTitle}>Simple Flat Pricing:</Text>
+              <View style={styles.flatPricingRow}>
+                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                <Text style={styles.flatPricingText}>£0.25 per sticker/month</Text>
+              </View>
+              <View style={styles.annualBreakdown}>
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Monthly rate:</Text>
+                  <Text style={styles.breakdownValue}>£0.25 × stickers</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Billed annually:</Text>
+                  <Text style={styles.breakdownValue}>Monthly × 12</Text>
+                </View>
+              </View>
+              <Text style={styles.flatPricingNote}>
+                Same low rate for all quantities - no tier complexity
+              </Text>
+            </>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -505,6 +523,47 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         )}
+
+        {/* Navigation buttons */}
+        <View style={styles.navigationContainer}>
+          <Text style={styles.navigationTitle}>Quick Links</Text>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => navigation.navigate('ManageBilling')}
+          >
+            <Ionicons name="card-outline" size={20} color={ORANGE_COLOR} />
+            <Text style={styles.navButtonText}>Manage Billing</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => navigation.navigate('BillingAnalytics')}
+          >
+            <Ionicons name="analytics-outline" size={20} color={ORANGE_COLOR} />
+            <Text style={styles.navButtonText}>Billing Analytics</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => navigation.navigate('PaymentHistory')}
+          >
+            <Ionicons name="receipt-outline" size={20} color={ORANGE_COLOR} />
+            <Text style={styles.navButtonText}>Payment History</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => navigation.navigate('NotificationPreferences')}
+          >
+            <Ionicons name="notifications-outline" size={20} color={ORANGE_COLOR} />
+            <Text style={styles.navButtonText}>Notification Settings</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -700,6 +759,45 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  flatPricingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+  flatPricingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2E7D32',
+    marginLeft: 8,
+  },
+  flatPricingNote: {
+    fontSize: 13,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  annualBreakdown: {
+    backgroundColor: '#F5F5F5',
+    padding: 10,
+    borderRadius: 6,
+    marginVertical: 8,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 3,
+  },
+  breakdownLabel: {
+    fontSize: 14,
+    color: '#555',
+  },
+  breakdownValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
   costSummary: {
     margin: 20,
     padding: 16,
@@ -794,6 +892,37 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '500',
+  },
+  navigationContainer: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 30,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    padding: 16,
+  },
+  navigationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  navButtonText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    marginLeft: 12,
   },
 });
 
