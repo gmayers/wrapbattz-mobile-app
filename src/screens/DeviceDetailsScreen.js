@@ -54,12 +54,21 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   
   // State for assignment
   const [assignLoading, setAssignLoading] = useState(false);
+
+  // State for transfer to location
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState(null);
+  const [transferLoading, setTransferLoading] = useState(false);
   
   // Format the date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   // Helper function to get device type label
@@ -162,11 +171,38 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     }
   }, [deviceId, deviceService]);
 
+  // Fetch locations for transfer modal (excluding current location)
+  const fetchLocations = useCallback(async () => {
+    try {
+      // Use the for-device endpoint which excludes current location
+      const response = await axiosInstance.get(`/locations/for-device/${deviceId}/`);
+      const locationsData = Array.isArray(response.data)
+        ? response.data
+        : response.data.results || [];
+      setLocations(locationsData);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+      // Fallback to all locations if the endpoint doesn't exist
+      try {
+        const fallbackResponse = await axiosInstance.get('/locations/');
+        const allLocations = Array.isArray(fallbackResponse.data)
+          ? fallbackResponse.data
+          : fallbackResponse.data.results || [];
+        setLocations(allLocations);
+      } catch (fallbackError) {
+        console.error('Fallback locations fetch also failed:', fallbackError);
+      }
+    }
+  }, [axiosInstance, deviceId]);
+
   useEffect(() => {
     fetchDeviceDetails();
     fetchDeviceHistory();
     fetchDeviceReports();
-  }, [fetchDeviceDetails, fetchDeviceHistory, fetchDeviceReports]);
+    if (isAdminOrOwner) {
+      fetchLocations();
+    }
+  }, [fetchDeviceDetails, fetchDeviceHistory, fetchDeviceReports, fetchLocations, isAdminOrOwner]);
 
   // Handle assign device to current user
   const handleAssignToMe = async () => {
@@ -206,6 +242,44 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
       handleApiError(error, 'Failed to assign device');
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  // Handle transfer to location
+  const handleTransferToLocation = async () => {
+    if (!selectedLocationId) {
+      Alert.alert('Error', 'Please select a location.');
+      return;
+    }
+
+    setTransferLoading(true);
+    try {
+      // Use the dedicated transfer-to-location endpoint for atomic transfer
+      await axiosInstance.post(
+        `/device-assignments/device/${deviceId}/transfer-to-location/`,
+        { location: selectedLocationId }
+      );
+
+      setTransferModalVisible(false);
+      setSelectedLocationId(null);
+
+      Alert.alert(
+        'Success',
+        'Device transferred to location successfully.',
+        [{ text: 'OK', onPress: () => {
+          fetchDeviceDetails();
+          fetchDeviceHistory();
+          // Refresh locations to update the list (current location changed)
+          if (isAdminOrOwner) {
+            fetchLocations();
+          }
+        }}]
+      );
+    } catch (error) {
+      console.error('Transfer error:', error);
+      handleApiError(error, 'Failed to transfer device');
+    } finally {
+      setTransferLoading(false);
     }
   };
 
@@ -384,6 +458,14 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               />
             )}
             
+            {isAdminOrOwner && (
+              <Button
+                title="Transfer to Location"
+                onPress={() => setTransferModalVisible(true)}
+                style={styles.transferButton}
+              />
+            )}
+
             <Button
               title="Report Issue"
               variant="outlined"
@@ -543,6 +625,62 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Transfer to Location Modal */}
+      <Modal
+        visible={transferModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setTransferModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setTransferModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Transfer to Location</Text>
+                <Text style={styles.modalSubtitle}>
+                  Select a location to transfer this device to.
+                </Text>
+
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={selectedLocationId}
+                    onValueChange={(value) => setSelectedLocationId(value)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select a location..." value={null} />
+                    {locations.map((location) => (
+                      <Picker.Item
+                        key={location.id}
+                        label={location.name}
+                        value={location.id}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+
+                <View style={styles.modalButtons}>
+                  <Button
+                    title="Cancel"
+                    variant="outlined"
+                    onPress={() => {
+                      setTransferModalVisible(false);
+                      setSelectedLocationId(null);
+                    }}
+                    style={styles.modalCancelButton}
+                  />
+                  <Button
+                    title={transferLoading ? "Transferring..." : "Confirm"}
+                    onPress={handleTransferToLocation}
+                    disabled={transferLoading || !selectedLocationId}
+                    style={[styles.modalConfirmButton, (!selectedLocationId || transferLoading) && styles.disabledButton]}
+                  />
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -857,6 +995,57 @@ const styles = StyleSheet.create({
   emptyReportsContainer: {
     alignItems: 'center',
     paddingVertical: 15,
+  },
+  transferButton: {
+    backgroundColor: ORANGE_COLOR,
+    borderColor: ORANGE_COLOR,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: Platform.OS === 'ios' ? 180 : 50,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalCancelButton: {
+    flex: 1,
+    borderColor: '#999',
+  },
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: ORANGE_COLOR,
+    borderColor: ORANGE_COLOR,
   },
 });
 

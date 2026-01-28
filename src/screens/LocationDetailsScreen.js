@@ -11,6 +11,8 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
@@ -41,6 +43,12 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const [isDevicesLoading, setIsDevicesLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assigningDevice, setAssigningDevice] = useState(null);
+
+  // Transfer to location state
+  const [otherLocations, setOtherLocations] = useState([]);
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [selectedDeviceForTransfer, setSelectedDeviceForTransfer] = useState(null);
+  const [transferringDevice, setTransferringDevice] = useState(null);
 
   // Clear AuthContext errors when component unmounts
   useEffect(() => {
@@ -88,11 +96,19 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         : response.data.results || [];
       
       // Map the assignments to extract device information with unique assignment IDs
-      const availableDevices = locationAssignments.map(assignment => ({
+      // Sort by assigned_date descending (most recent first)
+      const sortedAssignments = locationAssignments.sort((a, b) => {
+        const dateA = new Date(a.assigned_date || a.created_at || 0);
+        const dateB = new Date(b.assigned_date || b.created_at || 0);
+        return dateB - dateA; // Most recent first
+      });
+
+      const availableDevices = sortedAssignments.map(assignment => ({
         ...assignment.device,
-        assignmentId: assignment.id // Add assignment ID for unique keys
+        assignmentId: assignment.id, // Add assignment ID for unique keys
+        assignedDate: assignment.assigned_date // Keep the date for reference
       }));
-      
+
       setDevices(availableDevices);
     } catch (error) {
       console.error('Error fetching location devices:', error);
@@ -110,11 +126,32 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     }
   }, [locationId, axiosInstance, logout]);
 
+  // Fetch other locations for transfer (admin/owner only)
+  const fetchOtherLocations = useCallback(async () => {
+    if (!isAdminOrOwner) return;
+
+    try {
+      // Use the for-device endpoint which excludes current location
+      const response = await axiosInstance.get(`/locations/`);
+      const allLocations = Array.isArray(response.data)
+        ? response.data
+        : response.data.results || [];
+
+      // Filter out the current location
+      const filtered = allLocations.filter(loc => loc.id !== locationId);
+      setOtherLocations(filtered);
+    } catch (error) {
+      console.error('Error fetching other locations:', error);
+      // Non-critical, don't show error to user
+    }
+  }, [locationId, axiosInstance, isAdminOrOwner]);
+
   // Execute fetch operations on component mount and when locationId changes
   useEffect(() => {
     fetchLocationDetails();
     fetchLocationDevices();
-  }, [locationId, fetchLocationDetails, fetchLocationDevices]);
+    fetchOtherLocations();
+  }, [locationId, fetchLocationDetails, fetchLocationDevices, fetchOtherLocations]);
 
   // Set up the header with location name once it's loaded
   useEffect(() => {
@@ -183,6 +220,50 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     }
   }, [axiosInstance, fetchLocationDevices]);
 
+  // Open transfer modal for a device
+  const openTransferModal = useCallback((device) => {
+    setSelectedDeviceForTransfer(device);
+    setTransferModalVisible(true);
+  }, []);
+
+  // Handle transfer to another location
+  const handleTransferToLocation = useCallback(async (targetLocationId) => {
+    if (!selectedDeviceForTransfer) return;
+
+    setTransferringDevice(selectedDeviceForTransfer.id);
+
+    try {
+      await axiosInstance.post(
+        `/device-assignments/device/${selectedDeviceForTransfer.id}/transfer-to-location/`,
+        { location: targetLocationId }
+      );
+
+      Alert.alert(
+        'Success',
+        'Device transferred successfully.',
+        [{
+          text: 'OK',
+          onPress: () => {
+            setTransferModalVisible(false);
+            setSelectedDeviceForTransfer(null);
+            fetchLocationDevices();
+          }
+        }]
+      );
+    } catch (error) {
+      console.error('Transfer error:', error);
+
+      let errorMessage = 'Failed to transfer device. Please try again.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+
+      Alert.alert('Transfer Error', errorMessage);
+    } finally {
+      setTransferringDevice(null);
+    }
+  }, [selectedDeviceForTransfer, axiosInstance, fetchLocationDevices]);
+
   // Navigate to add device screen with the location pre-selected
   const handleAddDevice = useCallback(() => {
     navigation.navigate('AddDevice', { locationId });
@@ -243,33 +324,44 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           
           {/* Action Buttons */}
           <View style={styles.deviceActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.viewButton}
               onPress={() => handleViewDevice(device.id)}
             >
               <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.assignButton, isAssigning && styles.assignButtonDisabled]}
               onPress={() => handleAssignDevice(device.id)}
               disabled={isAssigning}
             >
-              <Ionicons 
-                name={isAssigning ? "hourglass-outline" : "person-add-outline"} 
-                size={18} 
-                color="#FFFFFF" 
+              <Ionicons
+                name={isAssigning ? "hourglass-outline" : "person-add-outline"}
+                size={18}
+                color="#FFFFFF"
               />
               <Text style={styles.assignButtonText}>
                 {isAssigning ? 'Assigning...' : 'Assign to Me'}
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Transfer Button - Admin/Owner only */}
+          {isAdminOrOwner && otherLocations.length > 0 && (
+            <TouchableOpacity
+              style={styles.transferButton}
+              onPress={() => openTransferModal(device)}
+            >
+              <Ionicons name="swap-horizontal-outline" size={18} color={ORANGE_COLOR} />
+              <Text style={styles.transferButtonText}>Transfer to Location</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
     );
-  }, [handleViewDevice, handleAssignDevice, assigningDevice]);
+  }, [handleViewDevice, handleAssignDevice, assigningDevice, isAdminOrOwner, otherLocations, openTransferModal]);
 
   const renderAddressDetails = useCallback(() => {
     if (!location) return null;
@@ -398,6 +490,91 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Transfer to Location Modal */}
+      <Modal
+        visible={transferModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setTransferModalVisible(false);
+          setSelectedDeviceForTransfer(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transfer Device</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setTransferModalVisible(false);
+                  setSelectedDeviceForTransfer(null);
+                }}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedDeviceForTransfer && (
+              <Text style={styles.modalSubtitle}>
+                Transfer {selectedDeviceForTransfer.identifier} to another location
+              </Text>
+            )}
+
+            <Text style={styles.selectLabel}>Select Destination Location:</Text>
+
+            <FlatList
+              data={otherLocations}
+              keyExtractor={(item) => item.id.toString()}
+              style={styles.locationList}
+              renderItem={({ item }) => {
+                const isTransferring = transferringDevice === selectedDeviceForTransfer?.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.locationItem,
+                      isTransferring && styles.locationItemDisabled
+                    ]}
+                    onPress={() => handleTransferToLocation(item.id)}
+                    disabled={isTransferring}
+                  >
+                    <View style={styles.locationItemContent}>
+                      <Ionicons name="location-outline" size={20} color={ORANGE_COLOR} />
+                      <View style={styles.locationItemText}>
+                        <Text style={styles.locationItemName}>
+                          {item.name || `${item.street_number} ${item.street_name}`}
+                        </Text>
+                        <Text style={styles.locationItemAddress}>
+                          {item.town_or_city}, {item.postcode}
+                        </Text>
+                      </View>
+                    </View>
+                    {isTransferring ? (
+                      <ActivityIndicator size="small" color={ORANGE_COLOR} />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <Text style={styles.noLocationsText}>No other locations available</Text>
+              }
+            />
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setTransferModalVisible(false);
+                setSelectedDeviceForTransfer(null);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -615,6 +792,117 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     marginTop: 10,
+  },
+  // Transfer button styles
+  transferButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: ORANGE_COLOR,
+    backgroundColor: 'transparent',
+    marginTop: 12,
+  },
+  transferButtonText: {
+    marginLeft: 8,
+    color: ORANGE_COLOR,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  selectLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 10,
+  },
+  locationList: {
+    maxHeight: 300,
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  locationItemDisabled: {
+    opacity: 0.5,
+  },
+  locationItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationItemText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  locationItemAddress: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  noLocationsText: {
+    textAlign: 'center',
+    color: '#999',
+    paddingVertical: 20,
+    fontSize: 14,
+  },
+  cancelButton: {
+    marginTop: 15,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
   },
 });
 
