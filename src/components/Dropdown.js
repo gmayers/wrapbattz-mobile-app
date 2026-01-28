@@ -1,29 +1,40 @@
-// components/Dropdown/index.js
+// components/Dropdown.js
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal, Animated, Dimensions } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Animated,
+  Dimensions,
+  FlatList,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const ORANGE_COLOR = '#FF9500';
 
 const Dropdown = ({
   // Required props
   value,
   onValueChange,
   items,
-  
+
   // Optional props
   label,
   placeholder = 'Select an option',
   error,
-  
+
   // Style props
   containerStyle,
   labelStyle,
   dropdownStyle,
-  
+
   // Disabled state
   disabled = false,
-  
+
   // Custom props
   testID,
 }) => {
@@ -34,10 +45,12 @@ const Dropdown = ({
 
   // Find the selected item's label
   const selectedLabel = items.find(item => item.value === value)?.label || placeholder;
+  const hasValue = items.some(item => item.value === value);
 
-  // Enhanced animation functions for iOS
+  // Animation functions
   const showModal = () => {
     setIsPickerVisible(true);
+    setIsFocused(true);
     Animated.parallel([
       Animated.timing(overlayOpacity, {
         toValue: 1,
@@ -47,7 +60,7 @@ const Dropdown = ({
       Animated.spring(slideAnim, {
         toValue: 0,
         tension: 65,
-        friction: 8,
+        friction: 10,
         useNativeDriver: true,
       }),
     ]).start();
@@ -71,103 +84,100 @@ const Dropdown = ({
     });
   };
 
-  // Render different picker variants for iOS and Android
-  const renderPicker = () => {
-    if (Platform.OS === 'ios') {
-      return (
-        <Modal
-          visible={isPickerVisible}
-          animationType="none"
-          transparent={true}
-          onRequestClose={hideModal}
-          statusBarTranslucent={true}
-        >
-          <Animated.View 
-            style={[
-              styles.modalOverlay, 
-              { 
-                opacity: overlayOpacity,
-                backgroundColor: 'rgba(0, 0, 0, 0.4)'
-              }
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.modalOverlayTouchable}
-              onPress={hideModal}
-              activeOpacity={1}
-            />
-            <Animated.View 
-              style={[
-                styles.modalContent,
-                {
-                  transform: [{ translateY: slideAnim }]
-                }
-              ]}
-            >
-              <View style={styles.pickerHeader}>
-                <TouchableOpacity onPress={hideModal} style={styles.doneButtonContainer}>
-                  <Text style={styles.doneButton}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={value}
-                  onValueChange={(itemValue) => {
-                    onValueChange(itemValue);
-                    setTimeout(hideModal, 100); // Slight delay for better UX
-                  }}
-                  testID={testID}
-                  style={styles.iosPicker}
-                >
-                  {items.map((item) => (
-                    <Picker.Item 
-                      key={item.value} 
-                      label={item.label} 
-                      value={item.value}
-                      color={disabled ? '#999' : '#000'}
-                    />
-                  ))}
-                </Picker>
-              </View>
-              {/* Safe area bottom padding */}
-              <View style={styles.safeAreaBottom} />
-            </Animated.View>
-          </Animated.View>
-        </Modal>
-      );
-    }
-
-    return (
-      <View style={[styles.pickerContainer, dropdownStyle]}>
-        <Picker
-          selectedValue={value}
-          onValueChange={onValueChange}
-          enabled={!disabled}
-          style={styles.picker}
-          testID={testID}
-        >
-          {items.map((item) => (
-            <Picker.Item 
-              key={item.value} 
-              label={item.label} 
-              value={item.value}
-              color={disabled ? '#999' : '#000'}
-            />
-          ))}
-        </Picker>
-      </View>
-    );
+  const handleSelectItem = (itemValue) => {
+    onValueChange(itemValue);
+    hideModal();
   };
 
   const handlePress = () => {
     if (!disabled) {
-      setIsFocused(true);
-      if (Platform.OS === 'ios') {
-        showModal();
-      } else {
-        setIsPickerVisible(true);
-      }
+      showModal();
     }
+  };
+
+  // Render item for the list
+  const renderItem = ({ item }) => {
+    const isSelected = item.value === value;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.listItem,
+          isSelected && styles.listItemSelected,
+        ]}
+        onPress={() => handleSelectItem(item.value)}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={[
+            styles.listItemText,
+            isSelected && styles.listItemTextSelected,
+          ]}
+        >
+          {item.label}
+        </Text>
+        {isSelected && (
+          <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  // Render the modal picker (same for both platforms)
+  const renderPicker = () => {
+    return (
+      <Modal
+        visible={isPickerVisible}
+        animationType="none"
+        transparent={true}
+        onRequestClose={hideModal}
+        statusBarTranslucent={true}
+      >
+        <Animated.View
+          style={[
+            styles.modalOverlay,
+            {
+              opacity: overlayOpacity,
+            }
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlayTouchable}
+            onPress={hideModal}
+            activeOpacity={1}
+          />
+          <Animated.View
+            style={[
+              styles.modalContent,
+              {
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{label || 'Select Option'}</Text>
+              <TouchableOpacity onPress={hideModal} style={styles.doneButtonContainer}>
+                <Text style={styles.doneButton}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Options List */}
+            <FlatList
+              data={items}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.key || item.value?.toString() || item.label}
+              style={styles.optionsList}
+              showsVerticalScrollIndicator={true}
+              bounces={false}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+
+            {/* Safe area bottom padding */}
+            <View style={styles.safeAreaBottom} />
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+    );
   };
 
   return (
@@ -177,47 +187,43 @@ const Dropdown = ({
           {label}
         </Text>
       )}
-      
-      {Platform.OS === 'ios' ? (
-        <TouchableOpacity
-          onPress={handlePress}
+
+      <TouchableOpacity
+        onPress={handlePress}
+        style={[
+          styles.dropdownButton,
+          dropdownStyle,
+          isFocused && styles.focused,
+          disabled && styles.disabled,
+          error && styles.error,
+        ]}
+        disabled={disabled}
+        activeOpacity={0.7}
+        testID={testID}
+      >
+        <Text
           style={[
-            styles.dropdownButton,
-            isFocused && styles.focused,
-            disabled && styles.disabled,
-            error && styles.error,
+            styles.selectedText,
+            !hasValue && styles.placeholderText,
+            disabled && styles.disabledText,
           ]}
-          disabled={disabled}
-          activeOpacity={0.7}
+          numberOfLines={1}
         >
-          <Text 
-            style={[
-              styles.selectedText,
-              !value && styles.placeholderText,
-              disabled && styles.disabledText,
-            ]}
-          >
-            {selectedLabel}
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <View
-          style={[
-            styles.dropdownButton,
-            isFocused && styles.focused,
-            disabled && styles.disabled,
-            error && styles.error,
-          ]}
-        >
-          {renderPicker()}
-        </View>
-      )}
+          {selectedLabel}
+        </Text>
+        <Ionicons
+          name="chevron-down"
+          size={20}
+          color={disabled ? '#999' : '#666'}
+          style={styles.chevron}
+        />
+      </TouchableOpacity>
 
       {error && (
         <Text style={styles.errorText}>{error}</Text>
       )}
 
-      {Platform.OS === 'ios' && renderPicker()}
+      {renderPicker()}
     </View>
   );
 };
@@ -233,16 +239,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     minHeight: 48,
     paddingHorizontal: 16,
-    justifyContent: 'center',
+    paddingVertical: 12,
   },
   focused: {
-    borderColor: '#007AFF',
+    borderColor: ORANGE_COLOR,
   },
   disabled: {
     backgroundColor: '#F5F5F5',
@@ -254,6 +263,7 @@ const styles = StyleSheet.create({
   selectedText: {
     fontSize: 16,
     color: '#333',
+    flex: 1,
   },
   placeholderText: {
     color: '#999',
@@ -261,23 +271,18 @@ const styles = StyleSheet.create({
   disabledText: {
     color: '#999',
   },
+  chevron: {
+    marginLeft: 8,
+  },
   errorText: {
     color: '#FF3B30',
     fontSize: 12,
     marginTop: 4,
   },
-  // Android specific styles
-  pickerContainer: {
-    overflow: 'hidden',
-  },
-  picker: {
-    marginLeft: -4, // Compensate for container padding
-    width: '100%',   // Ensure dropdown arrow is visible
-    height: 48,
-  },
-  // iOS Modal styles
+  // Modal styles
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalOverlayTouchable: {
@@ -293,38 +298,66 @@ const styles = StyleSheet.create({
       width: 0,
       height: -4,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 10,
   },
-  pickerContainer: {
-    paddingHorizontal: 16,
-  },
-  pickerHeader: {
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5EA',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    alignItems: 'flex-end',
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F8F8F8',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#333',
   },
   doneButtonContainer: {
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   doneButton: {
-    color: '#007AFF',
+    color: ORANGE_COLOR,
     fontSize: 17,
     fontWeight: '600',
-    lineHeight: 22,
   },
-  iosPicker: {
-    height: 216, // Standard iOS picker height
+  optionsList: {
+    maxHeight: SCREEN_HEIGHT * 0.45,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  listItemSelected: {
+    backgroundColor: '#FFF5E6',
+  },
+  listItemText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  listItemTextSelected: {
+    color: ORANGE_COLOR,
+    fontWeight: '600',
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+    marginLeft: 20,
   },
   safeAreaBottom: {
-    height: Platform.OS === 'ios' ? 34 : 16, // iOS home indicator safe area
+    height: Platform.OS === 'ios' ? 34 : 16,
     backgroundColor: '#FFFFFF',
   },
 });

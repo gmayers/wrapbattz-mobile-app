@@ -10,12 +10,11 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  TouchableWithoutFeedback,
   Platform,
   Image,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -633,53 +632,89 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={() => setTransferModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setTransferModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Transfer to Location</Text>
-                <Text style={styles.modalSubtitle}>
-                  Select a location to transfer this device to.
-                </Text>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalOverlayTouchable}
+            onPress={() => setTransferModalVisible(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transfer to Location</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setTransferModalVisible(false);
+                  setSelectedLocationId(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
 
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={selectedLocationId}
-                    onValueChange={(value) => setSelectedLocationId(value)}
-                    style={styles.picker}
+            <Text style={styles.modalSubtitle}>
+              Select a location to transfer this device to.
+            </Text>
+
+            <FlatList
+              data={locations}
+              keyExtractor={(item) => item.id.toString()}
+              style={styles.locationList}
+              renderItem={({ item }) => {
+                const isSelected = selectedLocationId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.locationListItem,
+                      isSelected && styles.locationListItemSelected,
+                    ]}
+                    onPress={() => setSelectedLocationId(item.id)}
                   >
-                    <Picker.Item label="Select a location..." value={null} />
-                    {locations.map((location) => (
-                      <Picker.Item
-                        key={location.id}
-                        label={location.name}
-                        value={location.id}
+                    <View style={styles.locationListItemContent}>
+                      <Ionicons
+                        name="location-outline"
+                        size={20}
+                        color={isSelected ? ORANGE_COLOR : '#666'}
                       />
-                    ))}
-                  </Picker>
-                </View>
+                      <Text
+                        style={[
+                          styles.locationListItemText,
+                          isSelected && styles.locationListItemTextSelected,
+                        ]}
+                      >
+                        {item.name || `${item.street_number} ${item.street_name}`}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <Text style={styles.emptyListText}>No locations available</Text>
+              }
+              ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+            />
 
-                <View style={styles.modalButtons}>
-                  <Button
-                    title="Cancel"
-                    variant="outlined"
-                    onPress={() => {
-                      setTransferModalVisible(false);
-                      setSelectedLocationId(null);
-                    }}
-                    style={styles.modalCancelButton}
-                  />
-                  <Button
-                    title={transferLoading ? "Transferring..." : "Confirm"}
-                    onPress={handleTransferToLocation}
-                    disabled={transferLoading || !selectedLocationId}
-                    style={[styles.modalConfirmButton, (!selectedLocationId || transferLoading) && styles.disabledButton]}
-                  />
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                variant="outlined"
+                onPress={() => {
+                  setTransferModalVisible(false);
+                  setSelectedLocationId(null);
+                }}
+                style={styles.modalCancelButton}
+              />
+              <Button
+                title={transferLoading ? "Transferring..." : "Confirm"}
+                onPress={handleTransferToLocation}
+                disabled={transferLoading || !selectedLocationId}
+                style={[styles.modalConfirmButton, (!selectedLocationId || transferLoading) && styles.disabledButton]}
+              />
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1003,40 +1038,82 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    width: '85%',
-    maxWidth: 400,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
   },
   modalSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    marginVertical: 12,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+  locationList: {
+    maxHeight: 300,
+  },
+  locationListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  locationListItemSelected: {
+    backgroundColor: '#FFF5E6',
+    marginHorizontal: -4,
+    paddingHorizontal: 8,
     borderRadius: 8,
-    marginBottom: 20,
-    overflow: 'hidden',
   },
-  picker: {
-    height: Platform.OS === 'ios' ? 180 : 50,
+  locationListItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationListItemText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationListItemTextSelected: {
+    color: ORANGE_COLOR,
+    fontWeight: '600',
+  },
+  emptyListText: {
+    textAlign: 'center',
+    color: '#999',
+    paddingVertical: 20,
+    fontSize: 14,
+  },
+  listSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
   },
   modalButtons: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 16,
   },
   modalCancelButton: {
     flex: 1,

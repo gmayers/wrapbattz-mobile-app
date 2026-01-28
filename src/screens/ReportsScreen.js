@@ -96,6 +96,9 @@ const ReportsScreen = ({ navigation }) => {
         ? reportsData
         : reportsData.results || [];
 
+      // Sort by most recent first
+      allReports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+
       // Filter to only show pending and in-progress reports first
       const filteredReports = allReports.filter(report =>
         report.status === 'PENDING' || report.status === 'IN_PROGRESS'

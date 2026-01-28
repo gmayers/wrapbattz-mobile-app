@@ -393,9 +393,9 @@ const deviceService = {
   },
 
   // Get device photos
-  getDevicePhotos: async () => {
+  getDevicePhotos: async (params = {}) => {
     try {
-      const response = await axiosInstance.get('/device-photos/');
+      const response = await axiosInstance.get('/device-photos/', { params });
       return response.data;
     } catch (error) {
       throw error;

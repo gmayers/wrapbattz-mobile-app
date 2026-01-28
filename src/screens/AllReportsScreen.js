@@ -7,14 +7,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Platform,
   ActivityIndicator,
   Modal,
   TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -32,6 +31,15 @@ const STATUS_CHOICES = [
   { value: 'RESOLVED', label: 'Resolved' },
   { value: 'CANCELLED', label: 'Cancelled' },
   { value: 'ESCALATED', label: 'Escalated' }
+];
+
+const TYPE_CHOICES = [
+  { value: 'DAMAGED', label: 'Damaged' },
+  { value: 'STOLEN', label: 'Stolen' },
+  { value: 'LOST', label: 'Lost' },
+  { value: 'MALFUNCTIONING', label: 'Malfunctioning' },
+  { value: 'MAINTENANCE', label: 'Needs Maintenance' },
+  { value: 'OTHER', label: 'Other' }
 ];
 
 const AllReportsScreen = ({ navigation, route }) => {
@@ -55,8 +63,10 @@ const AllReportsScreen = ({ navigation, route }) => {
   const [updateReportModalVisible, setUpdateReportModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
   const [resolvedChecked, setResolvedChecked] = useState(false);
   const [description, setDescription] = useState('');
+  const [isMyReportUpdate, setIsMyReportUpdate] = useState(false);
 
   useEffect(() => {
     fetchMyReports();
@@ -87,7 +97,9 @@ const AllReportsScreen = ({ navigation, route }) => {
     try {
       setLoadingMyReports(true);
       const data = await deviceService.getMyReports();
-      setMyReports(Array.isArray(data) ? data : data.results || []);
+      const reports = Array.isArray(data) ? data : data.results || [];
+      reports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+      setMyReports(reports);
     } catch (error) {
       handleApiError(error, 'Failed to fetch your reports');
     } finally {
@@ -100,7 +112,9 @@ const AllReportsScreen = ({ navigation, route }) => {
     try {
       setLoadingAllReports(true);
       const data = await deviceService.getReports();
-      setAllReports(Array.isArray(data) ? data : data.results || []);
+      const reports = Array.isArray(data) ? data : data.results || [];
+      reports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+      setAllReports(reports);
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization reports.');
     } finally {
@@ -132,11 +146,13 @@ const AllReportsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleUpdateReport = (report) => {
+  const handleUpdateReport = (report, fromMyReports = false) => {
     setSelectedReport(report);
     setSelectedStatus(report.status);
+    setSelectedType(report.type);
     setResolvedChecked(report.resolved || false);
     setDescription(report.description || '');
+    setIsMyReportUpdate(fromMyReports);
     setUpdateReportModalVisible(true);
   };
 
@@ -147,15 +163,30 @@ const AllReportsScreen = ({ navigation, route }) => {
     }
 
     try {
-      const updateData = {
-        status: selectedStatus,
-        resolved: resolvedChecked,
-        description: description,
-      };
+      let updateData;
 
-      // If marked as resolved and there's no resolved date, add it
-      if (resolvedChecked && !selectedReport.resolved_date) {
-        updateData.resolved_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      if (isMyReportUpdate) {
+        // My Reports: full edit
+        updateData = {
+          status: selectedStatus,
+          type: selectedType,
+          resolved: resolvedChecked,
+          description: description,
+        };
+        if (resolvedChecked && !selectedReport.resolved_date) {
+          updateData.resolved_date = new Date().toISOString().split('T')[0];
+        }
+      } else {
+        // All Reports: status only
+        updateData = {
+          status: selectedStatus,
+        };
+        if (selectedStatus === 'RESOLVED') {
+          updateData.resolved = true;
+          if (!selectedReport.resolved_date) {
+            updateData.resolved_date = new Date().toISOString().split('T')[0];
+          }
+        }
       }
 
       await deviceService.updateReport(selectedReport.id, updateData);
@@ -172,8 +203,7 @@ const AllReportsScreen = ({ navigation, route }) => {
   };
 
   // Render report card
-// Update the renderReportCard function in AllReportsScreen.js
-const renderReportCard = (report) => (
+const renderReportCard = (report, isMyReport = false) => (
   <TouchableOpacity 
     key={report.id}
     onPress={() => navigation.navigate('ReportDetails', { reportId: report.id })}
@@ -208,15 +238,15 @@ const renderReportCard = (report) => (
             Created by: {report.created_by.first_name} {report.created_by.last_name}
           </Text>
         )}
-        {isAdminOrOwner && (
+        {(isMyReport || isAdminOrOwner) && (
           <View style={styles.cardActions}>
             <Button
-              title="Update Status"
+              title={isMyReport ? "Edit Report" : "Update Status"}
               variant="outlined"
               size="small"
               onPress={(e) => {
-                e.stopPropagation(); // Prevent card click
-                handleUpdateReport(report);
+                e.stopPropagation();
+                handleUpdateReport(report, isMyReport);
               }}
               style={styles.updateButton}
             />
@@ -297,7 +327,7 @@ const renderReportCard = (report) => (
               <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
             ) : myReports.length > 0 ? (
               <View style={styles.reportsGrid}>
-                {myReports.map(renderReportCard)}
+                {myReports.map(report => renderReportCard(report, true))}
               </View>
             ) : (
               <View style={styles.emptyContainer}>
@@ -328,7 +358,7 @@ const renderReportCard = (report) => (
               <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
             ) : allReports.length > 0 ? (
               <View style={styles.reportsGrid}>
-                {allReports.map(renderReportCard)}
+                {allReports.map(report => renderReportCard(report, false))}
               </View>
             ) : (
               <View style={styles.emptyContainer}>
@@ -353,50 +383,64 @@ const renderReportCard = (report) => (
               <View style={styles.modalContainer}>
                 {selectedReport && (
                   <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Update Report Status</Text>
+                    <Text style={styles.modalTitle}>
+                      {isMyReportUpdate ? 'Edit Report' : 'Update Report Status'}
+                    </Text>
                     <Text style={styles.modalText}>
                       Report for: <Text style={styles.modalTextBold}>{selectedReport.device?.identifier || 'Unknown'}</Text>
                     </Text>
-                    <Text style={styles.modalText}>
-                      Current Status: <Text style={styles.modalTextBold}>{getStatusLabel(selectedReport.status)}</Text>
-                    </Text>
+                    {!isMyReportUpdate && (
+                      <Text style={styles.modalText}>
+                        Current Status: <Text style={styles.modalTextBold}>{getStatusLabel(selectedReport.status)}</Text>
+                      </Text>
+                    )}
 
-                    <Text style={styles.modalText}>Select New Status:</Text>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={selectedStatus}
-                        onValueChange={(itemValue) => setSelectedStatus(itemValue)}
-                        style={styles.picker}
-                        prompt="Select a status"
-                      >
-                        {STATUS_CHOICES.map((status) => (
-                          <Picker.Item key={status.value} label={status.label} value={status.value} />
-                        ))}
-                      </Picker>
-                    </View>
-
-                    <Text style={styles.modalText}>Description:</Text>
-                    <BaseTextInput
-                      value={description}
-                      onChangeText={setDescription}
-                      placeholder="Enter description"
-                      multiline
-                      numberOfLines={4}
-                      style={styles.modalTextInput}
+                    <Dropdown
+                      label="Status"
+                      value={selectedStatus}
+                      onValueChange={(itemValue) => setSelectedStatus(itemValue)}
+                      items={STATUS_CHOICES}
+                      placeholder="Select a status"
+                      labelStyle={styles.modalText}
+                      containerStyle={{ marginBottom: isMyReportUpdate ? 15 : 20 }}
                     />
 
-                    <TouchableOpacity 
-                      style={styles.checkboxContainer}
-                      onPress={() => setResolvedChecked(!resolvedChecked)}
-                    >
-                      <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
-                        {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
-                      </View>
-                      <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
-                    </TouchableOpacity>
+                    {isMyReportUpdate && (
+                      <>
+                        <Dropdown
+                          label="Type"
+                          value={selectedType}
+                          onValueChange={(itemValue) => setSelectedType(itemValue)}
+                          items={TYPE_CHOICES}
+                          placeholder="Select a type"
+                          labelStyle={styles.modalText}
+                          containerStyle={{ marginBottom: 15 }}
+                        />
+
+                        <Text style={styles.modalText}>Description:</Text>
+                        <BaseTextInput
+                          value={description}
+                          onChangeText={setDescription}
+                          placeholder="Enter description"
+                          multiline
+                          numberOfLines={4}
+                          style={styles.modalTextInput}
+                        />
+
+                        <TouchableOpacity
+                          style={styles.checkboxContainer}
+                          onPress={() => setResolvedChecked(!resolvedChecked)}
+                        >
+                          <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
+                            {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
+                          </View>
+                          <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
 
                     <Button
-                      title="Update Report"
+                      title={isMyReportUpdate ? 'Update Report' : 'Update Status'}
                       onPress={handleConfirmUpdate}
                       style={styles.confirmButton}
                       disabled={!selectedStatus}
@@ -582,17 +626,6 @@ const styles = StyleSheet.create({
   modalTextBold: {
     fontWeight: 'bold',
     color: '#333',
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    marginBottom: 20,
-    justifyContent: 'center',
-  },
-  picker: {
-    height: Platform.OS === 'ios' ? 120 : 50,
-    width: '100%',
   },
   checkboxContainer: {
     flexDirection: 'row',

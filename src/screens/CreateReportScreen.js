@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
@@ -59,6 +58,8 @@ const CreateReportScreen = ({ navigation, route }) => {
   const [activeSections, setActiveSections] = useState([]);
   const [error, setError] = useState(null);
   const signatureRef = useRef(null);
+  const signatureDataRef = useRef(null);
+  const isAutoCapture = useRef(false);
 
   // Clear auth context errors when component unmounts
   useEffect(() => {
@@ -261,38 +262,87 @@ const CreateReportScreen = ({ navigation, route }) => {
   const saveSignatureAsFile = useCallback(async (base64Data) => {
     try {
       const fileName = `signature_${Date.now()}.png`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return fileUri;
+      const filePath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+      await RNFS.writeFile(filePath, base64Data, 'base64');
+      return `file://${filePath}`;
     } catch (error) {
       console.error('Error saving signature to file:', error);
       throw error;
     }
   }, []);
 
+  const processSignatureData = useCallback(async (signature) => {
+    if (!signature || typeof signature !== 'string') {
+      return null;
+    }
+
+    // Handle both formats: full data URI or raw base64
+    const base64String = signature.includes('base64,')
+      ? signature.split('base64,')[1]
+      : signature;
+
+    if (!base64String) {
+      return null;
+    }
+
+    return await saveSignatureAsFile(base64String);
+  }, [saveSignatureAsFile]);
+
   const handleSignatureOK = useCallback(async (signature) => {
+    // Auto-capture mode: just cache the data, don't close modal
+    if (isAutoCapture.current) {
+      isAutoCapture.current = false;
+      if (signature && typeof signature === 'string') {
+        signatureDataRef.current = signature;
+      }
+      return;
+    }
+
     try {
-      const base64String = signature.replace('data:image/png;base64,', '');
-      const fileUri = await saveSignatureAsFile(base64String);
+      // Try the signature data from the callback first, fall back to cached data
+      const signatureData = (signature && typeof signature === 'string')
+        ? signature
+        : signatureDataRef.current;
+
+      if (!signatureData) {
+        Alert.alert('Error', 'No signature data received. Please draw your signature and try again.');
+        return;
+      }
+
+      const fileUri = await processSignatureData(signatureData);
+      if (!fileUri) {
+        Alert.alert('Error', 'Invalid signature data. Please try again.');
+        return;
+      }
+
       console.log('Signature saved as file:', fileUri);
       setSignatureUri(fileUri);
       setIsSignatureModal(false);
+      signatureDataRef.current = null;
     } catch (error) {
       console.error('Error processing signature:', error);
       Alert.alert('Error', 'Failed to process signature. Please try again.');
     }
-  }, [saveSignatureAsFile]);
+  }, [processSignatureData]);
+
+  // Auto-capture signature data after each stroke ends
+  const handleSignatureEnd = useCallback(() => {
+    isAutoCapture.current = true;
+    setTimeout(() => {
+      signatureRef.current?.readSignature();
+    }, 100);
+  }, []);
 
   const handleSignatureClear = useCallback(() => {
     if (signatureRef.current && signatureRef.current.clearSignature) {
       signatureRef.current.clearSignature();
     }
+    signatureDataRef.current = null;
   }, []);
 
   const handleSignatureClose = useCallback(() => {
     setIsSignatureModal(false);
+    signatureDataRef.current = null;
   }, []);
 
   const validateForm = useCallback(() => {
@@ -354,17 +404,9 @@ const CreateReportScreen = ({ navigation, route }) => {
         photoForm.append('report', reportId);
         
         try {
-          // Check if deviceService has createDevicePhoto method
-          if (typeof deviceService.createDevicePhoto === 'function') {
-            // Check if deviceService has createDevicePhoto method
           if (typeof deviceService.createDevicePhoto === 'function') {
             uploadPromises.push(deviceService.createDevicePhoto(photoForm));
           } else {
-            // Fallback to axiosInstance
-            uploadPromises.push(axiosInstance.post('/device-photos/', photoForm));
-          }
-          } else {
-            // Fallback to axiosInstance
             uploadPromises.push(axiosInstance.post('/device-photos/', photoForm));
           }
         } catch (error) {
@@ -645,11 +687,14 @@ const CreateReportScreen = ({ navigation, route }) => {
               <SignatureScreen
                 ref={signatureRef}
                 onOK={handleSignatureOK}
+                onEnd={handleSignatureEnd}
                 onEmpty={() => console.log('Empty signature')}
+                autoClear={false}
+                imageType="image/png"
                 webStyle={`
                   .m-signature-pad { box-shadow: none; border: none; }
                   .m-signature-pad--body { border: none; }
-                  .m-signature-pad--footer { margin: 0px; }
+                  .m-signature-pad--footer { display: none; }
                   body, html { width: 100%; height: 100%; }
                 `}
                 backgroundColor="#F5F5F5"

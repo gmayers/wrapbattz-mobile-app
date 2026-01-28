@@ -16,7 +16,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
@@ -74,18 +74,15 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   const fetchReportImages = async () => {
     try {
       setLoadingImages(true);
-      
-      // Fetch all device photos and filter by report ID
-      const allPhotos = await deviceService.getDevicePhotos();
-      const photos = Array.isArray(allPhotos) ? allPhotos : allPhotos.results || [];
-      
-      // Filter photos for this specific report
-      const reportPhotos = photos.filter(photo => photo.report === reportId);
-      
+
+      // Fetch photos filtered by report ID server-side
+      const data = await deviceService.getDevicePhotos({ report: reportId });
+      const photos = Array.isArray(data) ? data : data.results || [];
+
       // Separate images and signatures
-      const images = reportPhotos.filter(photo => !photo.is_signature);
-      const signatures = reportPhotos.filter(photo => photo.is_signature);
-      
+      const images = photos.filter(photo => !photo.is_signature);
+      const signatures = photos.filter(photo => photo.is_signature);
+
       setReportImages(images);
       setReportSignatures(signatures);
     } catch (error) {
@@ -200,18 +197,37 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   };
 
   // Handle update report confirmation
+  // Check if the current user created this report
+  const isReportCreator = report?.created_by?.id === userData?.userId;
+
   const handleConfirmUpdate = async () => {
     try {
-      const updateData = {
-        status: selectedStatus,
-        type: selectedType,
-        resolved: resolvedChecked,
-        description: description,
-      };
+      let updateData;
 
-      // If marked as resolved and there's no resolved date, add it
-      if (resolvedChecked && !report.resolved_date) {
-        updateData.resolved_date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      if (isReportCreator) {
+        // Creator can update all fields
+        updateData = {
+          status: selectedStatus,
+          type: selectedType,
+          resolved: resolvedChecked,
+          description: description,
+        };
+
+        if (resolvedChecked && !report.resolved_date) {
+          updateData.resolved_date = new Date().toISOString().split('T')[0];
+        }
+      } else {
+        // Admin/owner can only update status
+        updateData = {
+          status: selectedStatus,
+        };
+
+        if (selectedStatus === 'RESOLVED') {
+          updateData.resolved = true;
+          if (!report.resolved_date) {
+            updateData.resolved_date = new Date().toISOString().split('T')[0];
+          }
+        }
       }
 
       await deviceService.updateReport(reportId, updateData);
@@ -556,60 +572,60 @@ const ReportDetailsScreen = ({ navigation, route }) => {
             <TouchableWithoutFeedback>
               <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Update Report</Text>
-                  
-                  <Text style={styles.modalLabel}>Status:</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={selectedStatus}
-                      onValueChange={(itemValue) => setSelectedStatus(itemValue)}
-                      style={styles.picker}
-                    >
-                      {STATUS_CHOICES.map((status) => (
-                        <Picker.Item key={status.value} label={status.label} value={status.value} />
-                      ))}
-                    </Picker>
-                  </View>
-                  
-                  <Text style={styles.modalLabel}>Type:</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={selectedType}
-                      onValueChange={(itemValue) => setSelectedType(itemValue)}
-                      style={styles.picker}
-                    >
-                      {TYPE_CHOICES.map((type) => (
-                        <Picker.Item key={type.value} label={type.label} value={type.value} />
-                      ))}
-                    </Picker>
-                  </View>
-                  
-                  <Text style={styles.modalLabel}>Description:</Text>
-                  <BaseTextInput
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Enter description"
-                    multiline
-                    numberOfLines={4}
-                    style={styles.modalTextInput}
+                  <Text style={styles.modalTitle}>
+                    {isReportCreator ? 'Update Report' : 'Update Status'}
+                  </Text>
+
+                  <Dropdown
+                    label="Status"
+                    value={selectedStatus}
+                    onValueChange={(itemValue) => setSelectedStatus(itemValue)}
+                    items={STATUS_CHOICES}
+                    placeholder="Select a status"
+                    labelStyle={styles.modalLabel}
+                    containerStyle={{ marginBottom: 15 }}
                   />
-                  
-                  <TouchableOpacity 
-                    style={styles.checkboxContainer}
-                    onPress={() => setResolvedChecked(!resolvedChecked)}
-                  >
-                    <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
-                      {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
-                  </TouchableOpacity>
-                  
+
+                  {isReportCreator && (
+                    <>
+                      <Dropdown
+                        label="Type"
+                        value={selectedType}
+                        onValueChange={(itemValue) => setSelectedType(itemValue)}
+                        items={TYPE_CHOICES}
+                        placeholder="Select a type"
+                        labelStyle={styles.modalLabel}
+                        containerStyle={{ marginBottom: 15 }}
+                      />
+
+                      <Text style={styles.modalLabel}>Description:</Text>
+                      <BaseTextInput
+                        value={description}
+                        onChangeText={setDescription}
+                        placeholder="Enter description"
+                        multiline
+                        numberOfLines={4}
+                        style={styles.modalTextInput}
+                      />
+
+                      <TouchableOpacity
+                        style={styles.checkboxContainer}
+                        onPress={() => setResolvedChecked(!resolvedChecked)}
+                      >
+                        <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
+                          {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
+                        </View>
+                        <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
                   <Button
-                    title="Update"
+                    title={isReportCreator ? 'Update' : 'Update Status'}
                     onPress={handleConfirmUpdate}
                     style={styles.modalUpdateButton}
                   />
-                  
+
                   <Button
                     title="Cancel"
                     variant="outlined"
@@ -829,15 +845,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#555',
     marginBottom: 5,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  picker: {
-    height: Platform.OS === 'ios' ? 120 : 50,
   },
   checkboxContainer: {
     flexDirection: 'row',

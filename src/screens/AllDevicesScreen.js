@@ -10,11 +10,12 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
-  TouchableWithoutFeedback,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+
+const ORANGE_COLOR = '#FF9500';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -327,53 +328,90 @@ const AllDevicesScreen = ({ navigation, route }) => {
         transparent={true}
         onRequestClose={handleReturnDeviceModalClose}
       >
-        <TouchableWithoutFeedback onPress={handleReturnDeviceModalClose}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContainer}>
-                {selectedReturnDevice && selectedReturnDevice.device && ( // Ensure device object exists
-                  <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Return Device</Text>
-                    <Text style={styles.modalText}>
-                      Returning: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.identifier}</Text>
-                    </Text>
-                    <Text style={styles.modalText}>
-                      Type: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.device_type}</Text>
-                    </Text>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalOverlayTouchable}
+            onPress={handleReturnDeviceModalClose}
+            activeOpacity={1}
+          />
+          <View style={styles.modalContainer}>
+            {selectedReturnDevice && selectedReturnDevice.device && (
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Return Device</Text>
+                  <TouchableOpacity onPress={handleReturnDeviceModalClose}>
+                    <Ionicons name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
 
-                    <Text style={styles.modalText}>Select Return Location:</Text>
-                    <View style={styles.pickerContainer}>
-                      <Picker
-                        selectedValue={selectedReturnLocation}
-                        onValueChange={(itemValue) => setSelectedReturnLocation(itemValue)}
-                        style={styles.picker}
-                        prompt="Select a location"
+                <Text style={styles.modalText}>
+                  Returning: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.identifier}</Text>
+                </Text>
+                <Text style={styles.modalText}>
+                  Type: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.device_type}</Text>
+                </Text>
+
+                <Text style={styles.modalSectionTitle}>Select Return Location:</Text>
+
+                <FlatList
+                  data={locations}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={styles.locationList}
+                  renderItem={({ item }) => {
+                    const isSelected = selectedReturnLocation?.id === item.id;
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.locationListItem,
+                          isSelected && styles.locationListItemSelected,
+                        ]}
+                        onPress={() => setSelectedReturnLocation(item)}
                       >
-                        <Picker.Item label="-- Select a location --" value={null} />
-                        {locations.map((location) => (
-                          <Picker.Item key={location.id} label={location.name} value={location} />
-                        ))}
-                      </Picker>
-                    </View>
+                        <View style={styles.locationListItemContent}>
+                          <Ionicons
+                            name="location-outline"
+                            size={20}
+                            color={isSelected ? ORANGE_COLOR : '#666'}
+                          />
+                          <Text
+                            style={[
+                              styles.locationListItemText,
+                              isSelected && styles.locationListItemTextSelected,
+                            ]}
+                          >
+                            {item.name || `${item.street_number} ${item.street_name}`}
+                          </Text>
+                        </View>
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyListText}>No locations available</Text>
+                  }
+                  ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+                />
 
-                    <Button
-                      title="Confirm Return"
-                      onPress={handleConfirmReturn}
-                      style={styles.confirmButton}
-                      disabled={!selectedReturnLocation}
-                    />
-                    <Button
-                      title="Cancel"
-                      onPress={handleReturnDeviceModalClose}
-                      variant="outlined"
-                      style={styles.cancelButton}
-                    />
-                  </View>
-                )}
+                <View style={styles.modalButtons}>
+                  <Button
+                    title="Cancel"
+                    onPress={handleReturnDeviceModalClose}
+                    variant="outlined"
+                    style={styles.cancelButton}
+                  />
+                  <Button
+                    title="Confirm Return"
+                    onPress={handleConfirmReturn}
+                    style={styles.confirmButton}
+                    disabled={!selectedReturnLocation}
+                  />
+                </View>
               </View>
-            </TouchableWithoutFeedback>
+            )}
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -458,56 +496,111 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
   },
   modalContainer: {
-    width: '90%',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 25,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '80%',
   },
-  modalContent: {},
-
+  modalContent: {
+    paddingHorizontal: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+  },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF8C00', // Orange modal title
-    marginBottom: 20,
-    textAlign: 'center',
+    color: '#333',
   },
   modalText: {
     fontSize: 16,
     marginBottom: 10,
+    marginTop: 12,
     color: '#555',
     lineHeight: 22,
+    paddingHorizontal: 20,
   },
   modalTextBold: {
     fontWeight: 'bold',
     color: '#333',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#FFA500', // Orange border for picker
-    borderRadius: 8,
-    marginBottom: 20,
-    justifyContent: 'center',
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 20,
   },
-  picker: {
-    height: Platform.OS === 'ios' ? 120 : 50,
-    width: '100%',
+  locationList: {
+    maxHeight: 250,
+    marginHorizontal: 20,
+  },
+  locationListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  locationListItemSelected: {
+    backgroundColor: '#FFF5E6',
+    marginHorizontal: -4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  locationListItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationListItemText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationListItemTextSelected: {
+    color: ORANGE_COLOR,
+    fontWeight: '600',
+  },
+  emptyListText: {
+    textAlign: 'center',
+    color: '#999',
+    paddingVertical: 20,
+    fontSize: 14,
+  },
+  listSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
   confirmButton: {
-    marginTop: 10,
-    backgroundColor: '#FF8C00', // Orange confirm button
-    borderColor: '#FF8C00',
+    flex: 1,
+    backgroundColor: ORANGE_COLOR,
+    borderColor: ORANGE_COLOR,
   },
   cancelButton: {
-    marginTop: 10,
-    borderColor: '#FF8C00', // 
-    color: '#FF8C00', // 
-    textColor: 'orange'
+    flex: 1,
+    borderColor: ORANGE_COLOR,
   },
 });
 
