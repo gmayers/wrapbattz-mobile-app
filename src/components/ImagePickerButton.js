@@ -7,6 +7,7 @@ import RNFS from 'react-native-fs';
 const ImagePickerButton = ({ onImageSelected }) => {
   const copyFileToPermanentStorage = async (tempUri) => {
     try {
+      console.log('📁 [ImagePicker] Copying file from temp URI:', tempUri);
       const filename = tempUri.split('/').pop();
       const permanentUri = `${RNFS.DocumentDirectoryPath}/${filename}`;
       await RNFS.copyFile(tempUri, permanentUri);
@@ -15,9 +16,18 @@ const ImagePickerButton = ({ onImageSelected }) => {
         ? permanentUri
         : `file://${permanentUri}`;
 
+      // Check file exists and get size
+      const fileExists = await RNFS.exists(permanentUri);
+      const fileInfo = fileExists ? await RNFS.stat(permanentUri) : null;
+      console.log('📁 [ImagePicker] File copied successfully:', {
+        permanentUri: accessibleUri,
+        exists: fileExists,
+        size: fileInfo?.size ? `${(fileInfo.size / 1024).toFixed(2)} KB` : 'unknown',
+      });
+
       return accessibleUri;
     } catch (error) {
-      console.error('Error copying file:', error);
+      console.error('❌ [ImagePicker] Error copying file:', error);
       throw error;
     }
   };
@@ -53,48 +63,75 @@ const ImagePickerButton = ({ onImageSelected }) => {
 
   const takePhoto = async () => {
     try {
+      console.log('📷 [ImagePicker] Taking photo...');
       if (await checkAndRequestPermissions()) {
         let result = await ExpoImagePicker.launchCameraAsync({
-          mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 1,
         });
 
+        console.log('📷 [ImagePicker] Camera result:', {
+          canceled: result.canceled,
+          assetCount: result.assets?.length || 0,
+        });
+
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = await MediaLibrary.createAssetAsync(
-            result.assets[0].uri
-          );
+          const imageAsset = result.assets[0];
+          console.log('📷 [ImagePicker] Image captured:', {
+            uri: imageAsset.uri,
+            width: imageAsset.width,
+            height: imageAsset.height,
+            type: imageAsset.type,
+            mimeType: imageAsset.mimeType,
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
+            fileName: imageAsset.fileName,
+          });
 
-          const permURI = await copyFileToPermanentStorage(
-            result.assets[0].uri
-          );
+          const asset = await MediaLibrary.createAssetAsync(imageAsset.uri);
+          console.log('📷 [ImagePicker] Saved to media library:', asset.id);
 
+          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
           onImageSelected(permURI);
         }
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      console.error('❌ [ImagePicker] Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo and save to gallery.');
     }
   };
 
   const chooseFromGallery = async () => {
     try {
+      console.log('🖼️ [ImagePicker] Opening gallery...');
       if (await checkAndRequestPermissions()) {
         const result = await ExpoImagePicker.launchImageLibraryAsync({
-          mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 1,
         });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const permURI = await copyFileToPermanentStorage(
-            result.assets[0].uri
-          );
+        console.log('🖼️ [ImagePicker] Gallery result:', {
+          canceled: result.canceled,
+          assetCount: result.assets?.length || 0,
+        });
 
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const imageAsset = result.assets[0];
+          console.log('🖼️ [ImagePicker] Image selected:', {
+            uri: imageAsset.uri,
+            width: imageAsset.width,
+            height: imageAsset.height,
+            type: imageAsset.type,
+            mimeType: imageAsset.mimeType,
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
+            fileName: imageAsset.fileName,
+          });
+
+          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
           onImageSelected(permURI);
         }
       }
     } catch (error) {
-      console.error('Error selecting image from gallery:', error);
+      console.error('❌ [ImagePicker] Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
   };

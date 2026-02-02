@@ -5,6 +5,7 @@ import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+import { nfcLogger, NFCOperationType, NFCErrorCategory } from '../../../../utils/NFCLogger';
 
 
 // NFCService handles normalization, so we don't need this function anymore
@@ -36,12 +37,33 @@ const EditTab = ({ onCancel }) => {
   const [tagData, setTagData] = useState(null);
   const [editedFields, setEditedFields] = useState({});
   const [newField, setNewField] = useState({ key: '', value: '' });
-  const [firstKey, setFirstKey] = useState(null); // New state to track the first key
+  const [firstKey, setFirstKey] = useState(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  
-  // New state for field editing
+
+  // State for field editing
   const [editingKeys, setEditingKeys] = useState({});
   const [jsonValidationState, setJsonValidationState] = useState({});
+
+  // Change tracking state
+  const [originalFields, setOriginalFields] = useState({}); // Original values from tag
+  const [deletedFields, setDeletedFields] = useState(new Set()); // Fields marked for deletion
+  const [addedFields, setAddedFields] = useState(new Set()); // Fields added by user
+
+  // Helper to check if a field is modified (exists in original and value changed)
+  const isFieldModified = (key) => {
+    if (addedFields.has(key)) return false; // New fields aren't "modified"
+    if (!originalFields.hasOwnProperty(key)) return false;
+    return originalFields[key] !== editedFields[key];
+  };
+
+  // Helper to check if there are any pending changes
+  const hasPendingChanges = () => {
+    const hasModified = Object.keys(editedFields).some(key => isFieldModified(key));
+    const hasDeleted = deletedFields.size > 0;
+    const hasAdded = addedFields.size > 0;
+    const hasPendingNew = newField.key.trim() || newField.value.trim();
+    return hasModified || hasDeleted || hasAdded || hasPendingNew;
+  };
 
   // Keyboard event listeners
   React.useEffect(() => {
@@ -61,85 +83,93 @@ const EditTab = ({ onCancel }) => {
 
 const handleReadTag = async () => {
   let result = false;
-  
+  let loadedTagData = null;
+  let loadedEditedFields = {};
+  let loadedFirstKey = null;
+  let alertMessage = null;
+  let alertTitle = 'Success';
+
   try {
     setIsReading(true);
     setTagData(null);
     setEditedFields({});
-    
+    setFirstKey(null);
+    // Reset change tracking
+    setOriginalFields({});
+    setDeletedFields(new Set());
+    setAddedFields(new Set());
+    setNewField({ key: '', value: '' });
+
     console.log('[EditTab] Starting enhanced tag read with NFCService');
-    
+
     // Use the enhanced NFCService for reading
     const readResult = await nfcService.readNFC({ timeout: 60000 });
-    
+
     if (readResult.success) {
       console.log('[EditTab] Successfully read tag using NFCService');
 
       // Handle empty tags - allow editing from scratch
       if (readResult.data?.isEmpty) {
         console.log('[EditTab] Tag is empty, starting with blank editor');
-        setTagData({});
-        setEditedFields({});
-        setFirstKey(null);
-        Alert.alert('Empty Tag', 'Tag is formatted but empty. You can add new fields below.');
+        loadedTagData = {};
+        loadedEditedFields = {};
+        loadedFirstKey = null;
+        alertTitle = 'Empty Tag';
+        alertMessage = 'Tag is formatted but empty. You can add new fields below.';
         result = true;
-        return result;
-      }
-
-      if (readResult.data?.parsedData) {
+      } else if (readResult.data?.parsedData) {
         // Handle structured JSON data
         const jsonData = readResult.data.parsedData;
-        
+
         if (typeof jsonData === 'object' && jsonData !== null && !Array.isArray(jsonData)) {
           // Set the first key to maintain EditTab functionality
           const keys = Object.keys(jsonData);
           if (keys.length > 0) {
-            setFirstKey(keys[0]);
+            loadedFirstKey = keys[0];
           }
-          
-          setTagData(jsonData);
-          setEditedFields({ ...jsonData });
-          
-          Alert.alert('Success', 'NFC tag data loaded successfully!');
+
+          loadedTagData = jsonData;
+          loadedEditedFields = { ...jsonData };
+          alertMessage = 'NFC tag data loaded successfully!';
           result = true;
         } else {
           // Handle non-object data
-          setTagData({});
-          setEditedFields({ "content": JSON.stringify(jsonData) });
-          Alert.alert('Success', 'Tag content loaded.');
+          loadedTagData = {};
+          loadedEditedFields = { "content": JSON.stringify(jsonData) };
+          alertMessage = 'Tag content loaded.';
           result = true;
         }
       } else if (readResult.data?.content) {
         // Handle plain text content
-        setTagData({});
-        setEditedFields({ "content": readResult.data.content });
-        Alert.alert('Success', 'Plain text content loaded.');
+        loadedTagData = {};
+        loadedEditedFields = { "content": readResult.data.content };
+        alertMessage = 'Plain text content loaded.';
         result = true;
       } else if (readResult.data?.jsonString) {
         // Try to parse JSON string
         try {
           const parsed = JSON.parse(readResult.data.jsonString);
-          
+
           if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
             const keys = Object.keys(parsed);
             if (keys.length > 0) {
-              setFirstKey(keys[0]);
+              loadedFirstKey = keys[0];
             }
-            
-            setTagData(parsed);
-            setEditedFields({ ...parsed });
-            Alert.alert('Success', 'NFC tag data loaded successfully!');
+
+            loadedTagData = parsed;
+            loadedEditedFields = { ...parsed };
+            alertMessage = 'NFC tag data loaded successfully!';
             result = true;
           } else {
-            setTagData({});
-            setEditedFields({ "content": readResult.data.jsonString });
-            Alert.alert('Success', 'Tag content loaded.');
+            loadedTagData = {};
+            loadedEditedFields = { "content": readResult.data.jsonString };
+            alertMessage = 'Tag content loaded.';
             result = true;
           }
         } catch (e) {
-          setTagData({});
-          setEditedFields({ "content": readResult.data.jsonString });
-          Alert.alert('Success', 'Raw content loaded.');
+          loadedTagData = {};
+          loadedEditedFields = { "content": readResult.data.jsonString };
+          alertMessage = 'Raw content loaded.';
           result = true;
         }
       } else {
@@ -150,37 +180,45 @@ const handleReadTag = async () => {
     }
   } catch (error) {
     console.error('[EditTab] Error in handleReadTag:', error);
-    
-    // Create user-friendly error message based on error type
-    let userErrorMessage;
-    
-    if (error.message.includes('NFC hardware')) {
-      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
-    } else if (error.message.includes('cancelled')) {
-      userErrorMessage = 'NFC operation was cancelled.';
-    } else if (error.message.includes('No NFC tag detected')) {
-      userErrorMessage = 'No NFC tag detected. Please make sure the tag is positioned correctly near your device.';
-    } else if (error.message.includes('No NDEF message')) {
-      userErrorMessage = 'This tag may not be NDEF formatted or may be empty. Please format the tag or try a different one.';
-    } else if (error.message.includes('decode')) {
-      userErrorMessage = 'Could not read tag content. The tag format may be incompatible or corrupted.';
+
+    const errorMsg = error.message || '';
+
+    // Check if this was a cancel operation (empty message or explicit cancel)
+    const wasCancelled = !errorMsg || errorMsg.includes('cancelled') || errorMsg.includes('canceled');
+
+    if (wasCancelled) {
+      // Don't show error for cancelled operations - just log it
+      console.log('[EditTab] NFC read was cancelled by user');
     } else {
-      // Generic error with the technical message included
-      userErrorMessage = `Error reading NFC tag: ${error.message}`;
-    }
-    
-    Alert.alert('NFC Read Error', userErrorMessage, [
-      { 
-        text: 'Retry', 
-        onPress: () => handleReadTag(),
-        style: 'default'
-      },
-      {
-        text: 'Cancel',
-        style: 'cancel'
+      // Create user-friendly error message based on error type
+      let userErrorMessage;
+
+      if (errorMsg.includes('NFC hardware')) {
+        userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
+      } else if (errorMsg.includes('No NFC tag detected')) {
+        userErrorMessage = 'No NFC tag detected. Please make sure the tag is positioned correctly near your device.';
+      } else if (errorMsg.includes('No NDEF message')) {
+        userErrorMessage = 'This tag may not be NDEF formatted or may be empty. Please format the tag or try a different one.';
+      } else if (errorMsg.includes('decode')) {
+        userErrorMessage = 'Could not read tag content. The tag format may be incompatible or corrupted.';
+      } else {
+        // Generic error with the technical message included
+        userErrorMessage = `Error reading NFC tag: ${errorMsg}`;
       }
-    ]);
-    
+
+      Alert.alert('NFC Read Error', userErrorMessage, [
+        {
+          text: 'Retry',
+          onPress: () => handleReadTag(),
+          style: 'default'
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]);
+    }
+
     result = false;
   } finally {
     // Always cancel technology request when done
@@ -190,9 +228,33 @@ const handleReadTag = async () => {
     } catch (finallyError) {
       console.warn(`[EditTab] Error canceling NFC technology request: ${finallyError.message}`);
     }
+
+    // Apply state updates with proper sequencing for React
+    if (result && loadedTagData !== null) {
+      console.log('[EditTab] Applying loaded data to state', {
+        hasTagData: !!loadedTagData,
+        fieldCount: Object.keys(loadedEditedFields).length,
+        firstKey: loadedFirstKey
+      });
+
+      // Set state in sequence
+      setFirstKey(loadedFirstKey);
+      setEditedFields(loadedEditedFields);
+      setOriginalFields({ ...loadedEditedFields }); // Save original for change tracking
+      setTagData(loadedTagData);
+    }
+
+    // Set isReading false after state is applied
     setIsReading(false);
+
+    // Show alert with slight delay to allow UI to update first
+    if (alertMessage) {
+      setTimeout(() => {
+        Alert.alert(alertTitle, alertMessage);
+      }, 100);
+    }
   }
-  
+
   return result;
 };
 
@@ -349,10 +411,11 @@ const processJsonTagContent = (textContent) => {
   setJsonValidationState(jsonState);
 };
 
-// Improved write function with iOS-specific optimizations
+// Improved write function with iOS-specific optimizations and enhanced logging
 const handleWriteTag = async () => {
   let result = false;
-  
+  const operationId = nfcLogger.startOperation(NFCOperationType.WRITE, { source: 'EditTab' });
+
   try {
     // Check for invalid JSON first
     const invalidFields = Object.entries(jsonValidationState)
@@ -360,41 +423,82 @@ const handleWriteTag = async () => {
       .map(([key]) => key);
 
     if (invalidFields.length > 0) {
+      nfcLogger.endOperationWithError(operationId, new Error('Invalid JSON fields'), NFCErrorCategory.INVALID_DATA);
       Alert.alert(
-        'Invalid JSON Detected', 
+        'Invalid JSON Detected',
         `Please fix the JSON formatting in these fields: ${invalidFields.join(', ')}`
       );
       return;
     }
 
     setIsWriting(true);
-    
+    nfcLogger.logStep(operationId, 'Write operation started');
+
     // iOS-specific: Ensure NFC is properly initialized
     if (Platform.OS === 'ios') {
       try {
         await NfcManager.start();
-        console.log('[EditTab] NFC Manager started for iOS');
+        nfcLogger.logStep(operationId, 'NFC Manager started for iOS');
       } catch (startError) {
-        console.warn('[EditTab] NFC Manager already started or error:', startError);
+        nfcLogger.logStep(operationId, 'NFC Manager already started', { warning: startError.message });
       }
     }
-    
+
+    // Auto-add pending new field if user typed something but forgot to press +
+    if (newField.key.trim() || newField.value.trim()) {
+      const keyToAdd = newField.key.trim() || 'field';
+      const valueToAdd = newField.value;
+
+      // Check for duplicate key
+      if (!editedFields.hasOwnProperty(keyToAdd)) {
+        // Validate JSON if it looks like JSON
+        if (isLikelyJSON(valueToAdd) && !validateJSON(valueToAdd).valid) {
+          Alert.alert('Invalid JSON', 'The new field value contains invalid JSON. Please fix it before saving.');
+          return;
+        }
+
+        // Add the field
+        setEditedFields(prev => ({
+          ...prev,
+          [keyToAdd]: valueToAdd
+        }));
+
+        // Track as added field
+        setAddedFields(prev => {
+          const updated = new Set(prev);
+          updated.add(keyToAdd);
+          return updated;
+        });
+
+        // Update local reference for this write operation
+        editedFields[keyToAdd] = valueToAdd;
+
+        // Clear the new field inputs
+        setNewField({ key: '', value: '' });
+      }
+    }
+
+    // Filter out deleted fields for writing
+    const fieldsToWrite = Object.keys(editedFields).filter(key => !deletedFields.has(key));
+
     // Check if there are any fields to write
-    if (Object.keys(editedFields).length === 0) {
-      Alert.alert('Error', 'There are no fields to write to the tag.');
+    if (fieldsToWrite.length === 0) {
+      nfcLogger.endOperationWithError(operationId, new Error('No fields to write'), NFCErrorCategory.INVALID_DATA);
+      Alert.alert('Error', 'There are no fields to write to the tag. All fields are marked for deletion.');
       return;
     }
-    
+
     // Process the data for writing
     const processedData = {};
-    
+
     // Add ID if it exists
     if (tagData?.id) {
       processedData.id = tagData.id;
     }
-    
-    // Process all other fields
-    Object.entries(editedFields).forEach(([key, value]) => {
+
+    // Process all other fields (excluding deleted ones)
+    fieldsToWrite.forEach((key) => {
+      const value = editedFields[key];
       // Handle string values that might be JSON
       if (typeof value === 'string' && isLikelyJSON(value)) {
         try {
@@ -407,41 +511,40 @@ const handleWriteTag = async () => {
         processedData[key] = value;
       }
     });
-    
+
     // Convert to JSON string (NFCService handles normalization)
     const jsonString = JSON.stringify(processedData);
     let normalizedString = jsonString; // Use let so we can reassign if needed for compact version
 
     // Calculate byte length for capacity check
     const stringByteLength = new TextEncoder().encode(normalizedString).length;
-    console.log(`[EditTab] Data size: ${stringByteLength} bytes`);
-    
+    nfcLogger.logStep(operationId, 'Data prepared', { dataSize: stringByteLength });
+
     // STEP 1: Request NFC technology with iOS-specific timeout
-    const technologyRequest = Platform.OS === 'ios' 
+    nfcLogger.logStep(operationId, 'Requesting NFC technology');
+    const technologyRequest = Platform.OS === 'ios'
       ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout: 60000 }) // 60 seconds for iOS
       : NfcManager.requestTechnology(NfcTech.Ndef);
-    
+
     await technologyRequest;
-    console.log('[EditTab] NFC technology requested successfully');
-    
-    // Get tag information to check capacity
+    nfcLogger.logStep(operationId, 'NFC technology acquired');
+
+    // STEP 1.5: Verify tag is still connected before proceeding
     const tag = await NfcManager.getTag();
     if (!tag) {
-      throw new Error('Could not read NFC tag. Make sure it is positioned correctly.');
+      throw new Error('Tag connection lost. Keep the tag steady and try again.');
     }
-    
-    // Log tag details for debugging
-    console.log(`[EditTab] Tag detected: ${JSON.stringify({
-      type: tag.type,
-      maxSize: tag.maxSize || 'unknown',
-      isWritable: tag.isWritable,
-      id: tag.id ? tag.id.toString('hex') : 'unknown'
-    })}`);
+    nfcLogger.logStep(operationId, 'Tag connection verified', {
+      tagType: tag.type,
+      maxSize: tag.maxSize,
+      isWritable: tag.isWritable
+    });
     
     // Check if tag is NDEF formatted and writable
     if (!tag.isWritable) {
       throw new Error('This tag appears to be read-only and cannot be written to.');
     }
+    nfcLogger.logStep(operationId, 'Tag is writable');
     
     // Check capacity if available
     if (tag.maxSize && stringByteLength > tag.maxSize) {
@@ -474,10 +577,11 @@ const handleWriteTag = async () => {
     }
     
     // STEP 2: Create NDEF message bytes
+    nfcLogger.logStep(operationId, 'Encoding NDEF message');
     let bytes;
     try {
       bytes = Ndef.encodeMessage([Ndef.textRecord(normalizedString)]);
-      console.log('[EditTab] NDEF message encoded successfully');
+      nfcLogger.logStep(operationId, 'NDEF message encoded', { messageSize: bytes?.length });
     } catch (encodeError) {
       throw new Error(`Failed to encode data: ${encodeError.message}`);
     }
@@ -491,26 +595,38 @@ const handleWriteTag = async () => {
       throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
     }
     
-    // STEP 3: Write the message to the tag with platform-specific handling
+    // STEP 3: Verify tag is still connected before writing
+    nfcLogger.logStep(operationId, 'Verifying tag connection before write');
+    const preWriteTag = await NfcManager.getTag();
+    if (!preWriteTag) {
+      throw new Error('Tag connection lost before write. Keep the tag steady and try again.');
+    }
+    nfcLogger.logStep(operationId, 'Tag still connected, proceeding with write');
+
+    // STEP 4: Write the message to the tag with platform-specific handling
     try {
+      nfcLogger.logStep(operationId, 'Writing NDEF message', { platform: Platform.OS });
       if (Platform.OS === 'ios') {
         // iOS-specific write with retry mechanism
         let writeAttempts = 0;
         const maxAttempts = 3;
-        
+
         while (writeAttempts < maxAttempts) {
           try {
             await NfcManager.ndefHandler.writeNdefMessage(bytes);
-            console.log(`[EditTab] iOS write operation completed successfully on attempt ${writeAttempts + 1}`);
+            nfcLogger.logStep(operationId, 'iOS write completed', { attempt: writeAttempts + 1 });
             break;
           } catch (iosWriteError) {
             writeAttempts++;
-            console.warn(`[EditTab] iOS write attempt ${writeAttempts} failed:`, iosWriteError);
-            
+            nfcLogger.logStep(operationId, 'iOS write attempt failed', {
+              attempt: writeAttempts,
+              error: iosWriteError.message
+            });
+
             if (writeAttempts >= maxAttempts) {
               throw iosWriteError;
             }
-            
+
             // Short delay before retry
             await new Promise(resolve => setTimeout(resolve, 500));
           }
@@ -518,10 +634,23 @@ const handleWriteTag = async () => {
       } else {
         // Android write
         await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        console.log('[EditTab] Android write operation completed successfully');
+        nfcLogger.logStep(operationId, 'Android write completed');
       }
-      
+
       result = true;
+      nfcLogger.endOperation(operationId, { success: true });
+
+      // Reset change tracking - current state becomes the new "original"
+      // Remove deleted fields from editedFields
+      const finalFields = {};
+      fieldsToWrite.forEach(key => {
+        finalFields[key] = editedFields[key];
+      });
+      setEditedFields(finalFields);
+      setOriginalFields({ ...finalFields });
+      setDeletedFields(new Set());
+      setAddedFields(new Set());
+
       Alert.alert('Success', 'Changes saved to NFC tag successfully!');
     } catch (writeError) {
       // Check for specific write errors
@@ -536,38 +665,33 @@ const handleWriteTag = async () => {
       }
     }
   } catch (error) {
-    console.error('[EditTab] Error:', error);
-    
-    // Create user-friendly error message based on error type
-    let userErrorMessage;
-    
-    if (error.message.includes('NFC hardware')) {
-      userErrorMessage = 'NFC is not available or is disabled on this device. Please check your device settings.';
-    } else if (error.message.includes('cancelled')) {
-      userErrorMessage = 'NFC operation was cancelled.';
-    } else if (error.message.includes('tag capacity')) {
-      userErrorMessage = error.message; // Already formatted for user
-    } else if (error.message.includes('timeout')) {
-      userErrorMessage = 'The tag was not held close enough to the device. Please try again and keep the tag steady.';
-    } else if (error.message.includes('not writable') || error.message.includes('read-only')) {
-      userErrorMessage = 'This tag cannot be written to. Please use a writable NFC tag.';
-    } else {
-      // Generic error with the technical message included
-      userErrorMessage = `Failed to write to NFC tag: ${error.message}`;
+    // Categorize error and log with NFCLogger
+    const errorCategory = nfcLogger.categorizeError(error);
+    nfcLogger.endOperationWithError(operationId, error, errorCategory);
+
+    // Get user-friendly error message
+    let userErrorMessage = nfcLogger.getUserFriendlyMessage(errorCategory);
+
+    // For specific errors, use the original message if it's more informative
+    if (error.message.includes('tag capacity') || error.message.includes('connection lost')) {
+      userErrorMessage = error.message;
     }
-    
-    Alert.alert('NFC Write Error', userErrorMessage, [
-      { 
-        text: 'Retry', 
-        onPress: () => handleWriteTag(),
-        style: 'default'
-      },
-      {
-        text: 'Cancel',
-        style: 'cancel'
-      }
-    ]);
-    
+
+    // Don't show alert for cancelled operations
+    if (errorCategory !== NFCErrorCategory.CANCELLED) {
+      Alert.alert('NFC Write Error', userErrorMessage, [
+        {
+          text: 'Retry',
+          onPress: () => handleWriteTag(),
+          style: 'default'
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]);
+    }
+
     result = false;
   } finally {
     // STEP 4: Always cancel technology request when done
@@ -680,7 +804,38 @@ const handleKeyChangeComplete = (oldKey) => {
     updatedFields[newKey] = value;
     return updatedFields;
   });
-  
+
+  // Update addedFields set if this was an added field
+  if (addedFields.has(oldKey)) {
+    setAddedFields(prev => {
+      const updated = new Set(prev);
+      updated.delete(oldKey);
+      updated.add(newKey);
+      return updated;
+    });
+  }
+
+  // Update deletedFields set if this was marked for deletion
+  if (deletedFields.has(oldKey)) {
+    setDeletedFields(prev => {
+      const updated = new Set(prev);
+      updated.delete(oldKey);
+      updated.add(newKey);
+      return updated;
+    });
+  }
+
+  // Update originalFields if this key was from original data
+  if (originalFields.hasOwnProperty(oldKey)) {
+    setOriginalFields(prev => {
+      const updated = { ...prev };
+      const originalValue = updated[oldKey];
+      delete updated[oldKey];
+      updated[newKey] = originalValue;
+      return updated;
+    });
+  }
+
   // Update JSON validation state if needed
   if (jsonValidationState.hasOwnProperty(oldKey)) {
     setJsonValidationState(prev => {
@@ -691,7 +846,7 @@ const handleKeyChangeComplete = (oldKey) => {
       return updated;
     });
   }
-  
+
   // Clear editing state for this key
   setEditingKeys(prev => {
     const updated = { ...prev };
@@ -705,21 +860,28 @@ const handleAddField = () => {
     Alert.alert('Error', 'Please enter a field name.');
     return;
   }
-  
+
   if (editedFields.hasOwnProperty(newField.key.trim())) {
     Alert.alert('Error', `Field "${newField.key.trim()}" already exists`);
     return;
   }
-  
+
   const keyToAdd = newField.key.trim();
   const valueToAdd = newField.value;
-  
+
   // Add the new field to editedFields
   setEditedFields(prev => ({
     ...prev,
     [keyToAdd]: valueToAdd
   }));
-  
+
+  // Track this as a newly added field (not from original tag)
+  setAddedFields(prev => {
+    const updated = new Set(prev);
+    updated.add(keyToAdd);
+    return updated;
+  });
+
   // Check if the value looks like JSON and validate if needed
   if (isLikelyJSON(valueToAdd)) {
     setJsonValidationState(prev => ({
@@ -727,7 +889,7 @@ const handleAddField = () => {
       [keyToAdd]: validateJSON(valueToAdd)
     }));
   }
-  
+
   // Reset the new field inputs
   setNewField({ key: '', value: '' });
 };
@@ -738,23 +900,17 @@ const handleDeleteField = (key) => {
     Alert.alert('Error', 'The primary field cannot be deleted.');
     return;
   }
-  
-  setEditedFields(prev => {
-    const updated = { ...prev };
-    delete updated[key];
-    return updated;
-  });
-  
-  // Also clean up any editing state or validation state
-  setEditingKeys(prev => {
-    const updated = { ...prev };
-    delete updated[key];
-    return updated;
-  });
-  
-  setJsonValidationState(prev => {
-    const updated = { ...prev };
-    delete updated[key];
+
+  // Toggle deletion state instead of actually removing
+  setDeletedFields(prev => {
+    const updated = new Set(prev);
+    if (updated.has(key)) {
+      // Unmark for deletion (recover)
+      updated.delete(key);
+    } else {
+      // Mark for deletion
+      updated.add(key);
+    }
     return updated;
   });
 };
@@ -793,12 +949,12 @@ const getFieldValueBorderColor = (key, value) => {
 
 
 return (
-  <KeyboardAvoidingView 
-    style={styles.nfcTabContent} 
+  <KeyboardAvoidingView
+    style={styles.nfcTabContent}
     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
   >
-    <View testID="edit-tab-container">
+    <View style={{ flex: 1 }} testID="edit-tab-container">
       <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
       <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
         Read the NFC tag to load existing data into the form, make changes, and save.
@@ -846,13 +1002,33 @@ return (
     )}
 
     {tagData !== null && !isReading && !isWriting && (
-      <ScrollView 
-        style={styles.editFieldsContainer} 
+      <ScrollView
+        style={styles.editFieldsContainer}
         contentContainerStyle={styles.editFieldsContentContainer}
         testID="edit-fields-scroll"
         scrollEnabled={!isKeyboardVisible || Platform.OS === 'ios'}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Show notice when tag has plain text (non-JSON) content */}
+        {Object.keys(editedFields).length > 0 && !firstKey && editedFields.content !== undefined && (
+          <View style={styles.plainTextNotice} testID="plain-text-notice">
+            <Ionicons name="information-circle" size={20} color="#856404" />
+            <Text style={styles.plainTextNoticeText}>
+              This tag contains plain text data (not JSON format). You can edit the content below or add new fields.
+            </Text>
+          </View>
+        )}
+
+        {/* Show notice when tag is empty */}
+        {Object.keys(editedFields).length === 0 && (
+          <View style={styles.emptyTagNotice} testID="empty-tag-notice">
+            <Ionicons name="document-outline" size={20} color="#0c5460" />
+            <Text style={styles.emptyTagNoticeText}>
+              This tag is empty. Add fields below to write data to it.
+            </Text>
+          </View>
+        )}
+
         {tagData.id && (
           <View style={styles.idField} testID="id-field-container">
             <Text style={styles.fieldLabel} testID="id-field-label">ID (Not Editable):</Text>
@@ -874,86 +1050,190 @@ return (
           </View>
         )}
         
-        {/* Existing Fields */}
-        {Object.entries(editedFields).map(([key, value], index) => (
-          <View key={key} style={styles.fieldContainer} testID={`field-container-${index}`}>
-            <View style={styles.fieldHeader}>
-              <View style={styles.fieldKeyContainer}>
-                {key === firstKey ? (
-                  // For the first key, render as non-editable
-                  <View style={styles.uneditableKeyContainer}>
-                    <Text style={styles.uneditableKeyText}>{key}</Text>
-                    <Text style={styles.uneditableKeyHelp}>(Primary key - cannot be modified)</Text>
-                  </View>
-                ) : (
-                  // For all other keys, use editable TextInput
+        {/* Existing/Original Fields - Compact single row layout */}
+        {Object.entries(editedFields)
+          .filter(([key]) => !addedFields.has(key))
+          .map(([key, value], index) => {
+            const isDeleted = deletedFields.has(key);
+            const isModified = isFieldModified(key);
+
+            return (
+              <View
+                key={key}
+                style={[
+                  styles.fieldContainer,
+                  isDeleted && styles.deletedFieldContainer,
+                  isModified && !isDeleted && styles.modifiedFieldContainer,
+                ]}
+                testID={`field-container-${index}`}
+              >
+                <View style={[styles.fieldRow, isDeleted && { opacity: 0.5 }]}>
+                  {/* Key input */}
+                  {key === firstKey ? (
+                    <View style={[styles.fieldKeyCompact, styles.uneditableKeyCompact]}>
+                      <Text style={[styles.uneditableKeyText, isDeleted && styles.deletedText]} numberOfLines={1}>{key}</Text>
+                    </View>
+                  ) : (
+                    <TextInput
+                      style={[
+                        styles.fieldKeyCompact,
+                        { borderColor: getFieldKeyBorderColor(key) },
+                        isDeleted && styles.deletedInput,
+                      ]}
+                      value={editingKeys[key] !== undefined ? editingKeys[key] : key}
+                      onChangeText={(newKey) => handleKeyChange(key, newKey)}
+                      onEndEditing={() => handleKeyChangeComplete(key)}
+                      placeholder="Key"
+                      editable={!isDeleted}
+                      testID={`field-key-input-${index}`}
+                    />
+                  )}
+
+                  {/* Value input */}
+                  {key === firstKey ? (
+                    <TextInput
+                      style={[styles.fieldValueCompact, styles.uneditableValueCompact, isDeleted && styles.deletedInput]}
+                      value={value}
+                      editable={false}
+                      selectTextOnFocus={true}
+                      placeholder="Value"
+                      testID={`field-value-input-${index}`}
+                    />
+                  ) : (
+                    <TextInput
+                      style={[
+                        styles.fieldValueCompact,
+                        { borderColor: getFieldValueBorderColor(key, value) },
+                        isDeleted && styles.deletedInput,
+                      ]}
+                      value={value}
+                      onChangeText={(text) => handleFieldChange(key, text)}
+                      placeholder="Value"
+                      editable={!isDeleted}
+                      testID={`field-value-input-${index}`}
+                    />
+                  )}
+
+                  {/* Delete/Restore toggle button */}
+                  <TouchableOpacity
+                    onPress={() => handleDeleteField(key)}
+                    testID={`field-delete-button-${index}`}
+                    disabled={key === firstKey}
+                    style={[styles.deleteButton, key === firstKey && { opacity: 0.3 }]}
+                  >
+                    <Ionicons
+                      name={isDeleted ? "refresh-outline" : "trash-outline"}
+                      size={20}
+                      color={isDeleted ? "#28a745" : "#ff4c4c"}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Show status indicator */}
+                {isDeleted && (
+                  <Text style={styles.deletedFieldHint}>Marked for deletion - tap restore to recover</Text>
+                )}
+                {isModified && !isDeleted && (
+                  <Text style={styles.modifiedFieldHint}>Modified</Text>
+                )}
+
+                {/* Show validation error if JSON is invalid */}
+                {jsonValidationState[key] && !jsonValidationState[key].valid && !isDeleted && (
+                  <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
+                )}
+
+                {/* Show hint for primary field */}
+                {key === firstKey && (
+                  <Text style={styles.primaryFieldHint}>Primary field - read only</Text>
+                )}
+              </View>
+            );
+          })}
+
+        {/* Divider for new fields section */}
+        {addedFields.size > 0 && (
+          <View style={styles.newFieldsDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>New Fields</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
+
+        {/* Added/New Fields */}
+        {Object.entries(editedFields)
+          .filter(([key]) => addedFields.has(key))
+          .map(([key, value], index) => {
+            const isDeleted = deletedFields.has(key);
+
+            return (
+              <View
+                key={key}
+                style={[
+                  styles.fieldContainer,
+                  styles.addedFieldContainer,
+                  isDeleted && styles.deletedFieldContainer,
+                ]}
+                testID={`new-field-container-${index}`}
+              >
+                <View style={[styles.fieldRow, isDeleted && { opacity: 0.5 }]}>
+                  {/* Key input */}
                   <TextInput
                     style={[
-                      styles.fieldKeyInput, 
-                      { borderColor: getFieldKeyBorderColor(key) }
+                      styles.fieldKeyCompact,
+                      styles.addedFieldInput,
+                      isDeleted && styles.deletedInput,
                     ]}
                     value={editingKeys[key] !== undefined ? editingKeys[key] : key}
                     onChangeText={(newKey) => handleKeyChange(key, newKey)}
                     onEndEditing={() => handleKeyChangeComplete(key)}
-                    placeholder="Field Name"
-                    testID={`field-key-input-${index}`}
+                    placeholder="Key"
+                    editable={!isDeleted}
+                    testID={`new-field-key-input-${index}`}
                   />
+
+                  {/* Value input */}
+                  <TextInput
+                    style={[
+                      styles.fieldValueCompact,
+                      styles.addedFieldInput,
+                      isDeleted && styles.deletedInput,
+                    ]}
+                    value={value}
+                    onChangeText={(text) => handleFieldChange(key, text)}
+                    placeholder="Value"
+                    editable={!isDeleted}
+                    testID={`new-field-value-input-${index}`}
+                  />
+
+                  {/* Delete/Restore toggle button */}
+                  <TouchableOpacity
+                    onPress={() => handleDeleteField(key)}
+                    testID={`new-field-delete-button-${index}`}
+                    style={styles.deleteButton}
+                  >
+                    <Ionicons
+                      name={isDeleted ? "refresh-outline" : "trash-outline"}
+                      size={20}
+                      color={isDeleted ? "#28a745" : "#ff4c4c"}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Show status indicator */}
+                {isDeleted && (
+                  <Text style={styles.deletedFieldHint}>Marked for deletion - tap restore to recover</Text>
+                )}
+                {!isDeleted && (
+                  <Text style={styles.addedFieldHint}>New field</Text>
+                )}
+
+                {/* Show validation error if JSON is invalid */}
+                {jsonValidationState[key] && !jsonValidationState[key].valid && !isDeleted && (
+                  <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
                 )}
               </View>
-              <TouchableOpacity 
-                onPress={() => handleDeleteField(key)}
-                testID={`field-delete-button-${index}`}
-                disabled={key === firstKey} // Disable delete button for first key
-                style={key === firstKey ? { opacity: 0.5 } : {}} // Visual indication that it's disabled
-              >
-                <Ionicons name="trash-outline" size={18} color="#ff4c4c" />
-              </TouchableOpacity>
-            </View>
-            
-            {/* For the first key, show value in a read-only field */}
-            {key === firstKey ? (
-              <View style={styles.uneditableValueContainer}>
-                <TextInput
-                  style={[
-                    styles.fieldInput,
-                    styles.uneditableValueInput,
-                    { minHeight: value && value.length > 40 ? 100 : 40 }
-                  ]}
-                  value={value}
-                  editable={false}
-                  selectTextOnFocus={true}  // Still allow selection for copying
-                  multiline={true}
-                  testID={`field-value-input-${index}`}
-                />
-                <Text style={styles.uneditableValueHelp}>
-                  Primary field value - cannot be modified. Select to copy.
-                </Text>
-              </View>
-            ) : (
-              // For all other fields, use editable TextInput
-              <TextInput
-                style={[
-                  styles.fieldInput,
-                  { 
-                    borderColor: getFieldValueBorderColor(key, value),
-                    minHeight: value && value.length > 40 ? 100 : 40,
-                    textAlignVertical: 'top'  // Helps with Android text positioning
-                  }
-                ]}
-                value={value}
-                onChangeText={(text) => handleFieldChange(key, text)}
-                placeholder={`Enter ${key}`}
-                multiline={true}  // Always set to true instead of conditionally
-                testID={`field-value-input-${index}`}
-              />
-            )}
-            
-            {/* Add JSON validation error message if needed */}
-            {jsonValidationState[key] && !jsonValidationState[key].valid && (
-              <Text style={styles.jsonErrorText}>{jsonValidationState[key].error}</Text>
-            )}
-          </View>
-        ))}
+            );
+          })}
         
         {/* Add New Field */}
         <View style={styles.addFieldContainer} testID="add-field-container">
@@ -994,6 +1274,45 @@ return (
           )}
         </View>
 
+        {/* Change summary */}
+        {hasPendingChanges() && (
+          <View style={styles.changeSummary} testID="change-summary">
+            <Text style={styles.changeSummaryTitle}>Pending Changes:</Text>
+            <View style={styles.changeSummaryItems}>
+              {Object.keys(editedFields).filter(key => !addedFields.has(key) && isFieldModified(key) && !deletedFields.has(key)).length > 0 && (
+                <View style={styles.changeSummaryItem}>
+                  <View style={[styles.changeDot, { backgroundColor: '#ffc107' }]} />
+                  <Text style={styles.changeSummaryText}>
+                    {Object.keys(editedFields).filter(key => !addedFields.has(key) && isFieldModified(key) && !deletedFields.has(key)).length} modified
+                  </Text>
+                </View>
+              )}
+              {Array.from(addedFields).filter(key => !deletedFields.has(key)).length > 0 && (
+                <View style={styles.changeSummaryItem}>
+                  <View style={[styles.changeDot, { backgroundColor: '#4CAF50' }]} />
+                  <Text style={styles.changeSummaryText}>
+                    {Array.from(addedFields).filter(key => !deletedFields.has(key)).length} new
+                  </Text>
+                </View>
+              )}
+              {deletedFields.size > 0 && (
+                <View style={styles.changeSummaryItem}>
+                  <View style={[styles.changeDot, { backgroundColor: '#f44336' }]} />
+                  <Text style={styles.changeSummaryText}>
+                    {deletedFields.size} deleted
+                  </Text>
+                </View>
+              )}
+              {(newField.key.trim() || newField.value.trim()) && (
+                <View style={styles.changeSummaryItem}>
+                  <View style={[styles.changeDot, { backgroundColor: '#2196F3' }]} />
+                  <Text style={styles.changeSummaryText}>1 pending (auto-add on save)</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         <Button
           title="Save Changes to Tag"
           onPress={handleWriteTag}
@@ -1022,7 +1341,49 @@ const additionalStyles = {
     paddingBottom: 20, // Extra padding at the bottom of the scroll content
   },
   fieldContainer: {
-    marginBottom: 15,
+    marginBottom: 12,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldKeyCompact: {
+    flex: 2,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 14,
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  fieldValueCompact: {
+    flex: 3,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 14,
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  uneditableKeyCompact: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+  },
+  uneditableValueCompact: {
+    backgroundColor: '#f0f0f0',
+    color: '#555',
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  primaryFieldHint: {
+    fontSize: 11,
+    color: '#888',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 4,
   },
   fieldHeader: {
     flexDirection: 'row',
@@ -1143,6 +1504,147 @@ uneditableValueHelp: {
     fontSize: 12,
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  plainTextNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff3cd',
+    borderWidth: 1,
+    borderColor: '#ffc107',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  plainTextNoticeText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#856404',
+    lineHeight: 18,
+  },
+  emptyTagNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#d1ecf1',
+    borderWidth: 1,
+    borderColor: '#bee5eb',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  emptyTagNoticeText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#0c5460',
+    lineHeight: 18,
+  },
+  // Change tracking styles
+  modifiedFieldContainer: {
+    backgroundColor: '#fff8e6',
+    borderWidth: 1,
+    borderColor: '#ffc107',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  modifiedFieldHint: {
+    fontSize: 11,
+    color: '#856404',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  addedFieldContainer: {
+    backgroundColor: '#e8f5e9',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  addedFieldInput: {
+    borderColor: '#4CAF50',
+  },
+  addedFieldHint: {
+    fontSize: 11,
+    color: '#2e7d32',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  deletedFieldContainer: {
+    backgroundColor: '#ffebee',
+    borderWidth: 1,
+    borderColor: '#f44336',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  deletedInput: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  deletedText: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  deletedFieldHint: {
+    fontSize: 11,
+    color: '#c62828',
+    fontStyle: 'italic',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  newFieldsDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#4CAF50',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  // Change summary styles
+  changeSummary: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  changeSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 8,
+  },
+  changeSummaryItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  changeSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  changeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  changeSummaryText: {
+    fontSize: 13,
+    color: '#6c757d',
   },
 };
 

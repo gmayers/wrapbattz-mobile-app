@@ -13,7 +13,11 @@ import * as SecureStore from 'expo-secure-store';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as Sentry from '@sentry/react-native';
 import { STRIPE_CONFIG, validateStripeConfig } from './src/config/stripe';
-// Initialize Sentry\nSentry.init({\n  dsn: 'YOUR_SENTRY_DSN_HERE', // Replace with your actual Sentry DSN\n  tracesSampleRate: 1.0,\n  enabled: !__DEV__, // Only enable in production\n});
+// Initialize Sentry
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || 'https://277ff03f5d87270ffeba62cd99fbd265@o4508371086999552.ingest.de.sentry.io/4510799870623824',
+  tracesSampleRate: 1.0,
+});
 
 // IMPORTANT: Replace this with your actual API key
 // This is the key that should match what's expected on your backend
@@ -23,7 +27,7 @@ console.log('📦 App.js - All imports loaded successfully');
 console.log('🔍 App.js - AuthProvider:', typeof AuthProvider);
 console.log('🔍 App.js - AppNavigator:', typeof AppNavigator);
 
-export default function App() {
+function App() {
   console.log('🚀 App.js - Starting App component render');
   console.log('🔧 App.js - Platform:', Platform.OS);
   console.log('📱 App.js - __DEV__ mode:', __DEV__);
@@ -141,3 +145,5 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+export default Sentry.wrap(App);

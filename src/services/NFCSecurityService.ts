@@ -3,15 +3,57 @@ import { Platform, Alert } from 'react-native';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { NFCOperationResult } from '../types/nfc';
 import { nfcService } from './NFCService';
+import { nfcLogger, NFCOperationType, NFCErrorCategory } from '../utils/NFCLogger';
+// Temporarily disabled to test if this import causes issues
+// import { nfcSimulator } from './NFCSimulator';
 
 export interface NFCSecurityResult extends NFCOperationResult {
   lockType?: 'hardware' | 'software';
 }
 
+/**
+ * NTAG configuration page addresses for different tag types
+ * These addresses are used for password protection configuration
+ */
+interface NTAGConfig {
+  pwdPage: number;   // Password storage page
+  packPage: number;  // Password ACK page
+  cfgPage: number;   // Configuration page (AUTH0, ACCESS)
+  totalPages: number;
+}
+
+const NTAG_CONFIGS: Record<string, NTAGConfig> = {
+  NTAG213: { pwdPage: 0x2B, packPage: 0x2C, cfgPage: 0x29, totalPages: 45 },   // 43, 44, 41
+  NTAG215: { pwdPage: 0x85, packPage: 0x86, cfgPage: 0x83, totalPages: 135 },  // 133, 134, 131
+  NTAG216: { pwdPage: 0xE5, packPage: 0xE6, cfgPage: 0xE3, totalPages: 231 },  // 229, 230, 227
+};
+
 export class NFCSecurityService {
   private static instance: NFCSecurityService;
 
   private constructor() {}
+
+  /**
+   * Safely convert tag ID to hex string
+   * Handles both Buffer (Node.js) and Uint8Array (React Native) formats
+   */
+  private getTagIdHex(tagId: any): string | undefined {
+    if (!tagId) return undefined;
+
+    // If already a string, normalize it
+    if (typeof tagId === 'string') {
+      return tagId.toUpperCase();
+    }
+
+    try {
+      // Handle Uint8Array or array-like objects (React Native)
+      const bytes = Array.from(new Uint8Array(tagId));
+      return bytes.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    } catch (e) {
+      console.warn('[NFCSecurityService] Could not convert tag ID:', e);
+      return undefined;
+    }
+  }
 
   public static getInstance(): NFCSecurityService {
     if (!NFCSecurityService.instance) {
@@ -48,12 +90,75 @@ export class NFCSecurityService {
   }
 
   /**
+   * Detect NTAG type from tag info and return configuration
+   * NDEF capacity (maxSize) differs from total memory:
+   * - NTAG213: ~137 bytes NDEF capacity (144 bytes user memory)
+   * - NTAG215: ~492 bytes NDEF capacity (504 bytes user memory)
+   * - NTAG216: ~868 bytes NDEF capacity (888 bytes user memory)
+   */
+  private detectNTAGConfig(tag: any): NTAGConfig | null {
+    // Try to detect from tag type string
+    const tagType = (tag.type || '').toUpperCase();
+    const techTypes = (tag.techTypes || []).map((t: string) => t.toUpperCase());
+
+    // Check for NTAG identifiers in type or tech types
+    const tagInfo = tagType + ' ' + techTypes.join(' ');
+
+    // Check explicit tag type identifiers first
+    if (tagInfo.includes('216')) {
+      return NTAG_CONFIGS.NTAG216;
+    } else if (tagInfo.includes('215')) {
+      return NTAG_CONFIGS.NTAG215;
+    } else if (tagInfo.includes('213')) {
+      return NTAG_CONFIGS.NTAG213;
+    }
+
+    // Detect by NDEF capacity (maxSize) - use ranges that match actual reported values
+    if (tag.maxSize) {
+      // NTAG216: NDEF capacity typically 868-888 bytes
+      if (tag.maxSize >= 800) return NTAG_CONFIGS.NTAG216;
+      // NTAG215: NDEF capacity typically 480-504 bytes (often reports 492)
+      if (tag.maxSize >= 400) return NTAG_CONFIGS.NTAG215;
+      // NTAG213: NDEF capacity typically 137-144 bytes
+      if (tag.maxSize >= 100) return NTAG_CONFIGS.NTAG213;
+    }
+
+    // Fallback for generic NTAG/Ultralight
+    if (tagInfo.includes('ULTRALIGHT') || tagInfo.includes('NTAG')) {
+      return NTAG_CONFIGS.NTAG213;
+    }
+
+    return null;
+  }
+
+  /**
+   * Send NfcA transceive command with error handling
+   */
+  private async nfcATransceive(command: number[]): Promise<number[]> {
+    try {
+      const response = await (NfcManager as any).nfcAHandler.transceive(command);
+      return response ? Array.from(response) : [];
+    } catch (error) {
+      console.error('[NFCSecurityService] NfcA transceive error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Lock an NDEF tag with password protection
+   * Uses NfcA transceive for cross-platform hardware lock support
    */
   public async lockTag(password: string): Promise<NFCSecurityResult> {
+    // Simulator check temporarily disabled for testing
+    // if (nfcSimulator.shouldUseSimulator()) {
+    //   return nfcSimulator.lockTag(password);
+    // }
+
+    const operationId = nfcLogger.startOperation(NFCOperationType.LOCK, { platform: Platform.OS });
+
     try {
-      console.log('[NFCSecurityService] Starting tag lock operation');
-      
+      nfcLogger.logStep(operationId, 'Starting tag lock operation');
+
       if (!password || password.length < 4) {
         throw new Error('Password must be at least 4 characters long');
       }
@@ -62,90 +167,26 @@ export class NFCSecurityService {
       if (!await nfcService.initialize()) {
         throw new Error('NFC is not available or could not be initialized');
       }
+      nfcLogger.logStep(operationId, 'NFC initialized');
 
-      // Request NFC technology with platform-specific timeout
+      // First, get tag info using NDEF to check compatibility
       const timeout = Platform.OS === 'ios' ? 60000 : 30000;
-      const technologyRequest = Platform.OS === 'ios' 
-        ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout } as any)
-        : NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      await technologyRequest;
-      console.log('[NFCSecurityService] NFC technology requested successfully');
-      
-      // Get tag information
+      await NfcManager.requestTechnology(NfcTech.Ndef, Platform.OS === 'ios' ? { timeout } as any : undefined);
+
       const tag = await NfcManager.getTag();
-      
       if (!tag) {
         throw new Error('No NFC tag detected. Please position the tag correctly.');
       }
 
-      console.log(`[NFCSecurityService] Tag detected: ${JSON.stringify({
-        type: tag.type || 'unknown',
-        techTypes: tag.techTypes || [],
-        isWritable: (tag as any).isWritable || false
-      })}`);
+      const tagId = this.getTagIdHex(tag.id);
+      nfcLogger.logStep(operationId, 'Tag detected', {
+        tagId,
+        tagType: tag.type,
+        techTypes: tag.techTypes,
+        maxSize: tag.maxSize
+      });
 
-      // Check if tag is writable
-      if (!(tag as any).isWritable) {
-        throw new Error('This tag appears to be read-only and cannot be locked.');
-      }
-
-      // Try hardware-based protection first for NTAG tags
-      if (tag.techTypes && tag.techTypes.some((tech: string) => 
-          tech.includes('MifareUltralight') || tech.includes('NTAG'))) {
-        
-        try {
-          console.log('[NFCSecurityService] Attempting hardware-based lock for NTAG tag');
-          
-          // Cancel current NDEF technology request
-          await NfcManager.cancelTechnologyRequest();
-          
-          // Request MifareUltralight technology for direct commands
-          await NfcManager.requestTechnology(NfcTech.MifareUltralight);
-          
-          const passwordBytes = this.passwordToBytes(password);
-          
-          // Set password in PWD (page 43, 0x2B) and PACK (page 44, 0x2C)
-          const pwdPage = [passwordBytes[0], passwordBytes[1], passwordBytes[2], passwordBytes[3]];
-          const packPage = [0x00, 0x00, 0x00, 0x00]; // PACK response
-          
-          // Write PWD page (0x2B = 43)
-          await (NfcManager as any).mifareUltralightHandlerAndroid.mifareUltralightWritePage(43, pwdPage);
-          
-          // Write PACK page (0x2C = 44) 
-          await (NfcManager as any).mifareUltralightHandlerAndroid.mifareUltralightWritePage(44, packPage);
-          
-          // Set AUTH0 to enable password protection from page 4 onwards
-          // Configuration page (0x29 = 41)
-          const configPage = [
-            0x04, // AUTH0: start password protection from page 4
-            0x00, // ACCESS: no access restrictions
-            0x00, // Reserved
-            0x00  // Reserved
-          ];
-          
-          await (NfcManager as any).mifareUltralightHandlerAndroid.mifareUltralightWritePage(41, configPage);
-          
-          console.log('[NFCSecurityService] Hardware lock completed successfully');
-          return { 
-            success: true, 
-            lockType: 'hardware',
-            data: { message: 'Tag locked with hardware password protection' }
-          };
-          
-        } catch (hardwareError) {
-          console.warn('[NFCSecurityService] Hardware lock failed, trying software approach:', hardwareError);
-          
-          // Cancel MifareUltralight and go back to NDEF
-          await NfcManager.cancelTechnologyRequest();
-          await NfcManager.requestTechnology(NfcTech.Ndef);
-        }
-      }
-
-      // Software-based protection (modify NDEF content)
-      console.log('[NFCSecurityService] Applying software-based lock');
-      
-      // Read existing content
+      // Read existing content before locking
       let existingContent = '';
       try {
         if (tag.ndefMessage && tag.ndefMessage.length > 0) {
@@ -155,9 +196,66 @@ export class NFCSecurityService {
           }
         }
       } catch (readError) {
-        console.warn('[NFCSecurityService] Could not read existing content:', readError);
-        existingContent = '';
+        nfcLogger.logStep(operationId, 'Could not read existing content', { warning: (readError as Error).message });
       }
+
+      // Cancel NDEF and try NfcA for hardware lock
+      await NfcManager.cancelTechnologyRequest();
+
+      // Try hardware-based protection using NfcA (cross-platform)
+      const ntagConfig = this.detectNTAGConfig(tag);
+      if (ntagConfig) {
+        try {
+          nfcLogger.logStep(operationId, 'Attempting hardware lock via NfcA', { config: ntagConfig });
+
+          await NfcManager.requestTechnology(NfcTech.NfcA);
+
+          const passwordBytes = this.passwordToBytes(password);
+
+          // Write PWD page: WRITE command (0xA2) + page address + 4 bytes data
+          const writePwdCmd = [0xa2, ntagConfig.pwdPage, ...passwordBytes];
+          nfcLogger.logStep(operationId, 'Writing PWD page', { page: ntagConfig.pwdPage });
+          await this.nfcATransceive(writePwdCmd);
+
+          // Write PACK page: 2 bytes PACK + 2 bytes padding
+          const writePackCmd = [0xa2, ntagConfig.packPage, 0x00, 0x00, 0x00, 0x00];
+          nfcLogger.logStep(operationId, 'Writing PACK page', { page: ntagConfig.packPage });
+          await this.nfcATransceive(writePackCmd);
+
+          // Write CFG0 page to enable password protection from page 4
+          // CFG0 layout: [MIRROR, RFUI, MIRROR_PAGE, AUTH0]
+          // AUTH0=0x04 means password required starting from page 4
+          const writeCfgCmd = [0xa2, ntagConfig.cfgPage, 0x00, 0x00, 0x00, 0x04];
+          nfcLogger.logStep(operationId, 'Writing CFG0 page (enabling protection)', { page: ntagConfig.cfgPage });
+          await this.nfcATransceive(writeCfgCmd);
+
+          nfcLogger.endOperation(operationId, { success: true, lockType: 'hardware' });
+          return {
+            success: true,
+            lockType: 'hardware',
+            data: { message: 'Tag locked with hardware password protection' }
+          };
+
+        } catch (hardwareError) {
+          // Enhanced error logging to help diagnose lock failures
+          console.log('[NFCSecurityService] Hardware lock error details:', {
+            message: (hardwareError as Error).message,
+            name: (hardwareError as Error).name,
+            stack: (hardwareError as Error).stack
+          });
+          nfcLogger.logStep(operationId, 'Hardware lock failed', { error: (hardwareError as Error).message });
+          try {
+            await NfcManager.cancelTechnologyRequest();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+
+      // Fallback: Software-based protection (modify NDEF content)
+      nfcLogger.logStep(operationId, 'Falling back to software-based lock');
+
+      await NfcManager.requestTechnology(NfcTech.Ndef, Platform.OS === 'ios' ? { timeout } as any : undefined);
 
       // Create locked data structure
       const lockedData = {
@@ -169,19 +267,16 @@ export class NFCSecurityService {
       };
 
       const jsonString = JSON.stringify(lockedData);
-
-      // Write the locked data
       const bytes = Ndef.encodeMessage([Ndef.textRecord(jsonString)]);
-      
+
       if (Platform.OS === 'ios') {
-        // iOS-specific write with retry mechanism
         let writeAttempts = 0;
         const maxAttempts = 3;
-        
+
         while (writeAttempts < maxAttempts) {
           try {
             await NfcManager.ndefHandler.writeNdefMessage(bytes);
-            console.log(`[NFCSecurityService] iOS software lock completed on attempt ${writeAttempts + 1}`);
+            nfcLogger.logStep(operationId, 'iOS software lock completed', { attempt: writeAttempts + 1 });
             break;
           } catch (iosWriteError) {
             writeAttempts++;
@@ -192,24 +287,24 @@ export class NFCSecurityService {
           }
         }
       } else {
-        // Android write
         await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        console.log('[NFCSecurityService] Android software lock completed');
+        nfcLogger.logStep(operationId, 'Android software lock completed');
       }
 
-      return { 
-        success: true, 
+      nfcLogger.endOperation(operationId, { success: true, lockType: 'software' });
+      return {
+        success: true,
         lockType: 'software',
         data: { message: 'Tag locked with encrypted content protection' }
       };
 
     } catch (error) {
-      console.error('[NFCSecurityService] Error in lockTag:', error);
-      
-      // Create user-friendly error message
+      const errorCategory = nfcLogger.categorizeError(error as Error);
+      nfcLogger.endOperationWithError(operationId, error as Error, errorCategory);
+
       let userErrorMessage: string;
       const errorMessage = (error as Error).message;
-      
+
       if (errorMessage.includes('NFC hardware') || errorMessage.includes('not available')) {
         userErrorMessage = 'NFC is not available or is disabled on this device.';
       } else if (errorMessage.includes('cancelled')) {
@@ -221,26 +316,33 @@ export class NFCSecurityService {
       } else {
         userErrorMessage = `Failed to lock NFC tag: ${errorMessage}`;
       }
-      
+
       return { success: false, error: userErrorMessage };
     } finally {
-      // Always cancel technology request when done
       try {
         await NfcManager.cancelTechnologyRequest();
-        console.log('[NFCSecurityService] NFC technology request canceled');
+        nfcLogger.logStep(operationId, 'NFC technology request canceled');
       } catch (finallyError) {
-        console.warn(`[NFCSecurityService] Error canceling technology request: ${(finallyError as Error).message}`);
+        // Silent cleanup
       }
     }
   }
 
   /**
    * Unlock an NDEF tag by removing password protection
+   * Uses NfcA transceive for cross-platform hardware unlock support
    */
   public async unlockTag(password: string): Promise<NFCSecurityResult> {
+    // Simulator check temporarily disabled for testing
+    // if (nfcSimulator.shouldUseSimulator()) {
+    //   return nfcSimulator.unlockTag(password);
+    // }
+
+    const operationId = nfcLogger.startOperation(NFCOperationType.UNLOCK, { platform: Platform.OS });
+
     try {
-      console.log('[NFCSecurityService] Starting tag unlock operation');
-      
+      nfcLogger.logStep(operationId, 'Starting tag unlock operation');
+
       if (!password) {
         throw new Error('Password is required to unlock the tag');
       }
@@ -249,113 +351,135 @@ export class NFCSecurityService {
       if (!await nfcService.initialize()) {
         throw new Error('NFC is not available or could not be initialized');
       }
+      nfcLogger.logStep(operationId, 'NFC initialized');
 
-      // Request NFC technology
+      // First, get tag info using NDEF
       const timeout = Platform.OS === 'ios' ? 60000 : 30000;
-      const technologyRequest = Platform.OS === 'ios' 
-        ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout } as any)
-        : NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      await technologyRequest;
-      console.log('[NFCSecurityService] NFC technology requested successfully');
-      
-      // Get tag information
+      await NfcManager.requestTechnology(NfcTech.Ndef, Platform.OS === 'ios' ? { timeout } as any : undefined);
+
       const tag = await NfcManager.getTag();
-      
       if (!tag) {
         throw new Error('No NFC tag detected. Please position the tag correctly.');
       }
 
-      // Check if tag has NDEF message
-      if (!tag.ndefMessage || !tag.ndefMessage.length) {
-        throw new Error('No NDEF message found on tag or tag is not locked.');
-      }
+      const tagId = this.getTagIdHex(tag.id);
+      nfcLogger.logStep(operationId, 'Tag detected', {
+        tagId,
+        tagType: tag.type,
+        techTypes: tag.techTypes,
+        hasNdefMessage: !!tag.ndefMessage?.length
+      });
 
-      // Try hardware unlock first for NTAG tags
-      if (tag.techTypes && tag.techTypes.some((tech: string) => 
-          tech.includes('MifareUltralight') || tech.includes('NTAG'))) {
-        
-        try {
-          console.log('[NFCSecurityService] Attempting hardware unlock for NTAG tag');
-          
-          // Cancel NDEF and switch to MifareUltralight
-          await NfcManager.cancelTechnologyRequest();
-          await NfcManager.requestTechnology(NfcTech.MifareUltralight);
-          
-          const passwordBytes = this.passwordToBytes(password);
-          
-          // Send PWD_AUTH command (0x1B) to authenticate
-          const authResponse = await (NfcManager as any).mifareUltralightHandlerAndroid
-            .mifareUltralightTransceive([0x1B, ...passwordBytes]);
-          
-          // If we get here, authentication succeeded
-          console.log('[NFCSecurityService] Hardware authentication successful');
-          
-          // Disable password protection by setting AUTH0 to 0xFF
-          const configPage = [
-            0xFF, // AUTH0: disable password protection
-            0x00, // ACCESS: no access restrictions  
-            0x00, // Reserved
-            0x00  // Reserved
-          ];
-          
-          await (NfcManager as any).mifareUltralightHandlerAndroid.mifareUltralightWritePage(41, configPage);
-          
-          console.log('[NFCSecurityService] Hardware unlock completed successfully');
-          return { 
-            success: true, 
-            lockType: 'hardware',
-            data: { message: 'Hardware password protection removed successfully' }
-          };
-          
-        } catch (hardwareError) {
-          console.warn('[NFCSecurityService] Hardware unlock failed:', hardwareError);
-          
-          if (hardwareError.message && hardwareError.message.toLowerCase().includes('auth')) {
-            throw new Error('Incorrect password. Please try again.');
+      // Read NDEF content for software unlock fallback
+      let textContent = '';
+      let lockedData: any = null;
+
+      if (tag.ndefMessage && tag.ndefMessage.length > 0) {
+        const record = tag.ndefMessage[0];
+        if (record && record.payload) {
+          try {
+            textContent = Ndef.text.decodePayload(record.payload);
+            lockedData = JSON.parse(textContent);
+          } catch (e) {
+            // Not valid JSON, might be hardware locked
           }
-          
-          // Try software approach
-          await NfcManager.cancelTechnologyRequest();
-          await NfcManager.requestTechnology(NfcTech.Ndef);
         }
       }
 
-      // Software-based unlock (decrypt NDEF content)
-      console.log('[NFCSecurityService] Attempting software unlock');
-      
-      const record = tag.ndefMessage[0];
-      if (!record || !record.payload) {
-        throw new Error('Invalid NDEF record format on tag.');
+      // Cancel NDEF and try NfcA for hardware unlock
+      await NfcManager.cancelTechnologyRequest();
+
+      // Try hardware-based unlock using NfcA (cross-platform)
+      const ntagConfig = this.detectNTAGConfig(tag);
+      if (ntagConfig) {
+        try {
+          nfcLogger.logStep(operationId, 'Attempting hardware unlock via NfcA', { config: ntagConfig });
+
+          await NfcManager.requestTechnology(NfcTech.NfcA);
+
+          const passwordBytes = this.passwordToBytes(password);
+
+          // Send PWD_AUTH command (0x1B) + 4 bytes password
+          const authCmd = [0x1b, ...passwordBytes];
+          nfcLogger.logStep(operationId, 'Sending PWD_AUTH command');
+
+          try {
+            const authResponse = await this.nfcATransceive(authCmd);
+            nfcLogger.logStep(operationId, 'Authentication successful', { responseLength: authResponse.length });
+
+            // Disable password protection by setting AUTH0 to 0xFF (no protection)
+            // CFG0 layout: [MIRROR, RFUI, MIRROR_PAGE, AUTH0]
+            // AUTH0=0xFF means no password protection (disabled)
+            const writeCfgCmd = [0xa2, ntagConfig.cfgPage, 0x00, 0x00, 0x00, 0xff];
+            nfcLogger.logStep(operationId, 'Disabling password protection', { page: ntagConfig.cfgPage });
+            await this.nfcATransceive(writeCfgCmd);
+
+            nfcLogger.endOperation(operationId, { success: true, lockType: 'hardware' });
+            return {
+              success: true,
+              lockType: 'hardware',
+              data: { message: 'Hardware password protection removed successfully' }
+            };
+
+          } catch (authError) {
+            const errMsg = (authError as Error).message.toLowerCase();
+            if (errMsg.includes('auth') || errMsg.includes('nack') || errMsg.includes('failed')) {
+              throw new Error('Incorrect password. Please try again.');
+            }
+            throw authError;
+          }
+
+        } catch (hardwareError) {
+          const errMsg = (hardwareError as Error).message;
+          nfcLogger.logStep(operationId, 'Hardware unlock failed', { error: errMsg });
+
+          // If it's a password error, don't fall back to software
+          if (errMsg.includes('Incorrect password')) {
+            throw hardwareError;
+          }
+
+          try {
+            await NfcManager.cancelTechnologyRequest();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
       }
 
-      // Decode the content
-      let textContent: string;
-      try {
-        textContent = Ndef.text.decodePayload(record.payload);
-      } catch (decodeError) {
-        throw new Error('Could not decode tag content. Tag may not be locked with this system.');
+      // Fallback: Software-based unlock (decrypt NDEF content)
+      nfcLogger.logStep(operationId, 'Attempting software-based unlock');
+
+      await NfcManager.requestTechnology(NfcTech.Ndef, Platform.OS === 'ios' ? { timeout } as any : undefined);
+
+      // Re-read tag if needed
+      if (!lockedData) {
+        const rereadTag = await NfcManager.getTag();
+        if (rereadTag?.ndefMessage?.length) {
+          const record = rereadTag.ndefMessage[0];
+          if (record?.payload) {
+            try {
+              textContent = Ndef.text.decodePayload(record.payload);
+              lockedData = JSON.parse(textContent);
+            } catch (e) {
+              throw new Error('Could not decode tag content. Tag may not be locked with this system.');
+            }
+          }
+        }
       }
 
-      // Check if it's our locked format
-      let lockedData: any;
-      try {
-        lockedData = JSON.parse(textContent);
-      } catch (parseError) {
-        throw new Error('Tag does not contain valid locked data format.');
+      if (!lockedData?._locked) {
+        throw new Error('This tag does not appear to be software-locked.');
       }
 
-      if (!lockedData._locked) {
-        throw new Error('This tag does not appear to be locked.');
-      }
+      nfcLogger.logStep(operationId, 'Found software-locked data');
 
       // Decrypt the original content
       let originalContent = '';
       if (lockedData._hasContent && lockedData._encryptedContent) {
         try {
           originalContent = this.decryptContent(lockedData._encryptedContent, password);
-          
-          // Verify decryption worked by checking if result is valid
+
+          // Verify decryption worked
           if (originalContent.includes('\0') || originalContent.length === 0) {
             throw new Error('Incorrect password');
           }
@@ -365,19 +489,18 @@ export class NFCSecurityService {
       }
 
       // Write the decrypted content back to the tag
-      const bytes = originalContent 
+      const bytes = originalContent
         ? Ndef.encodeMessage([Ndef.textRecord(originalContent)])
-        : Ndef.encodeMessage([Ndef.textRecord('{}')]); // Empty JSON if no content
-      
+        : Ndef.encodeMessage([Ndef.textRecord('{}')]);
+
       if (Platform.OS === 'ios') {
-        // iOS-specific write with retry mechanism
         let writeAttempts = 0;
         const maxAttempts = 3;
-        
+
         while (writeAttempts < maxAttempts) {
           try {
             await NfcManager.ndefHandler.writeNdefMessage(bytes);
-            console.log(`[NFCSecurityService] iOS software unlock completed on attempt ${writeAttempts + 1}`);
+            nfcLogger.logStep(operationId, 'iOS software unlock completed', { attempt: writeAttempts + 1 });
             break;
           } catch (iosWriteError) {
             writeAttempts++;
@@ -388,49 +511,48 @@ export class NFCSecurityService {
           }
         }
       } else {
-        // Android write
         await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        console.log('[NFCSecurityService] Android software unlock completed');
+        nfcLogger.logStep(operationId, 'Android software unlock completed');
       }
 
-      return { 
-        success: true, 
+      nfcLogger.endOperation(operationId, { success: true, lockType: 'software' });
+      return {
+        success: true,
         lockType: 'software',
-        data: { 
+        data: {
           message: 'Tag unlocked successfully',
           restoredContent: originalContent || 'No content was stored'
         }
       };
 
     } catch (error) {
-      console.error('[NFCSecurityService] Error in unlockTag:', error);
-      
-      // Create user-friendly error message
+      const errorCategory = nfcLogger.categorizeError(error as Error);
+      nfcLogger.endOperationWithError(operationId, error as Error, errorCategory);
+
       let userErrorMessage: string;
       const errorMessage = (error as Error).message;
-      
+
       if (errorMessage.includes('NFC hardware') || errorMessage.includes('not available')) {
         userErrorMessage = 'NFC is not available or is disabled on this device.';
       } else if (errorMessage.includes('cancelled')) {
         userErrorMessage = 'NFC operation was cancelled.';
       } else if (errorMessage.includes('Incorrect password')) {
         userErrorMessage = 'Incorrect password. Please try again.';
-      } else if (errorMessage.includes('not locked')) {
+      } else if (errorMessage.includes('not locked') || errorMessage.includes('not software-locked')) {
         userErrorMessage = 'This tag does not appear to be locked.';
       } else if (errorMessage.includes('Password is required')) {
         userErrorMessage = errorMessage;
       } else {
         userErrorMessage = `Failed to unlock NFC tag: ${errorMessage}`;
       }
-      
+
       return { success: false, error: userErrorMessage };
     } finally {
-      // Always cancel technology request when done
       try {
         await NfcManager.cancelTechnologyRequest();
-        console.log('[NFCSecurityService] NFC technology request canceled');
+        nfcLogger.logStep(operationId, 'NFC technology request canceled');
       } catch (finallyError) {
-        console.warn(`[NFCSecurityService] Error canceling technology request: ${(finallyError as Error).message}`);
+        // Silent cleanup
       }
     }
   }
@@ -439,6 +561,11 @@ export class NFCSecurityService {
    * Check if a tag is locked
    */
   public async isTagLocked(): Promise<NFCOperationResult & { locked: boolean; lockType?: string }> {
+    // Simulator check temporarily disabled for testing
+    // if (nfcSimulator.shouldUseSimulator()) {
+    //   return nfcSimulator.isTagLocked();
+    // }
+
     try {
       console.log('[NFCSecurityService] Checking if tag is locked');
       

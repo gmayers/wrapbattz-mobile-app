@@ -2,7 +2,7 @@
   "expo": {
     "name": "battwrapz",
     "slug": "battwrapz",
-    "version": "1.7.5",
+    "version": "1.9.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -63,7 +63,22 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "battwrapz",
+          "organization": "gmayers-services",
+          "uploadSourceMaps": false,
+          "android": {
+            "uploadSourceMaps": false
+          },
+          "ios": {
+            "uploadSourceMaps": false
+          }
+        }
+      ]
     ],
     "scheme": "wrapbattz",
     "ios": {

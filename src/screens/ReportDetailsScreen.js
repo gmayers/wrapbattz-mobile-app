@@ -44,26 +44,36 @@ const STATUS_CHOICES = [
 ];
 
 const ReportDetailsScreen = ({ navigation, route }) => {
-  const { deviceService, logout, userData, isAdminOrOwner } = useAuth();
+  const { deviceService, logout, userData, isAdminOrOwner, getAccessToken } = useAuth();
   const { reportId } = route.params;
-  
+
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // State for images and signatures
   const [reportImages, setReportImages] = useState([]);
   const [reportSignatures, setReportSignatures] = useState([]);
   const [loadingImages, setLoadingImages] = useState(false);
   const [selectedImageModal, setSelectedImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  
+  const [authToken, setAuthToken] = useState(null);
+
   // State for update report modal
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [selectedType, setSelectedType] = useState(null);
   const [resolvedChecked, setResolvedChecked] = useState(false);
   const [description, setDescription] = useState('');
+
+  // Fetch auth token for image requests
+  useEffect(() => {
+    const loadToken = async () => {
+      const token = await getAccessToken();
+      setAuthToken(token);
+    };
+    loadToken();
+  }, [getAccessToken]);
 
   useEffect(() => {
     fetchReportDetails();
@@ -73,20 +83,52 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   // Fetch device photos associated with this report
   const fetchReportImages = async () => {
     try {
+      console.log('🖼️ [ReportDetails] Fetching images for report:', reportId);
       setLoadingImages(true);
 
       // Fetch photos filtered by report ID server-side
       const data = await deviceService.getDevicePhotos({ report: reportId });
+      console.log('🖼️ [ReportDetails] Raw API response:', {
+        isArray: Array.isArray(data),
+        hasResults: !!data?.results,
+        dataKeys: data ? Object.keys(data) : 'null',
+        rawData: JSON.stringify(data).substring(0, 500),
+      });
+
       const photos = Array.isArray(data) ? data : data.results || [];
+      console.log('🖼️ [ReportDetails] Parsed photos count:', photos.length);
+
+      // Log each photo's details
+      photos.forEach((photo, index) => {
+        console.log(`🖼️ [ReportDetails] Photo ${index + 1}:`, {
+          id: photo.id,
+          image: photo.image,
+          is_signature: photo.is_signature,
+          device: photo.device,
+          report: photo.report,
+          created_at: photo.created_at,
+        });
+      });
 
       // Separate images and signatures
       const images = photos.filter(photo => !photo.is_signature);
       const signatures = photos.filter(photo => photo.is_signature);
 
+      console.log('🖼️ [ReportDetails] Separated:', {
+        imagesCount: images.length,
+        signaturesCount: signatures.length,
+        imageUrls: images.map(img => img.image),
+        signatureUrls: signatures.map(sig => sig.image),
+      });
+
       setReportImages(images);
       setReportSignatures(signatures);
     } catch (error) {
-      console.warn('Failed to fetch report images:', error);
+      console.error('❌ [ReportDetails] Failed to fetch report images:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       // Don't show an alert for images, just log the error
     } finally {
       setLoadingImages(false);
@@ -428,20 +470,34 @@ const ReportDetailsScreen = ({ navigation, route }) => {
           <View style={styles.detailsCard}>
             <Text style={styles.sectionTitle}>Report Images ({reportImages.length})</Text>
             <View style={styles.imagesContainer}>
-              {reportImages.map((image, index) => (
-                <TouchableOpacity
-                  key={image.id || index}
-                  onPress={() => handleImagePress(image.image)}
-                  style={styles.imageContainer}
-                >
-                  <Image
-                    source={{ uri: image.image }}
-                    style={styles.reportImage}
-                    resizeMode="contain"
-                    onError={(e) => console.warn('Image load error:', e.nativeEvent.error)}
-                  />
-                </TouchableOpacity>
-              ))}
+              {reportImages.map((image, index) => {
+                console.log(`🖼️ [ReportDetails] Rendering image ${index + 1}:`, {
+                  id: image.id,
+                  uri: image.image,
+                  hasToken: !!authToken,
+                });
+                return (
+                  <TouchableOpacity
+                    key={image.id || index}
+                    onPress={() => handleImagePress(image.image)}
+                    style={styles.imageContainer}
+                  >
+                    <Image
+                      source={{
+                        uri: image.image,
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                      }}
+                      style={styles.reportImage}
+                      resizeMode="contain"
+                      onLoad={() => console.log(`✅ [ReportDetails] Image ${index + 1} loaded successfully:`, image.image)}
+                      onError={(e) => console.error(`❌ [ReportDetails] Image ${index + 1} load error:`, {
+                        uri: image.image,
+                        error: e.nativeEvent.error,
+                      })}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         ) : null}
@@ -451,20 +507,34 @@ const ReportDetailsScreen = ({ navigation, route }) => {
           <View style={styles.detailsCard}>
             <Text style={styles.sectionTitle}>Signatures ({reportSignatures.length})</Text>
             <View style={styles.signaturesContainer}>
-              {reportSignatures.map((signature, index) => (
-                <TouchableOpacity
-                  key={signature.id || index}
-                  onPress={() => handleImagePress(signature.image)}
-                  style={styles.signatureContainer}
-                >
-                  <Image 
-                    source={{ uri: signature.image }} 
-                    style={styles.signatureImage}
-                    resizeMode="contain"
-                    onError={(e) => console.warn('Signature load error:', e.nativeEvent.error)}
-                  />
-                </TouchableOpacity>
-              ))}
+              {reportSignatures.map((signature, index) => {
+                console.log(`✍️ [ReportDetails] Rendering signature ${index + 1}:`, {
+                  id: signature.id,
+                  uri: signature.image,
+                  hasToken: !!authToken,
+                });
+                return (
+                  <TouchableOpacity
+                    key={signature.id || index}
+                    onPress={() => handleImagePress(signature.image)}
+                    style={styles.signatureContainer}
+                  >
+                    <Image
+                      source={{
+                        uri: signature.image,
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                      }}
+                      style={styles.signatureImage}
+                      resizeMode="contain"
+                      onLoad={() => console.log(`✅ [ReportDetails] Signature ${index + 1} loaded successfully:`, signature.image)}
+                      onError={(e) => console.error(`❌ [ReportDetails] Signature ${index + 1} load error:`, {
+                        uri: signature.image,
+                        error: e.nativeEvent.error,
+                      })}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -660,11 +730,22 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                   </TouchableOpacity>
                 </View>
                 {selectedImage && (
-                  <Image 
-                    source={{ uri: selectedImage }} 
-                    style={styles.fullScreenImage}
-                    resizeMode="contain"
-                  />
+                  <>
+                    {console.log('🔍 [ReportDetails] Modal showing image:', selectedImage, 'hasToken:', !!authToken)}
+                    <Image
+                      source={{
+                        uri: selectedImage,
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                      }}
+                      style={styles.fullScreenImage}
+                      resizeMode="contain"
+                      onLoad={() => console.log('✅ [ReportDetails] Modal image loaded successfully:', selectedImage)}
+                      onError={(e) => console.error('❌ [ReportDetails] Modal image load error:', {
+                        uri: selectedImage,
+                        error: e.nativeEvent.error,
+                      })}
+                    />
+                  </>
                 )}
               </View>
             </TouchableWithoutFeedback>

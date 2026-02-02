@@ -158,38 +158,70 @@ const CreateReportScreen = ({ navigation, route }) => {
 
   const takeMainPhoto = useCallback(async () => {
     try {
+      console.log('📷 [CreateReport] Taking main photo...');
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.5,
         });
 
+        console.log('📷 [CreateReport] Camera result:', {
+          canceled: result.canceled,
+          assetCount: result.assets?.length || 0,
+        });
+
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
+          const imageAsset = result.assets[0];
+          console.log('📷 [CreateReport] Main photo captured:', {
+            uri: imageAsset.uri,
+            width: imageAsset.width,
+            height: imageAsset.height,
+            mimeType: imageAsset.mimeType,
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
+          });
+
+          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
+          console.log('📷 [CreateReport] Main photo stored at:', permURI);
           setPhotoUri(permURI);
         }
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      console.error('❌ [CreateReport] Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo and save.');
     }
   }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
 
   const chooseMainPhotoFromGallery = useCallback(async () => {
     try {
+      console.log('🖼️ [CreateReport] Opening gallery for main photo...');
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.5,
         });
 
+        console.log('🖼️ [CreateReport] Gallery result:', {
+          canceled: result.canceled,
+          assetCount: result.assets?.length || 0,
+        });
+
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
+          const imageAsset = result.assets[0];
+          console.log('🖼️ [CreateReport] Main photo selected:', {
+            uri: imageAsset.uri,
+            width: imageAsset.width,
+            height: imageAsset.height,
+            mimeType: imageAsset.mimeType,
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
+          });
+
+          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
+          console.log('🖼️ [CreateReport] Main photo stored at:', permURI);
           setPhotoUri(permURI);
         }
       }
     } catch (error) {
-      console.error('Error selecting image from gallery:', error);
+      console.error('❌ [CreateReport] Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
   }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
@@ -206,7 +238,7 @@ const CreateReportScreen = ({ navigation, route }) => {
     try {
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.5,
         });
 
@@ -229,7 +261,7 @@ const CreateReportScreen = ({ navigation, route }) => {
     try {
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           quality: 0.5,
         });
 
@@ -390,76 +422,135 @@ const CreateReportScreen = ({ navigation, route }) => {
       const reportId = reportResponse.id;
       console.log('Report created successfully:', reportId);
 
-      // Process photos using the deviceService.createDevicePhoto method
+      // Upload photos and signature to the device-photos endpoint
       const uploadPromises = [];
 
+      console.log('📤 [CreateReport] Starting photo uploads...', {
+        hasMainPhoto: !!photoUri,
+        additionalPhotoCount: additionalPhotos.length,
+        hasSignature: !!signatureUri,
+        reportId,
+        deviceId: formData.device_id,
+      });
+
+      // Main photo
       if (photoUri) {
+        const fileName = `report_photo_${Date.now()}.jpg`;
+        console.log('📤 [CreateReport] Preparing main photo upload:', {
+          uri: photoUri,
+          type: 'image/jpeg',
+          name: fileName,
+        });
+
         const photoForm = new FormData();
         photoForm.append('image', {
           uri: photoUri,
           type: 'image/jpeg',
-          name: 'photo.jpg',
+          name: fileName,
         });
-        photoForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        photoForm.append('device', formData.device_id);
         photoForm.append('report', reportId);
-        
-        try {
-          if (typeof deviceService.createDevicePhoto === 'function') {
-            uploadPromises.push(deviceService.createDevicePhoto(photoForm));
-          } else {
-            uploadPromises.push(axiosInstance.post('/device-photos/', photoForm));
-          }
-        } catch (error) {
-          console.warn('Failed to upload main photo, but report was created:', error);
-        }
+        uploadPromises.push(
+          deviceService.createDevicePhoto(photoForm)
+            .then(res => {
+              console.log('✅ [CreateReport] Main photo uploaded successfully:', {
+                id: res?.id,
+                imageUrl: res?.image,
+              });
+              return res;
+            })
+            .catch(err => {
+              console.error('❌ [CreateReport] Main photo upload failed:', {
+                status: err.response?.status,
+                data: err.response?.data,
+                message: err.message,
+              });
+              throw err;
+            })
+        );
       }
 
-      // Process additional photos
-      for (const photo of additionalPhotos) {
+      // Additional photos
+      for (let i = 0; i < additionalPhotos.length; i++) {
+        const fileName = `report_photo_${Date.now()}_${i}.jpg`;
+        console.log(`📤 [CreateReport] Preparing additional photo ${i + 1} upload:`, {
+          uri: additionalPhotos[i].uri,
+          type: 'image/jpeg',
+          name: fileName,
+        });
+
         const photoForm = new FormData();
         photoForm.append('image', {
-          uri: photo.uri,
+          uri: additionalPhotos[i].uri,
           type: 'image/jpeg',
-          name: 'additional_photo.jpg',
+          name: fileName,
         });
-        photoForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        photoForm.append('device', formData.device_id);
         photoForm.append('report', reportId);
-        
-        try {
-          uploadPromises.push(deviceService.createDevicePhoto(photoForm));
-        } catch (error) {
-          console.warn('Failed to upload an additional photo:', error);
-        }
+        uploadPromises.push(
+          deviceService.createDevicePhoto(photoForm)
+            .then(res => {
+              console.log(`✅ [CreateReport] Additional photo ${i + 1} uploaded:`, {
+                id: res?.id,
+                imageUrl: res?.image,
+              });
+              return res;
+            })
+            .catch(err => {
+              console.error(`❌ [CreateReport] Additional photo ${i + 1} upload failed:`, {
+                status: err.response?.status,
+                data: err.response?.data,
+                message: err.message,
+              });
+              throw err;
+            })
+        );
       }
 
-      // Process signature if available
+      // Signature
       if (signatureUri) {
-        console.log('Preparing to upload signature as image');
+        const signatureFileName = `signature_${Date.now()}.png`;
+        console.log('📤 [CreateReport] Preparing signature upload:', {
+          uri: signatureUri,
+          type: 'image/png',
+          name: signatureFileName,
+        });
+
         const signatureForm = new FormData();
         signatureForm.append('image', {
           uri: signatureUri,
           type: 'image/png',
-          name: 'signature.png',
+          name: signatureFileName,
         });
-        signatureForm.append('device', formData.device_id); // Using 'device' instead of 'device_id' based on API
+        signatureForm.append('device', formData.device_id);
         signatureForm.append('report', reportId);
-        signatureForm.append('is_signature', true);
-        
-        try {
-          // Check if deviceService has createDevicePhoto method
-          if (typeof deviceService.createDevicePhoto === 'function') {
-            uploadPromises.push(deviceService.createDevicePhoto(signatureForm));
-          } else {
-            // Fallback to axiosInstance
-            uploadPromises.push(axiosInstance.post('/device-photos/', signatureForm));
-          }
-        } catch (error) {
-          console.warn('Failed to upload signature as image:', error);
-        }
+        signatureForm.append('is_signature', 'true');
+        uploadPromises.push(
+          deviceService.createDevicePhoto(signatureForm)
+            .then(res => {
+              console.log('✅ [CreateReport] Signature uploaded:', {
+                id: res?.id,
+                imageUrl: res?.image,
+              });
+              return res;
+            })
+            .catch(err => {
+              console.error('❌ [CreateReport] Signature upload failed:', {
+                status: err.response?.status,
+                data: err.response?.data,
+                message: err.message,
+              });
+              throw err;
+            })
+        );
       }
 
       // Wait for all uploads to complete
-      await Promise.allSettled(uploadPromises);
+      const uploadResults = await Promise.allSettled(uploadPromises);
+      const failedUploads = uploadResults.filter(r => r.status === 'rejected');
+      if (failedUploads.length > 0) {
+        console.warn(`${failedUploads.length} of ${uploadResults.length} uploads failed`);
+      }
 
       Alert.alert(
         'Success', 

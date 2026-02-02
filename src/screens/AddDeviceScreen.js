@@ -558,8 +558,8 @@ const handleNFCWrite = async () => {
 };
 
 /**
- * Scan NFC tag to capture hardware UUID for device registration
- * This registers the tag's UUID with the device in the database
+ * Scan NFC tag to capture hardware UID for device registration
+ * This registers the tag's UID with the device in the database
  */
 const handleScanNfcForRegistration = async () => {
   try {
@@ -577,23 +577,44 @@ const handleScanNfcForRegistration = async () => {
       throw new Error('Could not read tag ID. Please try again.');
     }
 
-    logMessage(`Captured NFC UUID: ${tagId}`);
+    logMessage(`Captured NFC tag ID: ${tagId}`);
     setScannedNfcUuid(tagId);
 
-    // Register the NFC UUID with the device via API
-    if (apiResponse?.id) {
-      try {
-        await axiosInstance.patch(`/devices/${apiResponse.id}/`, {
-          nfc_uuid: tagId
-        });
-        logMessage(`Registered NFC UUID ${tagId} with device ${apiResponse.id}`);
+    // Register the NFC tag ID with the device via API
+    if (!apiResponse?.id) {
+      throw new Error('Device ID not available. The device may not have been created successfully. Please try adding the device again.');
+    }
 
-        Alert.alert(
-          'NFC Tag Registered',
-          `Tag has been registered with device ${deviceIdentifier}.\n\nYou can now scan this tag to identify and assign the device.`
-        );
-      } catch (patchError) {
-        logMessage(`Error registering NFC UUID: ${patchError.message}`);
+    try {
+      await axiosInstance.patch(`/devices/${apiResponse.id}/`, {
+        nfc_tag_id: tagId
+      });
+      logMessage(`Registered NFC tag ID ${tagId} with device ${apiResponse.id}`);
+
+      Alert.alert(
+        'NFC Tag Registered',
+        `Tag has been registered with device ${deviceIdentifier}.\n\nYou can now scan this tag to identify and assign the device.`
+      );
+    } catch (patchError) {
+      logMessage(`Error registering NFC UUID: ${patchError.message}`);
+
+      // Log full error details for debugging
+      if (patchError.response) {
+        logMessage(`Error status: ${patchError.response.status}`);
+        logMessage(`Error data: ${JSON.stringify(patchError.response.data)}`);
+      }
+
+      // Provide specific error messages for different API failure scenarios
+      if (patchError.response?.status === 409) {
+        throw new Error('This NFC tag is already registered with another device. Please use a different tag.');
+      } else if (patchError.response?.status === 404) {
+        throw new Error('Device not found. It may have been deleted. Please try adding the device again.');
+      } else if (patchError.response?.status === 400) {
+        const errorDetail = patchError.response.data?.nfc_uuid?.[0] ||
+                           patchError.response.data?.detail ||
+                           'Invalid NFC tag format.';
+        throw new Error(errorDetail);
+      } else {
         throw new Error('Failed to register NFC tag with device. Please try again.');
       }
     }
@@ -820,7 +841,7 @@ return (
               onPress={handleSubmit}
               loading={loading}
               style={styles.submitButton}
-              textColor={'black'}
+              textColorProp="black"
             />
           </View>
         </ScrollView>
@@ -857,9 +878,9 @@ return (
               title={isScanningNfc ? 'Scanning...' : 'Scan NFC Tag to Register'}
               onPress={handleScanNfcForRegistration}
               disabled={isScanningNfc}
-              isLoading={isScanningNfc}
-              style={[styles.actionButton, styles.nfcButton]}
-              textColor="white"
+              loading={isScanningNfc}
+              style={styles.nfcButton}
+              textColorProp="white"
             />
           )}
 
@@ -875,9 +896,9 @@ return (
                   }
                 }}
                 disabled={isWritingNfc}
-                isLoading={isWritingNfc}
+                loading={isWritingNfc}
                 style={[styles.actionButton, styles.nfcButton]}
-                textColor="white"
+                textColorProp="white"
               />
             </View>
           )}
@@ -901,7 +922,7 @@ return (
                   setIsScanningNfc(false);
                 }}
                 style={styles.cancelButton}
-                textColor="white"
+                textColorProp="white"
               />
             </View>
           )}
@@ -912,13 +933,13 @@ return (
               title="Add Another Device"
               onPress={handleAddAnother}
               style={[styles.actionButton, styles.addButton]}
-              textColor="white"
+              textColorProp="white"
             />
             <Button
               title="Finish"
               onPress={handleFinish}
               style={[styles.actionButton, styles.finishButton]}
-              textColor="white"
+              textColorProp="white"
             />
           </View>
         </CustomModal>
@@ -1008,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   dataPreviewHint: {
     fontSize: 14,
-    color: '#666',
+    color: '#333',
     fontStyle: 'italic',
   },
   successBadge: {
@@ -1024,8 +1045,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   nfcButton: {
-    marginTop: 20,
+    marginTop: 10,
     backgroundColor: '#4CAF50', // Green color
+    width: '100%',
   },
   cancelButton: {
     marginTop: 10,

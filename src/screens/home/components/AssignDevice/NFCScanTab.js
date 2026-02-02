@@ -28,6 +28,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   /**
    * Read NFC tag and get the hardware UUID for device lookup
    * Simplified: Uses tag's hardware UUID instead of parsing JSON data
+   * Note: Empty tags are valid for device lookup - we only need the hardware UUID
    */
   const readNfcTag = async () => {
     try {
@@ -35,7 +36,8 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
 
       const readResult = await nfcService.readNFC({ timeout: 60000 });
 
-      if (!readResult.success) {
+      // Handle failed reads, but allow empty tags (they still have valid tagId)
+      if (!readResult.success && !readResult.data?.isEmpty) {
         throw new Error(readResult.error || 'Failed to read NFC tag');
       }
 
@@ -88,12 +90,21 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
       setScannedDeviceData(null);
       setDeviceIdentifier(null);
 
-      // Use the provided handleApiError function or fallback to Alert
-      if (handleApiError) {
-        handleApiError(error, 'Failed to scan device tag');
-      } else {
-        Alert.alert('Error', error.message || 'Failed to scan device tag');
+      // Categorize the error for better user feedback
+      let title = 'Error';
+      let message = error.message || 'Failed to scan device tag';
+
+      // Check for specific error types
+      if (message.includes('not registered') || message.includes('Device not found')) {
+        title = 'Device Not Found';
+      } else if (message.includes('cancelled') || message.includes('canceled')) {
+        // Don't show alert for cancelled operations
+        return;
+      } else if (message.includes('NFC') || message.includes('tag')) {
+        title = 'Scan Failed';
       }
+
+      Alert.alert(title, message);
     } finally {
       setAssignLoading(false);
     }

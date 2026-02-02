@@ -37,11 +37,34 @@ jest.mock('react-native-nfc-manager', () => {
     getNdefMessage: jest.fn(() => Promise.resolve([])),
     goToNfcSettings: jest.fn(() => Promise.resolve()),
     getLaunchTagEvent: jest.fn(() => Promise.resolve(null)),
+    ndefHandler: {
+      writeNdefMessage: jest.fn(() => Promise.resolve()),
+    },
+    ndefFormatableHandlerAndroid: {
+      formatNdef: jest.fn(() => Promise.resolve()),
+    },
+    mifareUltralightHandlerAndroid: {
+      mifareUltralightReadPages: jest.fn(() => Promise.resolve([])),
+      mifareUltralightWritePage: jest.fn(() => Promise.resolve()),
+      mifareUltralightTransceive: jest.fn(() => Promise.resolve([])),
+    },
+    nfcAHandler: {
+      transceive: jest.fn(() => Promise.resolve([0x00])),
+    },
+  };
+
+  const mockNdef = {
+    encodeMessage: jest.fn(() => [0x00, 0x01, 0x02]),
+    textRecord: jest.fn((text) => ({ payload: text, type: 'T' })),
+    text: {
+      decodePayload: jest.fn((payload) => 'decoded text'),
+    },
   };
 
   return {
     NfcTech: {
       Ndef: 'Ndef',
+      NdefFormatable: 'NdefFormatable',
       NfcA: 'NfcA',
       NfcB: 'NfcB',
       NfcF: 'NfcF',
@@ -55,6 +78,7 @@ jest.mock('react-native-nfc-manager', () => {
       SessionClosed: 'SessionClosed',
       StateChanged: 'StateChanged',
     },
+    Ndef: mockNdef,
     default: mockNfcManager,
   };
 });
@@ -131,3 +155,28 @@ global.testHelpers = {
     captureTestMessage: jest.fn(),
   },
 };
+
+// Auto-enable NFC Simulator for tests
+// This allows NFC-related tests to run without actual hardware
+beforeAll(() => {
+  try {
+    const { nfcSimulator } = require('./src/services/NFCSimulator');
+    nfcSimulator.setEnabled(true);
+    nfcSimulator.setSimulatedDelay(0); // No delays in tests
+    nfcSimulator.setFailureRate(0);    // No random failures in tests
+    console.log('[Jest Setup] NFC Simulator enabled for testing');
+  } catch (e) {
+    // NFCSimulator may not be available in all test contexts
+    console.log('[Jest Setup] NFCSimulator not available:', e.message);
+  }
+});
+
+afterAll(() => {
+  try {
+    const { nfcSimulator } = require('./src/services/NFCSimulator');
+    nfcSimulator.setEnabled(false);
+    nfcSimulator.resetTags();
+  } catch (e) {
+    // Ignore cleanup errors
+  }
+});

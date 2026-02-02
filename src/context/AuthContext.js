@@ -46,6 +46,16 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Don't intercept auth endpoints - let them handle their own errors
+    // This prevents "Session Expired" showing on failed login attempts
+    const authEndpoints = ['/auth/token/', '/auth/register/', '/auth/password/reset/'];
+    const isAuthEndpoint = authEndpoints.some(endpoint => originalRequest?.url?.includes(endpoint));
+
+    if (isAuthEndpoint) {
+      // Let auth endpoints handle their own errors (e.g., "Invalid credentials")
+      return Promise.reject(error);
+    }
+
     // If error is 401 (Unauthorized) and we haven't already tried to refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -395,19 +405,50 @@ const deviceService = {
   // Get device photos
   getDevicePhotos: async (params = {}) => {
     try {
+      console.log('📥 [API] getDevicePhotos - Fetching with params:', params);
       const response = await axiosInstance.get('/device-photos/', { params });
+      console.log('✅ [API] getDevicePhotos - Received:', {
+        count: response.data?.results?.length || response.data?.length || 0,
+        photos: (response.data?.results || response.data || []).map(p => ({
+          id: p.id,
+          imageUrl: p.image,
+          isSignature: p.is_signature,
+        })),
+      });
       return response.data;
     } catch (error) {
+      console.error('❌ [API] getDevicePhotos - Failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
       throw error;
     }
   },
 
-  // Create device photo
+  // Create device photo (multipart/form-data upload)
   createDevicePhoto: async (photoData) => {
     try {
-      const response = await axiosInstance.post('/device-photos/', photoData);
+      console.log('📤 [API] createDevicePhoto - Sending multipart/form-data request...');
+      const response = await axiosInstance.post('/device-photos/', photoData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000,
+      });
+      console.log('✅ [API] createDevicePhoto - Success:', {
+        id: response.data?.id,
+        imageUrl: response.data?.image,
+        isSignature: response.data?.is_signature,
+      });
       return response.data;
     } catch (error) {
+      console.error('❌ [API] createDevicePhoto - Failed:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+      });
       throw error;
     }
   },
@@ -803,23 +844,24 @@ export const AuthProvider = ({ children }) => {
 
   const refreshToken = async () => {
     try {
-      const refreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
-      
-      if (!refreshToken) {
+      const storedRefreshToken = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+
+      if (!storedRefreshToken) {
         throw new Error('No refresh token found');
       }
 
-      // Updated to match API schema
-      const response = await axiosInstance.post('/auth/token/refresh/', {
-        refresh: refreshToken,
+      // Use axios directly (NOT axiosInstance) to avoid including the expired access token
+      // in the Authorization header - the refresh endpoint only needs the refresh token
+      const response = await axios.post(`${API_BASE_URL}auth/token/refresh/`, {
+        refresh: storedRefreshToken,
       });
 
       const accessToken = response.data.access;
       await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
-      
+
       // Save the decoded token data
       await saveTokenData(accessToken);
-      
+
       return accessToken;
     } catch (error) {
       await logout();

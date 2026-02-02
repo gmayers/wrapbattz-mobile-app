@@ -200,7 +200,7 @@ const LoginScreen: React.FC = () => {
               
               {/* Pricing Button */}
               <View style={styles.pricingButtonContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.pricingButton}
                   testID="pricing-button"
                   onPress={() => navigation.navigate('Pricing')}
@@ -208,6 +208,7 @@ const LoginScreen: React.FC = () => {
                   <Text style={styles.pricingButtonText}>View Subscription Plans</Text>
                 </TouchableOpacity>
               </View>
+
             </View>
           </View>
         </ScrollView>
