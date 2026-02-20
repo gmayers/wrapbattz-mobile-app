@@ -255,7 +255,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
           description: description,
         };
 
-        if (resolvedChecked && !report.resolved_date) {
+        if (resolvedChecked) {
           updateData.resolved_date = new Date().toISOString().split('T')[0];
         }
       } else {
@@ -266,9 +266,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
         if (selectedStatus === 'RESOLVED') {
           updateData.resolved = true;
-          if (!report.resolved_date) {
-            updateData.resolved_date = new Date().toISOString().split('T')[0];
-          }
+          updateData.resolved_date = new Date().toISOString().split('T')[0];
         }
       }
 
@@ -278,7 +276,24 @@ const ReportDetailsScreen = ({ navigation, route }) => {
       setUpdateModalVisible(false);
       fetchReportDetails(); // Refresh report details
     } catch (error) {
-      handleApiError(error, 'Failed to update report');
+      // Show detailed error info for debugging
+      if (error.response) {
+        const status = error.response.status;
+        let details = '';
+        try {
+          details = typeof error.response.data === 'string'
+            ? error.response.data
+            : JSON.stringify(error.response.data, null, 2);
+        } catch (e) {
+          details = 'Could not parse response';
+        }
+        Alert.alert(
+          `Error ${status}`,
+          details.substring(0, 500)
+        );
+      } else {
+        handleApiError(error, 'Failed to update report');
+      }
     }
   };
 
@@ -649,7 +664,14 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                   <Dropdown
                     label="Status"
                     value={selectedStatus}
-                    onValueChange={(itemValue) => setSelectedStatus(itemValue)}
+                    onValueChange={(itemValue) => {
+                      setSelectedStatus(itemValue);
+                      if (itemValue === 'RESOLVED') {
+                        setResolvedChecked(true);
+                      } else {
+                        setResolvedChecked(false);
+                      }
+                    }}
                     items={STATUS_CHOICES}
                     placeholder="Select a status"
                     labelStyle={styles.modalLabel}
@@ -680,7 +702,13 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
                       <TouchableOpacity
                         style={styles.checkboxContainer}
-                        onPress={() => setResolvedChecked(!resolvedChecked)}
+                        onPress={() => {
+                          const newValue = !resolvedChecked;
+                          setResolvedChecked(newValue);
+                          if (newValue) {
+                            setSelectedStatus('RESOLVED');
+                          }
+                        }}
                       >
                         <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
                           {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
