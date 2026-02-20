@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   forgotPasswordText: {
-    color: '#007AFF',
+    color: '#FF9500',
     fontSize: 16,
   },
   registerContainer: {
