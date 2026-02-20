@@ -216,10 +216,6 @@ export interface CancelSubscriptionData {
   at_period_end?: boolean;
 }
 
-export interface UpdateDeviceCountData {
-  device_count: number;
-}
-
 export interface SetDefaultPaymentMethodData {
   payment_method_id: string;
   customer_id: string;

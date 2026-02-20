@@ -14,7 +14,6 @@ import {
   CostCalculatorResponse,
   SwitchPlanData,
   CancelSubscriptionData,
-  UpdateDeviceCountData,
   SetDefaultPaymentMethodData,
   ConfirmPaymentMethodData,
   CreateSubscriptionData,
@@ -56,11 +55,6 @@ export class BillingService {
 
   async reactivateSubscription(): Promise<Subscription> {
     const response = await this.axiosInstance.post('/billing/subscriptions/reactivate_subscription/');
-    return response.data;
-  }
-
-  async updateDeviceCount(data: UpdateDeviceCountData): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/subscriptions/update_device_count/', data);
     return response.data;
   }
 
