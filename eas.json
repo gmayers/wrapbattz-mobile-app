@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
+      "channel": "development"
     },
     "preview": {
       "android": {
@@ -15,12 +16,14 @@
       },
       "distribution": "internal",
       "autoIncrement": true,
+      "channel": "preview",
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
@@ -33,6 +36,7 @@
       },
       "environment": "development",
       "autoIncrement": true,
+      "channel": "development"
     }
   },
   "submit": {

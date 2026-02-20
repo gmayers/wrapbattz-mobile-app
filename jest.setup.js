@@ -143,6 +143,13 @@ jest.mock('expo-font', () => ({
   isLoading: jest.fn(() => false),
 }));
 
+// Mock Expo Updates
+jest.mock('expo-updates', () => ({
+  checkForUpdateAsync: jest.fn(() => Promise.resolve({ isAvailable: false })),
+  fetchUpdateAsync: jest.fn(() => Promise.resolve()),
+  reloadAsync: jest.fn(() => Promise.resolve()),
+}));
+
 // Mock Expo Linear Gradient
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',

@@ -12,6 +12,7 @@ import NfcManager from 'react-native-nfc-manager';
 import * as SecureStore from 'expo-secure-store';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as Sentry from '@sentry/react-native';
+import * as Updates from 'expo-updates';
 import { STRIPE_CONFIG, validateStripeConfig } from './src/config/stripe';
 // Initialize Sentry
 Sentry.init({
@@ -107,6 +108,21 @@ function App() {
     requestPermissions().catch(error => {
       console.error('❌ App.js - Error in requestPermissions:', error);
     });
+
+    const checkForUpdates = async () => {
+      try {
+        if (__DEV__) return;
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (error) {
+        console.log('Error checking for updates:', error);
+      }
+    };
+
+    checkForUpdates();
     
     // Cleanup function
     return () => {

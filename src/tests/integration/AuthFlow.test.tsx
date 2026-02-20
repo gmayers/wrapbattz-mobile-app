@@ -168,8 +168,8 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Registration Flow', () => {
     it('should complete successful registration flow', async () => {
-      mockAuthContext.axiosInstance.post.mockResolvedValue({
-        data: { message: 'Registration successful' }
+      mockAuthContext.register.mockResolvedValue({
+        message: 'Registration successful'
       });
 
       const mockNavigate = jest.fn();
@@ -205,8 +205,7 @@ describe('Authentication Flow Integration Tests', () => {
       fireEvent.press(registerButton);
 
       await waitFor(() => {
-        expect(mockAuthContext.axiosInstance.post).toHaveBeenCalledWith(
-          '/auth/register/',
+        expect(mockAuthContext.register).toHaveBeenCalledWith(
           expect.objectContaining({
             email: 'john@example.com',
             first_name: 'John',
@@ -244,11 +243,11 @@ describe('Authentication Flow Integration Tests', () => {
         expect(screen.getByText('This field is required')).toBeTruthy();
       });
 
-      expect(mockAuthContext.axiosInstance.post).not.toHaveBeenCalled();
+      expect(mockAuthContext.register).not.toHaveBeenCalled();
     });
 
     it('should handle API validation errors', async () => {
-      mockAuthContext.axiosInstance.post.mockRejectedValue({
+      mockAuthContext.register.mockRejectedValue({
         response: {
           status: 400,
           data: {

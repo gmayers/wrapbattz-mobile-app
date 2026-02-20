@@ -262,7 +262,7 @@ const CustomerSheetManager = ({
         onPress={openCustomerSheet}
         disabled={loading || initializing}
         style={styles.manageButton}
-        icon={<Ionicons name="card-outline" size={20} color="white" />}
+        leftIcon={<Ionicons name="card-outline" size={20} color="black" />}
       />
     </View>
   );

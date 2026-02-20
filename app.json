@@ -2,11 +2,18 @@
   "expo": {
     "name": "battwrapz",
     "slug": "battwrapz",
-    "version": "1.9.2",
+    "owner": "garanmayers7262",
+    "version": "1.9.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "jsEngine": "hermes",
+    "updates": {
+      "url": "https://u.expo.dev/4bfa6fa2-5c17-44a2-b424-a811fbdceec4"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",

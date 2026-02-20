@@ -33,7 +33,8 @@ export class BillingService {
   // Subscription Management
   async getSubscriptions(): Promise<Subscription[]> {
     const response = await this.axiosInstance.get('/billing/subscriptions/');
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.results || []);
   }
 
   async getCurrentSubscription(): Promise<Subscription> {
@@ -101,7 +102,9 @@ export class BillingService {
   // Payment Methods
   async getPaymentMethods(): Promise<PaymentMethod[]> {
     const response = await this.axiosInstance.get('/billing/payment-methods/');
-    return response.data;
+    const data = response.data;
+    // Handle paginated response
+    return Array.isArray(data) ? data : (data?.results || []);
   }
 
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
@@ -123,9 +126,18 @@ export class BillingService {
     ephemeral_key_secret: string;
     setup_intent_client_secret?: string;
   }> {
-    // Use the same endpoint as createSetupIntent - it now returns full customer session data
-    const response = await this.axiosInstance.post('/billing/setup-intent/');
-    return response.data;
+    // Try the dedicated customer-session endpoint first (outside /api/ namespace)
+    try {
+      const baseUrl = this.axiosInstance.defaults.baseURL?.replace(/\/api\/?$/, '') || '';
+      const response = await this.axiosInstance.post(
+        `${baseUrl}/subscriptions/api/customer-session/`
+      );
+      return response.data;
+    } catch (error) {
+      // Fall back to setup-intent endpoint
+      const response = await this.axiosInstance.post('/billing/setup-intent/');
+      return response.data;
+    }
   }
 
   // Billing Dashboard & Analytics
@@ -151,7 +163,8 @@ export class BillingService {
   // Plan Management
   async getPlans(): Promise<Plan[]> {
     const response = await this.axiosInstance.get('/billing/plans/');
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.results || []);
   }
 
   // Customer Portal

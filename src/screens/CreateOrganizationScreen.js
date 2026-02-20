@@ -5,7 +5,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +12,9 @@ import {
   Alert,
   SafeAreaView
 } from 'react-native';
-import { useAuth } from '../context/AuthContext'; 
+import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import FormField from '../components/Form/FormField';
 
 const CreateOrganizationScreen = ({ navigation }) => {
   const { createOrganization, isLoading, updateOnboardingStatus, logout } = useAuth();
@@ -199,41 +199,6 @@ const CreateOrganizationScreen = ({ navigation }) => {
     }
   };
   
-  // Input field with error handling
-  const InputField = ({ 
-    label, 
-    value, 
-    onChangeText, 
-    placeholder,
-    error,
-    required = false,
-    keyboardType = 'default',
-    multiline = false,
-    autoCapitalize = 'sentences'
-  }) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>
-        {label} {required && <Text style={styles.required}>*</Text>}
-      </Text>
-      <TextInput
-        style={[
-          styles.input, 
-          multiline && styles.textArea,
-          error && styles.inputError
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-        keyboardType={keyboardType}
-        multiline={multiline}
-        autoCapitalize={autoCapitalize}
-        editable={!submitting && !isLoading}
-      />
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
-  
   const isFormLoading = isLoading || submitting;
   
   return (
@@ -241,35 +206,47 @@ const CreateOrganizationScreen = ({ navigation }) => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
       >
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+          bounces={false}
+        >
         <View style={styles.header}>
+          <Text style={styles.stepIndicator}>Step 2 of 2</Text>
           <Text style={styles.title}>Create Your Organization</Text>
           <Text style={styles.subtitle}>
-            This is the first step in setting up your BattWrapz account
+            Your organization is your workspace in BattWrapz. All your devices, locations, and team members will be managed under this organization.
           </Text>
         </View>
-        
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Organization Details</Text>
-          
-          <InputField
+          <Text style={styles.sectionDescription}>
+            Enter your company or business details. This information will appear on reports and is used to identify your organization.
+          </Text>
+
+          <FormField
             label="Organization Name"
             value={name}
             onChangeText={setName}
             placeholder="Enter organization name"
             error={errors.name}
             required={true}
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Trading Name"
             value={tradingName}
             onChangeText={setTradingName}
             placeholder="Trading name (if different)"
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Email"
             value={email}
             onChangeText={setEmail}
@@ -277,18 +254,20 @@ const CreateOrganizationScreen = ({ navigation }) => {
             error={errors.email}
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Phone"
             value={phone}
             onChangeText={setPhone}
             placeholder="Organization phone number"
             error={errors.phone}
             keyboardType="phone-pad"
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Website"
             value={website}
             onChangeText={setWebsite}
@@ -296,45 +275,53 @@ const CreateOrganizationScreen = ({ navigation }) => {
             error={errors.website}
             keyboardType="url"
             autoCapitalize="none"
+            editable={!isFormLoading}
           />
         </View>
-        
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Registered Address</Text>
-          
-          <InputField
+          <Text style={styles.sectionDescription}>
+            Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
+          </Text>
+
+          <FormField
             label="Address Line 1"
             value={addressLine1}
             onChangeText={setAddressLine1}
             placeholder="Street address, P.O. box, etc."
             error={errors.addressLine1}
             required={true}
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Address Line 2"
             value={addressLine2}
             onChangeText={setAddressLine2}
             placeholder="Apartment, suite, unit, building, floor, etc."
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="City/Town"
             value={city}
             onChangeText={setCity}
             placeholder="City or town"
             error={errors.city}
             required={true}
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="County"
             value={county}
             onChangeText={setCounty}
             placeholder="County"
+            editable={!isFormLoading}
           />
-          
-          <InputField
+
+          <FormField
             label="Postcode"
             value={postcode}
             onChangeText={setPostcode}
@@ -342,6 +329,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
             error={errors.postcode}
             required={true}
             autoCapitalize="characters"
+            editable={!isFormLoading}
           />
         </View>
         
@@ -404,9 +392,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
+  },
   header: {
     padding: 20,
     paddingTop: 10,
+  },
+  stepIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF5500',
+    marginBottom: 8,
   },
   title: {
     fontSize: 24,
@@ -415,9 +413,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
     marginBottom: 20,
+    lineHeight: 22,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 16,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#fff',
@@ -436,41 +441,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 16,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#555',
-    marginBottom: 6,
-  },
-  required: {
-    color: '#FF5500', // Orange to match the brand color
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-    color: '#333',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: 12,
-  },
-  inputError: {
-    borderColor: '#FF5500',
-  },
-  errorText: {
-    color: '#FF5500',
-    fontSize: 12,
-    marginTop: 4,
   },
   submitButton: {
     backgroundColor: '#FF5500', // Orange brand color

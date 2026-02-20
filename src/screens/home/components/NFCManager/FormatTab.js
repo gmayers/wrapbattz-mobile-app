@@ -1,70 +1,84 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import NfcManager from 'react-native-nfc-manager';
 import { nfcService } from '../../../../services/NFCService';
 
 const FormatTab = ({ withNfcManager, onCancel }) => {
   const [isFormatting, setIsFormatting] = useState(false);
   const [formatResult, setFormatResult] = useState(null);
 
-  const handleFormatTag = async () => {
-    try {
-      setIsFormatting(true);
-      setFormatResult(null);
+  const performFormat = async () => {
+    setIsFormatting(true);
+    setFormatResult(null);
 
-      // Show confirmation dialog
-      Alert.alert(
-        'Format NFC Tag',
-        'This will format the tag to NDEF format. Any existing data will be erased. Continue?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setIsFormatting(false)
-          },
-          {
-            text: 'Format',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                // Use the NFCService formatTag method
-                const result = await nfcService.formatTag();
-                
-                if (result.success) {
-                  setFormatResult({
-                    success: true,
-                    message: result.data?.message || 'Tag formatted successfully!'
-                  });
-                  Alert.alert('Success', result.data?.message || 'Tag formatted successfully!');
-                } else {
-                  setFormatResult({
-                    success: false,
-                    message: result.error || 'Failed to format tag'
-                  });
-                  Alert.alert('Error', result.error || 'Failed to format tag');
-                }
-              } catch (error) {
-                console.error('Format error:', error);
-                setFormatResult({
-                  success: false,
-                  message: error.message || 'An unexpected error occurred'
-                });
-                Alert.alert('Error', error.message || 'Failed to format tag');
-              } finally {
-                setIsFormatting(false);
-              }
-            }
-          }
-        ]
-      );
+    try {
+      console.log('[FormatTab] Starting format operation');
+      const result = await nfcService.formatTag();
+
+      if (result.success) {
+        console.log('[FormatTab] Format successful:', result.data);
+        setFormatResult({
+          success: true,
+          message: result.data?.message || 'Tag formatted successfully!',
+          details: result.data
+        });
+        Alert.alert('Success', result.data?.message || 'Tag formatted successfully!');
+      } else {
+        console.log('[FormatTab] Format failed:', result.error);
+        setFormatResult({
+          success: false,
+          message: result.error || 'Failed to format tag'
+        });
+        Alert.alert('Error', result.error || 'Failed to format tag');
+      }
     } catch (error) {
-      console.error('Format initialization error:', error);
+      console.error('[FormatTab] Format error:', error);
+
+      // Check if it was cancelled
+      const errorMsg = error.message || '';
+      const wasCancelled = !errorMsg || errorMsg.includes('cancelled') || errorMsg.includes('canceled');
+
+      if (!wasCancelled) {
+        setFormatResult({
+          success: false,
+          message: error.message || 'An unexpected error occurred'
+        });
+        Alert.alert('Error', error.message || 'Failed to format tag');
+      }
+    } finally {
       setIsFormatting(false);
-      Alert.alert('Error', 'Failed to initialize format operation');
     }
   };
 
-  const handleCancel = () => {
+  const handleFormatTag = () => {
+    // Show confirmation dialog FIRST, before starting the operation
+    Alert.alert(
+      '⚠️ Format NFC Tag',
+      'WARNING: This will permanently erase ALL data on the tag and format it to NDEF.\n\nThis action cannot be undone!\n\nAre you sure you want to continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Format Tag',
+          style: 'destructive',
+          onPress: performFormat
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleCancel = async () => {
+    // Cancel the NFC operation
+    try {
+      await NfcManager.cancelTechnologyRequest();
+      console.log('[FormatTab] NFC operation cancelled');
+    } catch (e) {
+      // Ignore cancel errors
+    }
     setIsFormatting(false);
     if (onCancel) {
       onCancel();
@@ -107,9 +121,12 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
 
           <View style={styles.warningBox}>
             <Ionicons name="warning" size={24} color="#FF3B30" />
-            <Text style={styles.warningText}>
-              Formatting will erase all existing data on the tag!
-            </Text>
+            <View style={styles.warningContent}>
+              <Text style={styles.warningTitle}>⚠️ Destructive Action</Text>
+              <Text style={styles.warningText}>
+                Formatting will permanently erase ALL existing data on the tag. This cannot be undone!
+              </Text>
+            </View>
           </View>
 
           {/* Platform-specific info */}
@@ -135,14 +152,25 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
         {/* Result Display */}
         {formatResult && (
           <View style={[styles.resultBox, formatResult.success ? styles.successBox : styles.errorBox]}>
-            <Ionicons 
-              name={formatResult.success ? "checkmark-circle" : "close-circle"} 
-              size={24} 
-              color={formatResult.success ? "#34C759" : "#FF3B30"} 
+            <Ionicons
+              name={formatResult.success ? "checkmark-circle" : "close-circle"}
+              size={24}
+              color={formatResult.success ? "#34C759" : "#FF3B30"}
             />
-            <Text style={[styles.resultText, formatResult.success ? styles.successText : styles.errorText]}>
-              {formatResult.message}
-            </Text>
+            <View style={styles.resultContent}>
+              <Text style={[styles.resultText, formatResult.success ? styles.successText : styles.errorText]}>
+                {formatResult.message}
+              </Text>
+              {formatResult.success && formatResult.details && (
+                <Text style={styles.resultDetails}>
+                  {formatResult.details.wasFormatted
+                    ? `Tag initialized to NDEF format (${formatResult.details.method})`
+                    : formatResult.details.wasCleared
+                      ? 'Existing data cleared from NDEF tag'
+                      : ''}
+                </Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -264,17 +292,28 @@ const styles = StyleSheet.create({
   },
   warningBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFEBEE',
     borderRadius: 8,
     padding: 12,
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+  },
+  warningContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#C62828',
+    marginBottom: 4,
   },
   warningText: {
-    fontSize: 14,
-    color: '#E65100',
-    marginLeft: 10,
-    flex: 1,
+    fontSize: 13,
+    color: '#C62828',
+    lineHeight: 18,
   },
   platformInfoBox: {
     flexDirection: 'row',
@@ -293,21 +332,33 @@ const styles = StyleSheet.create({
   },
   resultBox: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderRadius: 8,
     padding: 12,
     marginBottom: 20,
   },
   successBox: {
     backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
   },
   errorBox: {
     backgroundColor: '#FFEBEE',
+    borderWidth: 1,
+    borderColor: '#F44336',
+  },
+  resultContent: {
+    flex: 1,
+    marginLeft: 10,
   },
   resultText: {
     fontSize: 14,
-    marginLeft: 10,
-    flex: 1,
+  },
+  resultDetails: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+    color: '#666',
   },
   successText: {
     color: '#2E7D32',

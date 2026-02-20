@@ -57,9 +57,10 @@ export const useDevices = (): UseDevicesReturn => {
     try {
       setLoading(true);
       const myAssignments = await deviceService.getMyActiveAssignments();
-      
+      const assignmentList = Array.isArray(myAssignments) ? myAssignments : (myAssignments?.results || []);
+
       // Transform and sort the data - active assignments first
-      const formattedAssignments = myAssignments.map((assignment: any) => ({
+      const formattedAssignments = assignmentList.map((assignment: any) => ({
         id: assignment.id,
         device: assignment.device,
         user: userId,

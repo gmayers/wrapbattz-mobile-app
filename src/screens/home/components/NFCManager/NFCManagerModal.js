@@ -20,12 +20,13 @@ const NfcManagerModal = ({ visible, onClose }) => {
   const isCancelling = useRef(false);
 
   // NFC Tabs Configuration
+  // Note: Lock and Unlock tabs temporarily hidden while functionality is being refined
   const nfcTabs = [
     { key: 'read', title: 'Read', icon: 'scan-outline' },
     { key: 'edit', title: 'Edit', icon: 'create-outline' },
     { key: 'format', title: 'Format', icon: 'refresh-outline' },
-    { key: 'lock', title: 'Lock', icon: 'lock-closed-outline' },
-    { key: 'unlock', title: 'Unlock', icon: 'lock-open-outline' },
+    // { key: 'lock', title: 'Lock', icon: 'lock-closed-outline' },
+    // { key: 'unlock', title: 'Unlock', icon: 'lock-open-outline' },
   ];
 
   const withNfcManager = async (callback) => {

@@ -73,6 +73,21 @@ const [formData, setFormData] = useState({
   const [nfcWriteSuccess, setNfcWriteSuccess] = useState(false);
   const [scannedNfcUuid, setScannedNfcUuid] = useState(null); // NFC tag hardware UUID for registration
   const [isScanningNfc, setIsScanningNfc] = useState(false);
+  const [preScannedNfcTagId, setPreScannedNfcTagId] = useState(null); // NFC tag scanned before form submission
+  // NFC write options - what data to include on tag (device ID always included)
+  const [nfcWriteOptions, setNfcWriteOptions] = useState({
+    description: false,
+    make: true,
+    model: true,
+    serial_number: false,
+    contact: true,
+  });
+  // Tag already registered modal state
+  const [tagAlreadyRegisteredModal, setTagAlreadyRegisteredModal] = useState({
+    visible: false,
+    tagId: '',
+    deviceIdentifier: '',
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
@@ -80,6 +95,7 @@ const [formData, setFormData] = useState({
   const [otherMake, setOtherMake] = useState('');
   const [otherDeviceType, setOtherDeviceType] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
+  const [createdDeviceId, setCreatedDeviceId] = useState(null);
   // Toggle for user/location assignment
   const [isUserAssignment, setIsUserAssignment] = useState(true);
   
@@ -321,12 +337,12 @@ const validateForm = () => {
 // Prepare device data without user/location assignment
   const prepareDeviceData = () => {
     logMessage('Preparing device data for submission');
-    
+
     // Determine the make value based on selection
     const finalMake = formData.make === 'Other' ? otherMake : formData.make;
     // Determine the device_type value based on selection
     const finalDeviceType = formData.device_type === 'Other' ? otherDeviceType : formData.device_type;
-    
+
     // Create the request data object - WITHOUT user or location
     const requestData = {
       description: formData.description,
@@ -338,7 +354,13 @@ const validateForm = () => {
       // Format date as DD/MM/YYYY as expected by the backend
       next_maintenance_date: formatDate(formData.next_maintenance_date),
     };
-    
+
+    // Include NFC tag ID if scanned before submission
+    if (preScannedNfcTagId) {
+      requestData.nfc_tag_id = preScannedNfcTagId;
+      logMessage(`Including pre-scanned NFC tag ID: ${preScannedNfcTagId}`);
+    }
+
     logMessage(`Prepared device data: ${JSON.stringify(requestData)}`);
     return requestData;
   };
@@ -393,6 +415,7 @@ const validateForm = () => {
       
       // Save the full API response for debugging
       setApiResponse(deviceResponse.data);
+      setCreatedDeviceId(deviceResponse.data.id);
       
       // Set the identifier for use in NFC tag writing
       setDeviceIdentifier(identifier);
@@ -484,8 +507,18 @@ const formatDate = (date) => {
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
+    setCreatedDeviceId(null);
     setScannedNfcUuid(null); // Clear NFC UUID when resetting
+    setPreScannedNfcTagId(null); // Clear pre-scanned NFC tag when resetting
     setIsScanningNfc(false);
+    // Reset NFC write options to defaults
+    setNfcWriteOptions({
+      description: false,
+      make: true,
+      model: true,
+      serial_number: false,
+      contact: true,
+    });
   };
 
   const handleAddAnother = () => {
@@ -494,7 +527,12 @@ const formatDate = (date) => {
   };
 
   const handleFinish = () => {
-    navigation.goBack();
+    if (createdDeviceId) {
+      setNfcModalVisible(false);
+      navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleNFCSuccess = () => {
@@ -503,25 +541,87 @@ const formatDate = (date) => {
     setNfcWriteSuccess(true);
   };
 
-// Simplified NFC write function - writes minimal data (ID + contact info)
+/**
+ * Scan NFC tag before form submission to include tag ID in device creation
+ */
+const handlePreScanNfc = async () => {
+  try {
+    setIsScanningNfc(true);
+    logMessage('Pre-scanning NFC tag for device registration');
+
+    const readResult = await nfcService.readNFC({ timeout: 60000 });
+
+    if (!readResult.success) {
+      throw new Error(readResult.error || 'Failed to read NFC tag');
+    }
+
+    const tagId = readResult.data?.tagId;
+    if (!tagId) {
+      throw new Error('Could not read tag ID. Please try again.');
+    }
+
+    logMessage(`Pre-scanned NFC tag ID: ${tagId}`);
+
+    // Check if the NFC tag is already registered with another device
+    try {
+      const existingDevice = await deviceService.getDeviceByNfcUuid(tagId);
+      if (existingDevice) {
+        logMessage(`NFC tag ${tagId} is already registered with device ${existingDevice.identifier}`);
+        setTagAlreadyRegisteredModal({
+          visible: true,
+          tagId: tagId,
+          deviceIdentifier: existingDevice.identifier,
+        });
+        return;
+      }
+    } catch (checkError) {
+      // 404 = not found = tag is available for registration
+      logMessage('NFC tag is available for registration');
+    }
+
+    setPreScannedNfcTagId(tagId);
+    // Tag ID is now shown in the form UI - no need for additional alert
+  } catch (error) {
+    logMessage(`Error pre-scanning NFC: ${error.message}`);
+    Alert.alert('NFC Scan Error', error.message);
+  } finally {
+    setIsScanningNfc(false);
+  }
+};
+
+// NFC write function - writes selected data with device ID as primary key
 const handleNFCWrite = async () => {
   let result = false;
 
   try {
     setIsWritingNfc(true);
-    logMessage('Starting NFC write operation (minimal data)');
+    logMessage('Starting NFC write operation');
 
-    // Get organization contact info from userData context
-    // Falls back to empty string if not available
-    const orgContact = userData?.orgEmail || userData?.orgPhone || '';
-
-    // Prepare minimal device data for NFC writing
+    // Device ID is always included as primary key
     const nfcData = {
       id: deviceIdentifier,
-      contact: orgContact
     };
 
-    logMessage(`Minimal NFC data to write: ${JSON.stringify(nfcData)}`);
+    // Add optional fields based on user selection
+    if (nfcWriteOptions.description && formData.description) {
+      nfcData.desc = formData.description;
+    }
+    if (nfcWriteOptions.make) {
+      const finalMake = formData.make === 'Other' ? otherMake : formData.make;
+      if (finalMake) nfcData.make = finalMake;
+    }
+    if (nfcWriteOptions.model && formData.model) {
+      nfcData.model = formData.model;
+    }
+    if (nfcWriteOptions.serial_number && formData.serial_number) {
+      nfcData.sn = formData.serial_number;
+    }
+    if (nfcWriteOptions.contact) {
+      const orgContact = userData?.orgEmail || userData?.orgPhone || '';
+      if (orgContact) nfcData.contact = orgContact;
+    }
+
+    logMessage(`NFC data to write: ${JSON.stringify(nfcData)}`);
 
     // Use the NFCService to write minimal data
     const writeResult = await nfcService.writeNFC(JSON.stringify(nfcData));
@@ -555,76 +655,6 @@ const handleNFCWrite = async () => {
   }
 
   return result;
-};
-
-/**
- * Scan NFC tag to capture hardware UID for device registration
- * This registers the tag's UID with the device in the database
- */
-const handleScanNfcForRegistration = async () => {
-  try {
-    setIsScanningNfc(true);
-    logMessage('Scanning NFC tag for UUID registration');
-
-    const readResult = await nfcService.readNFC({ timeout: 60000 });
-
-    if (!readResult.success) {
-      throw new Error(readResult.error || 'Failed to read NFC tag');
-    }
-
-    const tagId = readResult.data?.tagId;
-    if (!tagId) {
-      throw new Error('Could not read tag ID. Please try again.');
-    }
-
-    logMessage(`Captured NFC tag ID: ${tagId}`);
-    setScannedNfcUuid(tagId);
-
-    // Register the NFC tag ID with the device via API
-    if (!apiResponse?.id) {
-      throw new Error('Device ID not available. The device may not have been created successfully. Please try adding the device again.');
-    }
-
-    try {
-      await axiosInstance.patch(`/devices/${apiResponse.id}/`, {
-        nfc_tag_id: tagId
-      });
-      logMessage(`Registered NFC tag ID ${tagId} with device ${apiResponse.id}`);
-
-      Alert.alert(
-        'NFC Tag Registered',
-        `Tag has been registered with device ${deviceIdentifier}.\n\nYou can now scan this tag to identify and assign the device.`
-      );
-    } catch (patchError) {
-      logMessage(`Error registering NFC UUID: ${patchError.message}`);
-
-      // Log full error details for debugging
-      if (patchError.response) {
-        logMessage(`Error status: ${patchError.response.status}`);
-        logMessage(`Error data: ${JSON.stringify(patchError.response.data)}`);
-      }
-
-      // Provide specific error messages for different API failure scenarios
-      if (patchError.response?.status === 409) {
-        throw new Error('This NFC tag is already registered with another device. Please use a different tag.');
-      } else if (patchError.response?.status === 404) {
-        throw new Error('Device not found. It may have been deleted. Please try adding the device again.');
-      } else if (patchError.response?.status === 400) {
-        const errorDetail = patchError.response.data?.nfc_uuid?.[0] ||
-                           patchError.response.data?.detail ||
-                           'Invalid NFC tag format.';
-        throw new Error(errorDetail);
-      } else {
-        throw new Error('Failed to register NFC tag with device. Please try again.');
-      }
-    }
-  } catch (error) {
-    logMessage(`Error scanning NFC for registration: ${error.message}`);
-    Alert.alert('NFC Scan Error', error.message);
-    setScannedNfcUuid(null);
-  } finally {
-    setIsScanningNfc(false);
-  }
 };
 
 return (
@@ -835,6 +865,38 @@ return (
               />
             </View>
 
+            {/* NFC Tag Registration Section */}
+            <View style={styles.nfcSection}>
+              <Text style={styles.label}>NFC Tag (Optional)</Text>
+              {preScannedNfcTagId ? (
+                <View style={styles.nfcTagScanned}>
+                  <View style={styles.nfcTagInfo}>
+                    <Text style={styles.nfcTagLabel}>Tag ID:</Text>
+                    <Text style={styles.nfcTagId}>{preScannedNfcTagId}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.nfcClearButton}
+                    onPress={() => setPreScannedNfcTagId(null)}
+                  >
+                    <Text style={styles.nfcClearButtonText}>Clear</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.nfcScanButton, isScanningNfc && styles.nfcScanButtonDisabled]}
+                  onPress={handlePreScanNfc}
+                  disabled={isScanningNfc}
+                >
+                  <Text style={styles.nfcScanButtonText}>
+                    {isScanningNfc ? 'Scanning...' : 'Scan NFC Tag'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <Text style={styles.nfcHint}>
+                Scan an NFC tag now to register it with this device
+              </Text>
+            </View>
+
             {/* Submit Button */}
             <Button
               title="Submit"
@@ -845,50 +907,116 @@ return (
             />
           </View>
         </ScrollView>
-{/* NFC Modal */}
+{/* NFC Modal - Custom Orange Theme */}
         <CustomModal
           visible={nfcModalVisible}
-          onClose={() => setNfcModalVisible(false)}
-          title="Device Created Successfully"
-          style={styles.modal}
+          onClose={() => {
+            if (createdDeviceId) {
+              setNfcModalVisible(false);
+              navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+            } else {
+              setNfcModalVisible(false);
+            }
+          }}
+          title="Device Created"
+          titleColor={ORANGE_COLOR}
+          titleSize={20}
+          closeButtonColor={ORANGE_COLOR}
+          borderRadius={15}
+          padding={20}
+          headerStyle={styles.customModalHeader}
+          contentStyle={styles.customModalContent}
         >
-          <Text style={styles.successText}>Device Added Successfully!</Text>
-          <Text style={styles.modalText}>Device ID: {deviceIdentifier}</Text>
+          <View style={styles.successHeader}>
+            <Text style={styles.successIcon}>✓</Text>
+            <Text style={styles.successText}>Device Added Successfully!</Text>
+          </View>
+          <View style={styles.deviceIdBox}>
+            <Text style={styles.deviceIdLabel}>Device ID</Text>
+            <Text style={styles.deviceIdValue}>{deviceIdentifier}</Text>
+          </View>
 
           {/* NFC Tag Registration Section */}
           <View style={styles.dataPreview}>
             <Text style={styles.dataPreviewTitle}>
-              {scannedNfcUuid
+              {preScannedNfcTagId
                 ? 'NFC Tag Registered!'
-                : 'Optional: Register an NFC tag with this device'}
+                : 'No NFC Tag Registered'}
             </Text>
 
-            {scannedNfcUuid ? (
-              <Text style={styles.dataPreviewItem}>Tag UUID: {scannedNfcUuid}</Text>
+            {preScannedNfcTagId ? (
+              <Text style={styles.dataPreviewItem}>Tag ID: {preScannedNfcTagId}</Text>
             ) : (
               <Text style={styles.dataPreviewHint}>
-                Scan an NFC tag to link it with this device. You can then use the tag to quickly identify and assign the device.
+                To register an NFC tag with a device, scan it before submitting the form.
               </Text>
             )}
           </View>
 
-          {/* NFC Registration Button */}
-          {!scannedNfcUuid && (
-            <Button
-              title={isScanningNfc ? 'Scanning...' : 'Scan NFC Tag to Register'}
-              onPress={handleScanNfcForRegistration}
-              disabled={isScanningNfc}
-              loading={isScanningNfc}
-              style={styles.nfcButton}
-              textColorProp="white"
-            />
-          )}
+          {/* Write data to tag (optional, after registration) */}
+          {preScannedNfcTagId && !nfcWriteSuccess && (
+            <View style={styles.writeOptionsContainer}>
+              <Text style={styles.writeOptionsTitle}>Select data to write to tag:</Text>
 
-          {/* Write ID to tag (optional, after registration) */}
-          {scannedNfcUuid && !nfcWriteSuccess && (
-            <View style={styles.buttonRow}>
+              {/* Device ID - always included */}
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabelFixed}>Device ID (always included)</Text>
+                <Text style={styles.writeOptionValue}>{deviceIdentifier}</Text>
+              </View>
+
+              {/* Optional fields */}
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Make</Text>
+                <Switch
+                  value={nfcWriteOptions.make}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, make: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Model</Text>
+                <Switch
+                  value={nfcWriteOptions.model}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, model: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Description</Text>
+                <Switch
+                  value={nfcWriteOptions.description}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, description: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Serial Number</Text>
+                <Switch
+                  value={nfcWriteOptions.serial_number}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, serial_number: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Contact Info</Text>
+                <Switch
+                  value={nfcWriteOptions.contact}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, contact: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
               <Button
-                title={isWritingNfc ? 'Writing...' : 'Write ID to NFC Tag'}
+                title={isWritingNfc ? 'Writing...' : 'Write Data to Tag'}
                 onPress={async () => {
                   const success = await handleNFCWrite();
                   if (success) {
@@ -897,7 +1025,7 @@ return (
                 }}
                 disabled={isWritingNfc}
                 loading={isWritingNfc}
-                style={[styles.actionButton, styles.nfcButton]}
+                style={styles.nfcButton}
                 textColorProp="white"
               />
             </View>
@@ -905,40 +1033,65 @@ return (
 
           {nfcWriteSuccess && (
             <View style={styles.successBadge}>
-              <Text style={styles.successBadgeText}>Device ID written to NFC tag</Text>
+              <Text style={styles.successBadgeText}>Data written to NFC tag</Text>
             </View>
           )}
 
-          {/* Cancel scanning indicator */}
-          {isScanningNfc && (
-            <View style={styles.nfcWritingContainer}>
-              <Text style={styles.nfcInstructionText}>
-                Hold your device near the NFC tag...
-              </Text>
-              <Button
-                title="Cancel"
-                onPress={() => {
-                  nfcService.cancelOperation();
-                  setIsScanningNfc(false);
-                }}
-                style={styles.cancelButton}
-                textColorProp="white"
-              />
-            </View>
+          {nfcWriteSuccess && (
+            <Button
+              title="View Device"
+              onPress={handleFinish}
+              style={[styles.nfcButton, { marginBottom: 5 }]}
+              textColorProp="white"
+            />
           )}
 
           {/* Action Buttons */}
-          <View style={styles.buttonRow}>
+          <View style={styles.modalButtonRow}>
             <Button
-              title="Add Another Device"
+              title="Add Another"
               onPress={handleAddAnother}
               style={[styles.actionButton, styles.addButton]}
               textColorProp="white"
             />
             <Button
-              title="Finish"
+              title="View Device"
               onPress={handleFinish}
               style={[styles.actionButton, styles.finishButton]}
+              textColorProp="white"
+            />
+          </View>
+        </CustomModal>
+
+        {/* Tag Already Registered Modal */}
+        <CustomModal
+          visible={tagAlreadyRegisteredModal.visible}
+          onClose={() => setTagAlreadyRegisteredModal(prev => ({...prev, visible: false}))}
+          title="Tag Already Registered"
+          titleColor="#d32f2f"
+          titleSize={18}
+          closeButtonColor="#d32f2f"
+          borderRadius={15}
+          padding={20}
+          headerStyle={styles.errorModalHeader}
+          contentStyle={styles.errorModalContent}
+        >
+          <View style={styles.errorIconContainer}>
+            <Text style={styles.errorIcon}>!</Text>
+          </View>
+          <Text style={styles.errorMessage}>
+            This NFC tag is already registered with another device.
+          </Text>
+          <View style={styles.errorDeviceBox}>
+            <Text style={styles.errorDeviceLabel}>Registered to:</Text>
+            <Text style={styles.errorDeviceId}>{tagAlreadyRegisteredModal.deviceIdentifier}</Text>
+          </View>
+          <Text style={styles.errorHint}>Please use a different NFC tag.</Text>
+          <View style={styles.modalButtonRow}>
+            <Button
+              title="OK"
+              onPress={() => setTagAlreadyRegisteredModal(prev => ({...prev, visible: false}))}
+              style={styles.errorButton}
               textColorProp="white"
             />
           </View>
@@ -1008,45 +1161,48 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dataPreview: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fafafa',
     padding: 15,
-    borderRadius: 8,
-    marginVertical: 15,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ccc',
   },
   dataPreviewTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#555',
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
   },
   dataPreviewItem: {
-    fontSize: 14,
-    marginBottom: 5,
-    color: '#333',
+    fontSize: 13,
+    color: ORANGE_COLOR,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontWeight: '500',
   },
   dataPreviewHint: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 13,
+    color: '#666',
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   successBadge: {
-    backgroundColor: '#d4edda',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 10,
+    backgroundColor: '#fff3e0',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ORANGE_COLOR,
   },
   successBadgeText: {
-    color: '#155724',
+    color: ORANGE_COLOR,
     fontWeight: '600',
     fontSize: 14,
   },
   nfcButton: {
-    marginTop: 10,
-    backgroundColor: '#4CAF50', // Green color
+    marginTop: 15,
+    backgroundColor: ORANGE_COLOR,
     width: '100%',
   },
   cancelButton: {
@@ -1060,23 +1216,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   successText: {
-    fontSize: 20,
-    textAlign: 'center',
-    marginVertical: 20,
-    fontWeight: 'bold',
-    color: '#4CAF50', // Green color
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2e7d32',
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 20,
   },
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 15,
+    paddingBottom: Platform.OS === 'android' ? 20 : 0,
+  },
   actionButton: {
     flex: 1,
     margin: 10,
   },
   addButton: {
-    backgroundColor: '#2196F3', // Blue color
+    backgroundColor: '#666', // Gray for secondary action
   },
   finishButton: {
     backgroundColor: ORANGE_COLOR, // Orange color to match app theme
@@ -1125,7 +1285,220 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100, // Extra space at the bottom
-  }
+  },
+  // NFC Section styles
+  nfcSection: {
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  nfcTagScanned: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#d4edda',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  nfcTagInfo: {
+    flex: 1,
+  },
+  nfcTagLabel: {
+    fontSize: 12,
+    color: '#155724',
+    marginBottom: 2,
+  },
+  nfcTagId: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#155724',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  nfcClearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#c3e6cb',
+    borderRadius: 5,
+  },
+  nfcClearButtonText: {
+    fontSize: 14,
+    color: '#155724',
+  },
+  nfcScanButton: {
+    backgroundColor: ORANGE_COLOR,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  nfcScanButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  nfcScanButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  nfcHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  // Write options styles
+  writeOptionsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: ORANGE_COLOR,
+  },
+  writeOptionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: ORANGE_COLOR,
+    marginBottom: 12,
+  },
+  writeOptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  writeOptionLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
+  writeOptionLabelFixed: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  writeOptionValue: {
+    fontSize: 12,
+    color: ORANGE_COLOR,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  // Custom modal styles
+  customModalHeader: {
+    borderBottomColor: ORANGE_COLOR,
+    borderBottomWidth: 2,
+    paddingBottom: 12,
+  },
+  customModalContent: {
+    maxHeight: '85%',
+    paddingBottom: Platform.OS === 'android' ? 10 : 0,
+  },
+  successHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  successIcon: {
+    fontSize: 24,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    marginRight: 10,
+    backgroundColor: '#e8f5e9',
+    width: 36,
+    height: 36,
+    textAlign: 'center',
+    lineHeight: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  deviceIdBox: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: ORANGE_COLOR,
+  },
+  deviceIdLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  deviceIdValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: ORANGE_COLOR,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  // Error modal styles (Tag Already Registered)
+  errorModalHeader: {
+    borderBottomColor: '#d32f2f',
+    borderBottomWidth: 2,
+    paddingBottom: 12,
+  },
+  errorModalContent: {
+    maxHeight: '70%',
+  },
+  errorIconContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  errorIcon: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: '#d32f2f',
+    width: 50,
+    height: 50,
+    textAlign: 'center',
+    lineHeight: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 15,
+    lineHeight: 22,
+  },
+  errorDeviceBox: {
+    backgroundColor: '#ffebee',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#d32f2f',
+  },
+  errorDeviceLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  errorDeviceId: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  errorHint: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  errorButton: {
+    flex: 1,
+    backgroundColor: '#d32f2f',
+    marginHorizontal: 0,
+  },
 });
 
 export default AddDevicePage;

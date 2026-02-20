@@ -4,307 +4,115 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WrapBattz is a React Native application for enterprise device management using NFC technology. Organizations can track, assign, and manage devices across multiple locations with role-based access control.
+WrapBattz is a React Native application for enterprise device management using NFC technology. Organizations can track, assign, and manage devices across multiple locations with role-based access control (owner, admin, office_worker, site_worker).
 
 ## Development Commands
 
 ```bash
-# Start development server
-npm start
+npm start                  # Start Expo development server
+npm run android            # Run on Android (expo run:android)
+npm run ios                # Run on iOS (expo run:ios)
+npm run web                # Run in web browser
+expo start -c              # Start with cleared Metro cache
 
-# Run on Android
-npm run android
+npm test                   # Run unit tests (Jest)
+npm test -- path/to/test   # Run single test file
+npm test -- -t "pattern"   # Run tests matching pattern
+npm run test:watch         # Watch mode
+npm run test:coverage      # Coverage report
+npm run test:ci            # CI mode (no watch)
+npm run test:e2e           # E2E tests (Detox)
 
-# Run on iOS  
-npm run ios
-
-# Run in web browser
-npm run web
-
-# Install dependencies
-npm install
-
-# Testing
-npm test                    # Run unit tests
-npm run test:watch         # Run tests in watch mode
-npm run test:coverage      # Run tests with coverage report
-npm run test:ci            # Run tests for CI (no watch)
-npm run test:e2e           # Run end-to-end tests with Detox
-npm run test:e2e:build     # Build for E2E testing
-npm run test:e2e:clean     # Clean E2E framework cache
-
-# Run single test file or pattern
-npm test -- path/to/test.js
-npm test -- --testNamePattern="specific test"
-npm test -- -t "test description pattern"
-
-# Build for production
-eas build --platform android --profile production
-eas build --platform ios --profile production
-
-# Development builds
+# EAS builds
 eas build --platform android --profile development
 eas build --platform ios --profile development
-
-# iOS setup (macOS only)
-cd ios && pod install && cd ..
-
-# Clear Metro cache
-expo start -c
+eas build --platform android --profile production
+eas build --platform ios --profile production
 ```
-
-## Setup Requirements
-
-1. Install dependencies: `npm install`
-2. For iOS development: `cd ios && pod install && cd ..`
-3. Physical device required for NFC testing (simulators don't support NFC)
-4. Development build required for NFC functionality
-5. Supabase project configured (see Supabase Setup section below)
 
 ## Architecture
 
 ### Tech Stack
-- React Native 0.76.9 with Expo SDK 52
-- Mixed JavaScript/TypeScript codebase
-- React Navigation v7 for navigation
-- **Supabase** for backend (PostgreSQL database, auth, storage)
-- Axios for API calls (legacy, being phased out)
-- SQLite for offline storage (optional fallback)
-- Stripe for payments
-- Sentry for error tracking
+- React Native 0.81.5 with Expo SDK 54
+- Mixed JavaScript/TypeScript codebase (gradual TS adoption, `strict: false`)
+- React Navigation v7 (stack + bottom tabs)
+- REST API backend at `webportal.battwrapz.com/api`
+- Axios for HTTP (two instances: token-auth + API-key-auth)
+- SQLite for optional offline storage
+- Stripe for payments, Sentry for error tracking
+- Path alias: `@/` maps to `src/` (configured in tsconfig + Jest)
+
+### API Layer — Two Authentication Patterns
+
+**AuthContext.js** is the central hub. It creates two Axios instances:
+1. **`axiosInstance`** — Token-based auth (JWT access + refresh tokens in AsyncStorage). Has interceptors for auto-attaching tokens and global 401 handling with session expiry alerts.
+2. **`mobileApiInstance`** — API-key auth (key stored in SecureStore). Used for mobile-specific features like feature suggestions.
+
+AuthContext exposes `deviceService` and `mobileService` objects with methods for all API operations. Most screens consume these via `useAuth()`.
+
+**`src/services/api.js`** is a legacy Axios wrapper with its own interceptors — being phased out but still used in some screens and hooks.
 
 ### State Management
-- React Context API for global state (AuthContext, SQLiteContext)
-- SQLite for offline storage with API sync
-- AsyncStorage for persistent data
-- SecureStore for sensitive credentials
+- **AuthContext** (`src/context/AuthContext.js`) — Auth state, user data, role checks (`isAdmin`, `isOwner`, `isAdminOrOwner`), API services, session monitoring (30-second interval + AppState listener), BillingService singleton
+- **SQLiteContext** (`src/context/SQLiteContext.js`) — Optional offline-first storage with local CRUD and sync. Tables: locations, devices, device_assignments, device_returns, reports
 
-### API Layer
-- **Primary**: Supabase client with automatic auth token management
-- Supabase services in `src/services/supabase/` (device, assignment, location, report, organization, storage)
-- Row Level Security (RLS) enforces multi-tenant data isolation
-- Legacy: Two Axios instances for backward compatibility (being phased out)
-- Offline-first approach with SQLite fallback (optional)
-
-### Payment Integration
-- Stripe integration for subscriptions
-- Billing portal for payment method management
-- PDF invoice downloads
-
-### Navigation Structure
+### Navigation Flow
 ```
 AuthStack → OnboardingStack → MainStack
-              ↓                    ↓
-         Create Organization   Tab Navigation
-                              (Home, Reports, Locations, Profile)
+  (Login, Register,       (CreateOrganization    (TabNavigation + detail/modal screens)
+   ForgotPassword,         if no orgId)
+   Pricing, SuggestFeature)
+
+TabNavigation: Dashboard | Reports | Locations (admin/owner only) | Profile | Logout
 ```
+Defined in `src/navigation/index.js` and `src/navigation/TabNavigation.js`.
 
-### Project Structure
-```
-src/
-├── components/     # Reusable UI components
-├── config/        # Configuration (Stripe, etc.)
-├── context/       # React Context providers
-├── navigation/    # Navigation setup
-├── screens/       # Screen components by feature
-├── services/      # API and NFC services
-├── tests/         # Test files
-├── types/         # TypeScript definitions
-└── utils/         # Utility functions
-```
+### NFC System
 
-### Key Patterns
-- Functional components with hooks
-- Custom hooks for data fetching (useDevices, useLocations)
-- Modal-based flows for complex operations (NFC scanning, device assignment)
-- Role-based UI rendering (Owner/Admin/User)
-- TypeScript configuration available (mixed JS/TS codebase)
+NFC is core functionality. Three service files handle all operations:
 
-## NFC Operations
+- **`NFCService.ts`** — Singleton. Read, write, format tags. Platform-specific retry mechanisms (3 attempts iOS, 2 Android). Multiple decoding fallbacks (NDEF → manual → TextDecoder). JSON normalization.
+- **`NFCSecurityService.ts`** — Lock/unlock tags. NTAG detection (213/215/216), hardware-based protection via NfcA transceive commands with software XOR fallback, PWD_AUTH.
+- **`NFCSimulator.ts`** — Test simulator with configurable failure rates. Auto-enabled in Jest tests. Simulates all NFC operations without hardware.
 
-The app heavily uses NFC for device identification. Key NFC flows:
-- Write: Format tag → Write device data (iOS optimized with retry mechanism)
-- Read: Scan tag → Parse device info
-- Lock/Unlock: Password-protect tags
+**NFC UI** lives in `src/screens/home/components/NFCManager/`:
+- `NFCManagerModal.js` — Main modal container
+- `NFCManagerNav.tsx` — Tab navigation within modal
+- Tabs: ReadTab, EditTab, FormatTab, WriteTab, LockTab, UnlockTab
 
-NFC testing requires physical devices - simulators don't support NFC. Development builds are required for NFC functionality.
+**NFC Utilities:**
+- `src/utils/NFCUtils.ts` — Older NFC utility functions
+- `src/utils/NFCLogger.ts` — Sentry-integrated operation logging with error categorization
 
-## Offline Storage
+NFC testing requires physical devices — simulators don't support NFC. The NFCSimulator is auto-enabled in Jest via `jest.setup.js`.
 
-SQLite is used for offline-first data storage:
-- Locations, devices, assignments, reports
-- Auto-sync when online
-- Role-based data access
-- Migration system for schema updates
+### Custom Hooks (in `src/screens/home/hooks/`)
+- **`useDevices.js`** — Fetch devices with active assignments (parallel API calls), assign/return operations, pull-to-refresh
+- **`useLocations.js`** — Full CRUD for locations, pull-to-refresh
+- **`useNFCOperations.js`** — NFC operation handling for home screen flows
 
-## Error Tracking
-
-Sentry integration for production error monitoring:
-- Automatic crash reporting
-- Performance monitoring
-- Only enabled in production builds
-
-## Code Organization
-
-### Utilities
-- `src/utils/CommonUtils.js` - Shared utilities to reduce code duplication
-- Common validation, formatting, error handling
-- NFC utilities and status helpers
-
-### TypeScript
-- tsconfig.json configured for gradual adoption
-- Path aliases for cleaner imports
-- Mixed JS/TS codebase supported
+### Key Utilities (`src/utils/CommonUtils.js`)
+- `Colors` constants used throughout the app
+- Status/type choice enums for reports and devices
+- Validation functions (email, phone, URL, UK postcode)
+- Formatting (currency, date, capitalize, truncate)
+- API error handling that skips 401s (handled globally by AuthContext)
 
 ## Testing
 
-### Test Organization
-- Unit tests: `src/tests/unit/`
-- Component tests: `src/tests/component/`
-- Integration tests: `src/tests/integration/`
-- E2E tests: `src/tests/e2e/`
+Jest config is in `package.json`. Test environment: `node`. Uses `ts-jest` for TypeScript, `babel-jest` for JavaScript.
 
-### Testing Stack
-- Jest with React Native preset and TypeScript support
-- React Native Testing Library for component testing
-- Detox for E2E testing
-- Coverage reports generated in `coverage/` directory
-- Extensive mocking setup in `jest.setup.js`
+**`jest.setup.js`** mocks: AsyncStorage, Sentry (full API), NFC Manager (all technologies), Expo modules (SecureStore, SQLite, Font, LinearGradient), Axios with interceptors, Vector Icons. NFCSimulator is auto-enabled.
 
-## Development Notes
-
-- Path aliases configured (@/ maps to src/) in both tsconfig and Jest
-- No linting rules defined - project does not use ESLint/Prettier
-- Development builds required for NFC features
-- API key stored in SecureStore after first launch
-- Check device permissions before NFC operations
-- Use CommonUtils for shared functionality
-- .env file is tracked in git (contains non-sensitive config: MOBILE_API_KEY)
+Test directories: `src/tests/unit/`, `src/tests/component/`, `src/tests/integration/`, `src/tests/e2e/`. Some tests also live in `__tests__/` directories alongside components.
 
 ## Build Configuration
 
-### EAS Build Profiles
-- `development`: Development client with internal distribution
-- `preview`: APK build for Android testing
-- `production`: Auto-increment version for app stores
-- `development-simulator`: Development build for iOS simulator
-
-### Platform Requirements
-- iOS: Deployment target 17.0+, requires Hermes engine
-- Android: Min SDK 24, Target/Compile SDK 35, requires Hermes engine
-- NFC permissions and entitlements configured for both platforms
-
-## Supabase Setup
-
-### Initial Configuration
-
-1. **Create Supabase Project**
-   - Sign up at https://supabase.com
-   - Create new project
-   - Save project URL and anon key
-
-2. **Update Environment Variables**
-   ```bash
-   # Edit .env file with your Supabase credentials
-   SUPABASE_URL=https://your-project-ref.supabase.co
-   SUPABASE_ANON_KEY=your-anon-key
-   ```
-
-3. **Run Database Migrations**
-   ```bash
-   # Install Supabase CLI (if not already installed)
-   npm install -g supabase
-
-   # Link to your project
-   supabase link --project-ref your-project-ref
-
-   # Run migrations in order
-   supabase db push
-   ```
-
-   Migrations are located in `supabase/migrations/` and include:
-   - Users, organizations, and members tables
-   - Devices, assignments, and locations
-   - Reports and photos
-   - Billing tables (Stripe integration)
-   - Helper functions and RLS policies
-   - Performance indexes
-
-4. **Configure Storage Buckets**
-   Buckets are auto-created from `supabase/config.toml`:
-   - `device-photos` - Device images (10MB limit, private)
-   - `report-photos` - Report attachments (10MB limit, private)
-   - `invoices` - PDF invoices (5MB limit, private)
-
-5. **Set Up Authentication**
-   - Enable email/password authentication in Supabase dashboard
-   - Configure email templates (confirmation, password reset)
-   - Set site URL: `wrapbattz://app`
-   - Add redirect URLs: `wrapbattz://auth/callback`
-
-### Database Structure
-
-**Key Tables:**
-- `users` - User profiles (extends auth.users)
-- `organizations` - Company/org information with auto-generated invite codes
-- `organization_members` - User-org relationships with roles (owner, admin, office_worker, site_worker)
-- `locations` - Physical locations for device assignment
-- `devices` - Device inventory with status tracking
-- `device_assignments` - Assignment history (user or location)
-- `device_photos` - Photo references in Supabase Storage
-- `reports` - Incident reports with auto-status updates
-- Billing tables - Stripe integration (subscriptions, invoices, payments)
-
-**Row Level Security (RLS):**
-- All tables have RLS enabled
-- Multi-tenant security: users only access their organization's data
-- Role-based permissions (owner/admin have elevated access)
-- Helper functions: `get_user_org_id()`, `get_user_role()`, `is_admin_or_owner()`
-
-### Using Supabase Services
-
-```javascript
-import {
-  deviceService,
-  assignmentService,
-  locationService,
-  reportService,
-  organizationService,
-  storageService,
-} from './src/services/supabase';
-
-// Example: Get all devices
-const devices = await deviceService.getAllDevices();
-
-// Example: Create assignment
-const assignment = await assignmentService.assignDeviceToMe(deviceId);
-
-// Example: Upload photo
-const result = await storageService.uploadDevicePhoto(file, deviceId);
-```
-
-### Troubleshooting
-
-**Migrations fail:**
-- Check migration order (must run sequentially)
-- Verify foreign key dependencies
-- Check Supabase logs: `supabase logs db`
-
-**RLS blocks queries:**
-- Verify user is authenticated
-- Check user has organization membership
-- Validate custom JWT claims are set
-- Test with service role key (bypasses RLS)
-
-**Auth issues:**
-- Verify email confirmation is enabled
-- Check redirect URLs match app scheme
-- Ensure JWT expiry settings are appropriate
-
-### Documentation
-- Full setup guide: `supabase/README.md`
-- Database schema: See migration files in `supabase/migrations/`
-- API examples: Each service file has JSDoc comments
+- iOS: Deployment target 17.0+, Hermes engine
+- Android: Min SDK 24, Target/Compile SDK 35, Hermes engine
+- EAS profiles: `development` (internal), `preview` (APK), `production` (auto-increment), `development-simulator` (iOS sim)
+- `.env` is tracked in git (contains non-sensitive `MOBILE_API_KEY`)
+- No ESLint/Prettier configured
 
 ## Important Instructions
 - Do what has been asked; nothing more, nothing less

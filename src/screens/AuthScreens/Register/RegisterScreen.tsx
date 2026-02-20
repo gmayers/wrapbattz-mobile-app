@@ -33,7 +33,7 @@ interface RegisterScreenProps {
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
-  const { axiosInstance } = useAuth();
+  const { register } = useAuth();
 
   // Get selected plan from navigation params
   const selectedPlan = route?.params?.selectedPlan;
@@ -93,27 +93,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
 
     setIsSubmitting(true);
     
-    // Prepare the registration data exactly as required by the API
-    const registrationData = {
-      email: formData.email,
-      password: formData.password,
-      password2: formData.password2,
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      organization_invite_code: formData.organization_invite_code || '',
-      phone_number: formData.phone_number || '',
-      subscription_plan: selectedPlanType,
-      billing_cycle: billingCycle
-    };
-    
-    console.log('Registration data:', JSON.stringify(registrationData, null, 2));
-    
     try {
-      console.log('API Base URL:', axiosInstance.defaults.baseURL);
-      
-      const response = await axiosInstance.post('/auth/register/', registrationData);
-      
-      console.log('Registration response:', response.data);
+      await register({
+        email: formData.email,
+        password: formData.password,
+        password2: formData.password2,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        organization_invite_code: formData.organization_invite_code || '',
+        phone_number: formData.phone_number || '',
+      });
       
       Alert.alert(
         'Registration Successful',
@@ -126,12 +115,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
         ]
       );
     } catch (error: any) {
-      console.error('Registration error:', error);
-      
       if (error.response) {
-        console.error('Error status:', error.response.status);
-        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
-        
         // Handle server validation errors
         if (error.response.data && typeof error.response.data === 'object') {
           const serverErrors = error.response.data;
@@ -151,7 +135,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
           );
         }
       } else if (error.request) {
-        console.error('Network error - no response received');
         Alert.alert(
           'Connection Error',
           'Could not connect to the server. Please check your internet connection and try again.'
@@ -209,15 +192,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
           bounces={false}
         >
           <View style={styles.formContainer}>
+            <Text style={styles.stepIndicator}>Step 1 of 2</Text>
             <Text style={styles.headerText}>Create an Account</Text>
             <Text style={styles.subHeaderText}>
-              Join us to track and manage your devices
+              Register your personal account to get started with BattWrapz. After this, you'll set up your organization where you can manage devices, locations, and team members.
             </Text>
 
             {/* Subscription Plan Selection */}
             <View style={styles.planSection}>
               <View style={styles.planHeader}>
-                <Text style={styles.planSectionTitle}>Select Your Plan</Text>
+                <Text style={styles.planSectionTitle}>Choose Your Plan</Text>
                 <TouchableOpacity onPress={navigateToPricing}>
                   <Text style={styles.viewAllPlansLink}>View all plans →</Text>
                 </TouchableOpacity>
@@ -280,6 +264,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
                 </TouchableOpacity>
               </View>
             </View>
+
+            <Text style={styles.sectionLabel}>Your Details</Text>
+            <Text style={styles.sectionDescription}>
+              This is the account owner's information. You'll use your email and password to log in.
+            </Text>
 
             <View style={styles.inputRow}>
               <View style={styles.halfInput}>
@@ -399,11 +388,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
+  stepIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF9500',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   subHeaderText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
     marginBottom: 30,
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  sectionLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 16,
+    lineHeight: 20,
   },
   inputRow: {
     flexDirection: 'row',

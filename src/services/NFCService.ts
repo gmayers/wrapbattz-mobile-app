@@ -346,21 +346,11 @@ export class NFCService {
         }
         nfcLogger.logStep(operationId, 'NFC initialized');
 
-        // iOS-specific: Ensure NFC is properly initialized
-        if (Platform.OS === 'ios') {
-          try {
-            await NfcManager.start();
-            nfcLogger.logStep(operationId, 'NFC Manager started for iOS');
-          } catch (startError) {
-            nfcLogger.logStep(operationId, 'NFC Manager already running', { warning: (startError as Error).message });
-          }
-        }
-
         // Request Technology with platform-specific timeout
         const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
         nfcLogger.logStep(operationId, 'Requesting NFC technology', { timeout });
         const technologyRequest = Platform.OS === 'ios'
-          ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout } as any)
+          ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout, alertMessage: 'Hold your device near the NFC tag' } as any)
           : NfcManager.requestTechnology(NfcTech.Ndef);
 
         await technologyRequest;
@@ -381,6 +371,7 @@ export class NFCService {
         if (isEmpty || !tag.ndefMessage || !tag.ndefMessage.length) {
           nfcLogger.logStep(operationId, 'Tag is empty but NDEF formatted');
           nfcLogger.endOperation(operationId, { success: true, isEmpty: true, tagId });
+          if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
           return {
             success: true,
             data: {
@@ -411,7 +402,7 @@ export class NFCService {
                   const jsonData = JSON.parse(cleanJson);
 
                   nfcLogger.endOperation(operationId, { success: true, tagId, hasJson: true });
-                  // Return the JSON string directly with tag ID
+                  if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
                   return {
                     success: true,
                     data: {
@@ -423,6 +414,7 @@ export class NFCService {
                 } catch (jsonError) {
                   nfcLogger.logStep(operationId, 'JSON parsing failed, returning as text', { warning: (jsonError as Error).message });
                   nfcLogger.endOperation(operationId, { success: true, tagId, hasJson: false });
+                  if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
                   return {
                     success: true,
                     data: {
@@ -434,6 +426,7 @@ export class NFCService {
               } else {
                 // Not JSON format, just use the text content
                 nfcLogger.endOperation(operationId, { success: true, tagId, hasJson: false });
+                if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
                 return {
                   success: true,
                   data: {
@@ -509,21 +502,11 @@ export class NFCService {
       const stringByteLength = new TextEncoder().encode(normalizedString).length;
       nfcLogger.logStep(operationId, 'Data prepared', { dataSize: stringByteLength });
 
-      // iOS-specific: Ensure NFC is properly initialized
-      if (Platform.OS === 'ios') {
-        try {
-          await NfcManager.start();
-          nfcLogger.logStep(operationId, 'NFC Manager started for iOS');
-        } catch (startError) {
-          nfcLogger.logStep(operationId, 'NFC Manager already running', { warning: (startError as Error).message });
-        }
-      }
-
       // Request NFC technology with platform-specific timeout
       const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
       nfcLogger.logStep(operationId, 'Requesting NFC technology', { timeout });
       const technologyRequest = Platform.OS === 'ios'
-        ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout } as any)
+        ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout, alertMessage: 'Hold your device near the NFC tag' } as any)
         : NfcManager.requestTechnology(NfcTech.Ndef);
 
       await technologyRequest;
@@ -629,6 +612,7 @@ export class NFCService {
       }
 
         nfcLogger.endOperation(operationId, { success: true, tagId });
+        if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
         return { success: true, data: { jsonString: finalJsonString } };
       } catch (error) {
         // Categorize and log error
@@ -703,35 +687,25 @@ export class NFCService {
         }
         nfcLogger.logStep(operationId, 'NFC initialized');
 
-        // iOS-specific: Ensure NFC is properly initialized
-        if (Platform.OS === 'ios') {
-          try {
-            await NfcManager.start();
-            nfcLogger.logStep(operationId, 'NFC Manager started for iOS');
-          } catch (startError) {
-            nfcLogger.logStep(operationId, 'NFC Manager already running', { warning: (startError as Error).message });
-          }
-        }
-
         // Try multiple approaches to format the tag
         nfcLogger.logStep(operationId, 'Attempting to format tag');
         let tag: any = null;
         let tagId: string | undefined;
 
-        // Approach 1: Try NdefFormatable first (for truly blank tags)
-        try {
-          nfcLogger.logStep(operationId, 'Trying NdefFormatable technology');
-          await NfcManager.requestTechnology(NfcTech.NdefFormatable);
+        // Approaches 1 & 2: Android-only (iOS doesn't support NdefFormatable or reliable NfcA transceive)
+        if (Platform.OS !== 'ios') {
+          // Approach 1: Try NdefFormatable first (for truly blank tags)
+          try {
+            nfcLogger.logStep(operationId, 'Trying NdefFormatable technology');
+            await NfcManager.requestTechnology(NfcTech.NdefFormatable);
 
-          tag = await NfcManager.getTag();
-          if (!tag) {
-            throw new Error('No NFC tag detected');
-          }
-          tagId = this.getTagIdHex(tag.id);
-          nfcLogger.logStep(operationId, 'Tag detected via NdefFormatable', { tagId, tagType: tag.type });
+            tag = await NfcManager.getTag();
+            if (!tag) {
+              throw new Error('No NFC tag detected');
+            }
+            tagId = this.getTagIdHex(tag.id);
+            nfcLogger.logStep(operationId, 'Tag detected via NdefFormatable', { tagId, tagType: tag.type });
 
-          // Android supports true NDEF formatting
-          if (Platform.OS === 'android') {
             const emptyMessage = Ndef.encodeMessage([Ndef.textRecord('')]);
             await NfcManager.ndefFormatableHandlerAndroid.formatNdef(emptyMessage);
 
@@ -744,57 +718,59 @@ export class NFCService {
                 method: 'NdefFormatable'
               }
             };
-          }
-        } catch (formatableError) {
-          nfcLogger.logStep(operationId, 'NdefFormatable not available', { error: (formatableError as Error).message });
-          try {
-            await NfcManager.cancelTechnologyRequest();
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-        }
-
-        // Approach 2: Try NfcA with transceive commands (works for blank NTAG/Type 2 tags)
-        try {
-          nfcLogger.logStep(operationId, 'Trying NfcA technology with transceive');
-          await NfcManager.requestTechnology(NfcTech.NfcA);
-
-          tag = await NfcManager.getTag();
-          if (!tag) {
-            throw new Error('No NFC tag detected');
-          }
-          tagId = this.getTagIdHex(tag.id);
-          nfcLogger.logStep(operationId, 'Tag detected via NfcA', { tagId, tagType: tag.type });
-
-          // Write NDEF TLV to page 4 to initialize NDEF format
-          // Command: WRITE (0xA2) to page 4, with NDEF message TLV (0x03 = NDEF, 0x00 = length 0, 0xFE = terminator)
-          const formatCommand = [0xa2, 0x04, 0x03, 0x00, 0xfe, 0x00];
-
-          nfcLogger.logStep(operationId, 'Sending NfcA format command', { command: formatCommand });
-          await (NfcManager as any).nfcAHandler.transceive(formatCommand);
-
-          nfcLogger.endOperation(operationId, { success: true, method: 'NfcA', wasFormatted: true });
-          return {
-            success: true,
-            data: {
-              message: 'Tag formatted to NDEF successfully using NfcA. You can now write data to it.',
-              wasFormatted: true,
-              method: 'NfcA'
+          } catch (formatableError) {
+            nfcLogger.logStep(operationId, 'NdefFormatable not available', { error: (formatableError as Error).message });
+            try {
+              await NfcManager.cancelTechnologyRequest();
+            } catch (e) {
+              // Ignore cleanup errors
             }
-          };
-        } catch (nfcAError) {
-          nfcLogger.logStep(operationId, 'NfcA format failed', { error: (nfcAError as Error).message });
+          }
+
+          // Approach 2: Try NfcA with transceive commands (works for blank NTAG/Type 2 tags)
           try {
-            await NfcManager.cancelTechnologyRequest();
-          } catch (e) {
-            // Ignore cleanup errors
+            nfcLogger.logStep(operationId, 'Trying NfcA technology with transceive');
+            await NfcManager.requestTechnology(NfcTech.NfcA);
+
+            tag = await NfcManager.getTag();
+            if (!tag) {
+              throw new Error('No NFC tag detected');
+            }
+            tagId = this.getTagIdHex(tag.id);
+            nfcLogger.logStep(operationId, 'Tag detected via NfcA', { tagId, tagType: tag.type });
+
+            // Write NDEF TLV to page 4 to initialize NDEF format
+            const formatCommand = [0xa2, 0x04, 0x03, 0x00, 0xfe, 0x00];
+
+            nfcLogger.logStep(operationId, 'Sending NfcA format command', { command: formatCommand });
+            await (NfcManager as any).nfcAHandler.transceive(formatCommand);
+
+            nfcLogger.endOperation(operationId, { success: true, method: 'NfcA', wasFormatted: true });
+            return {
+              success: true,
+              data: {
+                message: 'Tag formatted to NDEF successfully using NfcA. You can now write data to it.',
+                wasFormatted: true,
+                method: 'NfcA'
+              }
+            };
+          } catch (nfcAError) {
+            nfcLogger.logStep(operationId, 'NfcA format failed', { error: (nfcAError as Error).message });
+            try {
+              await NfcManager.cancelTechnologyRequest();
+            } catch (e) {
+              // Ignore cleanup errors
+            }
           }
         }
 
-        // Approach 3: Try NDEF technology (tag may already be NDEF formatted)
+        // Approach 3: Try NDEF technology (primary approach for iOS, fallback for Android)
         try {
           nfcLogger.logStep(operationId, 'Trying NDEF technology');
-          await NfcManager.requestTechnology(NfcTech.Ndef);
+          const formatTimeout = Platform.OS === 'ios' ? 60000 : 30000;
+          await NfcManager.requestTechnology(NfcTech.Ndef, Platform.OS === 'ios'
+            ? { timeout: formatTimeout, alertMessage: 'Hold your device near the NFC tag' } as any
+            : undefined);
 
           tag = await NfcManager.getTag();
           if (!tag) {
@@ -831,6 +807,7 @@ export class NFCService {
           }
 
           nfcLogger.endOperation(operationId, { success: true, method: 'NDEF', wasCleared: true });
+          if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
           return {
             success: true,
             data: {

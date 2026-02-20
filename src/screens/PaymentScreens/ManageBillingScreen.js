@@ -9,10 +9,12 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
+import CustomModal from '../../components/Modal';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
 import { billingService } from '../../services/BillingService';
 
@@ -37,6 +39,8 @@ const ManageBillingScreen = ({ navigation }) => {
   const [billingData, setBillingData] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [processingAction, setProcessingAction] = useState(false);
+  const [showDeviceCountModal, setShowDeviceCountModal] = useState(false);
+  const [deviceCountInput, setDeviceCountInput] = useState('');
   
   const fetchBillingData = async () => {
     try {
@@ -136,11 +140,19 @@ const ManageBillingScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error opening billing portal:', error);
-      Alert.alert(
-        'Error',
-        'Unable to open billing portal. Please try again later.',
-        [{ text: 'OK' }]
-      );
+
+      let errorMessage = 'Unable to open billing portal. Please try again later.';
+      if (error.response?.status === 404) {
+        errorMessage = 'Billing portal not available. Please contact support.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response) {
+        errorMessage = `Server error (${error.response.status}). Please try again later.`;
+      }
+
+      Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
     } finally {
       setProcessingAction(false);
     }
@@ -166,7 +178,7 @@ const ManageBillingScreen = ({ navigation }) => {
 
     const currentCycle = billingData.billing_period || billingData.subscription?.cycle || 'monthly';
     const newCycle = currentCycle === 'monthly' ? 'annual' : 'monthly';
-    const newPlanSlug = newCycle === 'annual' ? 'yearly-device-billing' : 'monthly-device-billing';
+    const newPlanSlug = newCycle === 'annual' ? 'annual-device-billing' : 'monthly-device-billing';
 
     Alert.alert(
       'Change Billing Plan',
@@ -193,12 +205,15 @@ const ManageBillingScreen = ({ navigation }) => {
             } catch (error) {
               console.error('Error changing plan:', error);
 
-              // Provide detailed error message
               let errorMessage = 'Unable to change plan. Please try again later.';
               if (error.response?.status === 404) {
                 errorMessage = 'No subscription found. Please set up billing first.';
               } else if (error.response?.data?.detail) {
                 errorMessage = error.response.data.detail;
+              } else if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+              } else if (error.response) {
+                errorMessage = `Server error (${error.response.status}). Please try again later.`;
               }
 
               Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
@@ -267,12 +282,15 @@ const ManageBillingScreen = ({ navigation }) => {
             } catch (error) {
               console.error('Error cancelling subscription:', error);
 
-              // Provide detailed error message
               let errorMessage = 'Unable to cancel subscription. Please try again later.';
               if (error.response?.status === 404) {
                 errorMessage = 'No subscription found. Please contact support.';
               } else if (error.response?.data?.detail) {
                 errorMessage = error.response.data.detail;
+              } else if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+              } else if (error.response) {
+                errorMessage = `Server error (${error.response.status}). Please try again later.`;
               }
 
               Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
@@ -351,67 +369,53 @@ const ManageBillingScreen = ({ navigation }) => {
     }
 
     const currentCount = billingData?.current_device_count || 0;
+    setDeviceCountInput(String(currentCount));
+    setShowDeviceCountModal(true);
+  };
 
-    Alert.prompt(
-      'Update Device Count',
-      `Enter the total number of devices you want to manage.\n\nCurrent: ${currentCount} devices\nFree tier: ${billingData?.free_quota || 3} devices\n\nYou will be charged for devices exceeding the free tier.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update',
-          onPress: async (value) => {
-            const newCount = parseInt(value);
+  const submitDeviceCountUpdate = async () => {
+    const newCount = parseInt(deviceCountInput);
 
-            if (isNaN(newCount) || newCount < 0) {
-              Alert.alert('Invalid Input', 'Please enter a valid number.', [{ text: 'OK' }]);
-              return;
-            }
+    if (isNaN(newCount) || newCount < 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid number.', [{ text: 'OK' }]);
+      return;
+    }
 
-            if (newCount < (billingData?.free_quota || 3)) {
-              Alert.alert(
-                'Invalid Count',
-                `Device count cannot be less than the free tier (${billingData?.free_quota || 3} devices).`,
-                [{ text: 'OK' }]
-              );
-              return;
-            }
+    if (newCount < (billingData?.free_quota || 3)) {
+      Alert.alert(
+        'Invalid Count',
+        `Device count cannot be less than the free tier (${billingData?.free_quota || 3} devices).`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-            setProcessingAction(true);
-            try {
-              await billingService.updateDeviceCount({ device_count: newCount });
+    setShowDeviceCountModal(false);
+    setProcessingAction(true);
+    try {
+      await billingService.updateDeviceCount({ device_count: newCount });
 
-              const billableDevices = Math.max(0, newCount - (billingData?.free_quota || 3));
+      const billableDevices = Math.max(0, newCount - (billingData?.free_quota || 3));
 
-              Alert.alert(
-                'Device Count Updated',
-                `Your device count has been updated to ${newCount} (${billableDevices} billable). Changes will be reflected in your next billing cycle.`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: async () => {
-                      await fetchBillingData();
-                    }
-                  }
-                ]
-              );
-            } catch (error) {
-              console.error('Error updating device count:', error);
+      Alert.alert(
+        'Device Count Updated',
+        `Your device count has been updated to ${newCount} (${billableDevices} billable). Changes will be reflected in your next billing cycle.`,
+        [{ text: 'OK', onPress: async () => await fetchBillingData() }]
+      );
+    } catch (error) {
+      console.error('Error updating device count:', error);
 
-              let errorMessage = 'Unable to update device count. Please try again later.';
-              if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-              }
+      let errorMessage = 'Unable to update device count. Please try again later.';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response) {
+        errorMessage = `Server error (${error.response.status}). Please try again later.`;
+      }
 
-              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
-            } finally {
-              setProcessingAction(false);
-            }
-          }
-        }
-      ],
-      'plain-text',
-      String(currentCount)
-    );
+      Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+    } finally {
+      setProcessingAction(false);
+    }
   };
 
   const formatCurrency = (amount, currency = 'GBP') => {
@@ -662,15 +666,6 @@ const ManageBillingScreen = ({ navigation }) => {
         )}
 
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.portalButton, processingAction && styles.disabledButton]}
-            onPress={openBillingPortal}
-            disabled={processingAction}
-          >
-            <Ionicons name="card-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-            <Text style={styles.portalButtonText}>Manage Payment Methods</Text>
-          </TouchableOpacity>
-          
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={[styles.secondaryButton, processingAction && styles.disabledButton]}
@@ -725,6 +720,43 @@ const ManageBillingScreen = ({ navigation }) => {
           </Text>
         </View>
       </ScrollView>
+
+      <CustomModal
+        visible={showDeviceCountModal}
+        onClose={() => setShowDeviceCountModal(false)}
+        title="Update Device Count"
+      >
+        <Text style={styles.deviceCountDescription}>
+          Enter the total number of devices you want to manage.
+        </Text>
+        <Text style={styles.deviceCountInfo}>
+          Current: {billingData?.current_device_count || 0} devices{'\n'}
+          Free tier: {billingData?.free_quota || 3} devices{'\n'}
+          You will be charged for devices exceeding the free tier.
+        </Text>
+        <TextInput
+          style={styles.deviceCountInput}
+          value={deviceCountInput}
+          onChangeText={setDeviceCountInput}
+          keyboardType="number-pad"
+          placeholder="Enter device count"
+          autoFocus
+        />
+        <View style={styles.deviceCountButtons}>
+          <TouchableOpacity
+            style={styles.deviceCountCancelButton}
+            onPress={() => setShowDeviceCountModal(false)}
+          >
+            <Text style={styles.deviceCountCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deviceCountSubmitButton}
+            onPress={submitDeviceCountUpdate}
+          >
+            <Text style={styles.deviceCountSubmitText}>Update</Text>
+          </TouchableOpacity>
+        </View>
+      </CustomModal>
     </SafeAreaView>
   );
 };
@@ -1015,6 +1047,56 @@ feesContainer: {
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  deviceCountDescription: {
+    fontSize: 15,
+    color: '#333',
+    marginBottom: 8,
+  },
+  deviceCountInfo: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  deviceCountInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  deviceCountButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  deviceCountCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  deviceCountCancelText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  deviceCountSubmitButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: ORANGE_COLOR,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  deviceCountSubmitText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

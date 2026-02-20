@@ -50,7 +50,8 @@ export const useLocations = (): UseLocationsReturn => {
   const fetchLocations = useCallback(async () => {
     try {
       const data = await deviceService.getLocations();
-      setLocations(data);
+      const locationList = Array.isArray(data) ? data : (data?.results || []);
+      setLocations(locationList);
     } catch (error) {
       handleApiError(error, 'Failed to fetch locations');
     }
