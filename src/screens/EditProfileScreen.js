@@ -179,9 +179,10 @@ const EditProfileScreen = ({ navigation, route }) => {
               <TextInput
                 style={[styles.input, errors.phone_number ? styles.inputError : null]}
                 value={formData.phone_number}
-                onChangeText={(text) => handleChange('phone_number', text)}
+                onChangeText={(text) => handleChange('phone_number', text.replace(/[^0-9+\s-]/g, ''))}
                 placeholder="Enter your phone number"
                 keyboardType="phone-pad"
+                maxLength={11}
               />
               {errors.phone_number ? (
                 <Text style={styles.errorText}>{errors.phone_number}</Text>

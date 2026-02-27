@@ -136,7 +136,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
         <Text style={styles.title}>Scan NFC Tag</Text>
 
         <Text style={styles.subtitle} testID="nfc-scan-subtitle">
-          Scan an NFC tag to view device info and assign it to your account.
+          Press the scan NFC tag button. Then hold the device close to the NFC tag to assign it to your account.
         </Text>
 
         {assignLoading ? (

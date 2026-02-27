@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import StandardDeviceCard from '../components/StandardDeviceCard';
+import SearchBar from '../components/SearchBar';
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +44,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch my assignments and locations once on mount
   useEffect(() => {
@@ -244,6 +246,25 @@ const AllDevicesScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
+  const filterAssignments = (assignments) => {
+    if (!searchQuery.trim()) return assignments;
+    const query = searchQuery.toLowerCase();
+    return assignments.filter((a) => {
+      const d = a.device || {};
+      return (
+        (d.identifier && d.identifier.toLowerCase().includes(query)) ||
+        (d.make && d.make.toLowerCase().includes(query)) ||
+        (d.model && d.model.toLowerCase().includes(query)) ||
+        (d.serial_number && d.serial_number.toLowerCase().includes(query)) ||
+        (a.user_name && a.user_name.toLowerCase().includes(query)) ||
+        (a.location_name && a.location_name.toLowerCase().includes(query))
+      );
+    });
+  };
+
+  const filteredMyAssignments = filterAssignments(myAssignments);
+  const filteredOrgAssignments = filterAssignments(organizationAssignments);
+
   const handleReturnDeviceModalClose = () => {
     setReturnDeviceModalVisible(false);
     setSelectedReturnLocation(null);
@@ -268,6 +289,13 @@ const AllDevicesScreen = ({ navigation, route }) => {
           />
         )}
       </View>
+
+      {/* Search Bar */}
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Search devices..."
+      />
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
@@ -314,12 +342,14 @@ const AllDevicesScreen = ({ navigation, route }) => {
           <View style={styles.section}>
             {loadingMyAssignments ? (
               <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
-            ) : myAssignments.length > 0 ? (
+            ) : filteredMyAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
-                {myAssignments.map(renderAssignmentCard)}
+                {filteredMyAssignments.map(renderAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No active device assignments found</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() ? 'No matching assignments found' : 'No active device assignments found'}
+              </Text>
             )}
           </View>
         </ScrollView>
@@ -335,12 +365,14 @@ const AllDevicesScreen = ({ navigation, route }) => {
           <View style={styles.section}>
             {loadingOrgAssignments ? (
               <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
-            ) : organizationAssignments.length > 0 ? (
+            ) : filteredOrgAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
-                {organizationAssignments.map(renderOrgAssignmentCard)}
+                {filteredOrgAssignments.map(renderOrgAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>No organization assignments found</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() ? 'No matching assignments found' : 'No organization assignments found'}
+              </Text>
             )}
           </View>
         </ScrollView>

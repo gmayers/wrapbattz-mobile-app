@@ -104,7 +104,7 @@ const ReadTab = ({ withNfcManager, onCancel }) => {
   return (
     <View style={styles.nfcTabContent}>
       <Text style={styles.nfcTabTitle}>Read NFC Tag</Text>
-      <Text style={styles.nfcTabSubtitle}>Place your device near an NFC tag to read data.</Text>
+      <Text style={styles.nfcTabSubtitle}>Hold your device near a NFC tag, then press the read tag button to display data.</Text>
 
       {isReading ? (
         <View style={styles.buttonGroup}>

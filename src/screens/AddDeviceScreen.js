@@ -694,13 +694,7 @@ return (
                 <Text style={styles.label}>Specify Make *</Text>
                 <BaseTextInput
                   value={otherMake}
-                  onChangeText={(text) => {
-                    setOtherMake(text);
-                    // Only update formData.make with custom input if we're in "Other" mode
-                    if (formData.make === 'Other') {
-                      handleInputChange('make', text); 
-                    }
-                  }}
+                  onChangeText={(text) => setOtherMake(text)}
                   placeholder="Enter other make"
                   style={otherMake ? {} : styles.requiredInput}
                 />
@@ -752,13 +746,7 @@ return (
                 <Text style={styles.label}>Specify Device Type *</Text>
                 <BaseTextInput
                   value={otherDeviceType}
-                  onChangeText={(text) => {
-                    setOtherDeviceType(text);
-                    // Only update formData.device_type with custom input if we're in "Other" mode
-                    if (formData.device_type === 'Other') {
-                      handleInputChange('device_type', text);
-                    }
-                  }}
+                  onChangeText={(text) => setOtherDeviceType(text)}
                   placeholder="Enter other device type"
                   style={otherDeviceType ? {} : styles.requiredInput}
                 />
@@ -780,7 +768,7 @@ return (
               <Text style={styles.label}>Maintenance Interval (optional)</Text>
               <BaseTextInput
                 value={formData.maintenance_interval}
-                onChangeText={(text) => handleInputChange('maintenance_interval', text)}
+                onChangeText={(text) => handleInputChange('maintenance_interval', text.replace(/[^0-9]/g, ''))}
                 placeholder="Enter maintenance interval"
                 keyboardType="numeric"
               />
@@ -956,6 +944,9 @@ return (
           {/* Write data to tag (optional, after registration) */}
           {preScannedNfcTagId && !nfcWriteSuccess && (
             <View style={styles.writeOptionsContainer}>
+              <Text style={styles.writeOptionsHint}>
+                Hold your device close to the NFC tag, select the data to write, then press 'Write Data to Tag'.
+              </Text>
               <Text style={styles.writeOptionsTitle}>Select data to write to tag:</Text>
 
               {/* Device ID - always included */}
@@ -1358,6 +1349,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: ORANGE_COLOR,
+  },
+  writeOptionsHint: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 10,
+    lineHeight: 18,
   },
   writeOptionsTitle: {
     fontSize: 14,

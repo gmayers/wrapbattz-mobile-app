@@ -957,7 +957,7 @@ return (
     <View style={{ flex: 1 }} testID="edit-tab-container">
       <Text style={styles.nfcTabTitle} testID="edit-tab-title">Edit NFC Tag</Text>
       <Text style={styles.nfcTabSubtitle} testID="edit-tab-subtitle">
-        Read the NFC tag to load existing data into the form, make changes, and save.
+        Hold device close to NFC tag to load and display existing data. Scroll down to make changes and save.
       </Text>
 
     {isReading || isWriting ? (
