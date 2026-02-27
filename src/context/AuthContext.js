@@ -12,7 +12,7 @@ const API_BASE_URL = 'https://webportal.battwrapz.com/api/';
 // Create the main axios instance
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -199,42 +199,78 @@ const mobileService = {
   },
 };
 
+// Helper to extract results from a single paginated response
+const extractResults = (data) => {
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
+};
+
+// Helper to fetch ALL pages from a paginated endpoint
+const fetchAllPages = async (url) => {
+  let allResults = [];
+  const seenIds = new Set();
+  let nextUrl = url;
+
+  while (nextUrl) {
+    const response = await axiosInstance.get(nextUrl);
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      return data; // Not paginated, return directly
+    }
+
+    if (data?.results) {
+      for (const item of data.results) {
+        const key = item.id ?? JSON.stringify(item);
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          allResults.push(item);
+        }
+      }
+    }
+
+    // Follow `next` URL for additional pages
+    nextUrl = data?.next || null;
+    // Strip base URL if `next` includes full URL
+    if (nextUrl && nextUrl.startsWith('http')) {
+      nextUrl = nextUrl.replace(axiosInstance.defaults.baseURL, '');
+    }
+  }
+
+  return allResults;
+};
+
 // Updated deviceService to match the API schema endpoints
 const deviceService = {
   // Get all device assignments for the user's organization
   getAssignments: async () => {
-    const response = await axiosInstance.get('/device-assignments/');
-    return response.data;
+    return await fetchAllPages('/device-assignments/');
   },
 
   // Get active device assignments for the current user
   getMyActiveAssignments: async () => {
-    const response = await axiosInstance.get('/device-assignments/my_active_assignments/');
-    return response.data;
+    return await fetchAllPages('/device-assignments/my_active_assignments/');
   },
 
   // Get all device assignments for the current user (active and historical)
   getMyAssignments: async () => {
-    const response = await axiosInstance.get('/device-assignments/my_assignments/');
-    return response.data;
+    return await fetchAllPages('/device-assignments/my_assignments/');
   },
 
   // Get all device assignments for a specific location
   getLocationAssignments: async (locationId) => {
-    const response = await axiosInstance.get(`/device-assignments/location/${locationId}/`);
-    return response.data;
+    return await fetchAllPages(`/device-assignments/location/${locationId}/`);
   },
 
   // Get available devices that can be assigned
   getAvailableDevices: async () => {
-    const response = await axiosInstance.get('/device-assignments/available_devices/');
-    return response.data;
+    return await fetchAllPages('/device-assignments/available_devices/');
   },
 
   // Get all locations
   getLocations: async () => {
-    const response = await axiosInstance.get('/locations/');
-    return response.data;
+    return await fetchAllPages('/locations/');
   },
 
   // Create a new location
@@ -268,8 +304,7 @@ const deviceService = {
 
   // Get all devices
   getDevices: async () => {
-    const response = await axiosInstance.get('/devices/');
-    return response.data;
+    return await fetchAllPages('/devices/');
   },
 
   // Get a specific device
@@ -381,12 +416,7 @@ const deviceService = {
 
   // Get device assignment history
   getDeviceHistory: async (deviceId) => {
-    try {
-      const response = await axiosInstance.get(`/device-assignments/device/${deviceId}/history/`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return await fetchAllPages(`/device-assignments/device/${deviceId}/history/`);
   },
 
   // Update a device assignment
@@ -455,22 +485,12 @@ const deviceService = {
 
   // Get reports
   getReports: async () => {
-    try {
-      const response = await axiosInstance.get('/reports/');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return await fetchAllPages('/reports/');
   },
 
   // Get my reports
   getMyReports: async () => {
-    try {
-      const response = await axiosInstance.get('/reports/my_reports/');
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    return await fetchAllPages('/reports/my_reports/');
   },
 
   // Get specific report

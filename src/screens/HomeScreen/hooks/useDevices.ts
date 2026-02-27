@@ -59,14 +59,9 @@ export const useDevices = (): UseDevicesReturn => {
       const myAssignments = await deviceService.getMyActiveAssignments();
       const assignmentList = Array.isArray(myAssignments) ? myAssignments : (myAssignments?.results || []);
 
-      // Transform and sort the data - active assignments first
+      // Preserve all API fields (including user_name, location_name) for StandardDeviceCard
       const formattedAssignments = assignmentList.map((assignment: any) => ({
-        id: assignment.id,
-        device: assignment.device,
-        user: userId,
-        location: assignment.location,
-        assigned_date: assignment.assigned_date,
-        returned_date: assignment.returned_date
+        ...assignment,
       }));
       
       // Sort assignments: active (no returned_date) first, then by assigned_date (newest first)

@@ -25,11 +25,9 @@ const { width } = Dimensions.get('window');
 
 const AllDevicesScreen = ({ navigation, route }) => {
   const {
-    axiosInstance,
-    logout,
     deviceService,
     userData,
-    isAdminOrOwner
+    isAdminOrOwner,
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState('assignments');
@@ -39,20 +37,22 @@ const AllDevicesScreen = ({ navigation, route }) => {
 
   // State for "Organization Devices" (now Organization Assignments) tab
   const [organizationAssignments, setOrganizationAssignments] = useState([]);
-  const [loadingOrgAssignments, setLoadingOrgAssignments] = useState(true);
+  const [loadingOrgAssignments, setLoadingOrgAssignments] = useState(false);
 
   const [locations, setLocations] = useState([]);
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
 
+  // Fetch my assignments and locations once on mount
   useEffect(() => {
-    fetchMyAssignments(); // Fetches assignments for the current user
+    fetchMyAssignments();
     fetchLocations();
+  }, []);
 
-    if (isAdminOrOwner) {
-      fetchOrganizationAssignments(); // Fetches all assignments for the organization
-    }
+  // Fetch org assignments separately — only when user has admin/owner role
+  useEffect(() => {
+    if (isAdminOrOwner) fetchOrganizationAssignments();
   }, [isAdminOrOwner]);
 
   const handleApiError = (error, defaultMessage) => {
@@ -71,16 +71,40 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
+  // Sort: active first, then returned. Within each group: user assignments (A-Z) then location assignments (A-Z)
+  const sortAssignments = (list) => {
+    return [...list].sort((a, b) => {
+      // Primary: active (no returned_date) before returned
+      const aActive = !a.returned_date;
+      const bActive = !b.returned_date;
+      if (aActive !== bActive) return aActive ? -1 : 1;
+
+      // Secondary: user assignments before location-only assignments
+      const aIsUser = !!a.user;
+      const bIsUser = !!b.user;
+      if (aIsUser !== bIsUser) return aIsUser ? -1 : 1;
+
+      // Tertiary: alphabetical by name
+      if (aIsUser && bIsUser) return (a.user_name || '').localeCompare(b.user_name || '');
+      return (a.location_name || '').localeCompare(b.location_name || '');
+    });
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const locs = await deviceService.getLocations();
+      setLocations(Array.isArray(locs) ? locs : []);
+    } catch (error) {
+      // Locations only needed for return modal — assignments still display fine
+    }
+  };
+
   // Fetches current user's assignments using my_assignments endpoint
   const fetchMyAssignments = async () => {
     try {
       setLoadingMyAssignments(true);
-      
-      const response = await axiosInstance.get('/device-assignments/my_assignments/');
-      const allAssignments = response.data;
-      
-      setMyAssignments(allAssignments);
-      console.log('My assignments count:', allAssignments.length);
+      const allAssignments = await deviceService.getMyAssignments();
+      setMyAssignments(sortAssignments(Array.isArray(allAssignments) ? allAssignments : []));
     } catch (error) {
       handleApiError(error, 'Failed to fetch your device assignments');
     } finally {
@@ -92,23 +116,12 @@ const AllDevicesScreen = ({ navigation, route }) => {
   const fetchOrganizationAssignments = async () => {
     try {
       setLoadingOrgAssignments(true);
-      // Use getAssignments for the "Organization Devices" tab (which now shows assignments)
       const data = await deviceService.getAssignments();
-      setOrganizationAssignments(data);
-      // Note: No client-side filtering for active assignments here unless specified for this tab
+      setOrganizationAssignments(sortAssignments(Array.isArray(data) ? data : []));
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization assignments.');
     } finally {
       setLoadingOrgAssignments(false);
-    }
-  };
-
-  const fetchLocations = async () => {
-    try {
-      const data = await deviceService.getLocations();
-      setLocations(data);
-    } catch (error) {
-      handleApiError(error, 'Failed to fetch locations');
     }
   };
 
@@ -170,11 +183,23 @@ const AllDevicesScreen = ({ navigation, route }) => {
     <StandardDeviceCard
       key={assignment.id}
       assignment={assignment}
-      onReturn={(assignment) => handleDeviceReturn(assignment, { stopPropagation: () => {} })}
+      onReturn={(a) => handleDeviceReturn(a, { stopPropagation: () => {} })}
       onViewDetails={handleViewDeviceDetails}
       style={styles.deviceCard}
       showActiveStatus={true}
       showReturnButton={true}
+    />
+  );
+
+  const renderOrgAssignmentCard = (assignment) => (
+    <StandardDeviceCard
+      key={assignment.id}
+      assignment={assignment}
+      onReturn={(a) => handleDeviceReturn(a, { stopPropagation: () => {} })}
+      onViewDetails={handleViewDeviceDetails}
+      style={styles.deviceCard}
+      showActiveStatus={true}
+      showReturnButton={assignment.user === userData?.userId}
     />
   );
 
@@ -312,7 +337,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
               <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
             ) : organizationAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
-                {organizationAssignments.map(renderAssignmentCard)}
+                {organizationAssignments.map(renderOrgAssignmentCard)}
               </View>
             ) : (
               <Text style={styles.emptyText}>No organization assignments found</Text>

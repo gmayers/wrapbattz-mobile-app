@@ -7,6 +7,7 @@ const BASE_URL = 'https://webportal.battwrapz.com/api';
 // Create axios instance
 const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

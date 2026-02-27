@@ -26,8 +26,8 @@ const StandardDeviceCard = ({
   showActiveStatus = true,
   showReturnButton = true 
 }) => {
-  const { device, assigned_date, user, location, returned_date } = assignment;
-  const assignedTo = user ? user.full_name : location?.name || 'Unknown';
+  const { device, assigned_date, user, location, returned_date, user_name, location_name } = assignment;
+  const assignedTo = user_name || location_name || (typeof user === 'object' ? user?.full_name : null) || (typeof location === 'object' ? location?.name : null) || 'Unknown';
   const isActive = !returned_date;
 
   const renderMaintenanceInfo = () => {
@@ -80,6 +80,7 @@ const StandardDeviceCard = ({
           {device.serial_number && (
             <Text style={styles.infoText}>SN: {device.serial_number}</Text>
           )}
+          <Text style={styles.infoText}>Assigned to: {assignedTo}</Text>
           <Text style={styles.infoText}>Assigned: {assigned_date}</Text>
           {returned_date && (
             <Text style={styles.infoText}>Returned: {returned_date}</Text>
