@@ -45,6 +45,7 @@ build-1747169980700.apk
 
 .env.local
 
-.env.local
+# worktrees
+.worktrees/
 
 .env.local
