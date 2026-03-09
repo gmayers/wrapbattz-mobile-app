@@ -78,7 +78,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
       const languageCode = 'en';
       
       // Status byte: bit 7 = UTF-16 (0) or UTF-8 (1), bits 6-0 = language code length
-      const statusByte = 0x80 | (languageCode.length & 0x3F); // UTF-8 with language code length
+      const statusByte = languageCode.length & 0x3F; // UTF-8: bit 7 = 0
       
       // Full payload with language code and text
       const payload = [statusByte];

@@ -4,8 +4,7 @@ import Button from '../../../../components/Button';
 import { nfcService } from '../../../../services/NFCService';
 import { styles } from './styles';
 import { Ionicons } from '@expo/vector-icons';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
-import { nfcLogger, NFCOperationType, NFCErrorCategory } from '../../../../utils/NFCLogger';
+import NfcManager from 'react-native-nfc-manager';
 
 
 // NFCService handles normalization, so we don't need this function anymore
@@ -305,59 +304,6 @@ const readMifarePagesWithRetry = async (maxRetries = 3) => {
   return mifarePages;
 };
 
-// Helper function to decode tag content with multiple approaches
-const decodeTagContent = (record) => {
-  // Try standard NDEF text decoding first
-  try {
-    return Ndef.text.decodePayload(record.payload);
-  } catch (e) {
-    console.warn('[EditTab] Standard NDEF decoding failed, trying alternative methods');
-  }
-  
-  // Manual decoding as fallback
-  try {
-    // Get a byte array from the payload
-    const bytes = [...new Uint8Array(record.payload)];
-    
-    // First byte contains status and language length
-    const statusByte = bytes[0];
-    const languageLength = statusByte & 0x3F;
-    const isUTF16 = !(statusByte & 0x80);
-    
-    // Skip language code and status byte
-    const textBytes = bytes.slice(1 + languageLength);
-    
-    // Convert to string based on encoding
-    if (isUTF16) {
-      // UTF-16 encoding
-      const uint16Array = new Uint16Array(textBytes.length / 2);
-      for (let i = 0; i < textBytes.length; i += 2) {
-        uint16Array[i / 2] = (textBytes[i] << 8) | textBytes[i + 1];
-      }
-      return String.fromCharCode.apply(null, uint16Array);
-    } else {
-      // UTF-8 encoding
-      return new TextDecoder().decode(new Uint8Array(textBytes));
-    }
-  } catch (manualError) {
-    console.warn('[EditTab] Manual decoding failed, trying TextDecoder directly');
-  }
-  
-  // Direct TextDecoder fallback
-  try {
-    const rawBytes = new Uint8Array(record.payload);
-    const statusByte = rawBytes[0];
-    const languageLength = statusByte & 0x3F;
-    
-    // Skip status byte and language code
-    const contentBytes = rawBytes.slice(1 + languageLength);
-    return new TextDecoder().decode(contentBytes);
-  } catch (decoderError) {
-    console.warn('[EditTab] All decoding methods failed');
-    throw new Error('Unable to decode tag content using any available method');
-  }
-};
-
 // Helper function to process JSON tag content with console logging
 const processJsonTagContent = (textContent) => {
   // Add console statement when reading data
@@ -411,10 +357,9 @@ const processJsonTagContent = (textContent) => {
   setJsonValidationState(jsonState);
 };
 
-// Improved write function with iOS-specific optimizations and enhanced logging
+// Write function using NFCService for all NFC operations
 const handleWriteTag = async () => {
   let result = false;
-  const operationId = nfcLogger.startOperation(NFCOperationType.WRITE, { source: 'EditTab' });
 
   try {
     // Check for invalid JSON first
@@ -423,7 +368,6 @@ const handleWriteTag = async () => {
       .map(([key]) => key);
 
     if (invalidFields.length > 0) {
-      nfcLogger.endOperationWithError(operationId, new Error('Invalid JSON fields'), NFCErrorCategory.INVALID_DATA);
       Alert.alert(
         'Invalid JSON Detected',
         `Please fix the JSON formatting in these fields: ${invalidFields.join(', ')}`
@@ -432,17 +376,6 @@ const handleWriteTag = async () => {
     }
 
     setIsWriting(true);
-    nfcLogger.logStep(operationId, 'Write operation started');
-
-    // iOS-specific: Ensure NFC is properly initialized
-    if (Platform.OS === 'ios') {
-      try {
-        await NfcManager.start();
-        nfcLogger.logStep(operationId, 'NFC Manager started for iOS');
-      } catch (startError) {
-        nfcLogger.logStep(operationId, 'NFC Manager already started', { warning: startError.message });
-      }
-    }
 
     // Auto-add pending new field if user typed something but forgot to press +
     if (newField.key.trim() || newField.value.trim()) {
@@ -483,7 +416,6 @@ const handleWriteTag = async () => {
 
     // Check if there are any fields to write
     if (fieldsToWrite.length === 0) {
-      nfcLogger.endOperationWithError(operationId, new Error('No fields to write'), NFCErrorCategory.INVALID_DATA);
       Alert.alert('Error', 'There are no fields to write to the tag. All fields are marked for deletion.');
       return;
     }
@@ -512,136 +444,14 @@ const handleWriteTag = async () => {
       }
     });
 
-    // Convert to JSON string (NFCService handles normalization)
+    // Convert to JSON string and write via NFCService
     const jsonString = JSON.stringify(processedData);
-    let normalizedString = jsonString; // Use let so we can reassign if needed for compact version
+    const writeResult = await nfcService.writeNFC(jsonString);
 
-    // Calculate byte length for capacity check
-    const stringByteLength = new TextEncoder().encode(normalizedString).length;
-    nfcLogger.logStep(operationId, 'Data prepared', { dataSize: stringByteLength });
-
-    // STEP 1: Request NFC technology with iOS-specific timeout
-    nfcLogger.logStep(operationId, 'Requesting NFC technology');
-    const technologyRequest = Platform.OS === 'ios'
-      ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout: 60000 }) // 60 seconds for iOS
-      : NfcManager.requestTechnology(NfcTech.Ndef);
-
-    await technologyRequest;
-    nfcLogger.logStep(operationId, 'NFC technology acquired');
-
-    // STEP 1.5: Verify tag is still connected before proceeding
-    const tag = await NfcManager.getTag();
-    if (!tag) {
-      throw new Error('Tag connection lost. Keep the tag steady and try again.');
-    }
-    nfcLogger.logStep(operationId, 'Tag connection verified', {
-      tagType: tag.type,
-      maxSize: tag.maxSize,
-      isWritable: tag.isWritable
-    });
-    
-    // Check if tag is NDEF formatted and writable
-    if (!tag.isWritable) {
-      throw new Error('This tag appears to be read-only and cannot be written to.');
-    }
-    nfcLogger.logStep(operationId, 'Tag is writable');
-    
-    // Check capacity if available
-    if (tag.maxSize && stringByteLength > tag.maxSize) {
-      // Create a more compact version by removing optional fields
-      const compactData = { ...processedData };
-      
-      // Remove fields that aren't critical (preserving id and key identifiers)
-      Object.keys(compactData).forEach(key => {
-        if (key !== 'id' && key !== 'ID' && typeof compactData[key] === 'string' && compactData[key].length > 30) {
-          compactData[key] = compactData[key].substring(0, 30) + '...';
-        }
-      });
-      
-      const compactJson = JSON.stringify(compactData);
-      const compactSize = new TextEncoder().encode(compactJson).length;
-      
-      if (compactSize > tag.maxSize) {
-        throw new Error(`Data size (${stringByteLength} bytes) exceeds tag capacity (${tag.maxSize} bytes). Even a reduced version (${compactSize} bytes) is too large.`);
-      } else {
-        // Use the compact version instead
-        console.log(`[EditTab] Using reduced data format to fit tag capacity: ${compactJson}`);
-        Alert.alert(
-          'Warning', 
-          'Complete data is too large for this tag. Writing a reduced version with truncated fields.',
-          [{ text: 'Continue', style: 'default' }]
-        );
-        // Update the string to write
-        normalizedString = compactJson;
-      }
-    }
-    
-    // STEP 2: Create NDEF message bytes
-    nfcLogger.logStep(operationId, 'Encoding NDEF message');
-    let bytes;
-    try {
-      bytes = Ndef.encodeMessage([Ndef.textRecord(normalizedString)]);
-      nfcLogger.logStep(operationId, 'NDEF message encoded', { messageSize: bytes?.length });
-    } catch (encodeError) {
-      throw new Error(`Failed to encode data: ${encodeError.message}`);
-    }
-    
-    if (!bytes) {
-      throw new Error('Failed to create NDEF message. The encoding returned null.');
-    }
-    
-    // Final size check
-    if (tag.maxSize && bytes.length > tag.maxSize) {
-      throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
-    }
-    
-    // STEP 3: Verify tag is still connected before writing
-    nfcLogger.logStep(operationId, 'Verifying tag connection before write');
-    const preWriteTag = await NfcManager.getTag();
-    if (!preWriteTag) {
-      throw new Error('Tag connection lost before write. Keep the tag steady and try again.');
-    }
-    nfcLogger.logStep(operationId, 'Tag still connected, proceeding with write');
-
-    // STEP 4: Write the message to the tag with platform-specific handling
-    try {
-      nfcLogger.logStep(operationId, 'Writing NDEF message', { platform: Platform.OS });
-      if (Platform.OS === 'ios') {
-        // iOS-specific write with retry mechanism
-        let writeAttempts = 0;
-        const maxAttempts = 3;
-
-        while (writeAttempts < maxAttempts) {
-          try {
-            await NfcManager.ndefHandler.writeNdefMessage(bytes);
-            nfcLogger.logStep(operationId, 'iOS write completed', { attempt: writeAttempts + 1 });
-            break;
-          } catch (iosWriteError) {
-            writeAttempts++;
-            nfcLogger.logStep(operationId, 'iOS write attempt failed', {
-              attempt: writeAttempts,
-              error: iosWriteError.message
-            });
-
-            if (writeAttempts >= maxAttempts) {
-              throw iosWriteError;
-            }
-
-            // Short delay before retry
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-      } else {
-        // Android write
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        nfcLogger.logStep(operationId, 'Android write completed');
-      }
-
+    if (writeResult.success) {
       result = true;
-      nfcLogger.endOperation(operationId, { success: true });
 
       // Reset change tracking - current state becomes the new "original"
-      // Remove deleted fields from editedFields
       const finalFields = {};
       fieldsToWrite.forEach(key => {
         finalFields[key] = editedFields[key];
@@ -652,34 +462,8 @@ const handleWriteTag = async () => {
       setAddedFields(new Set());
 
       Alert.alert('Success', 'Changes saved to NFC tag successfully!');
-    } catch (writeError) {
-      // Check for specific write errors
-      if (writeError.message.includes('timeout')) {
-        throw new Error('Write operation timed out. Please keep the tag close to your device and try again.');
-      } else if (writeError.message.includes('read-only') || writeError.message.includes('not writable')) {
-        throw new Error('This NFC tag is read-only and cannot be written to.');
-      } else if (writeError.message.includes('Tag connection lost')) {
-        throw new Error('Tag connection lost. Please try again and keep the tag steady.');
-      } else {
-        throw new Error(`Write failed: ${writeError.message}`);
-      }
-    }
-  } catch (error) {
-    // Categorize error and log with NFCLogger
-    const errorCategory = nfcLogger.categorizeError(error);
-    nfcLogger.endOperationWithError(operationId, error, errorCategory);
-
-    // Get user-friendly error message
-    let userErrorMessage = nfcLogger.getUserFriendlyMessage(errorCategory);
-
-    // For specific errors, use the original message if it's more informative
-    if (error.message.includes('tag capacity') || error.message.includes('connection lost')) {
-      userErrorMessage = error.message;
-    }
-
-    // Don't show alert for cancelled operations
-    if (errorCategory !== NFCErrorCategory.CANCELLED) {
-      Alert.alert('NFC Write Error', userErrorMessage, [
+    } else {
+      Alert.alert('NFC Write Error', writeResult.error || 'Failed to write to NFC tag.', [
         {
           text: 'Retry',
           onPress: () => handleWriteTag(),
@@ -691,19 +475,23 @@ const handleWriteTag = async () => {
         }
       ]);
     }
-
+  } catch (error) {
+    Alert.alert('NFC Write Error', error.message || 'An unexpected error occurred.', [
+      {
+        text: 'Retry',
+        onPress: () => handleWriteTag(),
+        style: 'default'
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      }
+    ]);
     result = false;
   } finally {
-    // STEP 4: Always cancel technology request when done
-    try {
-      await NfcManager.cancelTechnologyRequest();
-      console.log('[EditTab] NFC technology request canceled');
-    } catch (error) {
-      console.warn(`[EditTab] Error canceling NFC technology request: ${error.message}`);
-    }
     setIsWriting(false);
   }
-  
+
   return result;
 };
 const handleFieldChange = (key, value) => {

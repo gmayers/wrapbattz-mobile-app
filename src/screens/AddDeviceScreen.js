@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Text,
   Switch,
+  Dimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BaseTextInput } from '../components/TextInput';
@@ -765,7 +766,7 @@ return (
 
             {/* Maintenance Interval Input - OPTIONAL */}
             <View style={styles.formField}>
-              <Text style={styles.label}>Maintenance Interval (optional)</Text>
+              <Text style={styles.label}>Maintenance Interval (optional) - number of days</Text>
               <BaseTextInput
                 value={formData.maintenance_interval}
                 onChangeText={(text) => handleInputChange('maintenance_interval', text.replace(/[^0-9]/g, ''))}
@@ -856,6 +857,9 @@ return (
             {/* NFC Tag Registration Section */}
             <View style={styles.nfcSection}>
               <Text style={styles.label}>NFC Tag (Optional)</Text>
+              <Text style={styles.nfcInstructions}>
+                Hold the tag to the device and press the "Write Data to Tag" button to write data to the NFC tag.
+              </Text>
               {preScannedNfcTagId ? (
                 <View style={styles.nfcTagScanned}>
                   <View style={styles.nfcTagInfo}>
@@ -915,6 +919,7 @@ return (
           headerStyle={styles.customModalHeader}
           contentStyle={styles.customModalContent}
         >
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }}>
           <View style={styles.successHeader}>
             <Text style={styles.successIcon}>✓</Text>
             <Text style={styles.successText}>Device Added Successfully!</Text>
@@ -1052,6 +1057,7 @@ return (
               textColorProp="white"
             />
           </View>
+          </ScrollView>
         </CustomModal>
 
         {/* Tag Already Registered Modal */}
@@ -1339,6 +1345,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
     textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  nfcInstructions: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
     fontStyle: 'italic',
   },
   // Write options styles

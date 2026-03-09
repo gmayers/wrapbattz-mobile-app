@@ -255,7 +255,7 @@ export class NFCService {
       // First byte contains status and language length
       const statusByte = bytes[0];
       const languageLength = statusByte & 0x3F;
-      const isUTF16 = !(statusByte & 0x80);
+      const isUTF16 = !!(statusByte & 0x80);
       
       // Skip language code and status byte
       const textBytes = bytes.slice(1 + languageLength);
