@@ -41,7 +41,7 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
     {
       label: 'Serial Number',
       icon: 'keypad-outline',
-      possibleKeys: ['serialNumber', 'serial_number', 'serial', 'Serial', 'serialNo', 'serial_no'],
+      possibleKeys: ['serialNumber', 'serial_number', 'sn', 'serial', 'Serial', 'serialNo', 'serial_no'],
     },
     {
       label: 'Description',
@@ -51,7 +51,7 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
     {
       label: 'Maintenance Interval',
       icon: 'time-outline',
-      possibleKeys: ['maintenanceInterval', 'maintenance_interval', 'interval', 'Interval', 'maintenanceDays', 'maintenance_days'],
+      possibleKeys: ['maintenanceInterval', 'maintenance_interval', 'maint', 'interval', 'Interval', 'maintenanceDays', 'maintenance_days'],
     },
     {
       label: 'Next Maintenance Date',
@@ -119,13 +119,38 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
     );
   };
 
+  // Track which keys were matched by fieldMappings
+  const matchedKeys = new Set();
+
   // Collect all fields that have values
   const infoRows = fieldMappings
     .map(({ label, icon, possibleKeys }) => {
       const value = findValue(possibleKeys);
-      return value ? renderInfoRow(label, value, icon) : null;
+      if (value) {
+        // Record which key was matched
+        for (const key of possibleKeys) {
+          if (deviceData[key] !== undefined && deviceData[key] !== null && deviceData[key] !== '') {
+            matchedKeys.add(key);
+            break;
+          }
+          // Check case-insensitive
+          const lowerKey = key.toLowerCase();
+          const actualKey = Object.keys(deviceData).find(k => k.toLowerCase() === lowerKey);
+          if (actualKey && deviceData[actualKey] !== undefined && deviceData[actualKey] !== null && deviceData[actualKey] !== '') {
+            matchedKeys.add(actualKey);
+            break;
+          }
+        }
+        return renderInfoRow(label, value, icon);
+      }
+      return null;
     })
     .filter(row => row !== null);
+
+  // Collect custom keys not matched by any field mapping
+  const customRows = Object.entries(deviceData)
+    .filter(([key, value]) => !matchedKeys.has(key) && value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => renderInfoRow(key, String(value), 'pricetag-outline'));
 
   // If no recognized fields found, show all available data as key-value pairs
   if (infoRows.length === 0) {
@@ -155,6 +180,7 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
       </View>
       <View style={styles.infoContainer}>
         {infoRows}
+        {customRows}
       </View>
     </View>
   );

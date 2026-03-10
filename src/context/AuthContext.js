@@ -1151,8 +1151,7 @@ const updateUser = async (userData) => {
   // Method to get organization members
   const getOrganizationMembers = async () => {
     try {
-      const response = await axiosInstance.get('/organization-members/');
-      return response.data;
+      return await fetchAllPages('/organization-members/');
     } catch (error) {
       throw error;
     }

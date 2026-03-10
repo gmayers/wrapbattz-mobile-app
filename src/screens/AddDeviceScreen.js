@@ -81,6 +81,7 @@ const [formData, setFormData] = useState({
     make: true,
     model: true,
     serial_number: false,
+    maintenance_interval: false,
     contact: true,
   });
   // Tag already registered modal state
@@ -341,15 +342,13 @@ const validateForm = () => {
 
     // Determine the make value based on selection
     const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-    // Determine the device_type value based on selection
-    const finalDeviceType = formData.device_type === 'Other' ? otherDeviceType : formData.device_type;
-
     // Create the request data object - WITHOUT user or location
     const requestData = {
       description: formData.description,
       make: finalMake || '',
       model: formData.model,
-      device_type: finalDeviceType,
+      device_type: formData.device_type || '',
+      ...(formData.device_type === 'Other' && otherDeviceType ? { custom_type: otherDeviceType } : {}),
       serial_number: formData.serial_number || '',
       maintenance_interval: formData.maintenance_interval || null,
       // Format date as DD/MM/YYYY as expected by the backend
@@ -584,7 +583,40 @@ const handlePreScanNfc = async () => {
     // Tag ID is now shown in the form UI - no need for additional alert
   } catch (error) {
     logMessage(`Error pre-scanning NFC: ${error.message}`);
-    Alert.alert('NFC Scan Error', error.message);
+    const msg = error.message.toLowerCase();
+    if (msg.includes('not ndef formatted') || msg.includes('not formatted')) {
+      Alert.alert(
+        'Tag Not Formatted',
+        'This NFC tag is not NDEF formatted. Would you like to format it now?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Format Tag',
+            onPress: async () => {
+              try {
+                setIsScanningNfc(true);
+                logMessage('Formatting unformatted NFC tag');
+                const formatResult = await nfcService.formatTag();
+                if (!formatResult.success) {
+                  Alert.alert('Format Error', formatResult.error || 'Failed to format tag.');
+                  return;
+                }
+                logMessage('Tag formatted successfully, re-scanning');
+                Alert.alert('Tag Formatted', 'Tag formatted successfully. Please scan it again.', [
+                  { text: 'Scan Now', onPress: () => handlePreScanNfc() },
+                ]);
+              } catch (formatError) {
+                Alert.alert('Format Error', formatError.message);
+              } finally {
+                setIsScanningNfc(false);
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('NFC Scan Error', error.message);
+    }
   } finally {
     setIsScanningNfc(false);
   }
@@ -616,6 +648,9 @@ const handleNFCWrite = async () => {
     }
     if (nfcWriteOptions.serial_number && formData.serial_number) {
       nfcData.sn = formData.serial_number;
+    }
+    if (nfcWriteOptions.maintenance_interval && formData.maintenance_interval) {
+      nfcData.maint = formData.maintenance_interval;
     }
     if (nfcWriteOptions.contact) {
       const orgContact = userData?.orgEmail || userData?.orgPhone || '';
@@ -903,12 +938,7 @@ return (
         <CustomModal
           visible={nfcModalVisible}
           onClose={() => {
-            if (createdDeviceId) {
-              setNfcModalVisible(false);
-              navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
-            } else {
-              setNfcModalVisible(false);
-            }
+            setNfcModalVisible(false);
           }}
           title="Device Created"
           titleColor={ORANGE_COLOR}
@@ -955,9 +985,9 @@ return (
               <Text style={styles.writeOptionsTitle}>Select data to write to tag:</Text>
 
               {/* Device ID - always included */}
-              <View style={styles.writeOptionRow}>
-                <Text style={styles.writeOptionLabelFixed}>Device ID (always included)</Text>
-                <Text style={styles.writeOptionValue}>{deviceIdentifier}</Text>
+              <View style={[styles.writeOptionRow, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                <Text style={styles.writeOptionLabelFixed}>Device ID (always included):</Text>
+                <Text style={[styles.writeOptionValue, { marginTop: 4 }]}>{deviceIdentifier}</Text>
               </View>
 
               {/* Optional fields */}
@@ -996,6 +1026,16 @@ return (
                 <Switch
                   value={nfcWriteOptions.serial_number}
                   onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, serial_number: val}))}
+                  trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
+                  thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
+                />
+              </View>
+
+              <View style={styles.writeOptionRow}>
+                <Text style={styles.writeOptionLabel}>Maintenance Interval</Text>
+                <Switch
+                  value={nfcWriteOptions.maintenance_interval}
+                  onValueChange={(val) => setNfcWriteOptions(prev => ({...prev, maintenance_interval: val}))}
                   trackColor={{ false: '#ccc', true: ORANGE_COLOR }}
                   thumbColor={Platform.OS === 'ios' ? '' : '#fff'}
                 />

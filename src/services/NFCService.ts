@@ -107,10 +107,17 @@ export class NFCService {
         );
 
         if (!isNDEFCompatible) {
-          return {
-            isValid: false,
-            error: 'Tag is not NDEF formatted. Please use an NDEF-compatible tag.'
-          };
+          // On iOS, techTypes and type are not reliably populated by CoreNFC.
+          // If we got here, requestTechnology(NfcTech.Ndef) already succeeded
+          // and getTag() returned a tag — the hardware is present.
+          if (Platform.OS === 'ios' && tag.id) {
+            console.warn('[NFCService] iOS: Tag type info unavailable but tag detected via NDEF session, allowing...');
+          } else {
+            return {
+              isValid: false,
+              error: 'Tag is not NDEF formatted. Please use an NDEF-compatible tag.'
+            };
+          }
         }
 
         // Tag type suggests NDEF support but no capability detected - warn but allow
@@ -391,7 +398,7 @@ export class NFCService {
             nfcLogger.logStep(operationId, 'Decoding tag content');
             const textContent = this.decodeTagContent(record);
 
-            if (textContent) {
+            if (textContent !== null && textContent !== undefined) {
               nfcLogger.logStep(operationId, 'Content decoded successfully');
 
               // Process the content based on its format

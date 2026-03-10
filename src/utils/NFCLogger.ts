@@ -31,6 +31,7 @@ export enum NFCErrorCategory {
   API_ERROR = 'API_ERROR',
   TIMEOUT = 'TIMEOUT',
   INVALID_DATA = 'INVALID_DATA',
+  TAG_NOT_FORMATTED = 'TAG_NOT_FORMATTED',
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -318,6 +319,9 @@ class NFCLogger {
     if (message.includes('api') || message.includes('server') || message.includes('network')) {
       return NFCErrorCategory.API_ERROR;
     }
+    if (message.includes('not ndef formatted') || message.includes('not formatted')) {
+      return NFCErrorCategory.TAG_NOT_FORMATTED;
+    }
     if (message.includes('invalid') || message.includes('decode') || message.includes('parse')) {
       return NFCErrorCategory.INVALID_DATA;
     }
@@ -356,6 +360,8 @@ class NFCLogger {
         return 'Device not found. This NFC tag is not registered with any device in your organization.';
       case NFCErrorCategory.API_ERROR:
         return 'A server error occurred. Please check your connection and try again.';
+      case NFCErrorCategory.TAG_NOT_FORMATTED:
+        return 'This tag is not NDEF formatted. You can format it using the Format tab in the NFC Manager.';
       case NFCErrorCategory.INVALID_DATA:
         return 'Could not read tag data. The tag format may be incompatible or corrupted.';
       case NFCErrorCategory.WRITE_FAILED:
