@@ -570,17 +570,12 @@ export class NFCService {
         throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
       }
 
-      // Verify tag is still connected before writing
-      nfcLogger.logStep(operationId, 'Verifying tag connection before write');
-      const preWriteTag = await NfcManager.getTag();
-      if (!preWriteTag) {
-        throw new Error('Tag connection lost before write. Keep the tag steady and try again.');
-      }
-      nfcLogger.logStep(operationId, 'Tag still connected, proceeding with write');
-
       // Write the message to the tag with platform-specific handling
       nfcLogger.logStep(operationId, 'Writing NDEF message', { platform: Platform.OS });
       if (Platform.OS === 'ios') {
+        // Update iOS NFC dialog to indicate write in progress
+        try { await NfcManager.setAlertMessageIOS('Hold tag steady...'); } catch (e) { /* ignore */ }
+
         // iOS-specific write with retry mechanism
         let writeAttempts = 0;
         const maxWriteAttempts = 3;
@@ -592,10 +587,16 @@ export class NFCService {
             break;
           } catch (iosWriteError) {
             writeAttempts++;
+            const iosErrorMsg = (iosWriteError as Error).message;
+            const iosErrorName = (iosWriteError as any).name || 'Unknown';
+            const iosErrorCode = (iosWriteError as any).code || 'N/A';
             nfcLogger.logStep(operationId, 'iOS write attempt failed', {
               attempt: writeAttempts,
-              error: (iosWriteError as Error).message
+              error: iosErrorMsg,
+              errorName: iosErrorName,
+              errorCode: iosErrorCode
             });
+            console.error(`[NFCService] iOS write error (attempt ${writeAttempts}): name=${iosErrorName} code=${iosErrorCode} msg=${iosErrorMsg}`);
 
             if (writeAttempts >= maxWriteAttempts) {
               throw iosWriteError;
@@ -618,6 +619,12 @@ export class NFCService {
         // Categorize and log error
         const errorCategory = nfcLogger.categorizeError(error as Error);
         nfcLogger.endOperationWithError(operationId, error as Error, errorCategory);
+
+        // Log detailed error info for iOS debugging
+        if (Platform.OS === 'ios') {
+          const err = error as any;
+          console.error(`[NFCService] iOS write operation failed: name=${err.name || 'Unknown'} code=${err.code || 'N/A'} message=${err.message}`);
+        }
 
         // Get user-friendly error message
         let userErrorMessage = nfcLogger.getUserFriendlyMessage(errorCategory);

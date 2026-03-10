@@ -6,12 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../components/Button';
 
-const { width } = Dimensions.get('window');
 const ORANGE_COLOR = '#FF9500';
 
 interface HeaderProps {
@@ -29,6 +28,8 @@ const Header: React.FC<HeaderProps> = ({
   onManageNFCPress,
   onAssignDevicePress,
 }) => {
+  const { width } = useWindowDimensions();
+
   return (
     <View style={styles.header}>
       <View style={styles.headerTop}>
@@ -61,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({
               onPress={onManageNFCPress}
               size="small"
               textColor="black"
-              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR }]}
+              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
               testID="manage-nfc-button"
             />
             <Button
@@ -69,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({
               onPress={onAssignDevicePress}
               size="small"
               textColor="black"
-              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR }]}
+              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
               testID="assign-device-button"
             />
           </View>
@@ -149,7 +150,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     paddingHorizontal: 15,
     height: 45,
-    minWidth: width > 375 ? (width / 2) - 60 : 'auto',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,

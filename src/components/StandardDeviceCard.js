@@ -1,10 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from './Card';
 import Button from './Button';
-
-const { width } = Dimensions.get('window');
 
 const getStatusColor = (status) => {
   const colors = {
@@ -18,14 +16,15 @@ const getStatusColor = (status) => {
   return colors[status] || colors.available;
 };
 
-const StandardDeviceCard = ({ 
-  assignment, 
-  onReturn, 
-  onViewDetails, 
+const StandardDeviceCard = ({
+  assignment,
+  onReturn,
+  onViewDetails,
   style,
   showActiveStatus = true,
-  showReturnButton = true 
+  showReturnButton = true
 }) => {
+  const { width } = useWindowDimensions();
   const { device, assigned_date, user, location, returned_date, user_name, location_name } = assignment;
   const assignedTo = user_name || location_name || (typeof user === 'object' ? user?.full_name : null) || (typeof location === 'object' ? location?.name : null) || 'Unknown';
   const isActive = !returned_date;
@@ -69,7 +68,7 @@ const StandardDeviceCard = ({
     <Card
       title={device.identifier}
       subtitle={device.device_type}
-      style={[styles.deviceCard, !isActive && styles.inactiveCard, style]}
+      style={[styles.deviceCard, { width: Math.min(width * 0.45, 220) }, !isActive && styles.inactiveCard, style]}
     >
       <View style={styles.cardContent}>
         {renderActiveStatus()}
@@ -116,7 +115,6 @@ const StandardDeviceCard = ({
 
 const styles = StyleSheet.create({
   deviceCard: {
-    width: (width * 0.45),
     marginBottom: '4%',
     borderColor: '#FF9500',
     borderWidth: 1,

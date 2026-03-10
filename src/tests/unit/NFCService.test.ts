@@ -267,29 +267,6 @@ describe('NFCService', () => {
       expect(result.success).toBe(false);
     });
 
-    it('should verify tag connection before writing', async () => {
-      const mockTag = {
-        id: new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05]),
-        type: 'NfcA',
-        maxSize: 1024,
-        isWritable: true,
-        techTypes: ['android.nfc.tech.Ndef'],
-      };
-
-      const testData = JSON.stringify({ id: 'test-device' });
-
-      // Return tag first time, then null (simulating connection loss)
-      mockNfcManager.getTag
-        .mockResolvedValueOnce(mockTag)
-        .mockResolvedValueOnce(null);
-
-      mockNfcLogger.categorizeError.mockReturnValue('CONNECTION_LOST');
-      mockNfcLogger.getUserFriendlyMessage.mockReturnValue('Tag connection lost.');
-
-      const result = await nfcService.writeNFC(testData);
-
-      expect(result.success).toBe(false);
-    });
   });
 
   describe('formatTag', () => {

@@ -1,7 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { Modal, View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 
 const CustomModal = ({
   visible,
@@ -9,7 +7,7 @@ const CustomModal = ({
   children,
   title,
   // Customization props
-  modalWidth = width * 0.85,
+  modalWidth: modalWidthProp,
   modalHeight = 'auto',
   backgroundColor = 'white',
   overlayColor = 'rgba(0, 0, 0, 0.5)',
@@ -26,6 +24,9 @@ const CustomModal = ({
   padding = 15,
   position = 'center',
 }) => {
+  const { width } = useWindowDimensions();
+  const modalWidth = modalWidthProp != null ? modalWidthProp : Math.min(width * 0.85, 500);
+
   // Dynamic positioning
   const getPositionStyle = () => {
     switch (position) {
