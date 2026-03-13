@@ -1,5 +1,5 @@
 // src/screens/HomeScreen/HomeScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -68,14 +68,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     if (refreshRoleInfo) {
       refreshRoleInfo();
     }
-    
+
     NfcManager.start();
-    fetchInitialData();
 
     return () => {
       NfcManager.cancelTechnologyRequest().catch(() => 0);
     };
   }, []);
+
+  // Refetch devices and locations whenever the screen gains focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchDevices();
+      fetchLocations();
+    });
+    return unsubscribe;
+  }, [navigation, fetchDevices, fetchLocations]);
 
   // Reset return location when modal visibility changes
   useEffect(() => {
