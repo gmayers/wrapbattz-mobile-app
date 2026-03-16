@@ -1,6 +1,7 @@
 // components/TabBar/TabBar.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -9,11 +10,11 @@ const TabBar = ({
   tabs = [], // Provide empty array as default
   activeTab,
   onTabPress,
-  
+
   // Customization props
-  backgroundColor = '#FFFFFF',
-  activeColor = '#007AFF',
-  inactiveColor = '#666666',
+  backgroundColor: backgroundColorProp,
+  activeColor: activeColorProp,
+  inactiveColor: inactiveColorProp,
   showIcons = true,
   showLabels = true,
   position = 'bottom',
@@ -29,6 +30,11 @@ const TabBar = ({
   animated = true,
   animationDuration = 200
 }) => {
+  const { colors } = useTheme();
+  const backgroundColor = backgroundColorProp || colors.surface;
+  const activeColor = activeColorProp || colors.primary;
+  const inactiveColor = inactiveColorProp || colors.textSecondary;
+
   // Animation value for the indicator
   const [indicatorAnim] = React.useState(new Animated.Value(0));
   const [tabWidths, setTabWidths] = React.useState({});
@@ -65,10 +71,10 @@ const TabBar = ({
   });
 
   return (
-    <View 
+    <View
       style={[
-        styles.container, 
-        { backgroundColor, height }, 
+        styles.container,
+        { backgroundColor, height, borderTopColor: colors.border, shadowColor: colors.shadow },
         getPositionStyle(),
         containerStyle
       ]}
@@ -139,11 +145,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
     position: 'absolute',
     left: 0,
     right: 0,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: -2,

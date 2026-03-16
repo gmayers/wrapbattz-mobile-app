@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { PasswordChangeForm, ValidationResult, NavigationProp } from '../../types';
 import { FormValidation } from '../../utils/FormValidation';
 import PasswordField from '../../components/Form/PasswordField';
@@ -26,7 +27,8 @@ interface ChangePasswordScreenProps {
 
 const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation }) => {
   const { axiosInstance, userData } = useAuth();
-  
+  const { colors } = useTheme();
+
   const [formData, setFormData] = useState<PasswordChangeForm>({
     current_password: '',
     new_password: '',
@@ -163,16 +165,16 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidView}
       >
         <ScrollView>
           <View style={styles.formContainer}>
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle-outline" size={24} color="#666" />
-              <Text style={styles.infoText}>
+            <View style={[styles.infoContainer, { backgroundColor: colors.surfaceAlt }]}>
+              <Ionicons name="information-circle-outline" size={24} color={colors.textSecondary} />
+              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
                 Your password must be at least 8 characters long and include a mix of letters,
                 numbers, and special characters for security.
               </Text>
@@ -207,18 +209,18 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
 
             <View style={styles.buttonContainer}>
               {loading ? (
-                <ActivityIndicator size="large" color={ORANGE_COLOR} />
+                <ActivityIndicator size="large" color={colors.primary} />
               ) : (
                 <>
                   <TouchableOpacity
-                    style={styles.cancelButton}
+                    style={[styles.cancelButton, { backgroundColor: colors.surfaceAlt }]}
                     onPress={() => navigation.goBack()}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.saveButton}
+                    style={[styles.saveButton, { backgroundColor: colors.primary }]}
                     onPress={handleSubmit}
                   >
                     <Text style={styles.saveButtonText}>Update Password</Text>

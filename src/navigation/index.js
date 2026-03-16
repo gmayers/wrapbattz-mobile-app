@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,98 +29,85 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 
 const Stack = createStackNavigator();
 
-// Orange color to match UI
-const ORANGE_COLOR = '#FF9500';
+const AuthStack = () => {
+  const { colors } = useTheme();
 
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Login" component={LoginScreen} />
-    <Stack.Screen 
-      name="Register" 
-      component={RegisterScreen} 
-      options={{
-        headerShown: true,
-        headerTitle: 'Create Account',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    />
-    <Stack.Screen
-      name="Pricing" 
-      component={PricingScreen} 
-      options={{
-        headerShown: true,
-        headerTitle: 'Pricing',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    />
-     <Stack.Screen
-      name="SuggestFeature"
-      component={SuggestFeatureScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Suggest a Feature',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    />
-    <Stack.Screen 
-      name="ForgotPassword" 
-      component={ForgotPasswordPage}
-      options={{
-        headerShown: true,
-        headerTitle: 'Reset Password',
-        headerStyle: {
-          backgroundColor: '#fff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f4f4f4',
-        },
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    />
-  </Stack.Navigator>
-);
-
-const MainStack = () => {
-  const insets = useSafeAreaInsets();
-  
-  const getHeaderStyle = () => ({
-    backgroundColor: '#fff',
+  const themedHeaderStyle = {
+    backgroundColor: colors.background,
     elevation: 0,
     shadowOpacity: 0,
     borderBottomWidth: 1,
-    borderBottomColor: '#f4f4f4',
+    borderBottomColor: colors.borderLight,
+  };
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Create Account',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+      <Stack.Screen
+        name="Pricing"
+        component={PricingScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Pricing',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+       <Stack.Screen
+        name="SuggestFeature"
+        component={SuggestFeatureScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Suggest a Feature',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+      <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordPage}
+        options={{
+          headerShown: true,
+          headerTitle: 'Reset Password',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+const MainStack = () => {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+
+  const getHeaderStyle = () => ({
+    backgroundColor: colors.background,
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
     height: Platform.OS === 'ios' ? 44 + insets.top : 56,
   });
+
+  const headerTitleStyle = {
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+  };
 
   return (
     <Stack.Navigator>
@@ -127,11 +115,11 @@ const MainStack = () => {
       <Stack.Screen
         name="MainTabs"
         component={TabNavigation}
-        options={{ 
+        options={{
           headerShown: false
         }}
       />
-      
+
       {/* Modal/Detail Screens that should be above tabs */}
       <Stack.Screen
         name="CreateReport"
@@ -139,10 +127,8 @@ const MainStack = () => {
         options={{
           headerTitle: 'Create Report',
           headerStyle: getHeaderStyle(),
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          headerTintColor: ORANGE_COLOR,
+          headerTitleStyle,
+          headerTintColor: colors.primary,
         }}
       />
     <Stack.Screen
@@ -180,10 +166,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Add New Device',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     <Stack.Screen
@@ -193,10 +177,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Location Details',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     <Stack.Screen
@@ -206,10 +188,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Device Management Fee',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     <Stack.Screen
@@ -219,10 +199,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Manage Billing',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     <Stack.Screen
@@ -232,10 +210,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Edit Profile',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     <Stack.Screen
@@ -245,10 +221,8 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Change Password',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     {/* Add CreateOrganization screen to MainStack for users who need to access it */}
@@ -259,25 +233,27 @@ const MainStack = () => {
         headerShown: true,
         headerTitle: 'Create Organization',
         headerStyle: getHeaderStyle(),
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        headerTintColor: ORANGE_COLOR,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
   </Stack.Navigator>
   );
 };
 
-const LoadingScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <ActivityIndicator size="large" color={ORANGE_COLOR} />
-  </View>
-);
+const LoadingScreen = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+};
 
 // FIXED: Simplified OnboardingStack that uses the correct field
 const OnboardingStack = () => {
   const { onboardingComplete, userData } = useAuth();
+  const { colors } = useTheme();
 
   // User needs onboarding only if they don't have an org AND haven't completed onboarding
   // This fixes the issue where admins (who have an orgId) were incorrectly routed to Create Organization
@@ -286,21 +262,23 @@ const OnboardingStack = () => {
   if (needsOnboarding) {
     return (
       <Stack.Navigator>
-        <Stack.Screen 
-          name="CreateOrganization" 
+        <Stack.Screen
+          name="CreateOrganization"
           component={CreateOrganizationScreen}
-          options={{ 
+          options={{
             headerTitle: 'Create Organization',
             headerStyle: {
-              backgroundColor: '#fff',
+              backgroundColor: colors.background,
               elevation: 0,
               shadowOpacity: 0,
               borderBottomWidth: 1,
-              borderBottomColor: '#f4f4f4',
+              borderBottomColor: colors.borderLight,
             },
             headerTitleStyle: {
               fontWeight: 'bold',
+              color: colors.textPrimary,
             },
+            headerTintColor: colors.primary,
           }}
         />
       </Stack.Navigator>

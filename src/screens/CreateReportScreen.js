@@ -18,6 +18,7 @@ import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
 import SignatureScreen from 'react-native-signature-canvas';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Dropdown from '../components/Dropdown';
 import RNFS from 'react-native-fs';
 
@@ -41,7 +42,8 @@ const CreateReportScreen = ({ navigation, route }) => {
     logout,
     isLoading: authLoading
   } = useAuth();
-  
+  const { colors } = useTheme();
+
   const [formData, setFormData] = useState({
     device_id: '',
     type: '',
@@ -619,8 +621,8 @@ const CreateReportScreen = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.formContainer}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.surface }]}>
+      <ScrollView style={[styles.formContainer, { backgroundColor: colors.surface }]}>
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{error}</Text>
@@ -631,14 +633,14 @@ const CreateReportScreen = ({ navigation, route }) => {
       )}
       
       <View style={styles.formHeader}>
-        <Text style={styles.formTitle}>Create Report</Text>
+        <Text style={[styles.formTitle, { color: colors.textPrimary }]}>Create Report</Text>
         {userData?.name && (
           <Text style={styles.userInfo}>Reporting as: {userData.name}</Text>
         )}
       </View>
       
       <View style={styles.formGroup}>
-        <Text style={styles.formLabel}>Device</Text>
+        <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Device</Text>
         {loading || authLoading ? (
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading devices...</Text>
@@ -657,7 +659,7 @@ const CreateReportScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.formLabel}>Report Type</Text>
+        <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Report Type</Text>
         <View style={styles.typeGrid}>
           {Object.entries(REPORT_TYPES).map(([type, description], index) => (
             <View key={type} style={styles.typeGridItem}>
@@ -767,11 +769,11 @@ const CreateReportScreen = ({ navigation, route }) => {
         onRequestClose={() => setIsSignatureModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalInnerContainer}>
+          <View style={[styles.modalInnerContainer, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Signature</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Signature</Text>
               <TouchableOpacity onPress={handleSignatureClose}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.signatureCanvasContainer}>

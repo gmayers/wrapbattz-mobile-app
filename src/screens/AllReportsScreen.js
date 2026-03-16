@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { BaseTextInput } from '../components/TextInput';
@@ -49,6 +50,7 @@ const AllReportsScreen = ({ navigation, route }) => {
     userData,
     isAdminOrOwner
   } = useAuth();
+  const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState('my');
   // State for "My Reports" tab
@@ -226,7 +228,7 @@ const renderReportCard = (report, isMyReport = false) => (
           style={styles.typeRow}
         >
           <Text style={styles.reportText}>Type: {report.type}</Text>
-          <Ionicons name="information-circle-outline" size={16} color="#666" />
+          <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
         </TouchableOpacity>
         <View style={styles.statusRow}>
           <Text style={styles.reportText}>Status: </Text>
@@ -267,14 +269,14 @@ const renderReportCard = (report, isMyReport = false) => (
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
           <Text style={styles.backText}>Reports</Text>
         </TouchableOpacity>
         <Button
@@ -282,12 +284,12 @@ const renderReportCard = (report, isMyReport = false) => (
           onPress={() => navigation.navigate('CreateReport')}
           size="small"
           textColor="black"
-          style={[styles.createReportButton, { backgroundColor: ORANGE_COLOR }]}
+          style={[styles.createReportButton, { backgroundColor: colors.primary }]}
         />
       </View>
 
       {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={[
             styles.tabButton,
@@ -330,21 +332,21 @@ const renderReportCard = (report, isMyReport = false) => (
         >
           <View style={styles.section}>
             {loadingMyReports ? (
-              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : myReports.length > 0 ? (
               <View style={styles.reportsGrid}>
                 {myReports.map(report => renderReportCard(report, true))}
               </View>
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="document-text-outline" size={48} color="#CCCCCC" />
+                <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
                 <Text style={styles.emptyText}>No reports found</Text>
                 <Button
                   title="Create Your First Report"
                   onPress={() => navigation.navigate('CreateReport')}
                   size="small"
                   textColor="black"
-                  style={[{ marginTop: 15, backgroundColor: ORANGE_COLOR }]}
+                  style={[{ marginTop: 15, backgroundColor: colors.primary }]}
                 />
               </View>
             )}
@@ -361,14 +363,14 @@ const renderReportCard = (report, isMyReport = false) => (
         >
           <View style={styles.section}>
             {loadingAllReports ? (
-              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : allReports.length > 0 ? (
               <View style={styles.reportsGrid}>
                 {allReports.map(report => renderReportCard(report, false))}
               </View>
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="document-text-outline" size={48} color="#CCCCCC" />
+                <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
                 <Text style={styles.emptyText}>No reports found</Text>
               </View>
             )}
@@ -386,10 +388,10 @@ const renderReportCard = (report, isMyReport = false) => (
         <TouchableWithoutFeedback onPress={handleUpdateReportModalClose}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.modalContainer}>
+              <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
                 {selectedReport && (
                   <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>
+                    <Text style={[styles.modalTitle, { color: colors.primary }]}>
                       {isMyReportUpdate ? 'Edit Report' : 'Update Report Status'}
                     </Text>
                     <Text style={styles.modalText}>
@@ -664,7 +666,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   checkboxLabel: {
@@ -673,7 +675,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginTop: 10,
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   cancelButton: {

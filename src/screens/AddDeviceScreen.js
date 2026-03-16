@@ -18,6 +18,7 @@ import Button from '../components/Button';
 import CustomModal from '../components/Modal';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { nfcService } from '../services/NFCService';
 
 // Define the orange color to match other screens
@@ -29,7 +30,8 @@ const ORANGE_COLOR = '#FF9500';
 const AddDevicePage = ({ navigation }) => {
   // Use auth context with all needed properties including getOrganizationMembers
   const { deviceService, axiosInstance, userData, user, getOrganizationMembers } = useAuth();
-  
+  const { colors } = useTheme();
+
   // Calculate date 2 weeks from today
   const twoWeeksFromNow = new Date();
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
@@ -694,7 +696,7 @@ const handleNFCWrite = async () => {
 };
 
 return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
@@ -709,7 +711,7 @@ return (
           <View style={styles.form}>
             {/* Make Dropdown - with improved required styling and fixed handling*/}
             <View style={styles.formField}>
-              <Text style={styles.label}>Make *</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Make *</Text>
               <Dropdown
                 value={formData.make}
                 onValueChange={handleMakeChange}
@@ -739,7 +741,7 @@ return (
 
             {/* Model Input */}
             <View style={styles.formField}>
-              <Text style={styles.label}>Model *</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Model *</Text>
               <BaseTextInput
                 value={formData.model}
                 onChangeText={(text) => handleInputChange('model', text)}
@@ -750,7 +752,7 @@ return (
 
             {/* Description Input */}
             <View style={styles.formField}>
-              <Text style={styles.label}>Description *</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Description *</Text>
               <BaseTextInput
                 value={formData.description}
                 onChangeText={(text) => handleInputChange('description', text)}
@@ -762,7 +764,7 @@ return (
 
             {/* Device Type Dropdown */}
             <View style={styles.formField}>
-              <Text style={styles.label}>Device Type</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Device Type</Text>
               <Dropdown
                 value={formData.device_type}
                 onValueChange={handleDeviceTypeChange}
@@ -791,7 +793,7 @@ return (
 
             {/* Serial Number Input */}
             <View style={styles.formField}>
-              <Text style={styles.label}>Serial Number</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Serial Number</Text>
               <BaseTextInput
                 value={formData.serial_number}
                 onChangeText={(text) => handleInputChange('serial_number', text)}
@@ -840,7 +842,7 @@ return (
 
             {/* Assignment Toggle Switch - Updated order to have User first */}
             <View style={styles.toggleContainer}>
-              <Text style={styles.toggleLabel}>Assign to:</Text>
+              <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Assign to:</Text>
               <View style={styles.toggleRow}>
                 <Text style={isUserAssignment ? styles.toggleTextActive : styles.toggleTextInactive}>
                   User
@@ -891,7 +893,7 @@ return (
 
             {/* NFC Tag Registration Section */}
             <View style={styles.nfcSection}>
-              <Text style={styles.label}>NFC Tag (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>NFC Tag (Optional)</Text>
               <Text style={styles.nfcInstructions}>
                 Hold the tag to the device and press the "Write Data to Tag" button to write data to the NFC tag.
               </Text>

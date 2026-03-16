@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import NfcManager from 'react-native-nfc-manager';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import AssignDeviceModal from '../home/components/AssignDevice/AssignDeviceModal';
 import NfcManagerModal from '../home/components/NFCManager/NFCManagerModal';
@@ -23,14 +24,13 @@ import ReturnDeviceModal from './components/ReturnDeviceModal';
 import { useDevices } from './hooks/useDevices';
 import { useLocations } from './hooks/useLocations';
 
-const ORANGE_COLOR = '#FF9500';
-
 interface HomeScreenProps {
   navigation: any;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { logout, userData, user, refreshRoleInfo } = useAuth();
+  const { colors, isDark } = useTheme();
   
   // Modal states
   const [assignDeviceModalVisible, setAssignDeviceModalVisible] = useState(false);
@@ -199,8 +199,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header Section */}
       <Header
@@ -265,7 +265,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   scrollView: {
     flex: 1,

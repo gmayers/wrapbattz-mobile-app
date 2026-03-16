@@ -10,12 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Image,
   TextInput as RNTextInput,
 } from 'react-native';
 import Button from '../../../components/Button';
 import FormField from '../../../components/Form/FormField';
 import PasswordField from '../../../components/Form/PasswordField';
 import { useAuth } from '../../../context/AuthContext';
+import { useTheme } from '../../../context/ThemeContext';
 import { RegisterForm, ValidationResult, NavigationProp } from '../../../types';
 import { FormValidation } from '../../../utils/FormValidation';
 
@@ -34,6 +36,7 @@ interface RegisterScreenProps {
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
   const { register } = useAuth();
+  const { colors, fonts } = useTheme();
 
   // Get selected plan from navigation params
   const selectedPlan = route?.params?.selectedPlan;
@@ -55,7 +58,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
   const [billingCycle, setBillingCycle] = useState<string>(
     selectedPlan?.billing || 'annual'
   );
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const passwordInputRef = useRef<RNTextInput>(null);
@@ -79,7 +82,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
 
   const handleInputChange = (key: keyof RegisterForm, value: string): void => {
     setFormData(prev => ({ ...prev, [key]: value }));
-    
+
     // Clear error when typing
     if (errors[key]) {
       setErrors(prev => ({ ...prev, [key]: '' }));
@@ -92,7 +95,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     }
 
     setIsSubmitting(true);
-    
+
     try {
       await register({
         email: formData.email,
@@ -103,7 +106,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
         organization_invite_code: formData.organization_invite_code || '',
         phone_number: formData.phone_number || '',
       });
-      
+
       Alert.alert(
         'Registration Successful',
         'Your account has been created. Please check your email to verify your account before logging in.',
@@ -120,13 +123,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
         if (error.response.data && typeof error.response.data === 'object') {
           const serverErrors = error.response.data;
           const formattedErrors: Record<string, string> = {};
-          
+
           Object.keys(serverErrors).forEach(key => {
-            formattedErrors[key] = Array.isArray(serverErrors[key]) 
-              ? serverErrors[key][0] 
+            formattedErrors[key] = Array.isArray(serverErrors[key])
+              ? serverErrors[key][0]
               : serverErrors[key];
           });
-          
+
           setErrors(formattedErrors);
         } else {
           Alert.alert(
@@ -177,101 +180,123 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
   };
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
         enabled
       >
-        <ScrollView 
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView
+          style={{ flex: 1, backgroundColor: colors.background }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={true}
           bounces={false}
         >
-          <View style={styles.formContainer}>
-            <Text style={styles.stepIndicator}>Step 1 of 2</Text>
-            <Text style={styles.headerText}>Create an Account</Text>
-            <Text style={styles.subHeaderText}>
+          <View style={{ padding: 20 }}>
+            {/* Logo and Brand */}
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Image
+                source={require('../../../../assets/logo-transparent.png')}
+                style={{ width: 120, height: 120, alignSelf: 'center' }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
+            </View>
+
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary, marginBottom: 8, textAlign: 'center' }}>Step 1 of 2</Text>
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 10, textAlign: 'center' }}>Create an Account</Text>
+            <Text style={{ fontSize: 15, color: colors.textSecondary, marginBottom: 30, textAlign: 'center', lineHeight: 22 }}>
               Register your personal account to get started with BattWrapz. After this, you'll set up your organization where you can manage devices, locations, and team members.
             </Text>
 
             {/* Subscription Plan Selection */}
-            <View style={styles.planSection}>
-              <View style={styles.planHeader}>
-                <Text style={styles.planSectionTitle}>Choose Your Plan</Text>
+            <View style={{ marginBottom: 20, backgroundColor: colors.surface, borderRadius: 12, padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>Choose Your Plan</Text>
                 <TouchableOpacity onPress={navigateToPricing}>
-                  <Text style={styles.viewAllPlansLink}>View all plans →</Text>
+                  <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '500' }}>View all plans →</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Billing Toggle */}
               {selectedPlanType !== 'starter' && (
-                <View style={styles.billingToggle}>
-                  <Text style={[styles.billingOption, billingCycle === 'monthly' && styles.billingOptionActive]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, color: billingCycle === 'monthly' ? colors.textPrimary : colors.textMuted, paddingHorizontal: 10, fontWeight: billingCycle === 'monthly' ? '600' : 'normal' }}>
                     Monthly
                   </Text>
-                  <TouchableOpacity style={styles.toggleSwitch} onPress={toggleBillingCycle}>
-                    <View style={[styles.toggleThumb, billingCycle === 'monthly' && styles.toggleThumbLeft]} />
+                  <TouchableOpacity style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: colors.primary, position: 'relative', marginHorizontal: 8 }} onPress={toggleBillingCycle}>
+                    <View style={{ position: 'absolute', width: 18, height: 18, backgroundColor: colors.background, borderRadius: 9, top: 3, ...(billingCycle === 'monthly' ? { left: 3 } : { right: 3 }) }} />
                   </TouchableOpacity>
-                  <Text style={[styles.billingOption, billingCycle === 'annual' && styles.billingOptionActive]}>
+                  <Text style={{ fontSize: 14, color: billingCycle === 'annual' ? colors.textPrimary : colors.textMuted, paddingHorizontal: 10, fontWeight: billingCycle === 'annual' ? '600' : 'normal' }}>
                     Annually {billingCycle === 'annual' && '(Save 16%)'}
                   </Text>
                 </View>
               )}
 
               {/* Plan Cards */}
-              <View style={styles.planCards}>
+              <View style={{ gap: 12 }}>
                 <TouchableOpacity
-                  style={[
-                    styles.planCard,
-                    selectedPlanType === 'starter' && styles.planCardSelected,
-                  ]}
+                  style={{
+                    backgroundColor: selectedPlanType === 'starter' ? colors.primaryLight : colors.card,
+                    borderRadius: 10,
+                    padding: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1.5,
+                    borderColor: selectedPlanType === 'starter' ? colors.primary : colors.border,
+                    position: 'relative',
+                  }}
                   onPress={() => setSelectedPlanType('starter')}
                 >
-                  <View style={styles.planRadio}>
-                    {selectedPlanType === 'starter' && <View style={styles.planRadioSelected} />}
+                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderInput, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                    {selectedPlanType === 'starter' && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
                   </View>
-                  <View style={styles.planContent}>
-                    <Text style={styles.planName}>Starter</Text>
-                    <Text style={styles.planPrice}>FREE</Text>
-                    <Text style={styles.planDesc}>First 3 assets free</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 }}>Starter</Text>
+                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 2 }}>FREE</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>First 3 assets free</Text>
                   </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.planCard,
-                    selectedPlanType === 'professional' && styles.planCardSelected,
-                  ]}
+                  style={{
+                    backgroundColor: selectedPlanType === 'professional' ? colors.primaryLight : colors.card,
+                    borderRadius: 10,
+                    padding: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1.5,
+                    borderColor: selectedPlanType === 'professional' ? colors.primary : colors.border,
+                    position: 'relative',
+                  }}
                   onPress={() => setSelectedPlanType('professional')}
                 >
                   {selectedPlanType === 'professional' && (
-                    <View style={styles.popularBadge}>
-                      <Text style={styles.popularText}>Popular</Text>
+                    <View style={{ position: 'absolute', top: -8, right: 12, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                      <Text style={{ color: colors.background, fontSize: 10, fontWeight: '600' }}>Popular</Text>
                     </View>
                   )}
-                  <View style={styles.planRadio}>
-                    {selectedPlanType === 'professional' && <View style={styles.planRadioSelected} />}
+                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderInput, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                    {selectedPlanType === 'professional' && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
                   </View>
-                  <View style={styles.planContent}>
-                    <Text style={styles.planName}>Professional</Text>
-                    <Text style={styles.planPrice}>{getPlanPrice()}</Text>
-                    <Text style={styles.planDesc}>{getPlanDescription()}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 }}>Professional</Text>
+                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 2 }}>{getPlanPrice()}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>{getPlanDescription()}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <Text style={styles.sectionLabel}>Your Details</Text>
-            <Text style={styles.sectionDescription}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary, marginBottom: 6 }}>Your Details</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 16, lineHeight: 20 }}>
               This is the account owner's information. You'll use your email and password to log in.
             </Text>
 
-            <View style={styles.inputRow}>
-              <View style={styles.halfInput}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ width: '48%' }}>
                 <FormField
                   label="First Name"
                   value={formData.first_name}
@@ -281,7 +306,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
                   required
                 />
               </View>
-              <View style={styles.halfInput}>
+              <View style={{ width: '48%' }}>
                 <FormField
                   label="Last Name"
                   value={formData.last_name}
@@ -345,14 +370,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
               onPress={handleRegister}
               disabled={isSubmitting}
               loading={isSubmitting}
-              style={styles.registerButton}
+              style={{ marginTop: 20, backgroundColor: colors.primary }}
               textColorProp="black"
             />
 
-            <View style={styles.loginPrompt}>
-              <Text style={styles.loginText}>Already have an account?</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20, marginBottom: 30 }}>
+              <Text style={{ fontSize: 16, color: colors.textSecondary }}>Already have an account?</Text>
               <TouchableOpacity onPress={navigateToLogin}>
-                <Text style={styles.loginLink}>Login</Text>
+                <Text style={{ fontSize: 16, color: colors.primary, fontWeight: 'bold', marginLeft: 5 }}>Login</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -361,212 +386,5 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 30,
-  },
-  formContainer: {
-    padding: 20,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  stepIndicator: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF9500',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subHeaderText: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  sectionLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  halfInput: {
-    width: '48%',
-  },
-  registerButton: {
-    marginTop: 20,
-    backgroundColor: '#FF9500',
-  },
-  loginPrompt: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  loginText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  loginLink: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  // Plan Selection Styles
-  planSection: {
-    marginBottom: 20,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 16,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  planSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  viewAllPlansLink: {
-    fontSize: 14,
-    color: '#FF9500',
-    fontWeight: '500',
-  },
-  billingToggle: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  billingOption: {
-    fontSize: 14,
-    color: '#999',
-    paddingHorizontal: 10,
-  },
-  billingOptionActive: {
-    color: '#333',
-    fontWeight: '600',
-  },
-  toggleSwitch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF9500',
-    position: 'relative',
-    marginHorizontal: 8,
-  },
-  toggleThumb: {
-    position: 'absolute',
-    width: 18,
-    height: 18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 9,
-    top: 3,
-    right: 3,
-  },
-  toggleThumbLeft: {
-    right: 'auto',
-    left: 3,
-  },
-  planCards: {
-    gap: 12,
-  },
-  planCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#e0e0e0',
-    position: 'relative',
-  },
-  planCardSelected: {
-    borderColor: '#FF9500',
-    backgroundColor: '#FFF5E6',
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 12,
-    backgroundColor: '#FF9500',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  popularText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  planRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    marginRight: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planRadioSelected: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF9500',
-  },
-  planContent: {
-    flex: 1,
-  },
-  planName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  planPrice: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FF9500',
-    marginBottom: 2,
-  },
-  planDesc: {
-    fontSize: 12,
-    color: '#666',
-  },
-});
 
 export default RegisterScreen;

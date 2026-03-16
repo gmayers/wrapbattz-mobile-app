@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Define the orange color to be used for buttons to match LocationsScreen
 const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
@@ -36,7 +37,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     clearError,
     isLoading: authLoading
   } = useAuth();
-  
+  const { colors } = useTheme();
+
   const [location, setLocation] = useState(null);
   const [devices, setDevices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -328,7 +330,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               style={styles.viewButton}
               onPress={() => handleViewDevice(device.id)}
             >
-              <Ionicons name="eye-outline" size={18} color={ORANGE_COLOR} />
+              <Ionicons name="eye-outline" size={18} color={colors.primary} />
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
 
@@ -354,7 +356,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               style={styles.transferButton}
               onPress={() => openTransferModal(device)}
             >
-              <Ionicons name="swap-horizontal-outline" size={18} color={ORANGE_COLOR} />
+              <Ionicons name="swap-horizontal-outline" size={18} color={colors.primary} />
               <Text style={styles.transferButtonText}>Transfer to Location</Text>
             </TouchableOpacity>
           )}
@@ -418,7 +420,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading location details...</Text>
         </View>
       </SafeAreaView>
@@ -429,7 +431,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   if (error && !location) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorMessage}>{error}</Text>
         <Button
           title="Try Again"
@@ -442,9 +444,9 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" />
-      
+
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
@@ -464,7 +466,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           </View>
           
           {isDevicesLoading ? (
-            <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+            <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
           ) : devices.length > 0 ? (
             <>
               {devices.map((device) => (
@@ -475,7 +477,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             </>
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="cube-outline" size={48} color="#CCCCCC" />
+              <Ionicons name="cube-outline" size={48} color={colors.disabled} />
               <Text style={styles.emptyText}>No available devices at this location</Text>
               <Text style={styles.emptySubtext}>All devices are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
@@ -502,9 +504,9 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Transfer Device</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Transfer Device</Text>
               <TouchableOpacity
                 onPress={() => {
                   setTransferModalVisible(false);
@@ -512,7 +514,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                 }}
                 style={styles.modalCloseButton}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -540,7 +542,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                     disabled={isTransferring}
                   >
                     <View style={styles.locationItemContent}>
-                      <Ionicons name="location-outline" size={20} color={ORANGE_COLOR} />
+                      <Ionicons name="location-outline" size={20} color={colors.primary} />
                       <View style={styles.locationItemText}>
                         <Text style={styles.locationItemName}>
                           {item.name || `${item.street_number} ${item.street_name}`}
@@ -551,9 +553,9 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                       </View>
                     </View>
                     {isTransferring ? (
-                      <ActivityIndicator size="small" color={ORANGE_COLOR} />
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                      <Ionicons name="chevron-forward" size={20} color={colors.disabled} />
                     )}
                   </TouchableOpacity>
                 );

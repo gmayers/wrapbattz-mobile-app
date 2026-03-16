@@ -9,8 +9,11 @@ import EditTab from './EditTab';
 import FormatTab from './FormatTab';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { ndefToJson } from '../../../../../utils/NfcUtils';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const NfcManagerModal = ({ visible, onClose }) => {
+  const { colors } = useTheme();
+  const styles = getModalStyles(colors);
   // NFC Manager states
   const [nfcActiveTab, setNfcActiveTab] = useState('read');
   const [writeFields, setWriteFields] = useState([{ label: '', value: '' }]);
@@ -295,7 +298,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
                 hitSlop={{top: 20, bottom: 20, left: 20, right: 20}}
                 style={styles.closeButton}
               >
-                <Ionicons name="close-circle" size={32} color="#FF3B30" />
+                <Ionicons name="close-circle" size={32} color={colors.error} />
               </TouchableOpacity>
             </View>
 
@@ -317,7 +320,7 @@ const NfcManagerModal = ({ visible, onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getModalStyles = (colors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -329,11 +332,11 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
   },
   nfcModalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 10,
-    overflow: 'hidden', // Important for iOS rendering
-    flexDirection: 'column', // Ensure the container uses column layout
+    overflow: 'hidden',
+    flexDirection: 'column',
     height: '100%',
   },
   modalHeader: {
@@ -347,14 +350,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
   },
   closeButton: {
-    padding: 5, // Add padding to increase touch area
+    padding: 5,
   },
   tabContentContainer: {
-    flex: 1, // This will take up all the space between header and footer
-    // Ensure proper z-index stacking for iOS
+    flex: 1,
     ...(Platform.OS === 'ios' ? {
       zIndex: 1,
       position: 'relative',

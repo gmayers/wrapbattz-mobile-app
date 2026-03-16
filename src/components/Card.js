@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -10,49 +11,52 @@ const Card = ({
   children,
   imageSource,
   onPress,
-  
+
   // Style props
   width: cardWidth = width * 0.9,
   height,
-  backgroundColor = 'white',
+  backgroundColor: backgroundColorProp,
   borderRadius = 10,
   elevation = 5,
   padding = 15,
-  
+
   // Custom styles
   containerStyle,
   titleStyle,
   subtitleStyle,
   contentStyle,
   imageStyle,
-  
+
   // Shadow props
-  shadowColor = '#000',
+  shadowColor: shadowColorProp,
   shadowOpacity = 0.25,
   shadowOffset = { width: 0, height: 2 },
   shadowRadius = 3.84,
-  
+
   // Image props
   imageHeight = 200,
   imageFit = 'cover',
-  
+
   // Header props
   headerContent,
   headerStyle,
-  
+
   // Footer props
   footerContent,
   footerStyle,
-  
+
   // Border props
   borderColor,
   borderWidth,
-  
+
   // Disabled state
   disabled = false,
   disabledStyle,
   disabledOpacity = 0.6,
 }) => {
+  const { colors } = useTheme();
+  const backgroundColor = backgroundColorProp || colors.card;
+  const shadowColor = shadowColorProp || colors.shadow;
   const CardContainer = onPress ? TouchableOpacity : View;
 
   const containerStyles = [
@@ -67,7 +71,7 @@ const Card = ({
       borderWidth,
     },
     containerStyle,
-    disabled && [styles.disabled, { opacity: disabledOpacity }, disabledStyle],
+    disabled && [styles.disabled, { opacity: disabledOpacity, backgroundColor: colors.surfaceAlt }, disabledStyle],
   ];
 
   if (elevation) {
@@ -114,12 +118,12 @@ const Card = ({
       {(title || subtitle) && (
         <View style={styles.titleContainer}>
           {title && (
-            <Text style={[styles.title, titleStyle]}>
+            <Text style={[styles.title, { color: colors.textPrimary }, titleStyle]}>
               {title}
             </Text>
           )}
           {subtitle && (
-            <Text style={[styles.subtitle, subtitleStyle]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }, subtitleStyle]}>
               {subtitle}
             </Text>
           )}
@@ -133,7 +137,7 @@ const Card = ({
 
       {/* Footer */}
       {footerContent && (
-        <View style={[styles.footer, footerStyle]}>
+        <View style={[styles.footer, { borderTopColor: colors.border }, footerStyle]}>
           {footerContent}
         </View>
       )}
@@ -143,13 +147,10 @@ const Card = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
     marginVertical: 8,
     overflow: 'hidden',
   },
-  disabled: {
-    backgroundColor: '#f5f5f5',
-  },
+  disabled: {},
   header: {
     marginBottom: 10,
   },
@@ -164,12 +165,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
   },
   content: {
     flex: 1,
@@ -177,7 +176,6 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E0E0E0',
     paddingTop: 10,
   },
 });

@@ -23,6 +23,7 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import SearchBar from '../components/SearchBar';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +43,7 @@ const LocationsScreen = ({ navigation }) => {
     error: authError,
     clearError
   } = useAuth();
+  const { colors } = useTheme();
 
   const [locations, setLocations] = useState([]);
   const [filteredLocations, setFilteredLocations] = useState([]);
@@ -379,7 +381,7 @@ const LocationsScreen = ({ navigation }) => {
                 {location.name || location.building_name || `${location.street_number} ${location.street_name}`}
               </Text>
               <View style={styles.locationTypeContainer}>
-                <Ionicons name="location" size={14} color={ORANGE_COLOR} />
+                <Ionicons name="location" size={14} color={colors.primary} />
                 <Text style={styles.locationType}>Location</Text>
               </View>
             </View>
@@ -391,7 +393,7 @@ const LocationsScreen = ({ navigation }) => {
           {/* Address Details */}
           <View style={styles.addressContainer}>
             <View style={styles.addressRow}>
-              <Ionicons name="home-outline" size={16} color="#666" />
+              <Ionicons name="home-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.addressText}>
                 {location.street_number} {location.street_name}
               </Text>
@@ -399,13 +401,13 @@ const LocationsScreen = ({ navigation }) => {
             
             {location.address_2 && (
               <View style={styles.addressRow}>
-                <Ionicons name="business-outline" size={16} color="#666" />
+                <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.addressText}>{location.address_2}</Text>
               </View>
             )}
             
             <View style={styles.addressRow}>
-              <Ionicons name="map-outline" size={16} color="#666" />
+              <Ionicons name="map-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.addressText}>
                 {location.town_or_city}{location.county ? `, ${location.county}` : ''} {location.postcode}
               </Text>
@@ -415,7 +417,7 @@ const LocationsScreen = ({ navigation }) => {
           {/* Action Button */}
           <View style={styles.locationActions}>
             <View style={styles.viewDevicesButton}>
-              <Ionicons name="cube-outline" size={18} color={ORANGE_COLOR} />
+              <Ionicons name="cube-outline" size={18} color={colors.primary} />
               <Text style={styles.viewDevicesText}>View Available Devices</Text>
             </View>
           </View>
@@ -442,7 +444,7 @@ const LocationsScreen = ({ navigation }) => {
               handleEditLocation(location);
             }}
           >
-            <Ionicons name="create-outline" size={20} color={ORANGE_COLOR} />
+            <Ionicons name="create-outline" size={20} color={colors.primary} />
             <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -461,9 +463,9 @@ const LocationsScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               {editMode ? 'Edit Location' : 'Create New Location'}
             </Text>
             <TouchableOpacity onPress={() => {
@@ -471,7 +473,7 @@ const LocationsScreen = ({ navigation }) => {
               setEditMode(false);
               setEditingLocationId(null);
             }}>
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
           
@@ -592,7 +594,7 @@ const LocationsScreen = ({ navigation }) => {
               <View style={styles.signatureSection}>
                 <Text style={styles.sectionLabel}>Created By:</Text>
                 <View style={styles.signatureBox}>
-                  <Ionicons name="person-circle-outline" size={24} color={ORANGE_COLOR} />
+                  <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
                   <Text style={styles.signatureText}>
                     {locations.find(l => l.id === editingLocationId)?.created_by?.first_name || 'N/A'} {locations.find(l => l.id === editingLocationId)?.created_by?.last_name || ''}
                   </Text>
@@ -622,7 +624,7 @@ const LocationsScreen = ({ navigation }) => {
               size="medium"
               disabled={isSubmitting}
               textColor="black"
-              style={{ backgroundColor: ORANGE_COLOR }}
+              style={{ backgroundColor: colors.primary }}
             />
           </View>
         </View>
@@ -643,21 +645,21 @@ const LocationsScreen = ({ navigation }) => {
           }}
           size="medium"
           textColor="black"
-          style={{ backgroundColor: ORANGE_COLOR }}
+          style={{ backgroundColor: colors.primary }}
         />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" />
-      
+
       {/* Updated Header Section */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeText}>
+            <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
               Locations
             </Text>
           </View>
@@ -682,7 +684,7 @@ const LocationsScreen = ({ navigation }) => {
             onPress={() => setModalVisible(true)}
             size="small"
             textColor="black"
-            style={{ backgroundColor: ORANGE_COLOR }}
+            style={{ backgroundColor: colors.primary }}
           />
         )}
       </View>
@@ -708,14 +710,14 @@ const LocationsScreen = ({ navigation }) => {
             </Text>
             
             {isLoading ? (
-              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : filteredLocations.length > 0 ? (
               <>
                 {filteredLocations.map(renderLocationCard)}
               </>
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="location-outline" size={48} color="#CCCCCC" />
+                <Ionicons name="location-outline" size={48} color={colors.disabled} />
                 <Text style={styles.emptyText}>
                   {searchQuery.trim() ? `No locations found matching "${searchQuery}"` : "No locations found"}
                 </Text>
@@ -725,7 +727,7 @@ const LocationsScreen = ({ navigation }) => {
                     onPress={() => setModalVisible(true)}
                     size="small"
                     textColor="black"
-                    style={[{ marginTop: 15, backgroundColor: ORANGE_COLOR }]}
+                    style={[{ marginTop: 15, backgroundColor: colors.primary }]}
                   />
                 )}
               </View>
@@ -780,7 +782,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

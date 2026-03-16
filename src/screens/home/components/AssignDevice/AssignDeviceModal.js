@@ -5,6 +5,7 @@ import TabBar from '../../../../components/TabBar';
 import NFCScanTab from './NFCScanTab';
 import SelectMenuTab from './SelectMenuTab';
 import Button from '../../../../components/Button';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const AssignDeviceModal = ({
   visible,
@@ -14,6 +15,8 @@ const AssignDeviceModal = ({
   onAssignComplete,
   handleApiError
 }) => {
+  const { colors } = useTheme();
+  const styles = getAssignStyles(colors);
   const [assignTab, setAssignTab] = useState('nfcScan');
 
   const handleAssignTabChange = (tabKey) => {
@@ -25,19 +28,19 @@ const AssignDeviceModal = ({
     {
       key: 'nfcScan',
       title: 'NFC Scan',
-      icon: <Ionicons 
-        name="scan-outline" 
-        size={20} 
-        color={assignTab === 'nfcScan' ? '#007AFF' : '#666666'} 
+      icon: <Ionicons
+        name="scan-outline"
+        size={20}
+        color={assignTab === 'nfcScan' ? colors.primary : colors.textSecondary}
       />,
     },
     {
       key: 'selectMenu',
       title: 'Select Menu',
-      icon: <Ionicons 
-        name="list-outline" 
-        size={20} 
-        color={assignTab === 'selectMenu' ? '#007AFF' : '#666666'} 
+      icon: <Ionicons
+        name="list-outline"
+        size={20}
+        color={assignTab === 'selectMenu' ? colors.primary : colors.textSecondary}
       />,
     },
   ];
@@ -87,7 +90,7 @@ const AssignDeviceModal = ({
                 onPress={onClose}
                 hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
               >
-                <Ionicons name="close-outline" size={28} color="#666" />
+                <Ionicons name="close-outline" size={28} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           
@@ -139,7 +142,7 @@ const AssignDeviceModal = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getAssignStyles = (colors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 10,
     overflow: 'hidden',
     display: 'flex',
@@ -164,20 +167,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#fff',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
   },
-  // Custom tab bar styling
   tabBarContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F9F9F9',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     paddingVertical: 5,
   },
   tabButton: {
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
   },
   activeTabButton: {
     borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
+    borderBottomColor: colors.primary,
   },
   tabButtonContent: {
     alignItems: 'center',
@@ -197,22 +199,21 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 12,
     marginTop: 4,
-    color: '#666666',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   activeTabButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
   },
-  // Content container
   tabContentContainer: {
     flex: 1,
-    padding: 0, // Remove padding here, let child components handle their own padding
-    backgroundColor: '#fff',
+    padding: 0,
+    backgroundColor: colors.card,
   },
   nfcScanContainer: {
     flex: 1,
-    justifyContent: 'center', // Center NFC scan content vertically
-    alignItems: 'center', // Center horizontally too
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 15,
   },
   selectMenuContainer: {
@@ -222,11 +223,11 @@ const styles = StyleSheet.create({
   modalFooter: {
     padding: 15,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    backgroundColor: '#fff',
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
   },
   closeButton: {
-    backgroundColor: '#FF9800', // Orange instead of red
+    backgroundColor: colors.primary,
   },
 });
 

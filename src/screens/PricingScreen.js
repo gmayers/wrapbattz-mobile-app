@@ -10,10 +10,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 const PricingScreen = ({ navigation }) => {
+  const { colors } = useTheme();
   const [isAnnual, setIsAnnual] = useState(true);
 
   const toggleBilling = () => {
@@ -36,67 +38,67 @@ const PricingScreen = ({ navigation }) => {
   };
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.appScreen}>
+        <View style={[styles.appScreen, { backgroundColor: colors.surfaceAlt }]}>
           <View style={styles.bgGradient} />
           <View style={styles.bgGradient2} />
 
           <View style={styles.titleSection}>
-            <Text style={styles.pageTitle}>Choose Your Plan</Text>
-            <Text style={styles.pageSubtitle}>Simple, transparent pricing that scales with your needs</Text>
+            <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>Choose Your Plan</Text>
+            <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>Simple, transparent pricing that scales with your needs</Text>
           </View>
         
         <View style={styles.toggleContainer}>
-          <Text style={[styles.toggleOption, !isAnnual && styles.toggleOptionActive]}>Monthly</Text>
-          <TouchableOpacity style={styles.toggleSwitch} onPress={toggleBilling} activeOpacity={0.8}>
+          <Text style={[styles.toggleOption, { color: colors.textMuted }, !isAnnual && [styles.toggleOptionActive, { color: colors.textPrimary }]]}>Monthly</Text>
+          <TouchableOpacity style={[styles.toggleSwitch, { backgroundColor: colors.primary }]} onPress={toggleBilling} activeOpacity={0.8}>
             <View style={[styles.toggleSwitchThumb, !isAnnual && styles.toggleSwitchThumbLeft]} />
           </TouchableOpacity>
-          <Text style={[styles.toggleOption, isAnnual && styles.toggleOptionActive]}>
+          <Text style={[styles.toggleOption, { color: colors.textMuted }, isAnnual && [styles.toggleOptionActive, { color: colors.textPrimary }]]}>
             Annually {isAnnual && '(Save 16%)'}
           </Text>
         </View>
         
         <View style={styles.pricingCards}>
-          <View style={styles.pricingCard}>
-            <Text style={styles.planName}>Starter</Text>
-            <Text style={styles.planPrice}>FREE</Text>
-            <Text style={styles.pricePeriod}>First 3 assets free forever</Text>
+          <View style={[styles.pricingCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.planName, { color: colors.textPrimary }]}>Starter</Text>
+            <Text style={[styles.planPrice, { color: colors.primary }]}>FREE</Text>
+            <Text style={[styles.pricePeriod, { color: colors.textMuted }]}>First 3 assets free forever</Text>
             <View style={styles.planFeatures}>
               <FeatureItem text="Up to 3 managed assets" />
               <FeatureItem text="Basic reporting tools" />
               <FeatureItem text="Email support" />
             </View>
-            <TouchableOpacity style={styles.ctaButtonOutline} onPress={() => handlePlanSelection('starter')}>
-              <Text style={[styles.ctaButtonText, {color: '#FF7700'}]}>Get Started</Text>
+            <TouchableOpacity style={[styles.ctaButtonOutline, { borderColor: colors.primary }]} onPress={() => handlePlanSelection('starter')}>
+              <Text style={[styles.ctaButtonText, {color: colors.primary}]}>Get Started</Text>
             </TouchableOpacity>
           </View>
           
-          <View style={styles.pricingCardFeatured}>
-            <View style={styles.cardBadge}>
+          <View style={[styles.pricingCardFeatured, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+            <View style={[styles.cardBadge, { backgroundColor: colors.primary }]}>
               <Text style={styles.cardBadgeText}>Popular</Text>
             </View>
-            <Text style={styles.planName}>Professional</Text>
-            <Text style={styles.planPrice}>{professionalPrice}</Text>
-            <Text style={styles.pricePeriod}>{professionalPeriod}</Text>
+            <Text style={[styles.planName, { color: colors.textPrimary }]}>Professional</Text>
+            <Text style={[styles.planPrice, { color: colors.primary }]}>{professionalPrice}</Text>
+            <Text style={[styles.pricePeriod, { color: colors.textMuted }]}>{professionalPeriod}</Text>
             <View style={styles.planFeatures}>
               <FeatureItem text="Unlimited managed assets" />
               <FeatureItem text="Advanced analytics" />
               <FeatureItem text="Priority support" />
             </View>
-            <TouchableOpacity style={styles.ctaButton} onPress={() => handlePlanSelection('professional')}>
+            <TouchableOpacity style={[styles.ctaButton, { backgroundColor: colors.primary }]} onPress={() => handlePlanSelection('professional')}>
               <Text style={styles.ctaButtonText}>Choose Plan</Text>
             </TouchableOpacity>
           </View>
         </View>
         
         <View style={styles.volumeSection}>
-          <Text style={styles.sectionHeading}>Volume Discounts</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Volume Discounts</Text>
           <View style={styles.volumeGrid}>
             <VolumeItem range="100-400" price="Reduced rates" />
             <VolumeItem range="400-1000" price="Further discounts" />
@@ -105,12 +107,12 @@ const PricingScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.missingFeature}>
-          <Text style={styles.missingTitle}>Missing a Feature?</Text>
-          <Text style={styles.missingText}>
+          <Text style={[styles.missingTitle, { color: colors.primary }]}>Missing a Feature?</Text>
+          <Text style={[styles.missingText, { color: colors.textSecondary }]}>
             We're always open to suggestions to improve BattWrapz.
           </Text>
-        <TouchableOpacity 
-  style={styles.ctaButton}
+        <TouchableOpacity
+  style={[styles.ctaButton, { backgroundColor: colors.primary }]}
   onPress={() => navigation.navigate('SuggestFeature')}
 >
   <Text style={styles.ctaButtonText}>Suggest a Feature</Text>
@@ -122,19 +124,25 @@ const PricingScreen = ({ navigation }) => {
   );
 };
 
-const FeatureItem = ({ text }) => (
-  <View style={styles.featureItem}>
-    <Text style={styles.featureIcon}>✓</Text>
-    <Text style={styles.featureText}>{text}</Text>
-  </View>
-);
+const FeatureItem = ({ text }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.featureItem}>
+      <Text style={[styles.featureIcon, { color: colors.primary }]}>✓</Text>
+      <Text style={[styles.featureText, { color: colors.textSecondary }]}>{text}</Text>
+    </View>
+  );
+};
 
-const VolumeItem = ({ range, price }) => (
-  <View style={styles.volumeItem}>
-    <Text style={styles.volumeRange}>{range}</Text>
-    <Text style={styles.volumePrice}>{price}</Text>
-  </View>
-);
+const VolumeItem = ({ range, price }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.volumeItem}>
+      <Text style={[styles.volumeRange, { color: colors.textPrimary }]}>{range}</Text>
+      <Text style={[styles.volumePrice, { color: colors.textMuted }]}>{price}</Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {

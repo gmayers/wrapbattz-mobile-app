@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -15,6 +14,7 @@ import {
   TextInput as RNTextInput,
 } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
+import { useTheme } from '../../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { LoginForm, ValidationResult, NavigationProp } from '../../../types';
 import { FormValidation } from '../../../utils/FormValidation';
@@ -24,13 +24,14 @@ import Button from '../../../components/Button';
 
 const LoginScreen: React.FC = () => {
   const { login } = useAuth();
+  const { colors, fonts } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  
+
   const [formData, setFormData] = useState<LoginForm>({
     email: '',
     password: '',
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
@@ -117,37 +118,38 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView 
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar barStyle={colors.statusBar} />
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.content}>
+          <View style={{ flex: 1, justifyContent: 'center', paddingVertical: 40 }}>
             {/* Logo Section */}
-            <View style={styles.logoContainer}>
+            <View style={{ alignItems: 'center', marginBottom: 40 }}>
               <Image
-                source={require('../../../../assets/logo.jpg')}
-                style={styles.logo}
+                source={require('../../../../assets/logo-transparent.png')}
+                style={{ width: 120, height: 120, alignSelf: 'center' }}
                 resizeMode="contain"
               />
-              <Text style={styles.welcomeText}>Welcome Back</Text>
-              <Text style={styles.subtitleText}>Sign in to continue</Text>
+              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 8, marginTop: 12 }}>Welcome Back</Text>
+              <Text style={{ fontSize: 16, color: colors.textSecondary }}>Sign in to continue</Text>
             </View>
 
             {/* Error Banner */}
             {loginError ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>{loginError}</Text>
+              <View style={{ backgroundColor: colors.errorBackground, borderWidth: 1, borderColor: colors.error, borderRadius: 8, padding: 12, marginBottom: 20, width: '100%' }}>
+                <Text style={{ color: colors.errorText, fontSize: 14, textAlign: 'center', fontWeight: '500' }}>{loginError}</Text>
               </View>
             ) : null}
 
             {/* Form Section */}
-            <View style={styles.formContainer}>
+            <View style={{ width: '100%' }}>
               <FormField
                 label="Email"
                 value={formData.email}
@@ -173,39 +175,39 @@ const LoginScreen: React.FC = () => {
                 onPress={handleLogin}
                 loading={isLoading}
                 textColorProp="black"
-                style={styles.loginButton}
+                style={{ marginTop: 20, backgroundColor: colors.primary }}
                 testID="login-button"
               />
 
-              <TouchableOpacity 
-                style={styles.forgotPassword}
+              <TouchableOpacity
+                style={{ alignItems: 'center', marginTop: 20 }}
                 testID="forgot-password-button"
                 onPress={() => navigation.navigate('ForgotPassword')}
               >
-                <Text style={styles.forgotPasswordText}>
+                <Text style={{ color: colors.primary, fontSize: 16 }}>
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
-              
+
               {/* Register Section */}
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerText}>Don't have an account?</Text>
-                <TouchableOpacity 
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: colors.borderLight }}>
+                <Text style={{ fontSize: 16, color: colors.textSecondary }}>Don't have an account?</Text>
+                <TouchableOpacity
                   testID="register-button"
                   onPress={() => navigation.navigate('Register')}
                 >
-                  <Text style={styles.registerButtonText}>Create Account</Text>
+                  <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold', marginLeft: 5 }}>Create Account</Text>
                 </TouchableOpacity>
               </View>
-              
+
               {/* Pricing Button */}
-              <View style={styles.pricingButtonContainer}>
+              <View style={{ alignItems: 'center', marginTop: 20 }}>
                 <TouchableOpacity
-                  style={styles.pricingButton}
+                  style={{ backgroundColor: colors.surfaceAlt, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 25, borderWidth: 1, borderColor: colors.borderInput, width: '100%', alignItems: 'center' }}
                   testID="pricing-button"
                   onPress={() => navigation.navigate('Pricing')}
                 >
-                  <Text style={styles.pricingButtonText}>View Subscription Plans</Text>
+                  <Text style={{ fontSize: 16, color: colors.textPrimary, fontWeight: '600' }}>View Subscription Plans</Text>
                 </TouchableOpacity>
               </View>
 
@@ -216,111 +218,5 @@ const LoginScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitleText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  errorBanner: {
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    width: '100%',
-  },
-  errorBannerText: {
-    color: '#991B1B',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  formContainer: {
-    width: '100%',
-  },
-  loginButton: {
-    marginTop: 20,
-    backgroundColor: '#FF9500',
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  forgotPasswordText: {
-    color: '#FF9500',
-    fontSize: 16,
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-  },
-  registerText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  registerButtonText: {
-    color: '#FF9500',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  pricingButtonContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  pricingButton: {
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    width: '100%',
-    alignItems: 'center',
-  },
-  pricingButtonText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-  },
-});
 
 export default LoginScreen;

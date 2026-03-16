@@ -5,6 +5,7 @@ import { Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen/HomeScreen';
@@ -13,12 +14,12 @@ import LocationsScreen from '../screens/LocationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
-const ORANGE_COLOR = '#FF9500';
 
 const TabNavigation = () => {
   const { logout, userData } = useAuth();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   // User role and permissions
   const userRole = userData?.role;
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
@@ -82,15 +83,15 @@ const TabNavigation = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: ORANGE_COLOR,
-        tabBarInactiveTintColor: '#666666',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.background,
           borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
+          borderTopColor: colors.border,
           paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10),
           height: Platform.OS === 'ios' ? 80 + insets.bottom : 60 + Math.max(insets.bottom, 10),
-          shadowColor: '#000',
+          shadowColor: colors.shadow,
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 3,

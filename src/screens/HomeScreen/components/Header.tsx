@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../components/Button';
-
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface HeaderProps {
   userName: string;
@@ -29,12 +28,13 @@ const Header: React.FC<HeaderProps> = ({
   onAssignDevicePress,
 }) => {
   const { width } = useWindowDimensions();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       <View style={styles.headerTop}>
         <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>
+          <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
             Welcome {userName}
           </Text>
         </View>
@@ -45,8 +45,8 @@ const Header: React.FC<HeaderProps> = ({
           onPress={onProfilePress}
           testID="profile-button"
         >
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
+          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: '#FFFFFF' }]}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({
               onPress={onManageNFCPress}
               size="small"
               textColor="black"
-              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
+              style={[styles.headerButton, { backgroundColor: colors.primary, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
               testID="manage-nfc-button"
             />
             <Button
@@ -70,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({
               onPress={onAssignDevicePress}
               size="small"
               textColor="black"
-              style={[styles.headerButton, { backgroundColor: ORANGE_COLOR, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
+              style={[styles.headerButton, { backgroundColor: colors.primary, minWidth: width > 375 ? (width / 2) - 60 : 'auto' as any }]}
               testID="assign-device-button"
             />
           </View>
@@ -81,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({
               onPress={onAssignDevicePress}
               size="small"
               textColor="black"
-              style={[styles.fullWidthButton, { backgroundColor: ORANGE_COLOR }]}
+              style={[styles.fullWidthButton, { backgroundColor: colors.primary }]}
               testID="assign-device-button"
             />
           </View>
@@ -95,9 +95,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: '5%',
     paddingVertical: '3%',
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
     marginBottom: '3%',
   },
   headerTop: {
@@ -112,7 +110,6 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     lineHeight: 30,
   },
   profileButton: {
@@ -122,12 +119,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: ORANGE_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
   },

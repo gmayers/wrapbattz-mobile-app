@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -52,7 +53,8 @@ const ReportsScreen = ({ navigation }) => {
     error: authError,
     clearError
   } = useAuth();
-  
+  const { colors } = useTheme();
+
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -228,7 +230,7 @@ const ReportsScreen = ({ navigation }) => {
           </Text>
           <View style={styles.viewDetailsContainer}>
             <Text style={styles.viewDetailsText}>View Details</Text>
-            <Ionicons name="chevron-forward" size={14} color={ORANGE_COLOR} />
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
           </View>
         </View>
       </Card>
@@ -253,14 +255,14 @@ const ReportsScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Updated Header Section */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeText}>
+            <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
               My Reports
             </Text>
           </View>
@@ -283,7 +285,7 @@ const ReportsScreen = ({ navigation }) => {
           onPress={handleCreateReport}
           size="small"
           textColor="black"
-          style={[styles.createReportButton, { backgroundColor: ORANGE_COLOR }]}
+          style={[styles.createReportButton, { backgroundColor: colors.primary }]}
         />
       </View>
 
@@ -299,10 +301,10 @@ const ReportsScreen = ({ navigation }) => {
             </Text>
 
             {isLoading ? (
-              <ActivityIndicator size="large" color={ORANGE_COLOR} style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : error ? (
               <View style={styles.errorView}>
-                <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+                <Ionicons name="alert-circle-outline" size={40} color={colors.error} />
                 <Text style={styles.errorText}>{error}</Text>
                 <Button 
                   title="Try Again" 
@@ -317,14 +319,14 @@ const ReportsScreen = ({ navigation }) => {
               </>
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="document-text-outline" size={48} color="#CCCCCC" />
+                <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
                 <Text style={styles.emptyText}>No reports found</Text>
                 <Button
                   title="Create Your First Report"
                   onPress={handleCreateReport}
                   size="small"
                   textColor="black"
-                  style={[{ marginTop: 15, backgroundColor: ORANGE_COLOR }]}
+                  style={[{ marginTop: 15, backgroundColor: colors.primary }]}
                 />
               </View>
             )}
@@ -335,7 +337,7 @@ const ReportsScreen = ({ navigation }) => {
                 onPress={handleViewAllReports}
               >
                 <Text style={[styles.viewAllText, { color: ORANGE_COLOR }]}>View All My Reports</Text>
-                <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -386,7 +388,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

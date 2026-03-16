@@ -13,12 +13,14 @@ import {
   SafeAreaView
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/Form/FormField';
 
 const CreateOrganizationScreen = ({ navigation }) => {
   const { createOrganization, isLoading, updateOnboardingStatus, logout } = useAuth();
-  
+  const { colors } = useTheme();
+
   // Form state
   const [name, setName] = useState('');
   const [tradingName, setTradingName] = useState('');
@@ -202,7 +204,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
   const isFormLoading = isLoading || submitting;
   
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -215,15 +217,15 @@ const CreateOrganizationScreen = ({ navigation }) => {
           bounces={false}
         >
         <View style={styles.header}>
-          <Text style={styles.stepIndicator}>Step 2 of 2</Text>
-          <Text style={styles.title}>Create Your Organization</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.stepIndicator, { color: colors.primary }]}>Step 2 of 2</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Create Your Organization</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Your organization is your workspace in BattWrapz. All your devices, locations, and team members will be managed under this organization.
           </Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Organization Details</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Organization Details</Text>
           <Text style={styles.sectionDescription}>
             Enter your company or business details. This information will appear on reports and is used to identify your organization.
           </Text>
@@ -279,8 +281,8 @@ const CreateOrganizationScreen = ({ navigation }) => {
           />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Registered Address</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Registered Address</Text>
           <Text style={styles.sectionDescription}>
             Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
           </Text>
@@ -334,7 +336,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
         </View>
         
         <TouchableOpacity
-          style={[styles.submitButton, isFormLoading && styles.disabledButton]}
+          style={[styles.submitButton, { backgroundColor: colors.primary }, isFormLoading && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={isFormLoading}
         >

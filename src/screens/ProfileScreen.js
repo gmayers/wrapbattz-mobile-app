@@ -13,10 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
-
-// Orange color to match existing UI
-const ORANGE_COLOR = '#FF9500';
 
 // API endpoints
 const API_BASE_URL = 'https://webportal.battwrapz.com/api';
@@ -24,6 +22,7 @@ const API_BASE_URL = 'https://webportal.battwrapz.com/api';
 const ProfileScreen = ({ navigation }) => {
   // Use AuthContext
   const { user, userData, logout, updateUserProfile, getUserProfile, axiosInstance, isAdminOrOwner } = useAuth();
+  const { colors, themeMode, setThemeMode } = useTheme();
   
   const [profileData, setProfileData] = useState(null);
   const [billingData, setBillingData] = useState(null);
@@ -280,29 +279,29 @@ const ProfileScreen = ({ navigation }) => {
   // Create a billing status label and color
   const getBillingStatus = () => {
     const status = billingData?.billing?.status || 'inactive';
-    
+
     switch (status) {
       case 'active':
-        return { label: 'Active', color: '#4CAF50' };
+        return { label: 'Active', color: colors.success };
       case 'past_due':
-        return { label: 'Past Due', color: '#FF9800' };
+        return { label: 'Past Due', color: colors.warning };
       case 'canceled':
-        return { label: 'Canceled', color: '#F44336' };
+        return { label: 'Canceled', color: colors.error };
       case 'inactive':
       default:
-        return { label: 'Inactive', color: '#757575' };
+        return { label: 'Inactive', color: colors.disabled };
     }
   };
   
   // Handle error screen
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={60} color="#EF4444" />
-          <Text style={styles.errorText}>{error}</Text>
+          <Ionicons name="alert-circle-outline" size={60} color={colors.error} />
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity
-            style={styles.retryButton}
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
             onPress={fetchProfileData}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
@@ -315,10 +314,10 @@ const ProfileScreen = ({ navigation }) => {
   // Handle loading screen
   if (loading && !profileData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -327,73 +326,79 @@ const ProfileScreen = ({ navigation }) => {
   // Get billing status
   const billingStatus = getBillingStatus();
 
+  const appearanceOptions = [
+    { label: 'System', value: 'system', icon: 'phone-portrait-outline' },
+    { label: 'Light', value: 'light', icon: 'sunny-outline' },
+    { label: 'Dark', value: 'dark', icon: 'moon-outline' },
+  ];
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView>
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
               <Text style={styles.avatarText}>{getInitials()}</Text>
             </View>
           </View>
-          <Text style={styles.nameText}>
+          <Text style={[styles.nameText, { color: colors.textPrimary }]}>
             {profileData?.first_name} {profileData?.last_name}
           </Text>
-          <Text style={styles.emailText}>{profileData?.email}</Text>
+          <Text style={[styles.emailText, { color: colors.textSecondary }]}>{profileData?.email}</Text>
         </View>
 
         {/* Device Management Fee Section - Only for Admin/Owner */}
         {isAdminOrOwner && (
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Device Management</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Device Management</Text>
               <View style={[styles.billingBadge, { backgroundColor: billingStatus.color }]}>
                 <Text style={styles.billingBadgeText}>{billingStatus.label}</Text>
               </View>
             </View>
-            
+
             {billingData?.billing?.status === 'active' ? (
               <>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Plan:</Text>
-                  <Text style={styles.infoValue}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Plan:</Text>
+                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                     {billingData.billing.plan_type === 'monthly' ? 'Monthly' : 'Annual'}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Devices:</Text>
-                  <Text style={styles.infoValue}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Devices:</Text>
+                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                     {billingData.total_devices} ({billingData.billable_devices} billable)
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Next Billing:</Text>
-                  <Text style={styles.infoValue}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Next Billing:</Text>
+                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                     {formatDate(billingData.billing.next_billing_date)}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={[styles.actionButton, { borderTopColor: colors.borderLight }]}
                   onPress={() => navigation.navigate('ManageBilling')}
                 >
-                  <Text style={styles.actionButtonText}>Manage Billing</Text>
-                  <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+                  <Text style={[styles.actionButtonText, { color: colors.primary }]}>Manage Billing</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
                 </TouchableOpacity>
               </>
             ) : (
               <View style={styles.noBillingContainer}>
-                <Text style={styles.noBillingText}>
-                  {billingData?.total_devices <= 3 
+                <Text style={[styles.noBillingText, { color: colors.textSecondary }]}>
+                  {billingData?.total_devices <= 3
                     ? "You're using the free tier (up to 3 devices at no cost)."
                     : "You need to set up billing for your devices."}
                 </Text>
                 <TouchableOpacity
-                  style={styles.setupButton}
+                  style={[styles.setupButton, { backgroundColor: colors.primary }]}
                   onPress={() => navigation.navigate('DataHandlingFee')}
                 >
                   <Text style={styles.setupButtonText}>
-                    {billingData?.total_devices <= 3 
-                      ? "Manage Devices" 
+                    {billingData?.total_devices <= 3
+                      ? "Manage Devices"
                       : "Set Up Billing"}
                   </Text>
                 </TouchableOpacity>
@@ -403,73 +408,109 @@ const ProfileScreen = ({ navigation }) => {
         )}
 
         {/* Personal Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Personal Information</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Full Name:</Text>
-            <Text style={styles.infoValue}>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Full Name:</Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
               {profileData?.first_name} {profileData?.last_name}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>{profileData?.email}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email:</Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{profileData?.email}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phone:</Text>
-            <Text style={styles.infoValue}>{profileData?.phone_number || 'Not set'}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone:</Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{profileData?.phone_number || 'Not set'}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Member Since:</Text>
-            <Text style={styles.infoValue}>{formatDate(profileData?.date_joined)}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Member Since:</Text>
+            <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{formatDate(profileData?.date_joined)}</Text>
           </View>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, { borderTopColor: colors.borderLight }]}
             onPress={() => navigation.navigate('EditProfile', { profileData })}
           >
-            <Text style={styles.actionButtonText}>Edit Profile</Text>
-            <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>Edit Profile</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {/* Notification Settings Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notification Settings</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notification Settings</Text>
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Push Notifications</Text>
+            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Push Notifications</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={handlePushNotificationToggle}
-              trackColor={{ false: '#D1D5DB', true: ORANGE_COLOR }}
+              trackColor={{ false: colors.disabled, true: colors.primary }}
               thumbColor={'#FFFFFF'}
             />
           </View>
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Email Notifications</Text>
+            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Email Notifications</Text>
             <Switch
               value={emailNotificationsEnabled}
               onValueChange={handleEmailNotificationToggle}
-              trackColor={{ false: '#D1D5DB', true: ORANGE_COLOR }}
+              trackColor={{ false: colors.disabled, true: colors.primary }}
               thumbColor={'#FFFFFF'}
             />
           </View>
         </View>
 
+        {/* Appearance Section */}
+        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Appearance</Text>
+          {appearanceOptions.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={styles.settingRow}
+              onPress={() => setThemeMode(option.value)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.appearanceOption}>
+                <Ionicons
+                  name={option.icon}
+                  size={20}
+                  color={themeMode === option.value ? colors.primary : colors.textSecondary}
+                  style={styles.appearanceIcon}
+                />
+                <Text style={[
+                  styles.settingLabel,
+                  { color: themeMode === option.value ? colors.primary : colors.textPrimary }
+                ]}>
+                  {option.label}
+                </Text>
+              </View>
+              <View style={[
+                styles.radioOuter,
+                { borderColor: themeMode === option.value ? colors.primary : colors.disabled }
+              ]}>
+                {themeMode === option.value && (
+                  <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Security Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
+        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Security</Text>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, { borderTopColor: colors.borderLight }]}
             onPress={() => navigation.navigate('ChangePassword')}
           >
-            <Text style={styles.actionButtonText}>Change Password</Text>
-            <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>Change Password</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity
-          style={styles.logoutButton}
+          style={[styles.logoutButton, { backgroundColor: colors.error }]}
           onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
@@ -483,14 +524,11 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F9F9F9',
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
   },
   avatarContainer: {
     marginBottom: 15,
@@ -499,7 +537,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: ORANGE_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -511,20 +548,16 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 5,
   },
   emailText: {
     fontSize: 16,
-    color: '#666',
   },
   section: {
     margin: 20,
     marginTop: 10,
-    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     padding: 15,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -539,7 +572,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 15,
   },
   billingBadge: {
@@ -559,12 +591,10 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: '#555',
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
   },
   actionButton: {
     flexDirection: 'row',
@@ -573,11 +603,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 5,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
   },
   actionButtonText: {
     fontSize: 16,
-    color: ORANGE_COLOR,
     fontWeight: '600',
   },
   noBillingContainer: {
@@ -586,12 +614,10 @@ const styles = StyleSheet.create({
   },
   noBillingText: {
     fontSize: 14,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 15,
   },
   setupButton: {
-    backgroundColor: ORANGE_COLOR,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 6,
@@ -609,7 +635,26 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: '#333',
+  },
+  appearanceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  appearanceIcon: {
+    marginRight: 12,
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -618,7 +663,6 @@ const styles = StyleSheet.create({
     margin: 20,
     marginTop: 10,
     padding: 15,
-    backgroundColor: '#EF4444',
     borderRadius: 8,
   },
   logoutButtonText: {
@@ -636,7 +680,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
   },
   errorContainer: {
     flex: 1,
@@ -646,13 +689,11 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#EF4444',
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: ORANGE_COLOR,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,

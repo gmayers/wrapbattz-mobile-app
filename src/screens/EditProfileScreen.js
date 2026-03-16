@@ -15,12 +15,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-
-// Orange color to match existing UI
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../context/ThemeContext';
 
 const EditProfileScreen = ({ navigation, route }) => {
   const { updateUserProfile, user, userData } = useAuth();
+  const { colors } = useTheme();
   
   // Get profile data from route params or use empty object
   const initialProfileData = route.params?.profileData || {};
@@ -126,7 +125,7 @@ const EditProfileScreen = ({ navigation, route }) => {
   };
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidView}
@@ -134,75 +133,79 @@ const EditProfileScreen = ({ navigation, route }) => {
         <ScrollView>
           <View style={styles.formContainer}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>First Name</Text>
               <TextInput
-                style={[styles.input, errors.first_name ? styles.inputError : null]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }, errors.first_name ? { borderColor: colors.error } : null]}
                 value={formData.first_name}
                 onChangeText={(text) => handleChange('first_name', text)}
                 placeholder="Enter your first name"
+                placeholderTextColor={colors.textMuted}
               />
               {errors.first_name ? (
-                <Text style={styles.errorText}>{errors.first_name}</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>{errors.first_name}</Text>
               ) : null}
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Last Name</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Last Name</Text>
               <TextInput
-                style={[styles.input, errors.last_name ? styles.inputError : null]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }, errors.last_name ? { borderColor: colors.error } : null]}
                 value={formData.last_name}
                 onChangeText={(text) => handleChange('last_name', text)}
                 placeholder="Enter your last name"
+                placeholderTextColor={colors.textMuted}
               />
               {errors.last_name ? (
-                <Text style={styles.errorText}>{errors.last_name}</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>{errors.last_name}</Text>
               ) : null}
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Email</Text>
               <TextInput
-                style={[styles.input, errors.email ? styles.inputError : null]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }, errors.email ? { borderColor: colors.error } : null]}
                 value={formData.email}
                 onChangeText={(text) => handleChange('email', text)}
                 placeholder="Enter your email"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
               {errors.email ? (
-                <Text style={styles.errorText}>{errors.email}</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>{errors.email}</Text>
               ) : null}
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone Number (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Phone Number (Optional)</Text>
               <TextInput
-                style={[styles.input, errors.phone_number ? styles.inputError : null]}
+                style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }, errors.phone_number ? { borderColor: colors.error } : null]}
                 value={formData.phone_number}
                 onChangeText={(text) => handleChange('phone_number', text.replace(/[^0-9+\s-]/g, ''))}
                 placeholder="Enter your phone number"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="phone-pad"
                 maxLength={11}
               />
               {errors.phone_number ? (
-                <Text style={styles.errorText}>{errors.phone_number}</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>{errors.phone_number}</Text>
               ) : null}
             </View>
             
             <View style={styles.buttonContainer}>
               {loading ? (
-                <ActivityIndicator size="large" color={ORANGE_COLOR} />
+                <ActivityIndicator size="large" color={colors.primary} />
               ) : (
                 <>
                   <TouchableOpacity
-                    style={styles.cancelButton}
+                    style={[styles.cancelButton, { backgroundColor: colors.surfaceAlt }]}
                     onPress={() => navigation.goBack()}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
-                    style={styles.saveButton}
+                    style={[styles.saveButton, { backgroundColor: colors.primary }]}
                     onPress={handleSubmit}
                   >
                     <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -220,7 +223,6 @@ const EditProfileScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   keyboardAvoidView: {
     flex: 1,
@@ -234,22 +236,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#F9F9F9',
   },
   inputError: {
-    borderColor: '#EF4444',
   },
   errorText: {
-    color: '#EF4444',
     fontSize: 14,
     marginTop: 5,
   },
@@ -260,7 +257,6 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#F2F2F2',
     padding: 15,
     borderRadius: 8,
     marginRight: 10,
@@ -269,11 +265,9 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
   },
   saveButton: {
     flex: 1,
-    backgroundColor: ORANGE_COLOR,
     padding: 15,
     borderRadius: 8,
     marginLeft: 10,

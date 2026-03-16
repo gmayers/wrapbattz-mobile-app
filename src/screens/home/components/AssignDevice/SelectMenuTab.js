@@ -3,9 +3,7 @@ import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
 import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 import { useAuth } from '../../../../context/AuthContext';
-
-// Define the orange color to match other screens
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const SelectMenuTab = ({ 
   locations,
@@ -13,6 +11,8 @@ const SelectMenuTab = ({
   fetchDevicesByLocation,
   handleApiError 
 }) => {
+  const { colors } = useTheme();
+  const styles = getSelectStyles(colors);
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [selectedLocationAssign, setSelectedLocationAssign] = useState(null);
@@ -257,15 +257,15 @@ const SelectMenuTab = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getSelectStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
   },
   headerText: {
     fontSize: 16,
-    color: '#555',
+    color: colors.textSecondary,
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 22,
@@ -276,17 +276,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   helpText: {
     fontSize: 12,
-    color: '#777',
+    color: colors.textMuted,
     marginTop: 4,
     fontStyle: 'italic',
   },
   dropdownWrapper: {
-    // This wrapper helps with iOS z-index issues
     ...(Platform.OS === 'ios' ? {
       zIndex: 50,
       position: 'relative',
@@ -294,23 +293,21 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.borderInput,
     borderRadius: 8,
-    // Crucial fix for iOS
     ...(Platform.OS === 'ios' ? {
       zIndex: 100,
     } : {})
   },
   iosDropdown: {
-    // iOS-specific dropdown styling
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.borderInput,
     borderRadius: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surface,
   },
   disabledDropdown: {
-    backgroundColor: '#f1f1f1',
-    borderColor: '#ddd',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderInput,
   },
   flexSpacer: {
     flex: 1,
@@ -318,13 +315,13 @@ const styles = StyleSheet.create({
   },
   assignButton: {
     marginTop: 16,
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 8,
   },
   disabledButton: {
     opacity: 0.5,
-    backgroundColor: '#aaa',
+    backgroundColor: colors.disabled,
   }
 });
 

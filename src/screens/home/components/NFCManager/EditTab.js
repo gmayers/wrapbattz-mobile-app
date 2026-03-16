@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, ScrollView, Alert, TouchableOpacity, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import Button from '../../../../components/Button';
 import { nfcService } from '../../../../services/NFCService';
-import { styles } from './styles';
+import { getStyles } from './styles';
+import { useTheme } from '../../../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import NfcManager from 'react-native-nfc-manager';
 
@@ -31,6 +32,334 @@ const isLikelyJSON = (value) => {
 };
 
 const EditTab = ({ onCancel }) => {
+  const { colors } = useTheme();
+  const baseStyles = getStyles(colors);
+
+  const additionalStyles = useMemo(() => ({
+    nfcTabContent: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 80,
+    },
+    editFieldsContainer: {
+      flex: 1,
+      marginTop: 20,
+    },
+    editFieldsContentContainer: {
+      paddingBottom: 20,
+    },
+    fieldContainer: {
+      marginBottom: 12,
+    },
+    fieldRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    fieldKeyCompact: {
+      flex: 2,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 5,
+      padding: 10,
+      fontSize: 14,
+      marginRight: 8,
+      backgroundColor: colors.card,
+      color: colors.textPrimary,
+    },
+    fieldValueCompact: {
+      flex: 3,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 5,
+      padding: 10,
+      fontSize: 14,
+      marginRight: 8,
+      backgroundColor: colors.card,
+      color: colors.textPrimary,
+    },
+    uneditableKeyCompact: {
+      backgroundColor: colors.surfaceAlt,
+      justifyContent: 'center',
+    },
+    uneditableValueCompact: {
+      backgroundColor: colors.surfaceAlt,
+      color: colors.textSecondary,
+    },
+    deleteButton: {
+      padding: 8,
+    },
+    primaryFieldHint: {
+      fontSize: 11,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    fieldHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 5,
+    },
+    fieldKeyContainer: {
+      flex: 1,
+      marginRight: 10,
+    },
+    fieldKeyInput: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 5,
+      padding: 8,
+      fontSize: 14,
+      fontWeight: '500',
+      backgroundColor: colors.surface,
+      color: colors.textPrimary,
+    },
+    fieldLabel: {
+      fontSize: 16,
+      fontWeight: '500',
+      marginBottom: 5,
+      color: colors.textPrimary,
+    },
+    fieldInput: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 5,
+      padding: 10,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.card,
+    },
+    idField: {
+      marginBottom: 15,
+      padding: 10,
+      backgroundColor: colors.surface,
+      borderRadius: 5,
+    },
+    idValueInput: {
+      backgroundColor: colors.surfaceAlt,
+      color: colors.textSecondary,
+      fontWeight: '500',
+      marginTop: 5,
+    },
+    idHelperText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      marginTop: 5,
+    },
+    uneditableKeyContainer: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 5,
+      padding: 8,
+      backgroundColor: colors.surfaceAlt,
+    },
+    uneditableKeyText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    uneditableKeyHelp: {
+      fontSize: 10,
+      fontStyle: 'italic',
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    uneditableValueContainer: {
+      marginBottom: 5,
+    },
+    uneditableValueInput: {
+      backgroundColor: colors.surfaceAlt,
+      color: colors.textSecondary,
+      fontWeight: '500',
+      textAlignVertical: 'top',
+    },
+    uneditableValueHelp: {
+      fontSize: 10,
+      fontStyle: 'italic',
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    addFieldContainer: {
+      marginTop: 20,
+      marginBottom: 15,
+      padding: 15,
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    addFieldTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 10,
+      color: colors.textTertiary,
+    },
+    newFieldRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    newFieldKey: {
+      flex: 2,
+      marginRight: 10,
+    },
+    newFieldValue: {
+      flex: 3,
+      marginRight: 10,
+    },
+    addFieldButton: {
+      padding: 5,
+    },
+    jsonErrorText: {
+      color: colors.error,
+      fontSize: 12,
+      marginTop: 4,
+      fontStyle: 'italic',
+    },
+    plainTextNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.primaryLight,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 15,
+    },
+    plainTextNoticeText: {
+      flex: 1,
+      marginLeft: 10,
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    emptyTagNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: colors.infoBg,
+      borderWidth: 1,
+      borderColor: colors.infoBorder,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 15,
+    },
+    emptyTagNoticeText: {
+      flex: 1,
+      marginLeft: 10,
+      fontSize: 13,
+      color: colors.infoText,
+      lineHeight: 18,
+    },
+    modifiedFieldContainer: {
+      backgroundColor: colors.primaryLight,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 12,
+    },
+    modifiedFieldHint: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    addedFieldContainer: {
+      backgroundColor: colors.successBg,
+      borderWidth: 1,
+      borderColor: colors.success,
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 12,
+    },
+    addedFieldInput: {
+      borderColor: colors.success,
+    },
+    addedFieldHint: {
+      fontSize: 11,
+      color: colors.successText,
+      fontStyle: 'italic',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    deletedFieldContainer: {
+      backgroundColor: colors.errorBg,
+      borderWidth: 1,
+      borderColor: colors.error,
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 12,
+    },
+    deletedInput: {
+      textDecorationLine: 'line-through',
+      color: colors.textMuted,
+    },
+    deletedText: {
+      textDecorationLine: 'line-through',
+      color: colors.textMuted,
+    },
+    deletedFieldHint: {
+      fontSize: 11,
+      color: colors.errorTextAlt,
+      fontStyle: 'italic',
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    newFieldsDivider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 16,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.success,
+    },
+    dividerText: {
+      marginHorizontal: 12,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.success,
+    },
+    changeSummary: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      marginTop: 16,
+    },
+    changeSummaryTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    changeSummaryItems: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    changeSummaryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    changeDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 6,
+    },
+    changeSummaryText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+  }), [colors]);
+
+  const styles = useMemo(() => ({ ...baseStyles, ...additionalStyles }), [baseStyles, additionalStyles]);
+
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [tagData, setTagData] = useState(null);
@@ -718,21 +1047,21 @@ const cancelOperation = () => {
 const getFieldKeyBorderColor = (key) => {
   // If the key is being edited and exists in another field, show error
   const editingValue = editingKeys[key];
-  if (editingValue && 
-      editingValue !== key && 
+  if (editingValue &&
+      editingValue !== key &&
       editedFields.hasOwnProperty(editingValue)) {
-    return '#ff4c4c'; // Red for duplicate
+    return colors.error; // Red for duplicate
   }
-  return '#ccc'; // Default gray
+  return colors.borderInput; // Default
 };
 
 // Helper function to get field value border color based on JSON validation
 const getFieldValueBorderColor = (key, value) => {
   // If this is a JSON field with validation state
   if (jsonValidationState[key]) {
-    return jsonValidationState[key].valid ? '#4CAF50' : '#ff4c4c';
+    return jsonValidationState[key].valid ? colors.success : colors.error;
   }
-  return '#ccc'; // Default gray
+  return colors.borderInput; // Default
 };
 
 
@@ -770,7 +1099,7 @@ return (
     {/* Helper text when no tag data is loaded */}
     {tagData === null && !isReading && !isWriting && (
       <View style={styles.helperContainer} testID="helper-container">
-        <Ionicons name="information-circle-outline" size={48} color="#17a2b8" />
+        <Ionicons name="information-circle-outline" size={48} color={colors.info} />
         <Text style={styles.helperTitle}>How to Edit NFC Tags</Text>
         <Text style={styles.helperText}>
           1. Tap "Load Tag Data" above{'\n'}
@@ -800,7 +1129,7 @@ return (
         {/* Show notice when tag has plain text (non-JSON) content */}
         {Object.keys(editedFields).length > 0 && !firstKey && editedFields.content !== undefined && (
           <View style={styles.plainTextNotice} testID="plain-text-notice">
-            <Ionicons name="information-circle" size={20} color="#856404" />
+            <Ionicons name="information-circle" size={20} color={colors.warning} />
             <Text style={styles.plainTextNoticeText}>
               This tag contains plain text data (not JSON format). You can edit the content below or add new fields.
             </Text>
@@ -810,7 +1139,7 @@ return (
         {/* Show notice when tag is empty */}
         {Object.keys(editedFields).length === 0 && (
           <View style={styles.emptyTagNotice} testID="empty-tag-notice">
-            <Ionicons name="document-outline" size={20} color="#0c5460" />
+            <Ionicons name="document-outline" size={20} color={colors.infoText} />
             <Text style={styles.emptyTagNoticeText}>
               This tag is empty. Add fields below to write data to it.
             </Text>
@@ -912,7 +1241,7 @@ return (
                     <Ionicons
                       name={isDeleted ? "refresh-outline" : "trash-outline"}
                       size={20}
-                      color={isDeleted ? "#28a745" : "#ff4c4c"}
+                      color={isDeleted ? colors.success : colors.error}
                     />
                   </TouchableOpacity>
                 </View>
@@ -1002,7 +1331,7 @@ return (
                     <Ionicons
                       name={isDeleted ? "refresh-outline" : "trash-outline"}
                       size={20}
-                      color={isDeleted ? "#28a745" : "#ff4c4c"}
+                      color={isDeleted ? colors.success : colors.error}
                     />
                   </TouchableOpacity>
                 </View>
@@ -1039,7 +1368,7 @@ return (
                 styles.fieldInput, 
                 styles.newFieldValue,
                 isLikelyJSON(newField.value) && !validateJSON(newField.value).valid 
-                  ? { borderColor: '#ff4c4c' } 
+                  ? { borderColor: colors.error } 
                   : {}
               ]}
               value={newField.value}
@@ -1052,7 +1381,7 @@ return (
               onPress={handleAddField}
               testID="add-field-button"
             >
-              <Ionicons name="add-circle" size={26} color="#007aff" />
+              <Ionicons name="add-circle" size={26} color={colors.info} />
             </TouchableOpacity>
           </View>
           
@@ -1069,7 +1398,7 @@ return (
             <View style={styles.changeSummaryItems}>
               {Object.keys(editedFields).filter(key => !addedFields.has(key) && isFieldModified(key) && !deletedFields.has(key)).length > 0 && (
                 <View style={styles.changeSummaryItem}>
-                  <View style={[styles.changeDot, { backgroundColor: '#ffc107' }]} />
+                  <View style={[styles.changeDot, { backgroundColor: colors.warning }]} />
                   <Text style={styles.changeSummaryText}>
                     {Object.keys(editedFields).filter(key => !addedFields.has(key) && isFieldModified(key) && !deletedFields.has(key)).length} modified
                   </Text>
@@ -1077,7 +1406,7 @@ return (
               )}
               {Array.from(addedFields).filter(key => !deletedFields.has(key)).length > 0 && (
                 <View style={styles.changeSummaryItem}>
-                  <View style={[styles.changeDot, { backgroundColor: '#4CAF50' }]} />
+                  <View style={[styles.changeDot, { backgroundColor: colors.success }]} />
                   <Text style={styles.changeSummaryText}>
                     {Array.from(addedFields).filter(key => !deletedFields.has(key)).length} new
                   </Text>
@@ -1085,7 +1414,7 @@ return (
               )}
               {deletedFields.size > 0 && (
                 <View style={styles.changeSummaryItem}>
-                  <View style={[styles.changeDot, { backgroundColor: '#f44336' }]} />
+                  <View style={[styles.changeDot, { backgroundColor: colors.error }]} />
                   <Text style={styles.changeSummaryText}>
                     {deletedFields.size} deleted
                   </Text>
@@ -1093,7 +1422,7 @@ return (
               )}
               {(newField.key.trim() || newField.value.trim()) && (
                 <View style={styles.changeSummaryItem}>
-                  <View style={[styles.changeDot, { backgroundColor: '#2196F3' }]} />
+                  <View style={[styles.changeDot, { backgroundColor: colors.info }]} />
                   <Text style={styles.changeSummaryText}>1 pending (auto-add on save)</Text>
                 </View>
               )}
@@ -1114,331 +1443,5 @@ return (
   </KeyboardAvoidingView>
 );
 }
-// Additional styles
-const additionalStyles = {
-  nfcTabContent: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 80, // Add padding to avoid overlap with tab navigation
-  },
-  editFieldsContainer: {
-    flex: 1,
-    marginTop: 20,
-  },
-  editFieldsContentContainer: {
-    paddingBottom: 20, // Extra padding at the bottom of the scroll content
-  },
-  fieldContainer: {
-    marginBottom: 12,
-  },
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fieldKeyCompact: {
-    flex: 2,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 14,
-    marginRight: 8,
-    backgroundColor: '#fff',
-  },
-  fieldValueCompact: {
-    flex: 3,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 14,
-    marginRight: 8,
-    backgroundColor: '#fff',
-  },
-  uneditableKeyCompact: {
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-  },
-  uneditableValueCompact: {
-    backgroundColor: '#f0f0f0',
-    color: '#555',
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  primaryFieldHint: {
-    fontSize: 11,
-    color: '#888',
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  fieldHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  fieldKeyContainer: {
-    flex: 1,
-    marginRight: 10,
-  },
-  fieldKeyInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 8,
-    fontSize: 14,
-    fontWeight: '500',
-    backgroundColor: '#f9f9f9',
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 5,
-  },
-  fieldInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 16,
-  },
-  idField: {
-    marginBottom: 15,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 5,
-  },
-  idValueInput: {
-    backgroundColor: '#f0f0f0',  // Light gray background to indicate read-only
-    color: '#555',  // Darker text to maintain readability
-    fontWeight: '500',
-    marginTop: 5,
-  },
-  idHelperText: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-    marginTop: 5,
-  },
-  // New styles for uneditable primary key
-  uneditableKeyContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 8,
-    backgroundColor: '#f0f0f0',
-  },
-  uneditableKeyText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#555',
-  },
-  uneditableKeyHelp: {
-    fontSize: 10,
-    fontStyle: 'italic',
-    color: '#777',
-    marginTop: 2,
-  },
-
-  uneditableValueContainer: {
-  marginBottom: 5,
-},
-uneditableValueInput: {
-  backgroundColor: '#f0f0f0',
-  color: '#555',
-  fontWeight: '500',
-  textAlignVertical: 'top',
-},
-uneditableValueHelp: {
-  fontSize: 10,
-  fontStyle: 'italic',
-  color: '#777',
-  marginTop: 2,
-},
-  addFieldContainer: {
-    marginTop: 20,
-    marginBottom: 15,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  addFieldTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#444',
-  },
-  newFieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  newFieldKey: {
-    flex: 2,
-    marginRight: 10,
-  },
-  newFieldValue: {
-    flex: 3,
-    marginRight: 10,
-  },
-  addFieldButton: {
-    padding: 5,
-  },
-  jsonErrorText: {
-    color: '#ff4c4c',
-    fontSize: 12,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  plainTextNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff3cd',
-    borderWidth: 1,
-    borderColor: '#ffc107',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-  },
-  plainTextNoticeText: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 13,
-    color: '#856404',
-    lineHeight: 18,
-  },
-  emptyTagNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#d1ecf1',
-    borderWidth: 1,
-    borderColor: '#bee5eb',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-  },
-  emptyTagNoticeText: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 13,
-    color: '#0c5460',
-    lineHeight: 18,
-  },
-  // Change tracking styles
-  modifiedFieldContainer: {
-    backgroundColor: '#fff8e6',
-    borderWidth: 1,
-    borderColor: '#ffc107',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-  },
-  modifiedFieldHint: {
-    fontSize: 11,
-    color: '#856404',
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  addedFieldContainer: {
-    backgroundColor: '#e8f5e9',
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-  },
-  addedFieldInput: {
-    borderColor: '#4CAF50',
-  },
-  addedFieldHint: {
-    fontSize: 11,
-    color: '#2e7d32',
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  deletedFieldContainer: {
-    backgroundColor: '#ffebee',
-    borderWidth: 1,
-    borderColor: '#f44336',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-  },
-  deletedInput: {
-    textDecorationLine: 'line-through',
-    color: '#999',
-  },
-  deletedText: {
-    textDecorationLine: 'line-through',
-    color: '#999',
-  },
-  deletedFieldHint: {
-    fontSize: 11,
-    color: '#c62828',
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  newFieldsDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#4CAF50',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4CAF50',
-  },
-  // Change summary styles
-  changeSummary: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  changeSummaryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  changeSummaryItems: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  changeSummaryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  changeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  changeSummaryText: {
-    fontSize: 13,
-    color: '#6c757d',
-  },
-};
-
-// Merge the additional styles
-Object.assign(styles, additionalStyles);
-
- // <-- Add this closing brace to end the EditTab component
 
 export default EditTab;

@@ -12,9 +12,9 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const ORANGE_COLOR = '#FF9500';
 
 const Dropdown = ({
   // Required props
@@ -38,6 +38,7 @@ const Dropdown = ({
   // Custom props
   testID,
 }) => {
+  const { colors } = useTheme();
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
@@ -102,7 +103,8 @@ const Dropdown = ({
       <TouchableOpacity
         style={[
           styles.listItem,
-          isSelected && styles.listItemSelected,
+          { backgroundColor: colors.surface },
+          isSelected && { backgroundColor: colors.primaryTint10 },
         ]}
         onPress={() => handleSelectItem(item.value)}
         activeOpacity={0.7}
@@ -110,13 +112,14 @@ const Dropdown = ({
         <Text
           style={[
             styles.listItemText,
-            isSelected && styles.listItemTextSelected,
+            { color: colors.textPrimary },
+            isSelected && { color: colors.primary, fontWeight: '600' },
           ]}
         >
           {item.label}
         </Text>
         {isSelected && (
-          <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+          <Ionicons name="checkmark" size={22} color={colors.primary} />
         )}
       </TouchableOpacity>
     );
@@ -149,15 +152,17 @@ const Dropdown = ({
             style={[
               styles.modalContent,
               {
+                backgroundColor: colors.surface,
+                shadowColor: colors.shadow,
                 transform: [{ translateY: slideAnim }]
               }
             ]}
           >
             {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label || 'Select Option'}</Text>
+            <View style={[styles.modalHeader, { backgroundColor: colors.surfaceAlt, borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{label || 'Select Option'}</Text>
               <TouchableOpacity onPress={hideModal} style={styles.doneButtonContainer}>
-                <Text style={styles.doneButton}>Done</Text>
+                <Text style={[styles.doneButton, { color: colors.primary }]}>Done</Text>
               </TouchableOpacity>
             </View>
 
@@ -169,11 +174,11 @@ const Dropdown = ({
               style={styles.optionsList}
               showsVerticalScrollIndicator={true}
               bounces={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.border }]} />}
             />
 
             {/* Safe area bottom padding */}
-            <View style={styles.safeAreaBottom} />
+            <View style={[styles.safeAreaBottom, { backgroundColor: colors.surface }]} />
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -183,7 +188,7 @@ const Dropdown = ({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={[styles.label, labelStyle]}>
+        <Text style={[styles.label, { color: colors.textPrimary }, labelStyle]}>
           {label}
         </Text>
       )}
@@ -192,10 +197,11 @@ const Dropdown = ({
         onPress={handlePress}
         style={[
           styles.dropdownButton,
+          { borderColor: colors.borderInput, backgroundColor: colors.surface },
           dropdownStyle,
-          isFocused && styles.focused,
-          disabled && styles.disabled,
-          error && styles.error,
+          isFocused && { borderColor: colors.primary },
+          disabled && { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+          error && { borderColor: colors.error },
         ]}
         disabled={disabled}
         activeOpacity={0.7}
@@ -204,8 +210,9 @@ const Dropdown = ({
         <Text
           style={[
             styles.selectedText,
-            !hasValue && styles.placeholderText,
-            disabled && styles.disabledText,
+            { color: colors.textPrimary },
+            !hasValue && { color: colors.textMuted },
+            disabled && { color: colors.textMuted },
           ]}
           numberOfLines={1}
         >
@@ -214,13 +221,13 @@ const Dropdown = ({
         <Ionicons
           name="chevron-down"
           size={20}
-          color={disabled ? '#999' : '#666'}
+          color={disabled ? colors.textMuted : colors.textSecondary}
           style={styles.chevron}
         />
       </TouchableOpacity>
 
       {error && (
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
 
       {renderPicker()}
@@ -235,7 +242,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
     marginBottom: 8,
   },
   dropdownButton: {
@@ -243,39 +249,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
     minHeight: 48,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  focused: {
-    borderColor: ORANGE_COLOR,
-  },
-  disabled: {
-    backgroundColor: '#F5F5F5',
-    borderColor: '#E0E0E0',
-  },
-  error: {
-    borderColor: '#FF3B30',
-  },
   selectedText: {
     fontSize: 16,
-    color: '#333',
     flex: 1,
-  },
-  placeholderText: {
-    color: '#999',
-  },
-  disabledText: {
-    color: '#999',
   },
   chevron: {
     marginLeft: 8,
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 12,
     marginTop: 4,
   },
@@ -289,11 +275,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: SCREEN_HEIGHT * 0.6,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: -4,
@@ -307,24 +291,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#F8F8F8',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#333',
   },
   doneButtonContainer: {
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   doneButton: {
-    color: ORANGE_COLOR,
     fontSize: 17,
     fontWeight: '600',
   },
@@ -337,28 +317,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-  },
-  listItemSelected: {
-    backgroundColor: '#FFF5E6',
   },
   listItemText: {
     fontSize: 16,
-    color: '#333',
     flex: 1,
-  },
-  listItemTextSelected: {
-    color: ORANGE_COLOR,
-    fontWeight: '600',
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E5EA',
     marginLeft: 20,
   },
   safeAreaBottom: {
     height: Platform.OS === 'ios' ? 34 : 16,
-    backgroundColor: '#FFFFFF',
   },
 });
 

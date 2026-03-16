@@ -6,7 +6,7 @@
     "version": "1.9.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "jsEngine": "hermes",
     "updates": {
       "url": "https://u.expo.dev/4bfa6fa2-5c17-44a2-b424-a811fbdceec4"

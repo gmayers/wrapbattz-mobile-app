@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { createBillingService } from '../../services/BillingService';
 
 const ORANGE_COLOR = '#FF9500';
 
 const PaymentHistoryScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { colors } = useTheme();
   const billingService = createBillingService(axiosInstance);
 
   const [loading, setLoading] = useState(true);
@@ -160,9 +162,9 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading payment history...</Text>
         </View>
       </SafeAreaView>
@@ -170,15 +172,15 @@ const PaymentHistoryScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Payment History</Text>
-          <Text style={styles.headerSubtitle}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Payment History</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             Complete record of all billing transactions
           </Text>
         </View>
@@ -278,7 +280,7 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
                 {payment.receipt_url && (
                   <View style={styles.receiptContainer}>
-                    <Ionicons name="receipt" size={16} color={ORANGE_COLOR} />
+                    <Ionicons name="receipt" size={16} color={colors.primary} />
                     <Text style={styles.receiptText}>Tap to view receipt</Text>
                   </View>
                 )}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const CustomModal = ({
   visible,
@@ -9,12 +10,12 @@ const CustomModal = ({
   // Customization props
   modalWidth: modalWidthProp,
   modalHeight = 'auto',
-  backgroundColor = 'white',
+  backgroundColor: backgroundColorProp,
   overlayColor = 'rgba(0, 0, 0, 0.5)',
   borderRadius = 20,
-  titleColor = '#333',
+  titleColor: titleColorProp,
   titleSize = 18,
-  closeButtonColor = '#666',
+  closeButtonColor: closeButtonColorProp,
   closeButtonSize = 22,
   animation = 'slide',
   headerStyle,
@@ -24,6 +25,10 @@ const CustomModal = ({
   padding = 15,
   position = 'center',
 }) => {
+  const { colors } = useTheme();
+  const backgroundColor = backgroundColorProp || colors.surface;
+  const titleColor = titleColorProp || colors.textPrimary;
+  const closeButtonColor = closeButtonColorProp || colors.textSecondary;
   const { width } = useWindowDimensions();
   const modalWidth = modalWidthProp != null ? modalWidthProp : Math.min(width * 0.85, 500);
 
@@ -71,9 +76,9 @@ const CustomModal = ({
           getPositionStyle(),
         ]}
       >
-        <View style={modalContentStyle}>
+        <View style={[modalContentStyle, { shadowColor: colors.shadow }]}>
           {showHeader && (
-            <View style={headerStyleCombined}>
+            <View style={[...headerStyleCombined, { borderBottomColor: colors.borderLight }]}>
               {/* Title on the far left */}
               <Text
                 style={[
@@ -112,7 +117,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -127,7 +131,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
 
     // Optional border under header
-    borderBottomColor: '#eee',
     borderBottomWidth: 1,
 
     // Vertical spacing for the header

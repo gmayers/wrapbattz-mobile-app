@@ -2,16 +2,18 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * Component to display device information in a structured, readable format
  * Handles various field name variations and formats device data nicely
  */
 const DeviceInfoDisplay = ({ deviceData, style }) => {
+  const { colors } = useTheme();
   if (!deviceData || typeof deviceData !== 'object') {
     return (
-      <View style={[styles.container, style]}>
-        <Text style={styles.errorText}>No valid device data available</Text>
+      <View style={[styles.container, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, style]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>No valid device data available</Text>
       </View>
     );
   }
@@ -111,10 +113,10 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
     return (
       <View key={label} style={styles.infoRow}>
         <View style={styles.iconLabelContainer}>
-          <Ionicons name={icon} size={20} color="#17a2b8" style={styles.icon} />
-          <Text style={styles.label}>{label}:</Text>
+          <Ionicons name={icon} size={20} color={colors.info} style={styles.icon} />
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{label}:</Text>
         </View>
-        <Text style={styles.value}>{displayValue}</Text>
+        <Text style={[styles.value, { color: colors.textPrimary }]}>{displayValue}</Text>
       </View>
     );
   };
@@ -155,16 +157,16 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
   // If no recognized fields found, show all available data as key-value pairs
   if (infoRows.length === 0) {
     return (
-      <View style={[styles.container, style]}>
-        <View style={styles.header}>
-          <Ionicons name="information-circle-outline" size={24} color="#17a2b8" />
-          <Text style={styles.headerText}>Tag Data</Text>
+      <View style={[styles.container, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, style]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Ionicons name="information-circle-outline" size={24} color={colors.info} />
+          <Text style={[styles.headerText, { color: colors.textPrimary }]}>Tag Data</Text>
         </View>
         <View style={styles.infoContainer}>
           {Object.entries(deviceData).map(([key, value]) => (
             <View key={key} style={styles.infoRow}>
-              <Text style={styles.label}>{key}:</Text>
-              <Text style={styles.value}>{String(value)}</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>{key}:</Text>
+              <Text style={[styles.value, { color: colors.textPrimary }]}>{String(value)}</Text>
             </View>
           ))}
         </View>
@@ -173,10 +175,10 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
   }
 
   return (
-    <View style={[styles.container, style]}>
-      <View style={styles.header}>
-        <Ionicons name="information-circle-outline" size={24} color="#17a2b8" />
-        <Text style={styles.headerText}>Device Information</Text>
+    <View style={[styles.container, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, style]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Ionicons name="information-circle-outline" size={24} color={colors.info} />
+        <Text style={[styles.headerText, { color: colors.textPrimary }]}>Device Information</Text>
       </View>
       <View style={styles.infoContainer}>
         {infoRows}
@@ -188,12 +190,10 @@ const DeviceInfoDisplay = ({ deviceData, style }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f8f9fa',
     borderRadius: 8,
     padding: 15,
     marginTop: 15,
     borderWidth: 1,
-    borderColor: '#dee2e6',
   },
   header: {
     flexDirection: 'row',
@@ -201,12 +201,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
   },
   headerText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginLeft: 8,
   },
   infoContainer: {
@@ -226,17 +224,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
   },
   value: {
     fontSize: 15,
-    color: '#333',
     marginLeft: 26, // Indent to align with label (icon width + margins)
     lineHeight: 22,
   },
   errorText: {
     fontSize: 14,
-    color: '#dc3545',
     textAlign: 'center',
     fontStyle: 'italic',
   },

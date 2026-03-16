@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 // Base TextInput Component
 const BaseTextInput = React.forwardRef(({
@@ -22,6 +23,7 @@ const BaseTextInput = React.forwardRef(({
   returnKeyType,
   onSubmitEditing
 }, ref) => {
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
 
   const handleFocus = (e) => {
@@ -36,12 +38,13 @@ const BaseTextInput = React.forwardRef(({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>}
       <View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputFocused,
-          error && styles.inputError,
+          { borderColor: colors.borderInput, backgroundColor: colors.surface },
+          isFocused && { borderColor: colors.primary },
+          error && { borderColor: colors.error },
         ]}
       >
         <TextInput
@@ -49,8 +52,8 @@ const BaseTextInput = React.forwardRef(({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#999"
-          style={[styles.input, inputStyle]}
+          placeholderTextColor={colors.textMuted}
+          style={[styles.input, { color: colors.textPrimary }, inputStyle]}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -62,7 +65,7 @@ const BaseTextInput = React.forwardRef(({
         />
         {rightComponent}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 });
@@ -76,6 +79,7 @@ const EmailInput = React.forwardRef(({
   containerStyle,
   ...props
 }, ref) => {
+  const { colors } = useTheme();
   return (
     <BaseTextInput
       ref={ref}
@@ -92,7 +96,7 @@ const EmailInput = React.forwardRef(({
         <Ionicons
           name="mail"
           size={20}
-          color="#999"
+          color={colors.textMuted}
           style={styles.icon}
         />
       }
@@ -111,6 +115,7 @@ const PasswordInput = React.forwardRef(({
   placeholder = "Enter your password",
   ...props
 }, ref) => {
+  const { colors } = useTheme();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   return (
@@ -133,7 +138,7 @@ const PasswordInput = React.forwardRef(({
           <Ionicons
             name={isPasswordVisible ? 'eye-off' : 'eye'}
             size={20}
-            color="#999"
+            color={colors.textMuted}
           />
         </TouchableOpacity>
       }
@@ -149,7 +154,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#333',
     marginBottom: 8,
     fontWeight: '500',
   },
@@ -157,22 +161,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
     minHeight: 48,
-  },
-  inputFocused: {
-    borderColor: '#007AFF',
-  },
-  inputError: {
-    borderColor: '#FF3B30',
   },
   input: {
     flex: 1,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#333',
   },
   icon: {
     marginRight: 16,
@@ -182,7 +177,6 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 12,
     marginTop: 4,
   },

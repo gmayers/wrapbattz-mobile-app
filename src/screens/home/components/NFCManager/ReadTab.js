@@ -3,9 +3,12 @@ import { View, Text, Alert, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import DeviceInfoDisplay from '../../../../components/DeviceInfoDisplay';
 import { nfcService } from '../../../../services/NFCService';
-import { styles } from './styles';
+import { getStyles } from './styles';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const ReadTab = ({ withNfcManager, onCancel }) => {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [isReading, setIsReading] = useState(false);
   const [readResult, setReadResult] = useState(null);
 

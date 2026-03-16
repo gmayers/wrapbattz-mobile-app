@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
 
@@ -45,6 +46,7 @@ const STATUS_CHOICES = [
 
 const ReportDetailsScreen = ({ navigation, route }) => {
   const { deviceService, logout, userData, isAdminOrOwner, getAccessToken } = useAuth();
+  const { colors } = useTheme();
   const { reportId } = route.params;
 
   const [report, setReport] = useState(null);
@@ -329,18 +331,18 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-            <Text style={styles.backText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading report details...</Text>
         </View>
       </SafeAreaView>
@@ -349,18 +351,18 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
   if (error || !report) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-            <Text style={styles.backText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
           <Text style={styles.errorText}>{error || 'Report not found'}</Text>
           <Button
             title="Try Again"
@@ -374,17 +376,17 @@ const ReportDetailsScreen = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-          <Text style={styles.backText}>Back</Text>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Report Details</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Report Details</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -393,7 +395,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Report Details Card */}
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Device: {report.device?.identifier || 'Unknown'}</Text>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
@@ -479,7 +481,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         {loadingImages ? (
           <View style={styles.detailsCard}>
             <Text style={styles.sectionTitle}>Loading Images...</Text>
-            <ActivityIndicator size="small" color={ORANGE_COLOR} />
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : reportImages.length > 0 ? (
           <View style={styles.detailsCard}>
@@ -655,9 +657,9 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         <TouchableWithoutFeedback onPress={() => setUpdateModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.modalContainer}>
+              <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
                 <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>
+                  <Text style={[styles.modalTitle, { color: colors.primary }]}>
                     {isReportCreator ? 'Update Report' : 'Update Status'}
                   </Text>
 
@@ -916,7 +918,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   updateButton: {
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   deleteButton: {
@@ -971,7 +973,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   checkboxLabel: {
@@ -979,7 +981,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   modalUpdateButton: {
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
     marginBottom: 10,
   },

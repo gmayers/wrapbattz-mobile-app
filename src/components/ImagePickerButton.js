@@ -3,8 +3,10 @@ import { Alert, Button } from 'react-native';
 import * as ExpoImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import RNFS from 'react-native-fs';
+import { useTheme } from '../context/ThemeContext';
 
 const ImagePickerButton = ({ onImageSelected }) => {
+  const { colors } = useTheme();
   const copyFileToPermanentStorage = async (tempUri) => {
     try {
       console.log('📁 [ImagePicker] Copying file from temp URI:', tempUri);
@@ -136,7 +138,7 @@ const ImagePickerButton = ({ onImageSelected }) => {
     }
   };
 
-  return <Button title="Choose Image" onPress={handleImagePicker} />;
+  return <Button title="Choose Image" onPress={handleImagePicker} color={colors.primary} />;
 };
 
 export default ImagePickerButton;

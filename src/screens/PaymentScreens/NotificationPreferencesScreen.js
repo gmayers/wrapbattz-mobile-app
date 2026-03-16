@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { createBillingService } from '../../services/BillingService';
 
 const ORANGE_COLOR = '#FF9500';
 
 const NotificationPreferencesScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { colors } = useTheme();
   const billingService = createBillingService(axiosInstance);
 
   const [loading, setLoading] = useState(true);
@@ -121,7 +123,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ORANGE_COLOR} />
           <Text style={styles.loadingText}>Loading preferences...</Text>
@@ -131,21 +133,21 @@ const NotificationPreferencesScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Notification Preferences</Text>
-            <Text style={styles.headerSubtitle}>
+          <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notification Preferences</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Configure how you receive billing notifications
             </Text>
           </View>
 
           {/* Email Notifications Section */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <Text style={styles.sectionTitle}>Email Notifications</Text>
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
@@ -157,14 +159,14 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.email_notifications}
                 onValueChange={(value) => updatePreference('email_notifications', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
           </View>
 
           {/* Payment Notifications */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <Text style={styles.sectionTitle}>Payment Notifications</Text>
 
             <View style={styles.settingRow}>
@@ -177,7 +179,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.payment_success}
                 onValueChange={(value) => updatePreference('payment_success', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -193,7 +195,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.payment_failure}
                 onValueChange={(value) => updatePreference('payment_failure', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -209,7 +211,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.invoice_created}
                 onValueChange={(value) => updatePreference('invoice_created', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -217,7 +219,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Subscription Notifications */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <Text style={styles.sectionTitle}>Subscription Notifications</Text>
 
             <View style={styles.settingRow}>
@@ -230,7 +232,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.subscription_changes}
                 onValueChange={(value) => updatePreference('subscription_changes', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -246,7 +248,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.device_count_alerts}
                 onValueChange={(value) => updatePreference('device_count_alerts', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -254,7 +256,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Cost Threshold Alerts */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <Text style={styles.sectionTitle}>Cost Threshold Alerts</Text>
 
             <View style={styles.settingRow}>
@@ -267,7 +269,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               <Switch
                 value={preferences.cost_threshold_enabled}
                 onValueChange={(value) => updatePreference('cost_threshold_enabled', value)}
-                trackColor={{ false: '#E0E0E0', true: ORANGE_COLOR }}
+                trackColor={{ false: colors.disabled, true: colors.primary }}
                 thumbColor="#FFFFFF"
                 disabled={!preferences.email_notifications}
               />
@@ -294,7 +296,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Additional Email Recipients */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
             <Text style={styles.sectionTitle}>Additional Recipients</Text>
             <Text style={styles.sectionDescription}>
               Add extra email addresses to receive billing notifications

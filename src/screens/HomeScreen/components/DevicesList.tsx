@@ -11,8 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../components/Button';
 import StandardDeviceCard from '../../../components/StandardDeviceCard';
-
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface Assignment {
   id: string;
@@ -49,6 +48,7 @@ const DevicesList: React.FC<DevicesListProps> = ({
   onViewAllPress,
   onAddDevicePress,
 }) => {
+  const { colors } = useTheme();
   const renderDeviceCard = (assignment: Assignment) => (
     <StandardDeviceCard
       key={assignment.id}
@@ -64,7 +64,7 @@ const DevicesList: React.FC<DevicesListProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
           Your Assigned Devices
         </Text>
         {isAdminOrOwner && (
@@ -73,7 +73,7 @@ const DevicesList: React.FC<DevicesListProps> = ({
             onPress={onAddDevicePress}
             size="small"
             textColor="black"
-            style={[styles.addDeviceButton, { backgroundColor: ORANGE_COLOR }]}
+            style={[styles.addDeviceButton, { backgroundColor: colors.primary }]}
             testID="add-device-button"
           />
         )}
@@ -82,15 +82,15 @@ const DevicesList: React.FC<DevicesListProps> = ({
       <View style={styles.section}>
         {loading ? (
           <ActivityIndicator 
-            size="large" 
-            color={ORANGE_COLOR} 
+            size="large"
+            color={colors.primary}
             style={styles.loader}
             testID="devices-loading-indicator"
           />
         ) : (
           <View style={styles.devicesContainer}>
             {assignments.length === 0 ? (
-              <Text style={styles.emptyText} testID="no-devices-text">
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]} testID="no-devices-text">
                 You have no devices assigned
               </Text>
             ) : (
@@ -102,15 +102,15 @@ const DevicesList: React.FC<DevicesListProps> = ({
             
             {/* Always show View All button */}
             <TouchableOpacity
-              style={styles.viewAllButton}
+              style={[styles.viewAllButton, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.shadow }]}
               onPress={onViewAllPress}
               activeOpacity={0.7}
               testID="view-all-devices-button"
             >
-              <Text style={[styles.viewAllText, { color: ORANGE_COLOR }]}>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>
                 View All ({assignments.length} Devices)
               </Text>
-              <Ionicons name="chevron-forward" size={16} color={ORANGE_COLOR} />
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
@@ -132,7 +132,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   addDeviceButton: {
     paddingHorizontal: 12,
@@ -160,13 +159,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     marginTop: 15,
     marginBottom: 10,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -188,7 +184,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
     marginVertical: '5%',
   },
 });

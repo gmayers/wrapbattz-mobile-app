@@ -6,9 +6,12 @@ import Button from '../../../../components/Button';
 import DeviceInfoDisplay from '../../../../components/DeviceInfoDisplay';
 import { nfcService } from '../../../../services/NFCService';
 import { useAuth } from '../../../../context/AuthContext';
+import { useTheme } from '../../../../context/ThemeContext';
 
 
 const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
+  const { colors } = useTheme();
+  const styles = getScanStyles(colors);
   const [assignLoading, setAssignLoading] = useState(false);
   const [scannedDeviceData, setScannedDeviceData] = useState(null);
   const [deviceIdentifier, setDeviceIdentifier] = useState(null);
@@ -130,7 +133,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
     <ScrollView style={styles.container} testID="nfc-scan-tab-container">
       <View style={styles.contentWrapper}>
         <View style={styles.iconContainer}>
-          <Ionicons name="scan-outline" size={80} color="#17a2b8" />
+          <Ionicons name="scan-outline" size={80} color={colors.info} />
         </View>
 
         <Text style={styles.title}>Scan NFC Tag</Text>
@@ -168,7 +171,7 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
           <View style={styles.deviceInfoContainer}>
             <DeviceInfoDisplay deviceData={scannedDeviceData} />
             <View style={styles.assignedBadge}>
-              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+              <Ionicons name="checkmark-circle" size={20} color={colors.success} />
               <Text style={styles.assignedText}>
                 Assigned to your account
               </Text>
@@ -180,10 +183,10 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getScanStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
   },
   contentWrapper: {
     flex: 1,
@@ -197,40 +200,40 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#555',
+    color: colors.textSecondary,
     marginBottom: 30,
     textAlign: 'center',
     lineHeight: 22,
   },
   scanButton: {
-    backgroundColor: '#28a745', // Changed to green to match SelectMenuTab
+    backgroundColor: colors.success,
     marginVertical: 20,
     width: '80%',
     alignSelf: 'center',
   },
   cancelButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.error,
     marginTop: 15,
   },
   statusContainer: {
     marginTop: 20,
     padding: 20,
-    backgroundColor: '#f0f7ff',
+    backgroundColor: colors.infoHighlightBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#c9e0ff',
+    borderColor: colors.infoHighlightBorder,
     alignItems: 'center',
     width: '90%',
   },
   statusText: {
     fontSize: 16,
-    color: '#0056b3',
+    color: colors.infoHighlightText,
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -244,16 +247,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 15,
     padding: 12,
-    backgroundColor: '#d4edda',
+    backgroundColor: colors.successBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#c3e6cb',
+    borderColor: colors.successBorder,
   },
   assignedText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#155724',
+    color: colors.successText,
   },
 });
 

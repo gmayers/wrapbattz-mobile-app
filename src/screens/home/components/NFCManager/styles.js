@@ -1,7 +1,7 @@
 // components/home/components/NfcManager/styles.js
 import { StyleSheet,Platform } from 'react-native';
 
-export const styles = StyleSheet.create({
+export const getStyles = (colors) => StyleSheet.create({
   // Tab Content Styles
   nfcTabContent: {
     padding: 16,
@@ -11,11 +11,11 @@ export const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: '#333',
+    color: colors.textPrimary,
   },
   nfcTabSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -25,19 +25,19 @@ export const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     padding: 16,
-    backgroundColor: '#e3f2fd',
+    backgroundColor: colors.infoBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#90caf9',
+    borderColor: colors.infoBorder,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.22,
     shadowRadius: 2.22,
   },
   readingStatusText: {
     textAlign: 'center',
-    color: '#1976d2',
+    color: colors.infoText,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 22,
@@ -47,12 +47,12 @@ export const styles = StyleSheet.create({
   resultContainer: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.18,
     shadowRadius: 1.0,
@@ -61,21 +61,21 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#333',
+    color: colors.textPrimary,
   },
   resultText: {
-    color: '#444',
+    color: colors.textTertiary,
     fontSize: 16,
     lineHeight: 24,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   errorText: {
-    color: '#d32f2f',
+    color: colors.error,
     fontSize: 16,
     lineHeight: 24,
   },
   emptyTagText: {
-    color: '#ff9800',
+    color: colors.warning,
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
@@ -86,23 +86,23 @@ export const styles = StyleSheet.create({
   helperContainer: {
     marginTop: 20,
     padding: 20,
-    backgroundColor: '#f0f7ff',
+    backgroundColor: colors.infoHighlightBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#c9e0ff',
+    borderColor: colors.infoHighlightBorder,
     alignItems: 'center',
   },
   helperTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0056b3',
+    color: colors.infoHighlightText,
     marginTop: 12,
     marginBottom: 12,
     textAlign: 'center',
   },
   helperText: {
     fontSize: 15,
-    color: '#004085',
+    color: colors.infoHighlightText,
     lineHeight: 24,
     textAlign: 'left',
   },
@@ -112,12 +112,13 @@ export const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.borderInput,
     borderRadius: 8,
     paddingHorizontal: 12,
     marginRight: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     fontSize: 16,
+    color: colors.textPrimary,
   },
   writeFieldRow: {
     flexDirection: 'row',
@@ -129,24 +130,24 @@ export const styles = StyleSheet.create({
   // Button Styles
   nfcButton: {
     marginVertical: 12,
-    backgroundColor: '#2196f3',
+    backgroundColor: colors.info,
     borderRadius: 8,
     height: 48,
   },
   writeButton: {
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.success,
     marginTop: 12,
   },
   lockButton: {
-    backgroundColor: '#f44336',
+    backgroundColor: colors.error,
     marginTop: 12,
   },
   unlockButton: {
-    backgroundColor: '#ff9800',
+    backgroundColor: colors.warning,
     marginTop: 12,
   },
   loadButton: {
-    backgroundColor: '#9c27b0',
+    backgroundColor: colors.accentPurple,
     marginTop: 12,
   },
   deleteButton: {
@@ -155,18 +156,18 @@ export const styles = StyleSheet.create({
   },
   addFieldButton: {
     padding: 12,
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.success,
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 16,
   },
   addFieldText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
@@ -174,7 +175,7 @@ export const styles = StyleSheet.create({
 
   // Modal Styles
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 20,
     width: '90%',
@@ -187,12 +188,12 @@ export const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.borderLight,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
   },
   closeButton: {
     padding: 8,
@@ -201,7 +202,7 @@ export const styles = StyleSheet.create({
   // Tab Bar Styles
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 4,
     marginBottom: 16,
@@ -212,20 +213,20 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 6,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   activeTabText: {
-    color: '#2196f3',
+    color: colors.info,
     fontWeight: '600',
   },
 
@@ -235,11 +236,11 @@ export const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 8,
     fontWeight: '500',
   },
-  
+
   // Status Indicator Styles
   statusIndicator: {
     flexDirection: 'row',
@@ -254,16 +255,16 @@ export const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   successDot: {
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.success,
   },
   errorDot: {
-    backgroundColor: '#f44336',
+    backgroundColor: colors.error,
   },
   pendingDot: {
-    backgroundColor: '#ff9800',
+    backgroundColor: colors.warning,
   },
 
   // Message Styles
@@ -273,13 +274,13 @@ export const styles = StyleSheet.create({
     marginVertical: 8,
   },
   successMessage: {
-    backgroundColor: '#e8f5e9',
-    borderColor: '#a5d6a7',
+    backgroundColor: colors.successBg,
+    borderColor: colors.successBorder,
     borderWidth: 1,
   },
   errorMessage: {
-    backgroundColor: '#ffebee',
-    borderColor: '#ef9a9a',
+    backgroundColor: colors.errorBg,
+    borderColor: colors.errorBorder,
     borderWidth: 1,
   },
   messageText: {
@@ -287,17 +288,17 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   successMessageText: {
-    color: '#2e7d32',
+    color: colors.successText,
   },
   errorMessageText: {
-    color: '#c62828',
+    color: colors.errorTextAlt,
   },
 
   buttonGroup: {
     marginVertical: 12,
   },
   cancelButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.error,
     borderRadius: 8,
     height: 48,
   },

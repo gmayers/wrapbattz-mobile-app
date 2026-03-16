@@ -3,8 +3,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../../../../context/ThemeContext';
 
 export interface NFCTab {
   key: string;
@@ -24,7 +23,10 @@ const NFCManagerNav: React.FC<NFCManagerNavProps> = ({
   onTabPress
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   
+  const styles = getNavStyles(colors);
+
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.tabContainer}>
@@ -45,7 +47,7 @@ const NFCManagerNav: React.FC<NFCManagerNavProps> = ({
                 <Ionicons
                   name={tab.icon as any}
                   size={20}
-                  color={isActive ? ORANGE_COLOR : '#666666'}
+                  color={isActive ? colors.primary : colors.textSecondary}
                   style={styles.tabIcon}
                 />
                 <Text
@@ -68,12 +70,12 @@ const NFCManagerNav: React.FC<NFCManagerNavProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getNavStyles = (colors: any) => StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    shadowColor: '#000',
+    borderTopColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -93,7 +95,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   activeTabButton: {
-    // Active state styling handled by highlight bar and text color
   },
   tabContent: {
     alignItems: 'center',
@@ -105,12 +106,12 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#666666',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 14,
   },
   activeTabLabel: {
-    color: ORANGE_COLOR,
+    color: colors.primary,
     fontWeight: '600',
   },
   highlightBar: {
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     left: '20%',
     right: '20%',
     height: 3,
-    backgroundColor: ORANGE_COLOR,
+    backgroundColor: colors.primary,
     borderRadius: 1.5,
   },
 });

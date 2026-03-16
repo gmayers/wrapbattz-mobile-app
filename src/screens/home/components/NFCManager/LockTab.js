@@ -1,14 +1,68 @@
 // LockTab.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Alert, Platform, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
-import { styles } from './styles';
+import { getStyles } from './styles';
+import { useTheme } from '../../../../context/ThemeContext';
 import { nfcSecurityService } from '../../../../services/NFCSecurityService';
 
-const ORANGE_COLOR = '#FF9500';
-
 const LockTab = ({ onCancel }) => {
+  const { colors } = useTheme();
+  const baseStyles = getStyles(colors);
+
+  const additionalStyles = useMemo(() => ({
+    nfcTabContent: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 80,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginBottom: 10,
+      color: colors.textPrimary,
+    },
+    sectionDescription: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginBottom: 20,
+    },
+    input: {
+      marginBottom: 20,
+    },
+    buttonContainer: {
+      flexDirection: 'column',
+      marginTop: 10,
+      marginBottom: 20,
+    },
+    cancelButton: {
+      marginTop: 10,
+    },
+    readingStatusContainer: {
+      marginTop: 20,
+      padding: 15,
+      backgroundColor: colors.infoBg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.infoBorder,
+      alignItems: 'center',
+    },
+    readingStatusText: {
+      fontSize: 16,
+      color: colors.infoText,
+      textAlign: 'center',
+    },
+    infoText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 20,
+      textAlign: 'center',
+    }
+  }), [colors]);
+
+  const styles = useMemo(() => ({ ...baseStyles, ...additionalStyles }), [baseStyles, additionalStyles]);
   const [lockPassword, setLockPassword] = useState('');
   const [isLocking, setIsLocking] = useState(false);
 
@@ -88,7 +142,7 @@ const LockTab = ({ onCancel }) => {
               title="Lock Tag"
               onPress={handleLockNfc}
               disabled={isLocking || !lockPassword || lockPassword.length < 4}
-              style={[styles.lockButton, { backgroundColor: ORANGE_COLOR }]}
+              style={[styles.lockButton, { backgroundColor: colors.primary }]}
               textColor="white"
               testID="lock-tag-button"
             />
@@ -119,59 +173,5 @@ const LockTab = ({ onCancel }) => {
     </View>
   );
 };
-
-// Ensure the styles exist
-const additionalStyles = {
-  nfcTabContent: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 80,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  sectionDescription: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 20,
-  },
-  input: {
-    marginBottom: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  cancelButton: {
-    marginTop: 10,
-  },
-  readingStatusContainer: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#f5f7fa',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e5eb',
-    alignItems: 'center',
-  },
-  readingStatusText: {
-    fontSize: 16,
-    color: '#4a6da7',
-    textAlign: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#777',
-    fontStyle: 'italic',
-    marginTop: 20,
-    textAlign: 'center',
-  }
-};
-
-// Add these styles if not already present
-Object.assign(styles, additionalStyles);
 
 export default LockTab;

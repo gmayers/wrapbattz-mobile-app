@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const ORANGE_COLOR = '#FF9500';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import StandardDeviceCard from '../components/StandardDeviceCard';
@@ -30,6 +31,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
     userData,
     isAdminOrOwner,
   } = useAuth();
+  const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState('assignments');
   // State for "My Assignments" tab
@@ -271,15 +273,15 @@ const AllDevicesScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#FF8C00" />
-          <Text style={styles.backText}>Devices</Text>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Devices</Text>
         </TouchableOpacity>
         {isAdminOrOwner && (
           <Button
@@ -298,17 +300,17 @@ const AllDevicesScreen = ({ navigation, route }) => {
       />
 
       {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === 'assignments' && styles.activeTabButton
+            activeTab === 'assignments' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
           ]}
           onPress={() => setActiveTab('assignments')}
         >
           <Text style={[
-            styles.tabText,
-            activeTab === 'assignments' && styles.activeTabText
+            styles.tabText, { color: colors.textSecondary },
+            activeTab === 'assignments' && [styles.activeTabText, { color: colors.primary }]
           ]}>
             My Assignments
           </Text>
@@ -318,13 +320,13 @@ const AllDevicesScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'all' && styles.activeTabButton
+              activeTab === 'all' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
             ]}
             onPress={() => setActiveTab('all')}
           >
             <Text style={[
-              styles.tabText,
-              activeTab === 'all' && styles.activeTabText
+              styles.tabText, { color: colors.textSecondary },
+              activeTab === 'all' && [styles.activeTabText, { color: colors.primary }]
             ]}>
               Organization Devices
             </Text>
@@ -341,13 +343,13 @@ const AllDevicesScreen = ({ navigation, route }) => {
         >
           <View style={styles.section}>
             {loadingMyAssignments ? (
-              <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : filteredMyAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
                 {filteredMyAssignments.map(renderAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {searchQuery.trim() ? 'No matching assignments found' : 'No active device assignments found'}
               </Text>
             )}
@@ -364,13 +366,13 @@ const AllDevicesScreen = ({ navigation, route }) => {
         >
           <View style={styles.section}>
             {loadingOrgAssignments ? (
-              <ActivityIndicator size="large" color="#FF8C00" style={styles.loader} />
+              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
             ) : filteredOrgAssignments.length > 0 ? (
               <View style={styles.devicesGrid}>
                 {filteredOrgAssignments.map(renderOrgAssignmentCard)}
               </View>
             ) : (
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {searchQuery.trim() ? 'No matching assignments found' : 'No organization assignments found'}
               </Text>
             )}
@@ -391,24 +393,24 @@ const AllDevicesScreen = ({ navigation, route }) => {
             onPress={handleReturnDeviceModalClose}
             activeOpacity={1}
           />
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
             {selectedReturnDevice && selectedReturnDevice.device && (
               <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Return Device</Text>
+                <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Return Device</Text>
                   <TouchableOpacity onPress={handleReturnDeviceModalClose}>
-                    <Ionicons name="close" size={24} color="#666" />
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.modalText}>
-                  Returning: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.identifier}</Text>
+                <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                  Returning: <Text style={[styles.modalTextBold, { color: colors.textPrimary }]}>{selectedReturnDevice.device.identifier}</Text>
                 </Text>
-                <Text style={styles.modalText}>
-                  Type: <Text style={styles.modalTextBold}>{selectedReturnDevice.device.device_type}</Text>
+                <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                  Type: <Text style={[styles.modalTextBold, { color: colors.textPrimary }]}>{selectedReturnDevice.device.device_type}</Text>
                 </Text>
 
-                <Text style={styles.modalSectionTitle}>Select Return Location:</Text>
+                <Text style={[styles.modalSectionTitle, { color: colors.textSecondary }]}>Select Return Location:</Text>
 
                 <FlatList
                   data={locations}
@@ -420,7 +422,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
                       <TouchableOpacity
                         style={[
                           styles.locationListItem,
-                          isSelected && styles.locationListItemSelected,
+                          isSelected && [styles.locationListItemSelected, { backgroundColor: colors.primaryTint10 }],
                         ]}
                         onPress={() => setSelectedReturnLocation(item)}
                       >
@@ -428,27 +430,27 @@ const AllDevicesScreen = ({ navigation, route }) => {
                           <Ionicons
                             name="location-outline"
                             size={20}
-                            color={isSelected ? ORANGE_COLOR : '#666'}
+                            color={isSelected ? colors.primary : colors.textSecondary}
                           />
                           <Text
                             style={[
-                              styles.locationListItemText,
-                              isSelected && styles.locationListItemTextSelected,
+                              styles.locationListItemText, { color: colors.textPrimary },
+                              isSelected && [styles.locationListItemTextSelected, { color: colors.primary }],
                             ]}
                           >
                             {item.name || `${item.street_number} ${item.street_name}`}
                           </Text>
                         </View>
                         {isSelected && (
-                          <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+                          <Ionicons name="checkmark" size={22} color={colors.primary} />
                         )}
                       </TouchableOpacity>
                     );
                   }}
                   ListEmptyComponent={
-                    <Text style={styles.emptyListText}>No locations available</Text>
+                    <Text style={[styles.emptyListText, { color: colors.textMuted }]}>No locations available</Text>
                   }
-                  ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+                  ItemSeparatorComponent={() => <View style={[styles.listSeparator, { backgroundColor: colors.border }]} />}
                 />
 
                 <View style={styles.modalButtons}>

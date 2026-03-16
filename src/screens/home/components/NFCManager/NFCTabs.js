@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
 import TabBar from '../../../../components/TabBar';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const NFCTabs = ({
   activeTab,
@@ -31,6 +32,9 @@ const NFCTabs = ({
   onLockNfc,
   onUnlockNfc,
 }) => {
+  const { colors } = useTheme();
+  const styles = getTabStyles(colors);
+
   // Tab configuration
   const tabs = [
     {
@@ -66,7 +70,7 @@ const NFCTabs = ({
         <Ionicons 
           name="scan-circle-outline" 
           size={80} 
-          color="#007AFF"
+          color={colors.primary}
         />
       </View>
       <Button
@@ -94,14 +98,14 @@ const NFCTabs = ({
               placeholder="Label"
               value={field.label}
               onChangeText={(text) => onWriteFieldChange(index, 'label', text)}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
             <TextInput
               style={styles.input}
               placeholder="Value"
               value={field.value}
               onChangeText={(text) => onWriteFieldChange(index, 'value', text)}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           {writeFields.length > 1 && (
@@ -110,7 +114,7 @@ const NFCTabs = ({
               style={styles.removeButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="remove-circle" size={24} color="#FF3B30" />
+              <Ionicons name="remove-circle" size={24} color={colors.error} />
             </TouchableOpacity>
           )}
         </View>
@@ -120,7 +124,7 @@ const NFCTabs = ({
         style={styles.addFieldButton}
         onPress={onAddWriteField}
       >
-        <Ionicons name="add-circle" size={20} color="#007AFF" />
+        <Ionicons name="add-circle" size={20} color={colors.primary} />
         <Text style={styles.addFieldText}>Add Field</Text>
       </TouchableOpacity>
 
@@ -206,9 +210,9 @@ const NFCTabs = ({
         tabs={tabs}
         activeTab={activeTab}
         onTabPress={onTabChange}
-        backgroundColor="#F9F9F9"
-        activeColor="#007AFF"
-        inactiveColor="#666666"
+        backgroundColor={colors.surface}
+        activeColor={colors.primary}
+        inactiveColor={colors.textSecondary}
         showIcons
         showLabels
         height={50}
@@ -221,17 +225,17 @@ const NFCTabs = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getTabStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
   },
   tabBarContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   tabContent: {
     flex: 1,
@@ -240,12 +244,12 @@ const styles = StyleSheet.create({
   tabTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   tabDescription: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -268,12 +272,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     fontSize: 16,
-    backgroundColor: '#F8F8F8',
-    color: '#333',
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
   },
   removeButton: {
     marginLeft: 10,
@@ -284,14 +288,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     marginBottom: 20,
   },
   addFieldText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '500',
     marginLeft: 8,
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
   },
   passwordHint: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   actionButton: {

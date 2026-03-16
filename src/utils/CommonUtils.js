@@ -5,10 +5,10 @@ import { Alert } from 'react-native';
 // Color constants
 export const COLORS = {
   PRIMARY_ORANGE: '#FF9500',
-  SUCCESS_GREEN: '#10B981',
-  ERROR_RED: '#EF4444',
-  WARNING_YELLOW: '#F59E0B',
-  INFO_BLUE: '#3B82F6',
+  SUCCESS_GREEN: '#4CAF50',
+  ERROR_RED: '#F44336',
+  WARNING_YELLOW: '#FF9800',
+  INFO_BLUE: '#2196F3',
   NEUTRAL_GRAY: '#6B7280',
   LIGHT_GRAY: '#F5F5F5',
   DARK_GRAY: '#333333',

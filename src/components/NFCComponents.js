@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  TextInput, 
-  StyleSheet, 
-  Dimensions, 
-  Platform, 
-  ScrollView, 
-  Alert 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  ScrollView,
+  Alert
 } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcError } from 'react-native-nfc-manager';
+import { useTheme } from '../context/ThemeContext';
 
 // Dimensions for responsive design
 const { width } = Dimensions.get('window');
@@ -64,30 +65,33 @@ const ndefToJson = (tag) => {
 };
 
 // Shared NFCButton component for consistent styling
-const NFCButton = ({ 
-  onPress, 
-  title, 
-  isLoading, 
+const NFCButton = ({
+  onPress,
+  title,
+  isLoading,
   disabled,
-  backgroundColor = '#007AFF',
-  textColor = 'white',
+  backgroundColor,
+  textColor,
   style
-}) => (
-  <TouchableOpacity 
-    style={[
-      styles.button,
-      { backgroundColor },
-      disabled && styles.buttonDisabled,
-      style
-    ]}
-    onPress={onPress}
-    disabled={disabled || isLoading}
-  >
-    <Text style={[styles.buttonText, { color: textColor }]}>
-      {isLoading ? 'Processing...' : title}
-    </Text>
-  </TouchableOpacity>
-);
+}) => {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      style={[
+        styles.button,
+        { backgroundColor: backgroundColor || colors.primary },
+        disabled && styles.buttonDisabled,
+        style
+      ]}
+      onPress={onPress}
+      disabled={disabled || isLoading}
+    >
+      <Text style={[styles.buttonText, { color: textColor || colors.surface }]}>
+        {isLoading ? 'Processing...' : title}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 /**
  * Lock NFC Tag (JSON-based)
@@ -101,6 +105,7 @@ export const NFCLock = ({
   backgroundColor,
   textColor,
 }) => {
+  const { colors } = useTheme();
   const [isLocking, setIsLocking] = useState(false);
   const [password, setPassword] = useState('');
 
@@ -146,21 +151,22 @@ export const NFCLock = ({
   };
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <Text style={[styles.title, titleStyle]}>Lock NFC Tag</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface, shadowColor: colors.shadow }, containerStyle]}>
+      <Text style={[styles.title, { color: colors.textPrimary }, titleStyle]}>Lock NFC Tag</Text>
       <TextInput
-        style={[styles.input, styles.passwordInput]}
+        style={[styles.input, styles.passwordInput, { borderColor: colors.borderInput, color: colors.textPrimary, backgroundColor: colors.surfaceAlt }]}
         value={password}
         onChangeText={setPassword}
         placeholder="Enter Password"
+        placeholderTextColor={colors.textMuted}
         secureTextEntry
       />
       <NFCButton
         title="Lock Tag"
         onPress={handleLock}
         isLoading={isLocking}
-        backgroundColor={backgroundColor || '#dc3545'}
-        textColor={textColor || 'white'}
+        backgroundColor={backgroundColor || colors.error}
+        textColor={textColor || colors.surface}
         style={buttonStyle}
       />
     </View>
@@ -180,6 +186,7 @@ export const NFCRemovePassword = ({
   backgroundColor,
   textColor,
 }) => {
+  const { colors } = useTheme();
   const [isRemoving, setIsRemoving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
 
@@ -229,21 +236,22 @@ export const NFCRemovePassword = ({
   };
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <Text style={[styles.title, titleStyle]}>Remove Password Protection</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface, shadowColor: colors.shadow }, containerStyle]}>
+      <Text style={[styles.title, { color: colors.textPrimary }, titleStyle]}>Remove Password Protection</Text>
       <TextInput
-        style={[styles.input, styles.passwordInput]}
+        style={[styles.input, styles.passwordInput, { borderColor: colors.borderInput, color: colors.textPrimary, backgroundColor: colors.surfaceAlt }]}
         value={currentPassword}
         onChangeText={setCurrentPassword}
         placeholder="Enter Current Password"
+        placeholderTextColor={colors.textMuted}
         secureTextEntry
       />
       <NFCButton
         title="Remove Protection"
         onPress={handleRemove}
         isLoading={isRemoving}
-        backgroundColor={backgroundColor || '#ffc107'}
-        textColor={textColor || 'white'}
+        backgroundColor={backgroundColor || colors.warning}
+        textColor={textColor || colors.surface}
         style={buttonStyle}
       />
     </View>
@@ -263,6 +271,7 @@ export const NFCRead = ({
   textColor,
   dataStyle,
 }) => {
+  const { colors } = useTheme();
   const [tagData, setTagData] = useState(null);
   const [isReading, setIsReading] = useState(false);
 
@@ -298,19 +307,19 @@ export const NFCRead = ({
   };
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <Text style={[styles.title, titleStyle]}>Read NFC Tag</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface, shadowColor: colors.shadow }, containerStyle]}>
+      <Text style={[styles.title, { color: colors.textPrimary }, titleStyle]}>Read NFC Tag</Text>
       <NFCButton
         title="Read Tag"
         onPress={handleRead}
         isLoading={isReading}
-        backgroundColor={backgroundColor || '#17a2b8'}
-        textColor={textColor || 'white'}
+        backgroundColor={backgroundColor || colors.info}
+        textColor={textColor || colors.surface}
         style={buttonStyle}
       />
       {tagData && (
-        <View style={[styles.dataContainer, dataStyle]}>
-          <Text style={styles.dataText}>
+        <View style={[styles.dataContainer, { backgroundColor: colors.surfaceAlt }, dataStyle]}>
+          <Text style={[styles.dataText, { color: colors.textPrimary }]}>
             {JSON.stringify(tagData, null, 2)}
           </Text>
         </View>
@@ -334,6 +343,7 @@ export const NFCWrite = ({
   backgroundColor,
   textColor,
 }) => {
+  const { colors } = useTheme();
   const [writeFields, setWriteFields] = useState([{ label: '', value: '' }]);
   const [isWriting, setIsWriting] = useState(false);
 
@@ -404,37 +414,37 @@ export const NFCWrite = ({
   };
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      <Text style={[styles.title, titleStyle]}>Write to NFC Tag</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface, shadowColor: colors.shadow }, containerStyle]}>
+      <Text style={[styles.title, { color: colors.textPrimary }, titleStyle]}>Write to NFC Tag</Text>
       <ScrollView>
         {writeFields.map((field, index) => (
           <View key={index} style={styles.writeFieldRow}>
             <TextInput
-              style={[styles.input, inputStyle]}
+              style={[styles.input, { borderColor: colors.borderInput, color: colors.textPrimary }, inputStyle]}
               value={field.label}
               onChangeText={(text) => handleWriteFieldChange(index, 'label', text)}
               placeholder="Label"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
             <TextInput
-              style={[styles.input, inputStyle]}
+              style={[styles.input, { borderColor: colors.borderInput, color: colors.textPrimary }, inputStyle]}
               value={field.value}
               onChangeText={(text) => handleWriteFieldChange(index, 'value', text)}
               placeholder="Value"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
         ))}
-        <TouchableOpacity style={styles.addFieldButton} onPress={addWriteField}>
-          <Text style={styles.addFieldText}>+ Add Value</Text>
+        <TouchableOpacity style={[styles.addFieldButton, { backgroundColor: colors.success }]} onPress={addWriteField}>
+          <Text style={[styles.addFieldText, { color: colors.surface }]}>+ Add Value</Text>
         </TouchableOpacity>
       </ScrollView>
       <NFCButton
         title="Write to Tag"
         onPress={handleWrite}
         isLoading={isWriting}
-        backgroundColor={backgroundColor || '#007bff'}
-        textColor={textColor || 'white'}
+        backgroundColor={backgroundColor || colors.primary}
+        textColor={textColor || colors.surface}
         style={buttonStyle}
       />
     </View>
@@ -445,6 +455,7 @@ export const NFCWrite = ({
  * Combined Manager with Tabs for Read, Write, Lock, Unlock
  */
 export const NFCManagerComponent = () => {
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('read');
 
   const handleRead = (data) => {
@@ -465,56 +476,60 @@ export const NFCManagerComponent = () => {
 
   return (
     <View style={styles.managerContainer}>
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
+      <View style={[styles.tabContainer, { borderColor: colors.border }]}>
+        <TouchableOpacity
           style={[
-            styles.tabButton, 
-            activeTab === 'read' && styles.activeTabButton
+            styles.tabButton,
+            activeTab === 'read' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
           ]}
           onPress={() => setActiveTab('read')}
         >
           <Text style={[
-            styles.tabText, 
-            activeTab === 'read' && styles.activeTabText
+            styles.tabText,
+            { color: colors.textSecondary },
+            activeTab === 'read' && { color: colors.primary, fontWeight: 'bold' }
           ]}>Read</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.tabButton, 
-            activeTab === 'write' && styles.activeTabButton
+            styles.tabButton,
+            activeTab === 'write' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
           ]}
           onPress={() => setActiveTab('write')}
         >
           <Text style={[
-            styles.tabText, 
-            activeTab === 'write' && styles.activeTabText
+            styles.tabText,
+            { color: colors.textSecondary },
+            activeTab === 'write' && { color: colors.primary, fontWeight: 'bold' }
           ]}>Write</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.tabButton, 
-            activeTab === 'lock' && styles.activeTabButton
+            styles.tabButton,
+            activeTab === 'lock' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
           ]}
           onPress={() => setActiveTab('lock')}
         >
           <Text style={[
-            styles.tabText, 
-            activeTab === 'lock' && styles.activeTabText
+            styles.tabText,
+            { color: colors.textSecondary },
+            activeTab === 'lock' && { color: colors.primary, fontWeight: 'bold' }
           ]}>Lock</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.tabButton, 
-            activeTab === 'unlock' && styles.activeTabButton
+            styles.tabButton,
+            activeTab === 'unlock' && [styles.activeTabButton, { borderBottomColor: colors.primary }]
           ]}
           onPress={() => setActiveTab('unlock')}
         >
           <Text style={[
-            styles.tabText, 
-            activeTab === 'unlock' && styles.activeTabText
+            styles.tabText,
+            { color: colors.textSecondary },
+            activeTab === 'unlock' && { color: colors.primary, fontWeight: 'bold' }
           ]}>Unlock</Text>
         </TouchableOpacity>
       </View>
@@ -541,9 +556,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     width: width * 0.95,
-    backgroundColor: 'white',
     borderRadius: 10,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -558,7 +571,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#333',
   },
   // General button styling
   button: {
@@ -579,28 +591,22 @@ const styles = StyleSheet.create({
   // Input fields styling
   input: {
     borderWidth: 1,
-    borderColor: '#DDD',
     borderRadius: 8,
     padding: 12,
     marginBottom: 15,
     fontSize: 16,
-    color: '#333',
   },
   // Additional styling for password inputs
-  passwordInput: {
-    backgroundColor: '#f9f9f9',
-  },
+  passwordInput: {},
   // Container for displaying read data
   dataContainer: {
     marginTop: 20,
     padding: 10,
-    backgroundColor: '#F5F5F5',
     borderRadius: 8,
   },
   // Text styling for read data
   dataText: {
     fontSize: 14,
-    color: '#333',
   },
   // Row styling for write fields
   writeFieldRow: {
@@ -611,14 +617,12 @@ const styles = StyleSheet.create({
   // Button for adding new label/value pair
   addFieldButton: {
     padding: 10,
-    backgroundColor: '#28a745',
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 15,
   },
   // Text for add field button
   addFieldText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -634,7 +638,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderColor: '#ccc',
   },
   // Individual tab buttons
   tabButton: {
@@ -645,17 +648,10 @@ const styles = StyleSheet.create({
   // Active tab button styling
   activeTabButton: {
     borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
   },
   // Tab text styling
   tabText: {
     fontSize: 16,
-    color: '#666',
-  },
-  // Active tab text styling
-  activeTabText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
   },
 });
 

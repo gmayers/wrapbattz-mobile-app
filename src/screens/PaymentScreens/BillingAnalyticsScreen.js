@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { createBillingService } from '../../services/BillingService';
 
 const ORANGE_COLOR = '#FF9500';
@@ -20,6 +21,7 @@ const { width } = Dimensions.get('window');
 
 const BillingAnalyticsScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { colors } = useTheme();
   const billingService = createBillingService(axiosInstance);
 
   const [loading, setLoading] = useState(true);
@@ -147,7 +149,7 @@ const BillingAnalyticsScreen = ({ navigation }) => {
                       styles.bar,
                       {
                         height: `${billableHeight}%`,
-                        backgroundColor: ORANGE_COLOR,
+                        backgroundColor: colors.primary,
                         position: 'absolute',
                         bottom: 0,
                       },
@@ -166,7 +168,7 @@ const BillingAnalyticsScreen = ({ navigation }) => {
             <Text style={styles.legendText}>Total Devices</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: ORANGE_COLOR }]} />
+            <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
             <Text style={styles.legendText}>Billable Devices</Text>
           </View>
         </View>
@@ -211,9 +213,9 @@ const BillingAnalyticsScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading analytics...</Text>
         </View>
       </SafeAreaView>
@@ -223,14 +225,14 @@ const BillingAnalyticsScreen = ({ navigation }) => {
   // If no analytics data, show empty state
   if (!analytics && !loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Billing Analytics</Text>
+          <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Billing Analytics</Text>
             <Text style={styles.headerSubtitle}>
               Usage trends and cost analysis
             </Text>
@@ -249,14 +251,14 @@ const BillingAnalyticsScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Billing Analytics</Text>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Billing Analytics</Text>
           <Text style={styles.headerSubtitle}>
             Usage trends and cost analysis
           </Text>
@@ -339,7 +341,7 @@ const BillingAnalyticsScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.insightCard}>
-            <Ionicons name="card" size={24} color={ORANGE_COLOR} />
+            <Ionicons name="card" size={24} color={colors.primary} />
             <View style={styles.insightContent}>
               <Text style={styles.insightTitle}>Cost Optimization</Text>
               <Text style={styles.insightText}>

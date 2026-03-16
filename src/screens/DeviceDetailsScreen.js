@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
@@ -41,6 +42,7 @@ const STATUS_CHOICES = [
 
 const DeviceDetailsScreen = ({ navigation, route }) => {
   const { deviceService, logout, userData, isAdminOrOwner, axiosInstance } = useAuth();
+  const { colors } = useTheme();
   const { deviceId } = route.params;
   
   const [device, setDevice] = useState(null);
@@ -300,19 +302,19 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-            <Text style={styles.backText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
-          <Text style={styles.loadingText}>Loading device details...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading device details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -320,18 +322,18 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   if (error || !device) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-            <Text style={styles.backText}>Back</Text>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
           <Text style={styles.errorText}>{error || 'Device not found'}</Text>
           <Button
             title="Try Again"
@@ -348,17 +350,17 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   const canAssign = device.status === 'available';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color={ORANGE_COLOR} />
-          <Text style={styles.backText}>Back</Text>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Device Details</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Device Details</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -367,9 +369,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Device Information Card */}
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>{device.identifier}</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{device.identifier}</Text>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(device.status) }]}>
               <Text style={styles.statusText}>{getStatusLabel(device.status)}</Text>
             </View>
@@ -475,11 +477,11 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
         </View>
 
         {/* Assignment History Section */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Assignment History</Text>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Assignment History</Text>
           
           {historyLoading ? (
-            <ActivityIndicator size="small" color={ORANGE_COLOR} style={styles.sectionLoader} />
+            <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
           ) : deviceHistory.length > 0 ? (
             deviceHistory.map((assignment, index) => {
               const isActive = !assignment.returned_date;
@@ -511,7 +513,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     {assignment.user && assignment.user_name && (
                       <View style={styles.assignmentInfo}>
                         <View style={styles.assignmentIcon}>
-                          <Ionicons name="person" size={16} color={ORANGE_COLOR} />
+                          <Ionicons name="person" size={16} color={colors.primary} />
                         </View>
                         <View style={styles.assignmentText}>
                           <Text style={styles.assignmentLabel}>Assigned to Person:</Text>
@@ -527,7 +529,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     {assignment.location && assignment.location_name && (
                       <View style={styles.assignmentInfo}>
                         <View style={styles.assignmentIcon}>
-                          <Ionicons name="location" size={16} color={ORANGE_COLOR} />
+                          <Ionicons name="location" size={16} color={colors.primary} />
                         </View>
                         <View style={styles.assignmentText}>
                           <Text style={styles.assignmentLabel}>Assigned to Location:</Text>
@@ -540,7 +542,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     {assignment.assigned_by_name && (
                       <View style={styles.assignmentInfo}>
                         <View style={styles.assignmentIcon}>
-                          <Ionicons name="person-add" size={16} color="#666" />
+                          <Ionicons name="person-add" size={16} color={colors.textSecondary} />
                         </View>
                         <View style={styles.assignmentText}>
                           <Text style={styles.assignmentLabel}>Assigned by:</Text>
@@ -573,11 +575,11 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
         </View>
 
         {/* Reports Section */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.sectionTitle}>Device Reports</Text>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Device Reports</Text>
           
           {reportsLoading ? (
-            <ActivityIndicator size="small" color={ORANGE_COLOR} style={styles.sectionLoader} />
+            <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
           ) : deviceReports.length > 0 ? (
             deviceReports.map(report => (
               <TouchableOpacity 
@@ -607,7 +609,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                 
                 <View style={styles.viewDetailsContainer}>
                   <Text style={styles.viewDetailsText}>View Report Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color={ORANGE_COLOR} />
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                 </View>
               </TouchableOpacity>
             ))
@@ -638,16 +640,16 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
             onPress={() => setTransferModalVisible(false)}
             activeOpacity={1}
           />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Transfer to Location</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Transfer to Location</Text>
               <TouchableOpacity
                 onPress={() => {
                   setTransferModalVisible(false);
                   setSelectedLocationId(null);
                 }}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -685,7 +687,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                     {isSelected && (
-                      <Ionicons name="checkmark" size={22} color={ORANGE_COLOR} />
+                      <Ionicons name="checkmark" size={22} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 );

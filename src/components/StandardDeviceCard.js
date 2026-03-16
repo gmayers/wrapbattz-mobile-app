@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import Card from './Card';
 import Button from './Button';
+import { useTheme } from '../context/ThemeContext';
 
 const getStatusColor = (status) => {
-  const colors = {
+  const statusColors = {
     available: '#10B981',   // green
     assigned: '#3B82F6',    // blue
     damaged: '#EF4444',     // red
@@ -13,7 +14,7 @@ const getStatusColor = (status) => {
     maintenance: '#F59E0B', // yellow
     lost: '#6B7280'         // gray
   };
-  return colors[status] || colors.available;
+  return statusColors[status] || statusColors.available;
 };
 
 const StandardDeviceCard = ({
@@ -25,6 +26,7 @@ const StandardDeviceCard = ({
   showReturnButton = true
 }) => {
   const { width } = useWindowDimensions();
+  const { colors } = useTheme();
   const { device, assigned_date, user, location, returned_date, user_name, location_name } = assignment;
   const assignedTo = user_name || location_name || (typeof user === 'object' ? user?.full_name : null) || (typeof location === 'object' ? location?.name : null) || 'Unknown';
   const isActive = !returned_date;
@@ -32,7 +34,7 @@ const StandardDeviceCard = ({
   const renderMaintenanceInfo = () => {
     if (device.maintenance_interval && device.next_maintenance) {
       return (
-        <Text style={styles.infoText}>
+        <Text style={[styles.infoText, { color: colors.textSecondary }]}>
           Next Maintenance: {device.next_maintenance}
         </Text>
       );
@@ -68,43 +70,43 @@ const StandardDeviceCard = ({
     <Card
       title={device.identifier}
       subtitle={device.device_type}
-      style={[styles.deviceCard, { width: Math.min(width * 0.45, 220) }, !isActive && styles.inactiveCard, style]}
+      style={[styles.deviceCard, { width: Math.min(width * 0.45, 220), borderColor: colors.primary }, !isActive && [styles.inactiveCard, { borderColor: colors.border }], style]}
     >
       <View style={styles.cardContent}>
         {renderActiveStatus()}
-        
+
         <View style={styles.cardInfo}>
-          <Text style={styles.infoText}>Make: {device.make}</Text>
-          <Text style={styles.infoText}>Model: {device.model}</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Make: {device.make}</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Model: {device.model}</Text>
           {device.serial_number && (
-            <Text style={styles.infoText}>SN: {device.serial_number}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>SN: {device.serial_number}</Text>
           )}
-          <Text style={styles.infoText}>Assigned to: {assignedTo}</Text>
-          <Text style={styles.infoText}>Assigned: {assigned_date}</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned to: {assignedTo}</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned: {assigned_date}</Text>
           {returned_date && (
-            <Text style={styles.infoText}>Returned: {returned_date}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Returned: {returned_date}</Text>
           )}
           {renderMaintenanceInfo()}
         </View>
-        
+
         <View style={styles.cardActions}>
           <Button
             title="View Details"
             variant="outlined"
             size="small"
-            textColor="#FF9500"
+            textColorProp={colors.primary}
             onPress={() => onViewDetails(device.id)}
-            style={styles.detailsButton}
+            style={[styles.detailsButton, { borderColor: colors.primary }]}
           />
-          
+
           {showReturnButton && isActive && (
             <Button
               title="Return"
               variant="outlined"
               size="small"
-              textColor="#d27300"
+              textColorProp={colors.primaryDark}
               onPress={() => onReturn(assignment)}
-              style={[styles.returnButton, { marginTop: 8 }]}
+              style={[styles.returnButton, { marginTop: 8, borderColor: colors.primaryDark }]}
             />
           )}
         </View>
@@ -116,12 +118,10 @@ const StandardDeviceCard = ({
 const styles = StyleSheet.create({
   deviceCard: {
     marginBottom: '4%',
-    borderColor: '#FF9500',
     borderWidth: 1,
   },
   inactiveCard: {
     opacity: 0.7,
-    borderColor: '#ccc',
   },
   cardContent: {
     flexDirection: 'column',
@@ -174,7 +174,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 4,
   },
   cardActions: {
@@ -183,12 +182,10 @@ const styles = StyleSheet.create({
   },
   detailsButton: {
     width: '100%',
-    borderColor: '#FF9500',
     backgroundColor: 'transparent',
   },
   returnButton: {
     width: '100%',
-    borderColor: '#d27300',
     backgroundColor: 'transparent',
   },
 });

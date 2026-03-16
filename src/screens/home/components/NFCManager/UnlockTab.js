@@ -1,14 +1,68 @@
 // UnlockTab.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Alert, ScrollView } from 'react-native';
 import Button from '../../../../components/Button';
 import { PasswordInput } from '../../../../components/TextInput';
-import { styles } from './styles';
+import { getStyles } from './styles';
+import { useTheme } from '../../../../context/ThemeContext';
 import { nfcSecurityService } from '../../../../services/NFCSecurityService';
 
-const ORANGE_COLOR = '#FF9500';
-
 const UnlockTab = ({ onCancel }) => {
+  const { colors } = useTheme();
+  const baseStyles = getStyles(colors);
+
+  const additionalStyles = useMemo(() => ({
+    nfcTabContent: {
+      flex: 1,
+      padding: 16,
+      paddingBottom: 80,
+    },
+    nfcTabTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: 8,
+      color: colors.textPrimary,
+    },
+    nfcTabSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginBottom: 20,
+    },
+    buttonContainer: {
+      flexDirection: 'column',
+      marginTop: 20,
+      marginBottom: 20,
+    },
+    unlockButton: {
+      marginBottom: 10,
+    },
+    cancelButton: {
+      marginTop: 10,
+    },
+    readingStatusContainer: {
+      marginTop: 20,
+      padding: 15,
+      backgroundColor: colors.infoBg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.infoBorder,
+      alignItems: 'center',
+    },
+    readingStatusText: {
+      fontSize: 16,
+      color: colors.infoText,
+      textAlign: 'center',
+    },
+    infoText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      marginTop: 20,
+      textAlign: 'center',
+    }
+  }), [colors]);
+
+  const styles = useMemo(() => ({ ...baseStyles, ...additionalStyles }), [baseStyles, additionalStyles]);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
 
@@ -86,7 +140,7 @@ const UnlockTab = ({ onCancel }) => {
               title="Unlock Tag"
               onPress={handleUnlockNfc}
               disabled={isUnlocking || !unlockPassword}
-              style={[styles.unlockButton, { backgroundColor: ORANGE_COLOR }]}
+              style={[styles.unlockButton, { backgroundColor: colors.primary }]}
               textColor="white"
               testID="unlock-tag-button"
             />
@@ -117,59 +171,5 @@ const UnlockTab = ({ onCancel }) => {
     </View>
   );
 };
-
-// Ensure styles exist
-const additionalStyles = {
-  nfcTabContent: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 80,
-  },
-  nfcTabTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  nfcTabSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  unlockButton: {
-    marginBottom: 10,
-  },
-  cancelButton: {
-    marginTop: 10,
-  },
-  readingStatusContainer: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#f5f7fa',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e5eb',
-    alignItems: 'center',
-  },
-  readingStatusText: {
-    fontSize: 16,
-    color: '#4a6da7',
-    textAlign: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#777',
-    fontStyle: 'italic',
-    marginTop: 20,
-    textAlign: 'center',
-  }
-};
-
-// Add these styles if not already present
-Object.assign(styles, additionalStyles);
 
 export default UnlockTab;

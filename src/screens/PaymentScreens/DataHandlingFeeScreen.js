@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import SubscriptionSetup from '../../components/SubscriptionSetup';
 
 // Orange color to match existing UI
@@ -20,6 +21,7 @@ const ORANGE_COLOR = '#FF9500';
 
 const DataHandlingFeeScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { colors } = useTheme();
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState(null);
@@ -320,9 +322,9 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
@@ -332,10 +334,10 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   const isActive = billingData?.billing?.status === 'active';
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <ScrollView>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Device Management Fee</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Device Management Fee</Text>
           <Text style={styles.headerSubtitle}>
             {isActive
               ? `You are currently on the ${billingData?.billing?.cycle} billing plan`
@@ -379,7 +381,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
                 style={styles.deviceSelectorButton}
                 onPress={() => handleDeviceCountChange(1)}
               >
-                <Ionicons name="add-circle" size={32} color={ORANGE_COLOR} />
+                <Ionicons name="add-circle" size={32} color={colors.primary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.helperText}>
@@ -532,7 +534,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             style={styles.navButton}
             onPress={() => navigation.navigate('ManageBilling')}
           >
-            <Ionicons name="card-outline" size={20} color={ORANGE_COLOR} />
+            <Ionicons name="card-outline" size={20} color={colors.primary} />
             <Text style={styles.navButtonText}>Manage Billing</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -541,7 +543,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             style={styles.navButton}
             onPress={() => navigation.navigate('BillingAnalytics')}
           >
-            <Ionicons name="analytics-outline" size={20} color={ORANGE_COLOR} />
+            <Ionicons name="analytics-outline" size={20} color={colors.primary} />
             <Text style={styles.navButtonText}>Billing Analytics</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -550,7 +552,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             style={styles.navButton}
             onPress={() => navigation.navigate('PaymentHistory')}
           >
-            <Ionicons name="receipt-outline" size={20} color={ORANGE_COLOR} />
+            <Ionicons name="receipt-outline" size={20} color={colors.primary} />
             <Text style={styles.navButtonText}>Payment History</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -559,7 +561,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
             style={styles.navButton}
             onPress={() => navigation.navigate('NotificationPreferences')}
           >
-            <Ionicons name="notifications-outline" size={20} color={ORANGE_COLOR} />
+            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
             <Text style={styles.navButtonText}>Notification Settings</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>

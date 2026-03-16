@@ -3,8 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import NfcManager from 'react-native-nfc-manager';
 import { nfcService } from '../../../../services/NFCService';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const FormatTab = ({ withNfcManager, onCancel }) => {
+  const { colors } = useTheme();
+  const styles = getFormatStyles(colors);
   const [isFormatting, setIsFormatting] = useState(false);
   const [formatResult, setFormatResult] = useState(null);
 
@@ -90,7 +93,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <Ionicons name="refresh-circle" size={80} color="#FF6B00" />
+          <Ionicons name="refresh-circle" size={80} color={colors.primary} />
           <Text style={styles.title}>Format NFC Tag</Text>
           <Text style={styles.subtitle}>Convert tags to NDEF format</Text>
         </View>
@@ -120,7 +123,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
           </View>
 
           <View style={styles.warningBox}>
-            <Ionicons name="warning" size={24} color="#FF3B30" />
+            <Ionicons name="warning" size={24} color={colors.error} />
             <View style={styles.warningContent}>
               <Text style={styles.warningTitle}>⚠️ Destructive Action</Text>
               <Text style={styles.warningText}>
@@ -132,7 +135,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
           {/* Platform-specific info */}
           {Platform.OS === 'ios' && (
             <View style={styles.platformInfoBox}>
-              <Ionicons name="information-circle" size={20} color="#007AFF" />
+              <Ionicons name="information-circle" size={20} color={colors.info} />
               <Text style={styles.platformInfoText}>
                 iOS Note: Blank tags may not be formattable. Please use pre-formatted NDEF tags. This function works best for clearing already-formatted tags.
               </Text>
@@ -141,7 +144,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
 
           {Platform.OS === 'android' && (
             <View style={styles.platformInfoBox}>
-              <Ionicons name="information-circle" size={20} color="#3DDC84" />
+              <Ionicons name="information-circle" size={20} color={colors.success} />
               <Text style={styles.platformInfoText}>
                 Android supports formatting both blank and already-formatted NDEF tags.
               </Text>
@@ -155,7 +158,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
             <Ionicons
               name={formatResult.success ? "checkmark-circle" : "close-circle"}
               size={24}
-              color={formatResult.success ? "#34C759" : "#FF3B30"}
+              color={formatResult.success ? colors.success : colors.error}
             />
             <View style={styles.resultContent}>
               <Text style={[styles.resultText, formatResult.success ? styles.successText : styles.errorText]}>
@@ -183,7 +186,7 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
             </TouchableOpacity>
           ) : (
             <View style={styles.formattingContainer}>
-              <ActivityIndicator size="large" color="#FF6B00" />
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.formattingText}>Hold tag near device...</Text>
               <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -219,10 +222,10 @@ const FormatTab = ({ withNfcManager, onCancel }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getFormatStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surface,
   },
   content: {
     padding: 20,
@@ -234,20 +237,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
     marginTop: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 5,
   },
   infoSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -256,12 +259,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 15,
   },
@@ -272,7 +275,7 @@ const styles = StyleSheet.create({
   bulletTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   bulletItem: {
@@ -281,24 +284,24 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 16,
-    color: '#FF6B00',
+    color: colors.primary,
     marginRight: 8,
     width: 20,
   },
   bulletText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     flex: 1,
   },
   warningBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.errorBg,
     borderRadius: 8,
     padding: 12,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
   },
   warningContent: {
     flex: 1,
@@ -307,25 +310,25 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#C62828',
+    color: colors.errorTextAlt,
     marginBottom: 4,
   },
   warningText: {
     fontSize: 13,
-    color: '#C62828',
+    color: colors.errorTextAlt,
     lineHeight: 18,
   },
   platformInfoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.infoBg,
     borderRadius: 8,
     padding: 12,
     marginTop: 10,
   },
   platformInfoText: {
     fontSize: 13,
-    color: '#1565C0',
+    color: colors.infoText,
     marginLeft: 10,
     flex: 1,
     lineHeight: 18,
@@ -338,14 +341,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   successBox: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.successBg,
     borderWidth: 1,
-    borderColor: '#4CAF50',
+    borderColor: colors.success,
   },
   errorBox: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.errorBg,
     borderWidth: 1,
-    borderColor: '#F44336',
+    borderColor: colors.error,
   },
   resultContent: {
     flex: 1,
@@ -358,25 +361,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: 'italic',
-    color: '#666',
+    color: colors.textSecondary,
   },
   successText: {
-    color: '#2E7D32',
+    color: colors.successText,
   },
   errorText: {
-    color: '#C62828',
+    color: colors.errorTextAlt,
   },
   buttonContainer: {
     marginBottom: 30,
   },
   formatButton: {
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
     borderRadius: 10,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -394,7 +397,7 @@ const styles = StyleSheet.create({
   },
   formattingText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 15,
     marginBottom: 20,
   },
@@ -403,17 +406,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FF6B00',
+    borderColor: colors.primary,
   },
   cancelButtonText: {
-    color: '#FF6B00',
+    color: colors.primary,
     fontSize: 16,
   },
   instructionsSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -422,7 +425,7 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 15,
   },
   stepContainer: {
@@ -434,7 +437,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#FF6B00',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 15,
@@ -446,7 +449,7 @@ const styles = StyleSheet.create({
   },
   stepText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     flex: 1,
   },
 });

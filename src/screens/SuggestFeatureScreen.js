@@ -15,9 +15,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext'; // Adjust path as needed
+import { useTheme } from '../context/ThemeContext';
 
 const SuggestFeatureScreen = ({ navigation }) => {
   const { mobileService, getApiKey, mobileApiInstance } = useAuth();
+  const { colors } = useTheme();
   const [featureSuggestion, setFeatureSuggestion] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
   const [name, setName] = useState('');
@@ -153,15 +155,15 @@ const SuggestFeatureScreen = ({ navigation }) => {
   // Show loading indicator while API key is being checked
   if (!apiKeyLoaded) {
     return (
-      <SafeAreaView style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#FF7700" />
-        <Text style={styles.loadingText}>Initializing...</Text>
+      <SafeAreaView style={[styles.container, styles.loadingContainer, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Initializing...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -173,7 +175,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.headerContainer}>
+          <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
             <Text style={styles.headerTitle}>Suggest a Feature</Text>
             <Text style={styles.headerSubtitle}>
               Help us improve BattWrapz by suggesting new features or providing feedback on existing ones.
@@ -182,7 +184,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
 
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Feature Suggestion*</Text>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Feature Suggestion*</Text>
               <TextInput
                 style={styles.textArea}
                 placeholder="Describe the feature you would like to see..."
@@ -210,7 +212,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.contactSection}>
-              <Text style={styles.sectionTitle}>Contact Information (Optional)</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Contact Information (Optional)</Text>
               <Text style={styles.sectionSubtitle}>
                 Include your contact details if you'd like us to follow up with you about your suggestion.
               </Text>
@@ -251,7 +253,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
               
               <TouchableOpacity 
                 style={[
-                  styles.submitButton, 
+                  styles.submitButton, { backgroundColor: colors.primary },
                   isSubmitting && styles.submitButtonDisabled
                 ]}
                 onPress={handleSubmit}

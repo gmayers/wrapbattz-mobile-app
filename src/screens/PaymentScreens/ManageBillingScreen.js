@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
 import { billingService } from '../../services/BillingService';
 
@@ -21,6 +22,7 @@ const ORANGE_COLOR = '#FF9500';
 
 const ManageBillingScreen = ({ navigation }) => {
   const { isAdminOrOwner } = useAuth();
+  const { colors } = useTheme();
 
   // Check permissions
   React.useEffect(() => {
@@ -383,9 +385,10 @@ const ManageBillingScreen = ({ navigation }) => {
   
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ORANGE_COLOR} />
+          <ActivityIndicator size="large" color={colors.primary} />
+
           <Text style={styles.loadingText}>Loading billing information...</Text>
         </View>
       </SafeAreaView>
@@ -400,21 +403,21 @@ const ManageBillingScreen = ({ navigation }) => {
   // If no billing data or not active, show setup screen
   if (!billingData || !isActive) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
         <View style={styles.noBillingContainer}>
           <Ionicons name="alert-circle-outline" size={60} color="#888" />
-          <Text style={styles.noBillingText}>
+          <Text style={[styles.noBillingText, { color: colors.textPrimary }]}>
             {!billingData
               ? 'Billing not set up yet'
               : 'You don\'t have an active billing plan'}
           </Text>
-          <Text style={styles.noBillingSubtext}>
+          <Text style={[styles.noBillingSubtext, { color: colors.textSecondary }]}>
             {!billingData
               ? 'Contact your administrator or set up billing to get started'
               : 'Set up a billing plan to continue using premium features'}
           </Text>
           <TouchableOpacity
-            style={styles.activateButton}
+            style={[styles.activateButton, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('DataHandlingFee')}
           >
             <Text style={styles.activateButtonText}>Set Up Billing</Text>
@@ -434,10 +437,10 @@ const ManageBillingScreen = ({ navigation }) => {
   const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
       <ScrollView>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Manage Billing</Text>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Manage Billing</Text>
           <Text style={styles.headerSubtitle}>
             {`${billingPeriod.charAt(0).toUpperCase() + billingPeriod.slice(1)} Plan - ${planName}`}
           </Text>
@@ -606,7 +609,8 @@ const ManageBillingScreen = ({ navigation }) => {
               onPress={handleChangePlan}
               disabled={processingAction}
             >
-              <Ionicons name="repeat" size={20} color={ORANGE_COLOR} />
+              <Ionicons name="repeat" size={20} color={colors.primary} />
+
               <Text style={styles.secondaryButtonText}>Change Plan</Text>
             </TouchableOpacity>
           </View>

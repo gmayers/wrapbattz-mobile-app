@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Image,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -13,12 +12,14 @@ import {
 import { EmailInput } from '../../components/TextInput';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext'; // Import AuthContext
+import { useTheme } from '../../context/ThemeContext';
 
 const ForgotPasswordPage = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { requestPasswordReset } = useAuth(); // Use auth context
+  const { colors, fonts } = useTheme();
 
   const validateEmail = () => {
     console.log('FP-1: Validating email:', email);
@@ -47,7 +48,7 @@ const ForgotPasswordPage = ({ navigation }) => {
 
     setIsLoading(true);
     console.log('FP-7: Setting loading state to true');
-    
+
     try {
       console.log('FP-8: Sending password reset request for email:', email);
       const response = await requestPasswordReset(email);
@@ -73,14 +74,14 @@ const ForgotPasswordPage = ({ navigation }) => {
       console.error('FP-12: Password reset error:', error);
       console.error('FP-13: Error response status:', error.response?.status);
       console.error('FP-14: Error response data:', JSON.stringify(error.response?.data, null, 2));
-      
-      const errorMessage = error.message || 
-                          error.response?.data?.detail || 
-                          error.response?.data?.message || 
+
+      const errorMessage = error.message ||
+                          error.response?.data?.detail ||
+                          error.response?.data?.message ||
                           'An error occurred while sending reset instructions. Please try again.';
-      
+
       console.error('FP-15: Displaying error message to user:', errorMessage);
-      
+
       Alert.alert(
         'Error',
         errorMessage,
@@ -92,31 +93,32 @@ const ForgotPasswordPage = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <KeyboardAvoidingView 
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         enabled
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <View style={styles.content}>
-            <View style={styles.logoContainer}>
+          <View style={{ flex: 1, padding: 20, justifyContent: 'center', minHeight: '100%' }}>
+            <View style={{ alignItems: 'center', marginBottom: 40 }}>
               <Image
-                source={require('../../../assets/logo.jpg')}
-                style={styles.logo}
+                source={require('../../../assets/logo-transparent.png')}
+                style={{ width: 120, height: 120, alignSelf: 'center' }}
                 resizeMode="contain"
               />
+              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
             </View>
 
-            <View style={styles.formContainer}>
-              <Text style={styles.title}>Forgot Password</Text>
-              <Text style={styles.description}>
+            <View style={{ width: '100%' }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 10, textAlign: 'center' }}>Forgot Password</Text>
+              <Text style={{ fontSize: 16, color: colors.textSecondary, marginBottom: 30, textAlign: 'center', lineHeight: 22 }}>
                 Enter your email address and we'll send you instructions to reset your password.
               </Text>
 
@@ -140,7 +142,7 @@ const ForgotPasswordPage = ({ navigation }) => {
                 onPress={handleSubmit}
                 loading={isLoading}
                 disabled={isLoading}
-                style={styles.submitButton}
+                style={{ marginTop: 20, backgroundColor: colors.primary }}
                 textColor="black"
               />
             </View>
@@ -150,54 +152,5 @@ const ForgotPasswordPage = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center', // Center content vertically
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-    minHeight: '100%',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logo: {
-    width: 200,
-    height: 80,
-  },
-  formContainer: {
-    width: '100%',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  submitButton: {
-    marginTop: 20,
-    backgroundColor: 'orange',
-  },
-});
 
 export default ForgotPasswordPage;

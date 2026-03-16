@@ -17,6 +17,7 @@ import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
 import Card from '../../../../components/Card';
 import { useAuth } from '../../../../context/AuthContext';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const ReturnModal = ({
   visible,
@@ -25,6 +26,9 @@ const ReturnModal = ({
   device,
   locations = [],
 }) => {
+  const { colors } = useTheme();
+  const styles = getReturnStyles(colors);
+
   // State
   const [selectedLocation, setSelectedLocation] = useState('');
   const [locationOptions, setLocationOptions] = useState([]);
@@ -198,7 +202,7 @@ const ReturnModal = ({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Return Device</Text>
                 <TouchableWithoutFeedback onPress={onClose}>
-                  <Ionicons name="close" size={24} color="#333" />
+                  <Ionicons name="close" size={24} color={colors.textPrimary} />
                 </TouchableWithoutFeedback>
               </View>
 
@@ -275,9 +279,9 @@ const ReturnModal = ({
                 </View>
 
                 {loading && (
-                  <ActivityIndicator 
-                    size="large" 
-                    color="#007AFF" 
+                  <ActivityIndicator
+                    size="large"
+                    color={colors.primary}
                     style={styles.loader}
                   />
                 )}
@@ -291,7 +295,7 @@ const ReturnModal = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getReturnStyles = (colors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -303,10 +307,10 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -322,13 +326,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.textPrimary,
   },
   contentContainer: {
     flex: 1,
@@ -345,22 +349,22 @@ const styles = StyleSheet.create({
   deviceId: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 5,
   },
   deviceType: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.border,
     marginVertical: 10,
   },
   deviceDetails: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 5,
   },
   formSection: {
@@ -369,7 +373,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   dropdownContainer: {
@@ -386,26 +390,26 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: 'orange',
+    backgroundColor: colors.primary,
   },
   loader: {
     marginTop: 20,
   },
   noLocationsText: {
     fontSize: 14,
-    color: '#f44336',
+    color: colors.error,
     fontStyle: 'italic',
     marginBottom: 10,
   },
   requiredField: {
-    borderColor: 'red',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   debugText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.surface,
     padding: 4,
     marginBottom: 8,
     borderRadius: 4,

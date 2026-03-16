@@ -2,9 +2,12 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../../components/Button';
-import { styles } from './styles';
+import { getStyles } from './styles';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const WriteTab = ({ writeFields, handleWriteFieldChange, handleDeleteWriteField, addWriteFieldRow, handleWriteNfc, isWriting }) => {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   return (
     <View style={styles.nfcTabContent}>
       <Text style={styles.nfcTabTitle}>Write NFC Tag</Text>
@@ -30,7 +33,7 @@ const WriteTab = ({ writeFields, handleWriteFieldChange, handleDeleteWriteField,
               style={styles.deleteButton}
               testID={`delete-write-field-${index}`}
             >
-              <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
             </TouchableOpacity>
           )}
         </View>

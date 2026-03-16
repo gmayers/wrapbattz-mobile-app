@@ -9,6 +9,7 @@ import {
   TextStyle,
   DimensionValue,
 } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 interface ButtonProps {
   // Content props
@@ -73,11 +74,13 @@ const Button: React.FC<ButtonProps> = ({
   activeOpacity = 0.7,
   testID,
 }) => {
+  const { colors } = useTheme();
+
   // Determine background color based on variant and prop
   const getBackgroundColor = (): string => {
-    if (disabled) return '#ccc';
+    if (disabled) return colors.disabled;
     if (backgroundColorProp) return backgroundColorProp;
-    return variant === 'filled' ? '#FF8C00' : 'transparent';
+    return variant === 'filled' ? colors.primary : 'transparent';
   };
 
   // Get variant styles
@@ -88,7 +91,7 @@ const Button: React.FC<ButtonProps> = ({
         return {
           backgroundColor: 'transparent',
           borderWidth: 1,
-          borderColor: disabled ? '#ccc' : '#FF8C00',
+          borderColor: disabled ? colors.disabled : colors.primary,
         };
       case 'ghost':
         return {
@@ -130,13 +133,13 @@ const Button: React.FC<ButtonProps> = ({
   // Get text color based on variant and prop
   const getTextColor = (): string => {
     if (textColorProp) return textColorProp;
-    if (disabled) return '#666';
+    if (disabled) return colors.textSecondary;
     switch (variant) {
       case 'outlined':
       case 'ghost':
-        return '#FF8C00';
+        return colors.primary;
       default: // 'filled'
-        return 'black';
+        return colors.textPrimary;
     }
   };
 

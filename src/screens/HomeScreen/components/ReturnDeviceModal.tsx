@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import Button from '../../../components/Button';
 import Dropdown from '../../../components/Dropdown';
-
-const ORANGE_COLOR = '#FF9500';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface Device {
   id: string;
@@ -48,6 +47,8 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
   onConfirmReturn,
   onClose,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <Modal
       visible={visible}
@@ -59,21 +60,21 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
               {selectedDevice && (
                 <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Return Device</Text>
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Return Device</Text>
                   
                   <View style={styles.modalScrollContent}>
-                    <Text style={styles.modalText} testID="device-identifier">
-                      Returning: <Text style={styles.modalTextBold}>{selectedDevice.identifier}</Text>
+                    <Text style={[styles.modalText, { color: colors.textSecondary }]} testID="device-identifier">
+                      Returning: <Text style={[styles.modalTextBold, { color: colors.textPrimary }]}>{selectedDevice.identifier}</Text>
                     </Text>
-                    <Text style={styles.modalText} testID="device-type">
-                      Type: <Text style={styles.modalTextBold}>{selectedDevice.device_type}</Text>
+                    <Text style={[styles.modalText, { color: colors.textSecondary }]} testID="device-type">
+                      Type: <Text style={[styles.modalTextBold, { color: colors.textPrimary }]}>{selectedDevice.device_type}</Text>
                     </Text>
 
                     {/* Location Dropdown */}
-                    <Text style={styles.modalLabel}>Select Location:</Text>
+                    <Text style={[styles.modalLabel, { color: colors.textPrimary }]}>Select Location:</Text>
                     <Dropdown
                       value={selectedLocation}
                       onValueChange={onLocationChange}
@@ -82,14 +83,14 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
                       disabled={loading}
                       testID="return-location-dropdown"
                       containerStyle={styles.dropdownContainer}
-                      style={styles.dropdownStyle}
-                      itemStyle={styles.dropdownItemStyle}
-                      labelStyle={styles.dropdownLabelStyle}
-                      placeholderStyle={styles.dropdownPlaceholderStyle}
-                      activeItemStyle={styles.dropdownActiveItemStyle}
-                      activeLabelStyle={styles.dropdownActiveLabelStyle}
+                      style={[styles.dropdownStyle, { backgroundColor: colors.surface, borderColor: colors.borderInput }]}
+                      itemStyle={[styles.dropdownItemStyle, { borderBottomColor: colors.borderLight }]}
+                      labelStyle={[styles.dropdownLabelStyle, { color: colors.textPrimary }]}
+                      placeholderStyle={[styles.dropdownPlaceholderStyle, { color: colors.textMuted }]}
+                      activeItemStyle={[styles.dropdownActiveItemStyle, { backgroundColor: colors.primaryTint10 }]}
+                      activeLabelStyle={[styles.dropdownActiveLabelStyle, { color: colors.primary }]}
                       arrowStyle={styles.dropdownArrowStyle}
-                      arrowColor="#333"
+                      arrowColor={colors.textPrimary}
                     />
                   </View>
 
@@ -98,7 +99,7 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
                       title={loading ? "Returning..." : "Confirm Return"}
                       onPress={onConfirmReturn}
                       disabled={loading || locationOptions.length === 0}
-                      style={[styles.confirmButton, { backgroundColor: ORANGE_COLOR }]}
+                      style={[styles.confirmButton, { backgroundColor: colors.primary }]}
                       textColor="black"
                       testID="confirm-return-button"
                     />
@@ -107,8 +108,8 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
                       onPress={onClose}
                       variant="outlined"
                       disabled={loading}
-                      style={styles.cancelButton}
-                      textColor="#007AFF"
+                      style={[styles.cancelButton, { backgroundColor: colors.surfaceAlt }]}
+                      textColor={colors.textSecondary}
                       testID="cancel-return-button"
                     />
                   </View>
@@ -116,7 +117,7 @@ const ReturnDeviceModal: React.FC<ReturnDeviceModalProps> = ({
                   {loading && (
                     <ActivityIndicator 
                       size="large" 
-                      color={ORANGE_COLOR}
+                      color={colors.primary}
                       style={styles.loader}
                       testID="return-loading-indicator"
                     />
@@ -140,7 +141,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '90%',
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
     maxHeight: '80%',
@@ -158,23 +158,19 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 15,
   },
   modalText: {
     fontSize: 16,
     marginBottom: 10,
-    color: '#555',
   },
   modalLabel: {
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 10,
-    color: '#333',
   },
   modalTextBold: {
     fontWeight: 'bold',
-    color: '#333',
   },
   
   // Dropdown styles
@@ -185,10 +181,8 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   dropdownStyle: {
-    backgroundColor: '#f9f9f9',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#cccccc',
     minHeight: 50,
     paddingLeft: 0,
     paddingRight: 30,
@@ -199,7 +193,6 @@ const styles = StyleSheet.create({
   },
   dropdownLabelStyle: {
     fontSize: 16,
-    color: '#333333',
     textAlign: 'left',
     flexShrink: 1,
     width: '100%',
@@ -207,23 +200,19 @@ const styles = StyleSheet.create({
   },
   dropdownPlaceholderStyle: {
     fontSize: 16,
-    color: '#999999',
     textAlign: 'left',
     paddingLeft: 15,
   },
   dropdownItemStyle: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   dropdownActiveItemStyle: {
-    backgroundColor: '#f0f8ff',
   },
   dropdownActiveLabelStyle: {
-    color: ORANGE_COLOR,
     fontWeight: 'bold',
   },
   dropdownArrowStyle: {
@@ -246,7 +235,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: undefined,
     width: '100%',
     borderRadius: 8,
     height: 48,

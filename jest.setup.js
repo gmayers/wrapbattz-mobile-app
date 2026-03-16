@@ -1,4 +1,23 @@
 // jest.setup.js
+
+// Mock expo-splash-screen
+jest.mock('expo-splash-screen', () => ({
+  preventAutoHideAsync: jest.fn(() => Promise.resolve()),
+  hideAsync: jest.fn(() => Promise.resolve()),
+}));
+
+// Mock expo-font
+jest.mock('expo-font', () => ({
+  useFonts: jest.fn(() => [true]),
+  isLoaded: jest.fn(() => true),
+}));
+
+// Mock useColorScheme
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  __esModule: true,
+  default: jest.fn(() => 'light'),
+}));
+
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(() => Promise.resolve()),

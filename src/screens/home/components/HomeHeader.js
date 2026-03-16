@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../../../components/Button';
+import { useTheme } from '../../../../context/ThemeContext';
 
 /**
  * HomeHeader Component
@@ -24,6 +25,8 @@ const HomeHeader = ({
   username = 'User' // Default value if no username provided
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = getHeaderStyles(colors);
 
   return (
     <View style={[
@@ -68,13 +71,13 @@ const HomeHeader = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getHeaderStyles = (colors) => StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     width: '100%',
     zIndex: 100,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -95,7 +98,7 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 26,
-    color: '#333',
+    color: colors.textPrimary,
     lineHeight: 32,
   },
   usernameText: {
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     minWidth: 100,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 1,
@@ -124,7 +127,7 @@ const styles = StyleSheet.create({
   },
   border: {
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.border,
     width: '100%',
   },
 });
