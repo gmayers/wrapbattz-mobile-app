@@ -454,7 +454,7 @@ const renderReportCard = (report, isMyReport = false) => (
                             }
                           }}
                         >
-                          <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
+                          <View style={[styles.checkbox, resolvedChecked && [styles.checkboxChecked, { backgroundColor: colors.primary }]]}>
                             {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
                           </View>
                           <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
@@ -465,7 +465,7 @@ const renderReportCard = (report, isMyReport = false) => (
                     <Button
                       title={isMyReportUpdate ? 'Update Report' : 'Update Status'}
                       onPress={handleConfirmUpdate}
-                      style={styles.confirmButton}
+                      style={[styles.confirmButton, { backgroundColor: colors.primary }]}
                       disabled={!selectedStatus}
                     />
                     <Button
@@ -666,7 +666,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   checkboxLabel: {
@@ -675,7 +674,6 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginTop: 10,
-    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   cancelButton: {

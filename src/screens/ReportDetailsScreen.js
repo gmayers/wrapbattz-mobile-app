@@ -461,7 +461,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
               <Button
                 title="Update Report"
                 onPress={handleUpdateReport}
-                style={styles.updateButton}
+                style={[styles.updateButton, { backgroundColor: colors.primary }]}
               />
             )}
             
@@ -712,7 +712,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                           }
                         }}
                       >
-                        <View style={[styles.checkbox, resolvedChecked && styles.checkboxChecked]}>
+                        <View style={[styles.checkbox, resolvedChecked && [styles.checkboxChecked, { backgroundColor: colors.primary }]]}>
                           {resolvedChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
                         </View>
                         <Text style={styles.checkboxLabel}>Mark as Resolved</Text>
@@ -723,7 +723,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                   <Button
                     title={isReportCreator ? 'Update' : 'Update Status'}
                     onPress={handleConfirmUpdate}
-                    style={styles.modalUpdateButton}
+                    style={[styles.modalUpdateButton, { backgroundColor: colors.primary }]}
                   />
 
                   <Button
@@ -918,7 +918,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   updateButton: {
-    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   deleteButton: {
@@ -973,7 +972,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
   },
   checkboxLabel: {
@@ -981,7 +979,6 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   modalUpdateButton: {
-    backgroundColor: colors.primary,
     borderColor: ORANGE_COLOR,
     marginBottom: 10,
   },

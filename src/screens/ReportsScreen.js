@@ -272,7 +272,7 @@ const ReportsScreen = ({ navigation }) => {
             style={styles.profileButton}
             onPress={() => navigation.navigate('Profile')}
           >
-            <View style={styles.avatarCircle}>
+            <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
               <Text style={styles.avatarText}>
                 {userName.charAt(0).toUpperCase()}
               </Text>
@@ -388,7 +388,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
