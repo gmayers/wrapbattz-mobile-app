@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
   },
   cardBadgeText: {
-    color: '#FFFFFF',
+    color: '#0F1722',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto', // Push to bottom of card
   },
   ctaButtonText: {
-    color: '#FFFFFF',
+    color: '#0F1722',
     fontSize: 14,
     fontWeight: '600',
   },

@@ -223,7 +223,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
                     style={[styles.saveButton, { backgroundColor: colors.primary }]}
                     onPress={handleSubmit}
                   >
-                    <Text style={styles.saveButtonText}>Update Password</Text>
+                    <Text style={[styles.saveButtonText, { color: colors.onPrimary }]}>Update Password</Text>
                   </TouchableOpacity>
                 </>
               )}

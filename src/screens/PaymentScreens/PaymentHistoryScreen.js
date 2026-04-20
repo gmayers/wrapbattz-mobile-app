@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { createBillingService } from '../../services/BillingService';
 
-const ORANGE_COLOR = '#FFC72C';
+const LINK_COLOR = '#2196F3';
 
 const PaymentHistoryScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   },
   receiptText: {
     fontSize: 14,
-    color: ORANGE_COLOR,
+    color: LINK_COLOR,
     marginLeft: 6,
     fontWeight: '500',
   },
