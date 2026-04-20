@@ -129,7 +129,7 @@ const NFCTabs = ({
       </TouchableOpacity>
 
       <Button
-        title={isProcessing ? "Writing..." : "Write to Tag"}
+        title={isProcessing ? "Hold tag to device…" : "Write to Tag"}
         onPress={onWriteNfc}
         disabled={isProcessing || !writeFields.some(f => f.label && f.value)}
         style={styles.actionButton}
@@ -156,7 +156,7 @@ const NFCTabs = ({
         </Text>
       </View>
       <Button
-        title={isProcessing ? "Locking..." : "Lock Tag"}
+        title={isProcessing ? "Hold tag to device…" : "Lock Tag"}
         onPress={onLockNfc}
         disabled={isProcessing || !lockPassword || lockPassword.length < 6}
         style={styles.actionButton}
@@ -180,7 +180,7 @@ const NFCTabs = ({
         />
       </View>
       <Button
-        title={isProcessing ? "Unlocking..." : "Unlock Tag"}
+        title={isProcessing ? "Hold tag to device…" : "Unlock Tag"}
         onPress={onUnlockNfc}
         disabled={isProcessing || !unlockPassword}
         style={styles.actionButton}

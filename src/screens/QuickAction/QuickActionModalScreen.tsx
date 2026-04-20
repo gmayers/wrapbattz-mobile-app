@@ -346,7 +346,7 @@ const QuickActionModalScreen: React.FC = () => {
                   testID="quick-action-assign"
                 />
                 <Button
-                  title={upgrading ? 'Upgrading…' : 'Upgrade NFC tag'}
+                  title={upgrading ? 'Hold tag to device…' : 'Upgrade NFC tag'}
                   onPress={handleUpgradeTag}
                   variant="outlined"
                   loading={upgrading}
