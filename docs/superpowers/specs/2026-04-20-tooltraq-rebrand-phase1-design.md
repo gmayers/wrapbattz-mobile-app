@@ -91,6 +91,14 @@ All changes in `app.json`. Version is reset to 1.0.0 because slug and bundle ID 
 
 All three use `require('.../logo-transparent.png')`. Change to `require('.../logo-tooltraq.png')`.
 
+**Also remove duplicated wordmark** in `src/screens/AuthScreens/Login/LoginScreen.tsx:139`:
+
+```tsx
+<Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
+```
+
+The new TOOLTRAQ logo already contains the wordmark, so this literal `"BATT WRAPZ"` text is now both visually redundant and factually stale. Remove the `<Text>` element entirely. (Register and ForgotPassword screens don't have this duplicate; no change needed there.)
+
 **Aspect ratio fix:** new logo is ~3.2:1 (wide), existing bat logo was near-square. Each call site's `Image` style needs:
 - `resizeMode="contain"`
 - Container width = screen width minus horizontal padding
@@ -150,7 +158,22 @@ Change each to either:
 
 **Unchanged tokens:** status colors (`success`, `error`, `warning`, `info`), surface colors (`background`, `surface`, `card`, `surfaceAlt`), text colors, border colors. The ~60 screens migrated in the earlier branding commit automatically pick up the new primary via `useTheme().colors`.
 
-**Acceptance:** yellow buttons with dark text read cleanly on both light and dark backgrounds; no legacy orange (`#FF9500` / `#FF7700`) remains in ThemeContext; no unreadable white-on-yellow button in the app.
+**Legacy hardcoded orange — additional audit** (discovered during plan-writing; not visible when the spec was first drafted):
+
+- `src/utils/CommonUtils.js:7` — `PRIMARY_ORANGE: '#FF9500'` constant. Swap to `#FFC72C` (keep the name since callers reference it, or rename in a later cleanup).
+- Module-level `const ORANGE_COLOR = '#FF9500';` in 7 screens that bypass the theme:
+  - `src/screens/AllReportsScreen.js:26`
+  - `src/screens/PaymentScreens/BillingAnalyticsScreen.js:19`
+  - `src/screens/PaymentScreens/ManageBillingScreen.js:21`
+  - `src/screens/PaymentScreens/NotificationPreferencesScreen.js:21`
+  - `src/screens/PaymentScreens/DataHandlingFeeScreen.js:20`
+  - `src/screens/PaymentScreens/PaymentHistoryScreen.js:19`
+  - `src/screens/LocationsScreen.js:31`
+
+  For Phase 1, swap the constant's value to `#FFC72C` in each file. Full refactor to `useTheme().colors.primary` is deferred (YAGNI — Phase 2 navigation changes will revisit these screens anyway).
+- `src/services/NotificationService.ts:79` — Android notification channel `lightColor: '#FF9500'`. Swap to `#FFC72C`.
+
+**Acceptance:** yellow buttons with dark text read cleanly on both light and dark backgrounds; no legacy orange (`#FF9500` / `#FF7700` / `#FF8C00`) remains anywhere in `src/`; no unreadable white-on-yellow button in the app.
 
 ## Architecture notes
 
