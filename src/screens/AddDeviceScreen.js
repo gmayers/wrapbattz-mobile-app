@@ -1054,7 +1054,7 @@ return (
               </View>
 
               <Button
-                title={isWritingNfc ? 'Writing...' : 'Write Data to Tag'}
+                title={isWritingNfc ? 'Hold tag to device…' : 'Write Data to Tag'}
                 onPress={async () => {
                   const success = await handleNFCWrite();
                   if (success) {
