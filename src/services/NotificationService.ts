@@ -74,7 +74,7 @@ export async function ensureAndroidChannel(): Promise<void> {
   try {
     await Notifications.setNotificationChannelAsync(DEFAULT_CHANNEL_ID, {
       name: 'Default',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FFC72C',
     });
