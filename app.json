@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "battwrapz",
-    "slug": "battwrapz",
+    "name": "TOOLTRAQ",
+    "slug": "tooltraq",
     "owner": "garanmayers7262",
-    "version": "1.9.5",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -87,7 +87,7 @@
         }
       ]
     ],
-    "scheme": "wrapbattz",
+    "scheme": "tooltraq",
     "ios": {
       "jsEngine": "hermes",
       "supportsTablet": true,
@@ -98,7 +98,7 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "wrapbattz"
+              "tooltraq"
             ]
           }
         ],
@@ -115,7 +115,10 @@
           "TAG"
         ]
       },
-      "bundleIdentifier": "com.garanmayers7262.battwrapz"
+      "bundleIdentifier": "com.garanmayers7262.tooltraq",
+      "associatedDomains": [
+        "applinks:webportal.battwrapz.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -131,7 +134,24 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_MEDIA_LOCATION"
       ],
-      "package": "com.garanmayers7262.battwrapz"
+      "package": "com.garanmayers7262.tooltraq",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "webportal.battwrapz.com",
+              "pathPrefix": "/d/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
