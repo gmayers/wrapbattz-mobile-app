@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { createBillingService } from '../../services/BillingService';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 const NotificationPreferencesScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();

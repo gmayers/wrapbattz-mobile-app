@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 
 // Color constants
 export const COLORS = {
-  PRIMARY_ORANGE: '#FF9500',
+  PRIMARY_ORANGE: '#FFC72C',
   SUCCESS_GREEN: '#4CAF50',
   ERROR_RED: '#F44336',
   WARNING_YELLOW: '#FF9800',

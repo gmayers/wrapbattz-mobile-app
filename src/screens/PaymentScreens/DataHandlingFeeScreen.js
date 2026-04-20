@@ -16,8 +16,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import SubscriptionSetup from '../../components/SubscriptionSetup';
 
-// Orange color to match existing UI
-const ORANGE_COLOR = '#FF9500';
+// TOOLTRAQ yellow color to match existing UI
+const ORANGE_COLOR = '#FFC72C';
 
 const DataHandlingFeeScreen = ({ navigation }) => {
   const { axiosInstance, isAdminOrOwner } = useAuth();
