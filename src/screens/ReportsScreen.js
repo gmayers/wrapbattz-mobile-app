@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 const { width } = Dimensions.get('window');
 
 // Define the orange color to match HomeScreen
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 // Define report type choices for detailed info
 const TYPE_CHOICES = [

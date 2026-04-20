@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { nfcService } from '../services/NFCService';
 
 // Define the orange color to match other screens
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 
 

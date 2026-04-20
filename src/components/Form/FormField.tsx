@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   required: {
-    color: '#FF9500',
+    color: '#FFC72C',
   },
   input: {
     height: 48,

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { billingService } from '../services/BillingService';
 import Button from './Button';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 /**
  * CustomerSheetManager - Manages payment methods using Stripe CustomerSheet

@@ -4,7 +4,7 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { useAuth } from '../context/AuthContext';
 import Button from './Button';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 const DirectCardInput = ({ 
   onPaymentMethodCreated,

@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Extra padding at the bottom to ensure buttons stay visible
   },
   headerContainer: {
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     padding: 20,
     paddingTop: 30,
     paddingBottom: 30,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     marginBottom: 30, // Add more bottom margin
   },
   submitButton: {
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,

@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 // Define the orange color to be used for buttons to match LocationsScreen
-const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
+const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 
 const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;

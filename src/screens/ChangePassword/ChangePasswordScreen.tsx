@@ -19,7 +19,7 @@ import { PasswordChangeForm, ValidationResult, NavigationProp } from '../../type
 import { FormValidation } from '../../utils/FormValidation';
 import PasswordField from '../../components/Form/PasswordField';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 interface ChangePasswordScreenProps {
   navigation: NavigationProp;
