@@ -109,7 +109,7 @@ const PricingScreen = ({ navigation }) => {
         <View style={styles.missingFeature}>
           <Text style={[styles.missingTitle, { color: colors.primary }]}>Missing a Feature?</Text>
           <Text style={[styles.missingText, { color: colors.textSecondary }]}>
-            We're always open to suggestions to improve BattWrapz.
+            We're always open to suggestions to improve TOOLTRAQ.
           </Text>
         <TouchableOpacity
   style={[styles.ctaButton, { backgroundColor: colors.primary }]}

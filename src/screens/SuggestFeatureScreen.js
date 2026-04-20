@@ -178,7 +178,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
           <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
             <Text style={styles.headerTitle}>Suggest a Feature</Text>
             <Text style={styles.headerSubtitle}>
-              Help us improve BattWrapz by suggesting new features or providing feedback on existing ones.
+              Help us improve TOOLTRAQ by suggesting new features or providing feedback on existing ones.
             </Text>
           </View>
 

@@ -207,7 +207,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary, marginBottom: 8, textAlign: 'center' }}>Step 1 of 2</Text>
             <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 10, textAlign: 'center' }}>Create an Account</Text>
             <Text style={{ fontSize: 15, color: colors.textSecondary, marginBottom: 30, textAlign: 'center', lineHeight: 22 }}>
-              Register your personal account to get started with BattWrapz. After this, you'll set up your organization where you can manage devices, locations, and team members.
+              Register your personal account to get started with TOOLTRAQ. After this, you'll set up your organization where you can manage devices, locations, and team members.
             </Text>
 
             {/* Subscription Plan Selection */}

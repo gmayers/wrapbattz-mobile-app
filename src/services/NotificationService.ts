@@ -112,7 +112,7 @@ export async function getExpoPushToken(): Promise<string | null> {
 /**
  * Set the default foreground notification handler. Call once at app start.
  * By default we surface alerts, sound, and badges even when the app is open —
- * most battwrapz pushes are operational (assignment, device issue) and should
+ * most tooltraq pushes are operational (assignment, device issue) and should
  * be visible regardless of foreground state.
  */
 export function configureForegroundHandler(): void {
