@@ -27,8 +27,8 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-// Define the orange color to be used for buttons
-const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
+// Define the TOOLTRAQ yellow color to be used for buttons
+const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext

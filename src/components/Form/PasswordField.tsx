@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   required: {
-    color: '#FF9500',
+    color: '#FFC72C',
   },
   inputContainer: {
     flexDirection: 'row',

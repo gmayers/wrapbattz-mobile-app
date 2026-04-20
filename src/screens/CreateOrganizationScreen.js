@@ -220,7 +220,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
           <Text style={[styles.stepIndicator, { color: colors.primary }]}>Step 2 of 2</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Create Your Organization</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Your organization is your workspace in BattWrapz. All your devices, locations, and team members will be managed under this organization.
+            Your organization is your workspace in TOOLTRAQ. All your devices, locations, and team members will be managed under this organization.
           </Text>
         </View>
 

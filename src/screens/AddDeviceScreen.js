@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { nfcService } from '../services/NFCService';
 
 // Define the orange color to match other screens
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 
 
@@ -1054,7 +1054,7 @@ return (
               </View>
 
               <Button
-                title={isWritingNfc ? 'Writing...' : 'Write Data to Tag'}
+                title={isWritingNfc ? 'Hold tag to device…' : 'Write Data to Tag'}
                 onPress={async () => {
                   const success = await handleNFCWrite();
                   if (success) {
@@ -1064,7 +1064,6 @@ return (
                 disabled={isWritingNfc}
                 loading={isWritingNfc}
                 style={styles.nfcButton}
-                textColorProp="white"
               />
             </View>
           )}
@@ -1080,7 +1079,6 @@ return (
               title="View Device"
               onPress={handleFinish}
               style={[styles.nfcButton, { marginBottom: 5 }]}
-              textColorProp="white"
             />
           )}
 
@@ -1090,13 +1088,11 @@ return (
               title="Add Another"
               onPress={handleAddAnother}
               style={[styles.actionButton, styles.addButton]}
-              textColorProp="white"
             />
             <Button
               title="View Device"
               onPress={handleFinish}
               style={[styles.actionButton, styles.finishButton]}
-              textColorProp="white"
             />
           </View>
           </ScrollView>
@@ -1131,7 +1127,6 @@ return (
               title="OK"
               onPress={() => setTagAlreadyRegisteredModal(prev => ({...prev, visible: false}))}
               style={styles.errorButton}
-              textColorProp="white"
             />
           </View>
         </CustomModal>

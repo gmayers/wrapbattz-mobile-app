@@ -4,7 +4,7 @@ import { usePaymentSheet } from '@stripe/stripe-react-native';
 import { billingService } from '../services/BillingService';
 import Button from './Button';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 /**
  * PaymentMethodManager - Simplified component for adding payment methods

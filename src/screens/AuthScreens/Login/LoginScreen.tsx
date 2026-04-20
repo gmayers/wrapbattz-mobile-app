@@ -344,11 +344,10 @@ const LoginScreen: React.FC = () => {
             {/* Logo Section */}
             <View style={{ alignItems: 'center', marginBottom: 40 }}>
               <Image
-                source={require('../../../../assets/logo-transparent.png')}
-                style={{ width: 120, height: 120, alignSelf: 'center' }}
+                source={require('../../../../assets/logo-tooltraq.png')}
+                style={{ width: 260, height: 82, alignSelf: 'center' }}
                 resizeMode="contain"
               />
-              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 8, marginTop: 12 }}>Welcome Back</Text>
               <Text style={{ fontSize: 16, color: colors.textSecondary }}>Sign in to continue</Text>
             </View>

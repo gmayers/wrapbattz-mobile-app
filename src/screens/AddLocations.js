@@ -18,7 +18,7 @@ import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 
 // Define the orange color to match other screens
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 const CreateLocationScreen = ({ navigation, route }) => {
   // Use AuthContext

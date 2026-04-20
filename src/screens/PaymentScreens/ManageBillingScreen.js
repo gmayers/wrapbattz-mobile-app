@@ -17,8 +17,8 @@ import { useTheme } from '../../context/ThemeContext';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
 import { billingService } from '../../services/BillingService';
 
-// Orange color to match existing UI
-const ORANGE_COLOR = '#FF9500';
+// TOOLTRAQ yellow color to match existing UI
+const ORANGE_COLOR = '#FFC72C';
 
 const ManageBillingScreen = ({ navigation }) => {
   const { isAdminOrOwner } = useAuth();

@@ -293,15 +293,15 @@ describe('Button Component', () => {
     it('should render with both left and right icons', () => {
       const leftIcon = <span data-testid="left-icon">←</span>;
       const rightIcon = <span data-testid="right-icon">→</span>;
-      
+
       render(
-        <Button 
-          {...defaultProps} 
-          leftIcon={leftIcon} 
-          rightIcon={rightIcon} 
+        <Button
+          {...defaultProps}
+          leftIcon={leftIcon}
+          rightIcon={rightIcon}
         />
       );
-      
+
       expect(screen.getByTestId('left-icon')).toBeTruthy();
       expect(screen.getByText('Test Button')).toBeTruthy();
       expect(screen.getByTestId('right-icon')).toBeTruthy();
@@ -310,19 +310,52 @@ describe('Button Component', () => {
     it('should not render icons when loading', () => {
       const leftIcon = <span data-testid="left-icon">←</span>;
       const rightIcon = <span data-testid="right-icon">→</span>;
-      
+
       render(
-        <Button 
-          {...defaultProps} 
+        <Button
+          {...defaultProps}
           loading={true}
-          leftIcon={leftIcon} 
-          rightIcon={rightIcon} 
+          leftIcon={leftIcon}
+          rightIcon={rightIcon}
         />
       );
-      
+
       expect(screen.queryByTestId('left-icon')).toBeFalsy();
       expect(screen.queryByTestId('right-icon')).toBeFalsy();
       expect(screen.getByText('Loading...')).toBeTruthy();
+    });
+  });
+
+  describe('onPrimary Default Text Color', () => {
+    it('filled variant uses theme onPrimary as default text color', () => {
+      render(<Button {...defaultProps} variant="filled" />);
+      const textElement = screen.getByText('Test Button');
+      // Default theme here is light theme → onPrimary is #0F1722
+      expect(textElement.props.style).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ color: '#0F1722' }),
+        ])
+      );
+    });
+
+    it('outlined variant keeps primary (yellow) as text color — unchanged', () => {
+      render(<Button {...defaultProps} variant="outlined" />);
+      const textElement = screen.getByText('Test Button');
+      expect(textElement.props.style).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ color: '#FFC72C' }),
+        ])
+      );
+    });
+
+    it('textColorProp override still wins over onPrimary default', () => {
+      render(<Button {...defaultProps} variant="filled" textColorProp="#123456" />);
+      const textElement = screen.getByText('Test Button');
+      expect(textElement.props.style).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ color: '#123456' }),
+        ])
+      );
     });
   });
 });

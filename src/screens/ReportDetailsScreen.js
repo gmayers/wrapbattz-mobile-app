@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 const { width } = Dimensions.get('window');
 
 // Define the report type choices

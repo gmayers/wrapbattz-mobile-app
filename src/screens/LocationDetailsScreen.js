@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 // Define the orange color to be used for buttons to match LocationsScreen
-const ORANGE_COLOR = '#FF9500'; // Standard iOS orange
+const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 
 const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;
@@ -342,7 +342,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               <Ionicons
                 name={isAssigning ? "hourglass-outline" : "person-add-outline"}
                 size={18}
-                color="#FFFFFF"
+                color="#0F1722"
               />
               <Text style={styles.assignButtonText}>
                 {isAssigning ? 'Assigning...' : 'Assign to Me'}
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   },
   assignButtonText: {
     marginLeft: 8,
-    color: '#FFFFFF',
+    color: '#0F1722',
     fontSize: 14,
     fontWeight: '600',
   },

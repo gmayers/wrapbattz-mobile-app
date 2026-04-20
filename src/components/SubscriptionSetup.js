@@ -5,7 +5,7 @@ import { STRIPE_CONFIG } from '../config/stripe';
 import { billingService } from '../services/BillingService';
 import Button from './Button';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 
 /**
  * SubscriptionSetup - Complete flow for setting up a subscription

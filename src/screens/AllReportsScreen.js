@@ -22,8 +22,8 @@ import { BaseTextInput } from '../components/TextInput';
 
 const { width } = Dimensions.get('window');
 
-// Orange color to match the app theme
-const ORANGE_COLOR = '#FF9500';
+// TOOLTRAQ yellow color to match the app theme
+const ORANGE_COLOR = '#FFC72C';
 
 // Define the status choices for reports
 const STATUS_CHOICES = [

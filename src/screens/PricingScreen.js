@@ -109,7 +109,7 @@ const PricingScreen = ({ navigation }) => {
         <View style={styles.missingFeature}>
           <Text style={[styles.missingTitle, { color: colors.primary }]}>Missing a Feature?</Text>
           <Text style={[styles.missingText, { color: colors.textSecondary }]}>
-            We're always open to suggestions to improve BattWrapz.
+            We're always open to suggestions to improve TOOLTRAQ.
           </Text>
         <TouchableOpacity
   style={[styles.ctaButton, { backgroundColor: colors.primary }]}
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     position: 'relative',
   },
   toggleSwitchThumb: {
@@ -274,8 +274,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: height * 0.35,
     borderWidth: 1,
-    borderColor: '#FF7700',
-    shadowColor: "#FF7700",
+    borderColor: '#FFC72C',
+    shadowColor: "#FFC72C",
     shadowOffset: {
       width: 0,
       height: 3,
@@ -289,13 +289,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: -25,
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     paddingHorizontal: 25,
     paddingVertical: 3,
     transform: [{ rotate: '45deg' }],
   },
   cardBadgeText: {
-    color: '#FFFFFF',
+    color: '#0F1722',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   planPrice: {
-    color: '#FF7700',
+    color: '#FFC72C',
     fontSize: 32,
     fontWeight: '800',
     marginBottom: 4,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   featureIcon: {
-    color: '#FF7700',
+    color: '#FFC72C',
     marginRight: 8,
     fontSize: 14,
     fontWeight: 'bold',
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ctaButton: {
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     borderRadius: 25,
     paddingVertical: 12,
     width: '100%',
@@ -354,11 +354,11 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF7700',
+    borderColor: '#FFC72C',
     marginTop: 'auto', // Push to bottom of card
   },
   ctaButtonText: {
-    color: '#FFFFFF',
+    color: '#0F1722',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#FF7700',
+    color: '#FFC72C',
   },
   missingText: {
     fontSize: 14,

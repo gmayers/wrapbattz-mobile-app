@@ -38,7 +38,7 @@ export const STRIPE_CONFIG = {
   // Appearance configuration for consistent branding
   appearance: {
     colors: {
-      primary: '#FF9500',        // Orange brand color
+      primary: '#FFC72C',        // TOOLTRAQ yellow
       background: '#ffffff',
       componentBackground: '#f6f6f6',
       componentBorder: '#e3e3e3',

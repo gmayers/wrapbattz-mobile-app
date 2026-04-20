@@ -19,7 +19,7 @@ const ForgotPasswordPage = ({ navigation }) => {
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { requestPasswordReset } = useAuth(); // Use auth context
-  const { colors, fonts } = useTheme();
+  const { colors } = useTheme();
 
   const validateEmail = () => {
     console.log('FP-1: Validating email:', email);
@@ -109,11 +109,10 @@ const ForgotPasswordPage = ({ navigation }) => {
           <View style={{ flex: 1, padding: 20, justifyContent: 'center', minHeight: '100%' }}>
             <View style={{ alignItems: 'center', marginBottom: 40 }}>
               <Image
-                source={require('../../../assets/logo-transparent.png')}
-                style={{ width: 120, height: 120, alignSelf: 'center' }}
+                source={require('../../../assets/logo-tooltraq.png')}
+                style={{ width: 260, height: 82, alignSelf: 'center' }}
                 resizeMode="contain"
               />
-              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
             </View>
 
             <View style={{ width: '100%' }}>

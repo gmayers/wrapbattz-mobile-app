@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const ORANGE_COLOR = '#FF9500';
+const ORANGE_COLOR = '#FFC72C';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 17,
-    color: '#FF8C00', // Updated to orange
+    color: '#E5AE18', // Updated to orange
     marginLeft: 4,
   },
   tabContainer: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#FF8C00', // Updated to orange
+    borderBottomColor: '#E5AE18', // Updated to orange
   },
   tabText: {
     fontSize: 15,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   activeTabText: {
-    color: '#FF8C00', // Updated to orange
+    color: '#E5AE18', // Updated to orange
     fontWeight: '600',
   },
   scrollView: {
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 20,
-    color: '#FF8C00', // Orange loader
+    color: '#E5AE18', // Orange loader
   },
   emptyText: {
     textAlign: 'center',

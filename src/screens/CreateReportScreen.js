@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,7 @@ const CreateReportScreen = ({ navigation, route }) => {
     isLoading: authLoading
   } = useAuth();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [formData, setFormData] = useState({
     device_id: '',
@@ -622,7 +624,10 @@ const CreateReportScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.surface }]}>
-      <ScrollView style={[styles.formContainer, { backgroundColor: colors.surface }]}>
+      <ScrollView
+        style={[styles.formContainer, { backgroundColor: colors.surface }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      >
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{error}</Text>

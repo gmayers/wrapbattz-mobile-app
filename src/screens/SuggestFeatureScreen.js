@@ -178,7 +178,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
           <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
             <Text style={styles.headerTitle}>Suggest a Feature</Text>
             <Text style={styles.headerSubtitle}>
-              Help us improve BattWrapz by suggesting new features or providing feedback on existing ones.
+              Help us improve TOOLTRAQ by suggesting new features or providing feedback on existing ones.
             </Text>
           </View>
 
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Extra padding at the bottom to ensure buttons stay visible
   },
   headerContainer: {
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     padding: 20,
     paddingTop: 30,
     paddingBottom: 30,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     marginBottom: 30, // Add more bottom margin
   },
   submitButton: {
-    backgroundColor: '#FF7700',
+    backgroundColor: '#FFC72C',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
