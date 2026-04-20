@@ -98,7 +98,8 @@
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
-              "tooltraq"
+              "tooltraq",
+              "wrapbattz"
             ]
           }
         ],
