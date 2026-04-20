@@ -107,6 +107,27 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(() => Promise.resolve()),
   getItemAsync: jest.fn(() => Promise.resolve(null)),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+  WHEN_UNLOCKED: 'WHEN_UNLOCKED',
+}));
+
+jest.mock('expo-local-authentication', () => ({
+  hasHardwareAsync: jest.fn(() => Promise.resolve(false)),
+  isEnrolledAsync: jest.fn(() => Promise.resolve(false)),
+  supportedAuthenticationTypesAsync: jest.fn(() => Promise.resolve([])),
+  authenticateAsync: jest.fn(() => Promise.resolve({ success: false })),
+  AuthenticationType: {
+    FINGERPRINT: 1,
+    FACIAL_RECOGNITION: 2,
+    IRIS: 3,
+  },
+}));
+
+jest.mock('expo-crypto', () => ({
+  getRandomBytesAsync: jest.fn((n) => Promise.resolve(new Uint8Array(n))),
+  digestStringAsync: jest.fn(() => Promise.resolve('mocked-hash')),
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+  CryptoEncoding: { HEX: 'hex' },
 }));
 
 jest.mock('expo-sqlite', () => ({

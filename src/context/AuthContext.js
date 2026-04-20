@@ -5,6 +5,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
 import { createBillingService } from '../services/BillingService';
+import DeviceAuthService from '../services/DeviceAuthService';
+import PinAuthService from '../services/PinAuthService';
 
 
 const API_BASE_URL = 'https://webportal.battwrapz.com/api/';
@@ -529,7 +531,113 @@ const deviceService = {
     } catch (error) {
       throw error;
     }
-  }
+  },
+
+  // === Vans ===
+
+  // Get all vans
+  getVans: async () => {
+    return await fetchAllPages('/vans/');
+  },
+
+  // Create a new van
+  createVan: async (vanData) => {
+    try {
+      const response = await axiosInstance.post('/vans/', vanData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Get a specific van
+  getVan: async (id) => {
+    const response = await axiosInstance.get(`/vans/${id}/`);
+    return response.data;
+  },
+
+  // Update a van
+  updateVan: async (id, vanData) => {
+    try {
+      const response = await axiosInstance.patch(`/vans/${id}/`, vanData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // === Site Assignments ===
+
+  // Get all site assignments
+  getSiteAssignments: async () => {
+    return await fetchAllPages('/site-assignments/');
+  },
+
+  // Create a site assignment
+  createSiteAssignment: async (data) => {
+    try {
+      const response = await axiosInstance.post('/site-assignments/', data);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Update a site assignment
+  updateSiteAssignment: async (id, data) => {
+    try {
+      const response = await axiosInstance.patch(`/site-assignments/${id}/`, data);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Delete a site assignment
+  deleteSiteAssignment: async (id) => {
+    try {
+      const response = await axiosInstance.delete(`/site-assignments/${id}/`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // === Push notifications ===
+  //
+  // Register an Expo push token for the current user. Called by the
+  // useNotifications hook once the user has opted in and granted OS permission.
+  // Returns the saved record on success, `null` if the backend endpoint is
+  // not yet available (404) so the hook can continue without crashing the app.
+  registerPushToken: async (payload) => {
+    try {
+      const response = await axiosInstance.post('/users/me/push-token/', payload);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.warn('[AuthContext] Push token endpoint not yet available on backend');
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  // Remove a previously-registered token. Accepts the token string so the
+  // backend can target a specific device record (one user may have multiple).
+  unregisterPushToken: async (token) => {
+    try {
+      const response = await axiosInstance.delete('/users/me/push-token/', {
+        data: { token },
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.warn('[AuthContext] Push token endpoint not yet available on backend');
+        return null;
+      }
+      throw error;
+    }
+  },
 };
 
 const decodeJWT = (token) => {
@@ -965,6 +1073,16 @@ export const AuthProvider = ({ children }) => {
         setOnboardingComplete(tokenData.has_completed_onboarding || false);
       }
 
+      // Persist refresh token to SecureStore when "Stay signed in" or any quick-auth is enabled
+      const [staySignedIn, biometricEnabled, pinEnabled] = await Promise.all([
+        DeviceAuthService.getStaySignedIn(),
+        DeviceAuthService.isBiometricEnabled(),
+        DeviceAuthService.isPinEnabled(),
+      ]);
+      if (staySignedIn || biometricEnabled || pinEnabled) {
+        await DeviceAuthService.saveCredentials(email, refreshToken);
+      }
+
       setIsAuthenticated(true);
       return { tokens: { access: accessToken, refresh: refreshToken }, user: tokenData || {} };
     } catch (error) {
@@ -974,6 +1092,96 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Exchange a stored refresh token for a fresh session (used after biometric/PIN unlock)
+  const loginWithStoredCredentials = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      isSessionExpiredAlertShowing = false;
+
+      const storedRefreshToken = await DeviceAuthService.getStoredRefreshToken();
+      const storedEmail = await DeviceAuthService.getStoredEmail();
+      if (!storedRefreshToken) {
+        throw new Error('No stored credentials');
+      }
+
+      const response = await axiosInstance.post('/auth/token/refresh/', {
+        refresh: storedRefreshToken,
+      });
+      const accessToken = response.data.access;
+      const newRefresh = response.data.refresh || storedRefreshToken;
+
+      await AsyncStorage.setItem(AUTH_KEYS.ACCESS_TOKEN, accessToken);
+      await AsyncStorage.setItem(AUTH_KEYS.REFRESH_TOKEN, newRefresh);
+      if (response.data.refresh) {
+        await DeviceAuthService.saveCredentials(storedEmail || '', newRefresh);
+      }
+
+      const tokenData = await saveTokenData(accessToken);
+      if (tokenData) {
+        const extractedUserData = {
+          email: storedEmail || '',
+          user_id: tokenData.user_id,
+          first_name: tokenData.first_name || '',
+          last_name: tokenData.last_name || '',
+          has_completed_onboarding: tokenData.has_completed_onboarding || false,
+        };
+        await AsyncStorage.setItem(AUTH_KEYS.USER_DATA, JSON.stringify(extractedUserData));
+        setUser(extractedUserData);
+        setOnboardingComplete(tokenData.has_completed_onboarding || false);
+      }
+
+      setIsAuthenticated(true);
+      return { tokens: { access: accessToken, refresh: newRefresh }, user: tokenData || {} };
+    } catch (error) {
+      // Stored refresh token is invalid — wipe so user falls back to password
+      await DeviceAuthService.disableAllQuickAuth();
+      await PinAuthService.clearPin();
+      const errorMessage = error.response?.data?.detail || 'Your saved session has expired. Please sign in again.';
+      setError(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const enableBiometricUnlock = async () => {
+    const cap = await DeviceAuthService.getBiometricCapability();
+    if (!cap.available || !cap.enrolled) {
+      throw new Error(`${cap.label} is not set up on this device`);
+    }
+    const ok = await DeviceAuthService.authenticateWithBiometrics(`Enable ${cap.label} unlock`);
+    if (!ok) throw new Error('Biometric authentication failed');
+
+    const currentRefresh = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+    const currentEmail = user?.email || '';
+    if (!currentRefresh) throw new Error('No active session to save');
+    await DeviceAuthService.saveCredentials(currentEmail, currentRefresh);
+    await DeviceAuthService.setBiometricEnabled(true);
+  };
+
+  const disableBiometricUnlock = async () => {
+    await DeviceAuthService.setBiometricEnabled(false);
+    const pinOn = await DeviceAuthService.isPinEnabled();
+    if (!pinOn) await DeviceAuthService.clearCredentials();
+  };
+
+  const enablePinUnlock = async (pin) => {
+    await PinAuthService.setPin(pin);
+    const currentRefresh = await AsyncStorage.getItem(AUTH_KEYS.REFRESH_TOKEN);
+    const currentEmail = user?.email || '';
+    if (!currentRefresh) throw new Error('No active session to save');
+    await DeviceAuthService.saveCredentials(currentEmail, currentRefresh);
+    await DeviceAuthService.setPinEnabled(true);
+  };
+
+  const disablePinUnlock = async () => {
+    await PinAuthService.clearPin();
+    await DeviceAuthService.setPinEnabled(false);
+    const bioOn = await DeviceAuthService.isBiometricEnabled();
+    if (!bioOn) await DeviceAuthService.clearCredentials();
   };
 
   const requestPasswordReset = async (email) => {
@@ -996,17 +1204,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (options = {}) => {
     try {
       setIsLoading(true);
-      
+
       await AsyncStorage.multiRemove([
         AUTH_KEYS.ACCESS_TOKEN,
         AUTH_KEYS.REFRESH_TOKEN,
         AUTH_KEYS.USER_DATA,
         AUTH_KEYS.TOKEN_DATA,
       ]);
-      
+
+      // On a deliberate logout (forgetDevice), wipe biometric/PIN so the next user
+      // starts fresh. On a session-expiry logout, leave them so the user can
+      // unlock with biometric/PIN and we just re-auth the refresh token.
+      if (options.forgetDevice) {
+        await DeviceAuthService.disableAllQuickAuth();
+        await PinAuthService.clearPin();
+      }
+
       // We keep the API key for mobile endpoints even after logout
       // as it's related to the device, not the user
 
@@ -1197,6 +1413,11 @@ const updateUser = async (userData) => {
     error,
     onboardingComplete,
     login,
+    loginWithStoredCredentials,
+    enableBiometricUnlock,
+    disableBiometricUnlock,
+    enablePinUnlock,
+    disablePinUnlock,
     logout,
     register,
     requestPasswordReset,
