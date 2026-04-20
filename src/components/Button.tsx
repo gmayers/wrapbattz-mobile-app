@@ -139,7 +139,7 @@ const Button: React.FC<ButtonProps> = ({
       case 'ghost':
         return colors.primary;
       default: // 'filled'
-        return colors.textPrimary;
+        return (colors as any).onPrimary ?? colors.textPrimary;
     }
   };
 
