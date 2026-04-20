@@ -36,7 +36,7 @@ interface RegisterScreenProps {
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
   const { register } = useAuth();
-  const { colors, fonts } = useTheme();
+  const { colors } = useTheme();
 
   // Get selected plan from navigation params
   const selectedPlan = route?.params?.selectedPlan;
@@ -198,11 +198,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
             {/* Logo and Brand */}
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <Image
-                source={require('../../../../assets/logo-transparent.png')}
-                style={{ width: 120, height: 120, alignSelf: 'center' }}
+                source={require('../../../../assets/logo-tooltraq.png')}
+                style={{ width: 260, height: 82, alignSelf: 'center' }}
                 resizeMode="contain"
               />
-              <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: colors.primary, textAlign: 'center' }}>BATT WRAPZ</Text>
             </View>
 
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary, marginBottom: 8, textAlign: 'center' }}>Step 1 of 2</Text>
