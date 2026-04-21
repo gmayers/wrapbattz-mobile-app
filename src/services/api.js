@@ -2,7 +2,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://webportal.battwrapz.com/api';
+const BASE_URL = 'https://api.tooltraq.invalid';
 
 // Create axios instance
 const api = axios.create({

@@ -9,7 +9,7 @@ import DeviceAuthService from '../services/DeviceAuthService';
 import PinAuthService from '../services/PinAuthService';
 
 
-const API_BASE_URL = 'https://webportal.battwrapz.com/api/';
+const API_BASE_URL = 'https://api.tooltraq.invalid/';
 
 // Create the main axios instance
 const axiosInstance = axios.create({

@@ -485,7 +485,8 @@ const LoginScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Pricing Button */}
+              {/* Pricing Button — hidden during backend migration */}
+              {/*
               <View style={{ alignItems: 'center', marginTop: 20 }}>
                 <TouchableOpacity
                   style={{ backgroundColor: colors.surfaceAlt, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 25, borderWidth: 1, borderColor: colors.borderInput, width: '100%', alignItems: 'center' }}
@@ -495,6 +496,7 @@ const LoginScreen: React.FC = () => {
                   <Text style={{ fontSize: 16, color: colors.textPrimary, fontWeight: '600' }}>View Service Plans</Text>
                 </TouchableOpacity>
               </View>
+              */}
 
             </View>
           </View>
