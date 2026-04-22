@@ -93,6 +93,16 @@ export interface LegacyLocation {
   name: string;
   site_type: string;
   status: string;
+  // Address fields kept for screens that still read the old shape. street_number
+  // is empty because the new API keeps address_line1 as a single string.
+  building_name: string;
+  street_number: string;
+  street_name: string;
+  address_2: string;
+  town_or_city: string;
+  county: string;
+  postcode: string;
+  is_active: boolean;
 }
 
 export function toLegacyLocation(s: SiteRead): LegacyLocation {
@@ -101,6 +111,14 @@ export function toLegacyLocation(s: SiteRead): LegacyLocation {
     name: s.name,
     site_type: s.site_type,
     status: s.status,
+    building_name: s.nickname ?? '',
+    street_number: '',
+    street_name: s.address_line1 ?? '',
+    address_2: s.description ?? '',
+    town_or_city: s.city ?? '',
+    county: '',
+    postcode: s.postcode ?? '',
+    is_active: s.status === 'active',
   };
 }
 

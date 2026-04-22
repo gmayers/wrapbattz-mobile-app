@@ -19,6 +19,13 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  assignments as assignmentsApi,
+  sites as sitesApi,
+  tools as toolsApi,
+} from '../api/endpoints';
+import { toLegacyAssignment, toLegacyLocation } from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 // Define the orange color to be used for buttons to match LocationsScreen
 const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
@@ -26,17 +33,7 @@ const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;
   
-  // Enhanced usage of AuthContext
-  const { 
-    deviceService, 
-    axiosInstance,
-    logout, 
-    isAdminOrOwner, 
-    userData,
-    error: authError,
-    clearError,
-    isLoading: authLoading
-  } = useAuth();
+  const { isAdminOrOwner, userData, isLoading: authLoading } = useAuth();
   const { colors } = useTheme();
 
   const [location, setLocation] = useState(null);
@@ -52,101 +49,71 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const [selectedDeviceForTransfer, setSelectedDeviceForTransfer] = useState(null);
   const [transferringDevice, setTransferringDevice] = useState(null);
 
-  // Clear AuthContext errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (authError) clearError();
-    };
-  }, [authError, clearError]);
+  const siteId = Number(locationId);
 
-  // Fetch location details using direct API call
   const fetchLocationDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
     try {
-      // Use direct axios call for consistency with original implementation
-      const response = await axiosInstance.get(`/locations/${locationId}/`);
-      const locationData = response.data;
-      
-      setLocation(locationData);
+      const site = await sitesApi.getSite(siteId);
+      setLocation(toLegacyLocation(site));
     } catch (error) {
-      console.error('Error fetching location details:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
-        const errorMsg = error.response?.data?.message || 'Failed to fetch location details. Please try again later.';
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
+        const errorMsg =
+          (error instanceof ApiError && error.message) ||
+          'Failed to fetch location details. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [locationId, axiosInstance, logout]);
+  }, [siteId]);
 
-  // Fetch devices at this location using the location-specific endpoint
   const fetchLocationDevices = useCallback(async () => {
     setIsDevicesLoading(true);
-    
     try {
-      // Use the specific endpoint that automatically returns only available devices at this location
-      const response = await axiosInstance.get(`/device-assignments/location/${locationId}/`);
-      
-      // The endpoint returns assignment objects with nested device info
-      const locationAssignments = Array.isArray(response.data) 
-        ? response.data 
-        : response.data.results || [];
-      
-      // Map the assignments to extract device information with unique assignment IDs
-      // Sort by assigned_date descending (most recent first)
-      const sortedAssignments = locationAssignments.sort((a, b) => {
-        const dateA = new Date(a.assigned_date || a.created_at || 0);
-        const dateB = new Date(b.assigned_date || b.created_at || 0);
-        return dateB - dateA; // Most recent first
+      const page = await assignmentsApi.listAssignmentsBySite(siteId);
+      const sorted = [...page.items].sort((a, b) => {
+        const at = a.assigned_at ? new Date(a.assigned_at).getTime() : 0;
+        const bt = b.assigned_at ? new Date(b.assigned_at).getTime() : 0;
+        return bt - at;
       });
-
-      const availableDevices = sortedAssignments.map(assignment => ({
-        ...assignment.device,
-        assignmentId: assignment.id, // Add assignment ID for unique keys
-        assignedDate: assignment.assigned_date // Keep the date for reference
-      }));
-
-      setDevices(availableDevices);
+      const mapped = sorted.map((assignment) => {
+        const legacy = toLegacyAssignment(assignment);
+        return {
+          ...legacy.device,
+          assignmentId: legacy.id,
+          assignedDate: legacy.assigned_date,
+        };
+      });
+      setDevices(mapped);
     } catch (error) {
-      console.error('Error fetching location devices:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
-        const errorMsg = error.response?.data?.message || 'Failed to fetch location devices. Please try again later.';
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
+        const errorMsg =
+          (error instanceof ApiError && error.message) ||
+          'Failed to fetch location devices. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
-
       setDevices([]);
     } finally {
       setIsDevicesLoading(false);
     }
-  }, [locationId, axiosInstance, logout]);
+  }, [siteId]);
 
-  // Fetch other locations for transfer (admin/owner only)
   const fetchOtherLocations = useCallback(async () => {
     if (!isAdminOrOwner) return;
-
     try {
-      // Use the for-device endpoint which excludes current location
-      const response = await axiosInstance.get(`/locations/`);
-      const allLocations = Array.isArray(response.data)
-        ? response.data
-        : response.data.results || [];
-
-      // Filter out the current location
-      const filtered = allLocations.filter(loc => loc.id !== locationId);
+      const page = await sitesApi.listSites();
+      const filtered = page.items
+        .filter((s) => s.id !== siteId)
+        .map(toLegacyLocation);
       setOtherLocations(filtered);
     } catch (error) {
-      console.error('Error fetching other locations:', error);
-      // Non-critical, don't show error to user
+      // Non-critical.
     }
-  }, [locationId, axiosInstance, isAdminOrOwner]);
+  }, [siteId, isAdminOrOwner]);
 
   // Execute fetch operations on component mount and when locationId changes
   useEffect(() => {
@@ -175,52 +142,23 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 
   // Handle direct assignment to current user
   const handleAssignDevice = useCallback(async (deviceId) => {
-    // Set the currently assigning device
     setAssigningDevice(deviceId);
-    
     try {
-      console.log(`Assigning device ${deviceId} to current user`);
-      
-      // Use the dedicated assign-to-me endpoint which assigns to the authenticated user
-      const response = await axiosInstance.post(
-        `/device-assignments/device/${deviceId}/assign-to-me/`
-      );
-      
+      await toolsApi.assignToolToMe(Number(deviceId));
       Alert.alert(
-        'Success', 
+        'Success',
         'Device assigned successfully to your account.',
-        [{ text: 'OK', onPress: () => {
-          // Refresh the devices list after successful assignment
-          fetchLocationDevices();
-        }}]
+        [{ text: 'OK', onPress: () => { fetchLocationDevices(); } }]
       );
     } catch (error) {
-      console.error('Assignment error:', error);
-      
-      // Log error details
-      if (error.response) {
-        console.error('Error status:', error.response.status);
-        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
-      }
-      
-      // Create a user-friendly error message
-      let errorMessage = 'Failed to assign device. Please try again.';
-      
-      if (error.response && error.response.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
-      }
-      
+      const errorMessage =
+        (error instanceof ApiError && error.message) ||
+        'Failed to assign device. Please try again.';
       Alert.alert('Assignment Error', errorMessage);
     } finally {
       setAssigningDevice(null);
     }
-  }, [axiosInstance, fetchLocationDevices]);
+  }, [fetchLocationDevices]);
 
   // Open transfer modal for a device
   const openTransferModal = useCallback((device) => {
@@ -235,10 +173,12 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     setTransferringDevice(selectedDeviceForTransfer.id);
 
     try {
-      await axiosInstance.post(
-        `/device-assignments/device/${selectedDeviceForTransfer.id}/transfer-to-location/`,
-        { location: targetLocationId }
-      );
+      await assignmentsApi.createAssignment({
+        tool_id: Number(selectedDeviceForTransfer.id),
+        assignee_site_id: Number(targetLocationId),
+        condition: '',
+        notes: '',
+      });
 
       Alert.alert(
         'Success',
