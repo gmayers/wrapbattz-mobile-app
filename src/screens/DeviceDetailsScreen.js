@@ -19,6 +19,19 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import {
+  assignments as assignmentsApi,
+  incidents as incidentsApi,
+  sites as sitesApi,
+  tools as toolsApi,
+} from '../api/endpoints';
+import {
+  toLegacyAssignment,
+  toLegacyDevice,
+  toLegacyLocation,
+  toLegacyReport,
+} from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -41,7 +54,7 @@ const STATUS_CHOICES = [
 ];
 
 const DeviceDetailsScreen = ({ navigation, route }) => {
-  const { deviceService, logout, userData, isAdminOrOwner, axiosInstance } = useAuth();
+  const { userData, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
   const { deviceId } = route.params;
   
@@ -103,98 +116,75 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleApiError = (error, defaultMessage) => {
-    // Skip 401 errors - they're handled globally by the axios interceptor
-    if (error.response?.status === 401) {
-      return;
-    }
-
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      setError(errorMessage);
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      setError('No response from server. Please try again later.');
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      setError(error.message || defaultMessage);
-      Alert.alert('Error', error.message || defaultMessage);
-    }
+    if (error instanceof ApiError && error.code === 'unauthorized') return;
+    const message =
+      (error instanceof ApiError && error.message) ||
+      error?.message ||
+      defaultMessage;
+    setError(message);
+    Alert.alert('Error', message);
   };
 
-  // Fetch device details
+  const toolId = Number(deviceId);
+
+  // Fetch tool details
   const fetchDeviceDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const deviceData = await deviceService.getDevice(deviceId);
-      setDevice(deviceData);
-      
+      const tool = await toolsApi.getTool(toolId);
+      setDevice(toLegacyDevice(tool));
     } catch (error) {
       handleApiError(error, 'Failed to fetch device details');
     } finally {
       setLoading(false);
     }
-  }, [deviceId, deviceService]);
+  }, [toolId]);
 
-  // Fetch device assignment history
+  // Fetch tool assignment history
   const fetchDeviceHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
-      
-      const history = await deviceService.getDeviceHistory(deviceId);
-      setDeviceHistory(history);
-      
+      const page = await toolsApi.getToolHistory(toolId);
+      setDeviceHistory(page.items.map(toLegacyAssignment));
     } catch (error) {
       console.error('Error fetching device history:', error);
-      // Don't show alert for secondary data
     } finally {
       setHistoryLoading(false);
     }
-  }, [deviceId, deviceService]);
+  }, [toolId]);
 
-  // Fetch reports for this device
+  // Fetch incidents for this tool
   const fetchDeviceReports = useCallback(async () => {
     try {
       setReportsLoading(true);
-      
-      // Get all reports and filter for the specific device
-      const allReports = await deviceService.getReports();
-      const filteredReports = allReports.filter(report => report.device?.id === deviceId);
-      
-      setDeviceReports(filteredReports);
-      
+      const page = await incidentsApi.listIncidents();
+      const filtered = page.items
+        .filter((i) => i.tool_id === toolId)
+        .map(toLegacyReport);
+      setDeviceReports(filtered);
     } catch (error) {
       console.error('Error fetching device reports:', error);
-      // Don't show alert for secondary data
     } finally {
       setReportsLoading(false);
     }
-  }, [deviceId, deviceService]);
+  }, [toolId]);
 
-  // Fetch locations for transfer modal (excluding current location)
+  // Fetch sites for transfer modal
   const fetchLocations = useCallback(async () => {
     try {
-      // Use the for-device endpoint which excludes current location
-      const response = await axiosInstance.get(`/locations/for-device/${deviceId}/`);
-      const locationsData = Array.isArray(response.data)
-        ? response.data
-        : response.data.results || [];
-      setLocations(locationsData);
+      const page = await sitesApi.listSitesForTool(toolId);
+      setLocations(page.items.map(toLegacyLocation));
     } catch (error) {
-      console.error('Error fetching locations:', error);
-      // Fallback to all locations if the endpoint doesn't exist
+      console.error('Error fetching sites:', error);
       try {
-        const fallbackResponse = await axiosInstance.get('/locations/');
-        const allLocations = Array.isArray(fallbackResponse.data)
-          ? fallbackResponse.data
-          : fallbackResponse.data.results || [];
-        setLocations(allLocations);
+        const fallback = await sitesApi.listSites();
+        setLocations(fallback.items.map(toLegacyLocation));
       } catch (fallbackError) {
-        console.error('Fallback locations fetch also failed:', fallbackError);
+        console.error('Fallback sites fetch also failed:', fallbackError);
       }
     }
-  }, [axiosInstance, deviceId]);
+  }, [toolId]);
 
   useEffect(() => {
     fetchDeviceDetails();
@@ -215,31 +205,16 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     setAssignLoading(true);
 
     try {
-      console.log(`Assigning device ${deviceId} to current user`);
-      
-      // Use the assign-to-me endpoint (same as in SelectMenuTab)
-      const response = await axiosInstance.post(
-        `/device-assignments/device/${deviceId}/assign-to-me/`
-      );
-      
+      await toolsApi.assignToolToMe(toolId);
       Alert.alert(
-        'Success', 
+        'Success',
         'Device assigned successfully to your account.',
         [{ text: 'OK', onPress: () => {
-          // Refresh device data after assignment
           fetchDeviceDetails();
           fetchDeviceHistory();
         }}]
       );
     } catch (error) {
-      console.error('Assignment error:', error);
-      
-      // Log error details
-      if (error.response) {
-        console.error('Error status:', error.response.status);
-        console.error('Error data:', JSON.stringify(error.response.data, null, 2));
-      }
-      
       handleApiError(error, 'Failed to assign device');
     } finally {
       setAssignLoading(false);
@@ -255,11 +230,12 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
     setTransferLoading(true);
     try {
-      // Use the dedicated transfer-to-location endpoint for atomic transfer
-      await axiosInstance.post(
-        `/device-assignments/device/${deviceId}/transfer-to-location/`,
-        { location: selectedLocationId }
-      );
+      await assignmentsApi.createAssignment({
+        tool_id: toolId,
+        assignee_site_id: Number(selectedLocationId),
+        condition: '',
+        notes: '',
+      });
 
       setTransferModalVisible(false);
       setSelectedLocationId(null);

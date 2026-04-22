@@ -18,6 +18,12 @@ import { Ionicons } from '@expo/vector-icons';
 const ORANGE_COLOR = '#FFC72C';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  assignments as assignmentsApi,
+  sites as sitesApi,
+} from '../api/endpoints';
+import { toLegacyAssignment, toLegacyLocation } from '../api/adapters';
+import { ApiError } from '../api/errors';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import StandardDeviceCard from '../components/StandardDeviceCard';
@@ -26,11 +32,7 @@ import SearchBar from '../components/SearchBar';
 const { width } = Dimensions.get('window');
 
 const AllDevicesScreen = ({ navigation, route }) => {
-  const {
-    deviceService,
-    userData,
-    isAdminOrOwner,
-  } = useAuth();
+  const { userData, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState('assignments');
@@ -60,19 +62,13 @@ const AllDevicesScreen = ({ navigation, route }) => {
   }, [isAdminOrOwner]);
 
   const handleApiError = (error, defaultMessage) => {
-    // Skip 401 errors - they're handled globally by the axios interceptor
-    if (error.response?.status === 401) {
-      return;
-    }
-
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      Alert.alert('Error', error.message || defaultMessage);
-    }
+    // 401s are handled globally by the refresh interceptor.
+    if (error instanceof ApiError && error.code === 'unauthorized') return;
+    const message =
+      (error instanceof ApiError && error.message) ||
+      error?.message ||
+      defaultMessage;
+    Alert.alert('Error', message);
   };
 
   // Sort: active first, then returned. Within each group: user assignments (A-Z) then location assignments (A-Z)
@@ -96,19 +92,19 @@ const AllDevicesScreen = ({ navigation, route }) => {
 
   const fetchLocations = async () => {
     try {
-      const locs = await deviceService.getLocations();
-      setLocations(Array.isArray(locs) ? locs : []);
+      const page = await sitesApi.listSites();
+      setLocations(page.items.map(toLegacyLocation));
     } catch (error) {
       // Locations only needed for return modal — assignments still display fine
     }
   };
 
-  // Fetches current user's assignments using my_assignments endpoint
+  // Fetches current user's assignments.
   const fetchMyAssignments = async () => {
     try {
       setLoadingMyAssignments(true);
-      const allAssignments = await deviceService.getMyAssignments();
-      setMyAssignments(sortAssignments(Array.isArray(allAssignments) ? allAssignments : []));
+      const page = await assignmentsApi.listMyAssignments();
+      setMyAssignments(sortAssignments(page.items.map(toLegacyAssignment)));
     } catch (error) {
       handleApiError(error, 'Failed to fetch your device assignments');
     } finally {
@@ -116,12 +112,12 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  // Fetches all assignments for the organization
+  // Fetches all assignments for the organization.
   const fetchOrganizationAssignments = async () => {
     try {
       setLoadingOrgAssignments(true);
-      const data = await deviceService.getAssignments();
-      setOrganizationAssignments(sortAssignments(Array.isArray(data) ? data : []));
+      const page = await assignmentsApi.listAssignments();
+      setOrganizationAssignments(sortAssignments(page.items.map(toLegacyAssignment)));
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization assignments.');
     } finally {
@@ -164,11 +160,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
 
     try {
-      const returnedDateTime = new Date().toISOString();
-
-      await deviceService.returnDeviceToLocation(selectedReturnDevice.id, { // .id is assignmentId
-        location: selectedReturnLocation.id,
-        returned_date_time: returnedDateTime,
+      await assignmentsApi.returnAssignment(Number(selectedReturnDevice.id), {
+        target_site_id: Number(selectedReturnLocation.id),
+        condition: '',
+        notes: '',
       });
 
       Alert.alert('Success', 'Device has been returned successfully');
@@ -203,7 +198,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
       onViewDetails={handleViewDeviceDetails}
       style={styles.deviceCard}
       showActiveStatus={true}
-      showReturnButton={assignment.user === userData?.userId}
+      showReturnButton={assignment.user_id === userData?.userId}
     />
   );
 

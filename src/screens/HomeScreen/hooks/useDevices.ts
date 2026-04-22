@@ -1,73 +1,13 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
-import { assignments as assignmentsApi, tools as toolsApi } from '../../../api/endpoints';
+import { assignments as assignmentsApi } from '../../../api/endpoints';
 import { ApiError } from '../../../api/errors';
-import type { AssignmentRead, ToolRead } from '../../../api/types';
-
-// Legacy shape consumed by DevicesList / ReturnDeviceModal. Keep this mapping
-// until those components are rewritten against AssignmentRead directly.
-export interface LegacyAssignment {
-  id: number;
-  uuid: string;
-  user_name: string;
-  location_name: string;
-  device: {
-    id: number;
-    identifier: string;
-    device_type: string;
-    status: string;
-    current_assignment?: { id: number };
-  };
-  user: string;
-  location: { id: number; name: string } | null;
-  assigned_date: string | null;
-  returned_date: string | null;
-  status: string;
-  condition: string;
-  notes: string;
-}
-
-function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
-  return {
-    id: a.id,
-    uuid: a.uuid,
-    user_name: a.assignee_user_email ?? '',
-    location_name: a.assignee_site_name ?? '',
-    device: {
-      id: a.tool_id,
-      identifier: a.tool_name,
-      device_type: '',
-      status: a.status ?? 'active',
-      current_assignment: { id: a.id },
-    },
-    user: a.assignee_user_email ?? '',
-    location:
-      a.assignee_site_id != null
-        ? { id: a.assignee_site_id, name: a.assignee_site_name ?? '' }
-        : null,
-    assigned_date: a.assigned_at ?? null,
-    returned_date: a.returned_at ?? null,
-    status: a.status ?? 'active',
-    condition: a.condition ?? '',
-    notes: a.notes ?? '',
-  };
-}
-
-export interface LegacyDevice {
-  id: number;
-  identifier: string;
-  device_type: string;
-  status: string;
-}
-
-function toLegacyDevice(tool: ToolRead): LegacyDevice {
-  return {
-    id: tool.id,
-    identifier: tool.name,
-    device_type: tool.category_name ?? '',
-    status: tool.status ?? '',
-  };
-}
+import {
+  toLegacyAssignment,
+  toLegacyDevice,
+  type LegacyAssignment,
+  type LegacyDevice,
+} from '../../../api/adapters';
 
 export interface UseDevicesReturn {
   assignments: LegacyAssignment[];
@@ -156,6 +96,3 @@ export const useDevices = (): UseDevicesReturn => {
   };
 };
 
-// Silence unused import warning if the tools module is later removed from here.
-export type { ToolRead } from '../../../api/types';
-void toolsApi;

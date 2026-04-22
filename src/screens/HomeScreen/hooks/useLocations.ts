@@ -2,23 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { sites as sitesApi } from '../../../api/endpoints';
 import { ApiError } from '../../../api/errors';
-import type { SiteRead } from '../../../api/types';
-
-export interface LegacyLocation {
-  id: number;
-  name: string;
-  site_type: string;
-  status: string;
-}
-
-function toLegacyLocation(site: SiteRead): LegacyLocation {
-  return {
-    id: site.id,
-    name: site.name,
-    site_type: site.site_type,
-    status: site.status,
-  };
-}
+import { toLegacyLocation, type LegacyLocation } from '../../../api/adapters';
 
 export interface LocationOption {
   label: string;
