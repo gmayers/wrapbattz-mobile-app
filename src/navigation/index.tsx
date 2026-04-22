@@ -12,7 +12,7 @@ import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import VerifyEmailScreen from '../screens/AuthScreens/VerifyEmail/VerifyEmailScreen';
 import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
-import TabNavigation from './TabNavigation';
+import MainTabNavigator from './MainTabNavigator';
 import AllReportsScreen from '../screens/AllReportsScreen';
 import ReportDetailsScreen from '../screens/ReportDetailsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
@@ -33,7 +33,12 @@ import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScree
 const Stack = createStackNavigator();
 
 const linking: LinkingOptions<ReactNavigation.RootParamList> = {
-  prefixes: ['https://app.tooltraq.com', 'tooltraq://'],
+  prefixes: [
+    'https://app.tooltraq.com',
+    'https://webportal.battwrapz.com',
+    'tooltraq://',
+    'wrapbattz://',
+  ],
   config: {
     screens: {
       QuickActionModal: 'd/:tagUID',
@@ -137,7 +142,7 @@ const MainStack = () => {
       {/* Main Tab Navigation */}
       <Stack.Screen
         name="MainTabs"
-        component={TabNavigation}
+        component={MainTabNavigator}
         options={{
           headerShown: false
         }}
@@ -246,6 +251,15 @@ const MainStack = () => {
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="QuickActionModal"
+      component={QuickActionModalScreen}
+      options={{
+        headerShown: false,
+        presentation: 'modal',
+        gestureEnabled: true,
       }}
     />
     {/* Add CreateOrganization screen to MainStack for users who need to access it */}
