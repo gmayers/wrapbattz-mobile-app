@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TOOLTRAQ",
-    "slug": "battwrapz",
+    "slug": "tooltraq",
     "owner": "garanmayers7262",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -116,7 +116,10 @@
           "TAG"
         ]
       },
-      "bundleIdentifier": "com.garanmayers7262.tooltraq"
+      "bundleIdentifier": "com.garanmayers7262.tooltraq",
+      "associatedDomains": [
+        "applinks:webportal.battwrapz.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -136,7 +139,24 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "package": "com.garanmayers7262.tooltraq"
+      "package": "com.garanmayers7262.tooltraq",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "webportal.battwrapz.com",
+              "pathPrefix": "/d/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
