@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { CustomerSheet } from '@stripe/stripe-react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../context/AuthContext';
 import { billingService } from '../services/BillingService';
 import Button from './Button';
 
@@ -25,8 +24,6 @@ const CustomerSheetManager = ({
   onError,
   style
 }) => {
-  const { axiosInstance } = useAuth();
-
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);

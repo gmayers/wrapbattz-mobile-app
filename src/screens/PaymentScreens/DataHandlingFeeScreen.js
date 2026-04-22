@@ -15,12 +15,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import SubscriptionSetup from '../../components/SubscriptionSetup';
+import { billingService } from '../../services/BillingService';
+import { tools as toolsApi } from '../../api/endpoints';
+import { ApiError } from '../../api/errors';
 
 // TOOLTRAQ yellow color to match existing UI
 const ORANGE_COLOR = '#FFC72C';
 
 const DataHandlingFeeScreen = ({ navigation }) => {
-  const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [loading, setLoading] = useState(true);
@@ -46,62 +49,36 @@ const DataHandlingFeeScreen = ({ navigation }) => {
   const fetchBillingData = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get('/billing/status/');
-      setBillingData(response.data);
+      const data = await billingService.getBillingStatus();
+      setBillingData(data);
     } catch (error) {
-      console.log('ℹ️ Billing status not available (expected if not set up):', error.response?.status || 'Network error');
-
-      // Try to fetch device count from devices endpoint as fallback
+      // Billing endpoint likely not wired on the new API yet. Fall back to
+      // the tool count so the screen shows something meaningful.
+      let deviceCount = 0;
       try {
-        const devicesResponse = await axiosInstance.get('/devices/');
-        const deviceCount = devicesResponse.data?.length || 0;
-
-        setBillingData({
-          devices: {
-            total: deviceCount,
-            active: deviceCount,
-            inactive: 0,
-            free_quota: 3,
-            billable: Math.max(0, deviceCount - 3)
-          },
-          tier: {
-            name: "1-100 Stickers",
-            price_per_device: {
-              monthly: 0.40,
-              annual: 0.25
-            }
-          },
-          billing: {
-            status: 'inactive',
-            cycle: 'monthly',
-            free_quota: 3
-          }
-        });
-      } catch (deviceError) {
-        console.log('ℹ️ Device list not available, using defaults');
-        // If we can't get device count either, use 0
-        setBillingData({
-          devices: {
-            total: 0,
-            active: 0,
-            inactive: 0,
-            free_quota: 3,
-            billable: 0
-          },
-          tier: {
-            name: "1-100 Stickers",
-            price_per_device: {
-              monthly: 0.40,
-              annual: 0.25
-            }
-          },
-          billing: {
-            status: 'inactive',
-            cycle: 'monthly',
-            free_quota: 3
-          }
-        });
+        const page = await toolsApi.listTools({ page: 1, page_size: 1 });
+        deviceCount = page.total ?? 0;
+      } catch (toolError) {
+        // ignore — keep 0
       }
+      setBillingData({
+        devices: {
+          total: deviceCount,
+          active: deviceCount,
+          inactive: 0,
+          free_quota: 3,
+          billable: Math.max(0, deviceCount - 3),
+        },
+        tier: {
+          name: '1-100 Stickers',
+          price_per_device: { monthly: 0.4, annual: 0.25 },
+        },
+        billing: {
+          status: 'inactive',
+          cycle: 'monthly',
+          free_quota: 3,
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -113,7 +90,7 @@ const DataHandlingFeeScreen = ({ navigation }) => {
       // Free tier - activate directly without confirmation
       try {
         setLoading(true);
-        await axiosInstance.post('/billing/activate-free-tier/');
+        await billingService.activateFreeTier();
         Alert.alert(
           'Free Tier Activated',
           'You can now use up to 3 devices at no cost.',

@@ -14,15 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { createBillingService } from '../../services/BillingService';
+import { billingService } from '../../services/BillingService';
 
 const ORANGE_COLOR = '#FFC72C';
 const { width } = Dimensions.get('window');
 
 const BillingAnalyticsScreen = ({ navigation }) => {
-  const { axiosInstance, isAdminOrOwner } = useAuth();
+  const { isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
-  const billingService = createBillingService(axiosInstance);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

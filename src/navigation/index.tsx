@@ -29,17 +29,11 @@ import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
-import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
 
 const Stack = createStackNavigator();
 
 const linking: LinkingOptions<ReactNavigation.RootParamList> = {
-  prefixes: [
-    'https://api.tooltraq.com',
-    'https://webportal.battwrapz.com',
-    'tooltraq://',
-    'wrapbattz://',
-  ],
+  prefixes: ['https://app.tooltraq.com', 'tooltraq://'],
   config: {
     screens: {
       QuickActionModal: 'd/:tagUID',
@@ -265,11 +259,6 @@ const MainStack = () => {
         headerTitleStyle,
         headerTintColor: colors.primary,
       }}
-    />
-    <Stack.Screen
-      name="VehicleDetails"
-      component={VehicleDetailsScreen}
-      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="QuickActionModal"

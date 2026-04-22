@@ -193,18 +193,14 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         }]
       );
     } catch (error) {
-      console.error('Transfer error:', error);
-
-      let errorMessage = 'Failed to transfer device. Please try again.';
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      }
-
+      const errorMessage =
+        (error instanceof ApiError && error.message) ||
+        'Failed to transfer device. Please try again.';
       Alert.alert('Transfer Error', errorMessage);
     } finally {
       setTransferringDevice(null);
     }
-  }, [selectedDeviceForTransfer, axiosInstance, fetchLocationDevices]);
+  }, [selectedDeviceForTransfer, fetchLocationDevices]);
 
   // Navigate to add device screen with the location pre-selected
   const handleAddDevice = useCallback(() => {
