@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
+import VerifyEmailScreen from '../screens/AuthScreens/VerifyEmail/VerifyEmailScreen';
 import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
 import TabNavigation from './TabNavigation';
 import AllReportsScreen from '../screens/AllReportsScreen';
@@ -82,6 +83,17 @@ const AuthStack = () => {
         options={{
           headerShown: true,
           headerTitle: 'Reset Password',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+      <Stack.Screen
+        name="VerifyEmail"
+        component={VerifyEmailScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Verify Email',
           headerStyle: themedHeaderStyle,
           headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
           headerTintColor: colors.primary,

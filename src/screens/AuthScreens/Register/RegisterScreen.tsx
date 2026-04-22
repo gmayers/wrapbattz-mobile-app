@@ -67,7 +67,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
   const validateForm = (): boolean => {
     const validationRules = {
       email: FormValidation.commonRules.email(true),
-      password: FormValidation.commonRules.password(8),
+      password: FormValidation.commonRules.password(12),
       password2: FormValidation.commonRules.confirmPassword(formData.password),
       first_name: FormValidation.commonRules.required(),
       last_name: FormValidation.commonRules.required(),
@@ -97,55 +97,31 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     setIsSubmitting(true);
 
     try {
-      await register({
+      const response = await register({
         email: formData.email,
         password: formData.password,
-        password2: formData.password2,
         first_name: formData.first_name,
         last_name: formData.last_name,
-        organization_invite_code: formData.organization_invite_code || '',
-        phone_number: formData.phone_number || '',
       });
 
-      Alert.alert(
-        'Registration Successful',
-        'Your account has been created. Please check your email to verify your account before logging in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login')
-          }
-        ]
-      );
+      navigation.navigate('VerifyEmail', {
+        emailVerificationId: response.email_verification_id,
+        email: formData.email,
+      });
     } catch (error: any) {
-      if (error.response) {
-        // Handle server validation errors
-        if (error.response.data && typeof error.response.data === 'object') {
-          const serverErrors = error.response.data;
-          const formattedErrors: Record<string, string> = {};
-
-          Object.keys(serverErrors).forEach(key => {
-            formattedErrors[key] = Array.isArray(serverErrors[key])
-              ? serverErrors[key][0]
-              : serverErrors[key];
-          });
-
-          setErrors(formattedErrors);
-        } else {
-          Alert.alert(
-            'Registration Failed',
-            'The server encountered an error. Please try again later.'
-          );
-        }
-      } else if (error.request) {
-        Alert.alert(
-          'Connection Error',
-          'Could not connect to the server. Please check your internet connection and try again.'
-        );
+      const detail = error?.detail;
+      if (detail && typeof detail === 'object') {
+        const serverErrors = detail as Record<string, unknown>;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(serverErrors).forEach((key) => {
+          const value = serverErrors[key];
+          formattedErrors[key] = Array.isArray(value) ? String(value[0]) : String(value);
+        });
+        setErrors(formattedErrors);
       } else {
         Alert.alert(
           'Registration Failed',
-          error.message || 'An unexpected error occurred. Please try again.'
+          error?.message || 'An unexpected error occurred. Please try again.'
         );
       }
     } finally {
