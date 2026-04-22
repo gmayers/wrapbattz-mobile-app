@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import type { LinkingOptions } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, Platform } from 'react-native';
@@ -27,8 +28,23 @@ import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScre
 import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
 
 const Stack = createStackNavigator();
+
+const linking: LinkingOptions<ReactNavigation.RootParamList> = {
+  prefixes: [
+    'https://api.tooltraq.com',
+    'https://webportal.battwrapz.com',
+    'tooltraq://',
+    'wrapbattz://',
+  ],
+  config: {
+    screens: {
+      QuickActionModal: 'd/:tagUID',
+    },
+  },
+};
 
 const AuthStack = () => {
   const { colors } = useTheme();
@@ -237,6 +253,15 @@ const MainStack = () => {
         headerTintColor: colors.primary,
       }}
     />
+    <Stack.Screen
+      name="QuickActionModal"
+      component={QuickActionModalScreen}
+      options={{
+        headerShown: false,
+        presentation: 'modal',
+        gestureEnabled: true,
+      }}
+    />
     {/* Add CreateOrganization screen to MainStack for users who need to access it */}
     <Stack.Screen
       name="CreateOrganization"
@@ -309,7 +334,7 @@ export const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       {isAuthenticated ? <OnboardingStack /> : <AuthStack />}
     </NavigationContainer>
   );
