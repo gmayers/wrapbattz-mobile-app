@@ -274,15 +274,6 @@ const MainStack = () => {
         headerTintColor: colors.primary,
       }}
     />
-    <Stack.Screen
-      name="QuickActionModal"
-      component={QuickActionModalScreen}
-      options={{
-        headerShown: false,
-        presentation: 'modal',
-        gestureEnabled: true,
-      }}
-    />
   </Stack.Navigator>
   );
 };
