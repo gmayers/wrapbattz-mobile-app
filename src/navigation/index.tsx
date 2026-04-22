@@ -34,7 +34,7 @@ const Stack = createStackNavigator();
 
 const linking: LinkingOptions<ReactNavigation.RootParamList> = {
   prefixes: [
-    'https://api.tooltraq.com',
+    'https://app.tooltraq.com',
     'https://webportal.battwrapz.com',
     'tooltraq://',
     'wrapbattz://',
@@ -272,6 +272,15 @@ const MainStack = () => {
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="QuickActionModal"
+      component={QuickActionModalScreen}
+      options={{
+        headerShown: false,
+        presentation: 'modal',
+        gestureEnabled: true,
       }}
     />
   </Stack.Navigator>

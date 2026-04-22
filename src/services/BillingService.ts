@@ -1,5 +1,10 @@
-import axios, { AxiosInstance } from 'axios';
-import {
+// BillingService now runs on the new /api/v1/ client. The new backend has not
+// yet exposed /billing/* endpoints — these calls will fail with a clear
+// ApiError. Keep the surface so payment screens continue to render; they
+// handle the error and surface an "unavailable" state.
+
+import { apiClient } from '../api/client';
+import type {
   Subscription,
   Plan,
   PaymentMethod,
@@ -14,104 +19,83 @@ import {
   CostCalculatorResponse,
   SwitchPlanData,
   CancelSubscriptionData,
-  SetDefaultPaymentMethodData,
   ConfirmPaymentMethodData,
   CreateSubscriptionData,
   ActivateFreeTierData,
-  BillingApiResponse,
   PaginatedResponse,
 } from '../types/BillingTypes';
 
 export class BillingService {
-  private axiosInstance: AxiosInstance;
-
-  constructor(axiosInstance: AxiosInstance) {
-    this.axiosInstance = axiosInstance;
-  }
-
-  // Subscription Management
   async getSubscriptions(): Promise<Subscription[]> {
-    const response = await this.axiosInstance.get('/billing/subscriptions/');
+    const response = await apiClient.get('/billing/subscriptions/');
     const data = response.data;
-    return Array.isArray(data) ? data : (data?.results || []);
+    return Array.isArray(data) ? data : data?.results || [];
   }
 
   async getCurrentSubscription(): Promise<Subscription> {
-    const response = await this.axiosInstance.get('/billing/subscriptions/current/');
+    const response = await apiClient.get('/billing/subscriptions/current/');
     return response.data;
   }
 
   async switchPlan(data: SwitchPlanData): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/subscriptions/switch_plan/', data);
+    const response = await apiClient.post('/billing/subscriptions/switch_plan/', data);
     return response.data;
   }
 
   async cancelSubscription(data: CancelSubscriptionData = {}): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/subscriptions/cancel_subscription/', {
+    const response = await apiClient.post('/billing/subscriptions/cancel_subscription/', {
       at_period_end: data.at_period_end ?? true,
     });
     return response.data;
   }
 
   async reactivateSubscription(): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/subscriptions/reactivate_subscription/');
+    const response = await apiClient.post('/billing/subscriptions/reactivate_subscription/');
     return response.data;
   }
 
   async createSubscription(data: CreateSubscriptionData): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/create-subscription/', data);
+    const response = await apiClient.post('/billing/create-subscription/', data);
     return response.data;
   }
 
   async activateFreeTier(data: ActivateFreeTierData = {}): Promise<Subscription> {
-    const response = await this.axiosInstance.post('/billing/activate-free-tier/', data);
+    const response = await apiClient.post('/billing/activate-free-tier/', data);
     return response.data;
   }
 
-  // Invoice & Payment History
   async getInvoices(): Promise<PaginatedResponse<Invoice>> {
-    const response = await this.axiosInstance.get('/billing/invoices/');
+    const response = await apiClient.get('/billing/invoices/');
     return response.data;
   }
 
-  /**
-   * Get the download URL for a specific invoice
-   * @param invoiceId - The Stripe invoice ID
-   * @returns Object with download_url property
-   *
-   * Note: Most use cases should use invoice.hosted_invoice_url or invoice.invoice_pdf
-   * directly with expo-web-browser. This method is provided for cases where the backend
-   * needs to process or customize the invoice URL.
-   */
   async getInvoiceDownloadUrl(invoiceId: string): Promise<{ download_url: string }> {
-    const response = await this.axiosInstance.get(`/billing/invoices/${invoiceId}/download_url/`);
+    const response = await apiClient.get(`/billing/invoices/${invoiceId}/download_url/`);
     return response.data;
   }
 
   async getPaymentHistory(): Promise<PaymentHistory[]> {
-    const response = await this.axiosInstance.get('/billing/payment-history/');
+    const response = await apiClient.get('/billing/payment-history/');
     return response.data;
   }
 
-  // Payment Methods
   async getPaymentMethods(): Promise<PaymentMethod[]> {
-    const response = await this.axiosInstance.get('/billing/payment-methods/');
+    const response = await apiClient.get('/billing/payment-methods/');
     const data = response.data;
-    // Handle paginated response
-    return Array.isArray(data) ? data : (data?.results || []);
+    return Array.isArray(data) ? data : data?.results || [];
   }
 
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
-    await this.axiosInstance.delete(`/billing/payment-methods/${paymentMethodId}/`);
+    await apiClient.delete(`/billing/payment-methods/${paymentMethodId}/`);
   }
 
   async createSetupIntent(): Promise<SetupIntentResponse> {
-    const response = await this.axiosInstance.post('/billing/setup-intent/');
+    const response = await apiClient.post('/billing/setup-intent/');
     return response.data;
   }
 
   async confirmPaymentMethod(data: ConfirmPaymentMethodData): Promise<PaymentMethod> {
-    const response = await this.axiosInstance.post('/billing/confirm-payment-method/', data);
+    const response = await apiClient.post('/billing/confirm-payment-method/', data);
     return response.data;
   }
 
@@ -120,28 +104,17 @@ export class BillingService {
     ephemeral_key_secret: string;
     setup_intent_client_secret?: string;
   }> {
-    // Try the dedicated customer-session endpoint first (outside /api/ namespace)
-    try {
-      const baseUrl = this.axiosInstance.defaults.baseURL?.replace(/\/api\/?$/, '') || '';
-      const response = await this.axiosInstance.post(
-        `${baseUrl}/subscriptions/api/customer-session/`
-      );
-      return response.data;
-    } catch (error) {
-      // Fall back to setup-intent endpoint
-      const response = await this.axiosInstance.post('/billing/setup-intent/');
-      return response.data;
-    }
+    const response = await apiClient.post('/billing/customer-session/');
+    return response.data;
   }
 
-  // Billing Dashboard & Analytics
   async getUsage(): Promise<UsageData> {
-    const response = await this.axiosInstance.get('/billing/usage/');
+    const response = await apiClient.get('/billing/usage/');
     return response.data;
   }
 
   async getAnalytics(): Promise<Analytics> {
-    const response = await this.axiosInstance.get('/billing/analytics/');
+    const response = await apiClient.get('/billing/analytics/');
     return response.data;
   }
 
@@ -150,113 +123,50 @@ export class BillingService {
       device_count: params.device_count.toString(),
       ...(params.plan_type && { plan_type: params.plan_type }),
     });
-    const response = await this.axiosInstance.get(`/billing/calculate-cost/?${queryParams}`);
+    const response = await apiClient.get(`/billing/calculate-cost/?${queryParams}`);
     return response.data;
   }
 
-  // Plan Management
   async getPlans(): Promise<Plan[]> {
-    const response = await this.axiosInstance.get('/billing/plans/');
+    const response = await apiClient.get('/billing/plans/');
     const data = response.data;
-    return Array.isArray(data) ? data : (data?.results || []);
+    return Array.isArray(data) ? data : data?.results || [];
   }
 
-  // Customer Portal
   async createCustomerPortalSession(): Promise<CustomerPortalResponse> {
-    const response = await this.axiosInstance.post('/billing/customer-portal/');
+    const response = await apiClient.post('/billing/customer-portal/');
     return response.data;
   }
 
-  // Notification Preferences
   async getNotificationPreferences(): Promise<NotificationPreferences> {
-    const response = await this.axiosInstance.get('/billing/notification-preferences/');
+    const response = await apiClient.get('/billing/notification-preferences/');
     return response.data;
   }
 
-  async updateNotificationPreferences(data: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
-    const response = await this.axiosInstance.put('/billing/notification-preferences/', data);
+  async updateNotificationPreferences(
+    data: Partial<NotificationPreferences>
+  ): Promise<NotificationPreferences> {
+    const response = await apiClient.put('/billing/notification-preferences/', data);
     return response.data;
   }
 
-  // Diagnostics
-  async getDiagnostics(): Promise<any> {
-    const response = await this.axiosInstance.get('/billing/diagnostics/');
-    return response.data;
-  }
-
-  // Legacy endpoints for compatibility
   async getBillingStatus(): Promise<UsageData> {
-    try {
-      return await this.getUsage();
-    } catch (error) {
-      // Fallback to legacy endpoint if new one doesn't exist yet
-      const response = await this.axiosInstance.get('/billing/status/');
-      return response.data;
-    }
-  }
-
-  async createPortalSession(): Promise<CustomerPortalResponse> {
-    try {
-      return await this.createCustomerPortalSession();
-    } catch (error) {
-      // Fallback to legacy endpoint
-      const response = await this.axiosInstance.post('/billing/create-portal-session/');
-      return response.data;
-    }
+    return this.getUsage();
   }
 
   async changePlan(data: { new_cycle: string }): Promise<Subscription> {
-    return await this.switchPlan({
+    return this.switchPlan({
       plan_slug: data.new_cycle === 'annual' ? 'annual-device-billing' : 'monthly-device-billing',
-      prorate: true
+      prorate: true,
     });
-  }
-
-  async cancelSubscriptionLegacy(): Promise<Subscription> {
-    return await this.cancelSubscription();
   }
 }
 
-// Singleton instance management
-let billingServiceInstance: BillingService | null = null;
+export const billingService: BillingService = new BillingService();
 
-/**
- * Create or get the BillingService singleton instance
- * @param axiosInstance - Required for initial creation, optional afterwards
- * @returns BillingService singleton instance
- */
-export const createBillingService = (axiosInstance: AxiosInstance): BillingService => {
-  if (!billingServiceInstance) {
-    billingServiceInstance = new BillingService(axiosInstance);
-  }
-  return billingServiceInstance;
-};
-
-/**
- * Get the BillingService singleton instance
- * @throws Error if service not initialized
- * @returns BillingService singleton instance
- */
-export const getBillingService = (): BillingService => {
-  if (!billingServiceInstance) {
-    throw new Error('BillingService not initialized. Call createBillingService first.');
-  }
-  return billingServiceInstance;
-};
-
-/**
- * Import this directly for components that need BillingService
- * The instance will be lazy-initialized on first use via AuthContext
- */
-export const billingService: BillingService = new Proxy({} as BillingService, {
-  get: (target, prop) => {
-    if (!billingServiceInstance) {
-      // Will be initialized by AuthContext or first component that uses it
-      // For now, return undefined and let the component handle initialization
-      throw new Error('BillingService not initialized. Ensure AuthContext has initialized the service.');
-    }
-    return (billingServiceInstance as any)[prop];
-  }
-});
+// Kept for back-compat with existing `createBillingService(axiosInstance)`
+// call sites; the argument is ignored because the service now uses the
+// shared apiClient. Delete once every caller is migrated.
+export const createBillingService = (_axiosInstance?: unknown): BillingService => billingService;
 
 export default BillingService;

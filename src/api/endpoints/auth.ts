@@ -12,12 +12,23 @@ import type {
   VerifyPendingResponse,
 } from '../types';
 
+function tokenFingerprint(token: string | undefined | null): string {
+  if (!token) return 'none';
+  if (token.length <= 16) return `len=${token.length}`;
+  return `${token.slice(0, 8)}…${token.slice(-4)} len=${token.length}`;
+}
+
 async function persistTokenResponse(response: TokenResponse): Promise<TokenResponse> {
   await save({
     accessToken: response.access_token,
     refreshToken: response.refresh_token,
     expiresInSeconds: response.expires_in,
   });
+  console.log(
+    `[auth] tokens saved — access=${tokenFingerprint(response.access_token)} refresh=${tokenFingerprint(
+      response.refresh_token
+    )} expires_in=${response.expires_in}s`
+  );
   emit('tokens-updated', undefined);
   return response;
 }

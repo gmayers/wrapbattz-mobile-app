@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useStripe, usePaymentSheet } from '@stripe/stripe-react-native';
-import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/client';
 import Button from './Button';
 
 const ORANGE_COLOR = '#FFC72C';
@@ -18,16 +18,14 @@ const StripePaymentSheet = ({
   style 
 }) => {
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
-  const { axiosInstance, getAccessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [paymentSheetReady, setPaymentSheetReady] = useState(false);
 
   const initializePaymentSheet = async () => {
     try {
       setLoading(true);
-      
-      // Create payment intent on your backend
-      const response = await axiosInstance.post('/billing/create-payment-intent/', {
+
+      const response = await apiClient.post('/billing/create-payment-intent/', {
         amount: Math.round(amount * 100), // Convert to cents
         currency: currency,
         description: description,

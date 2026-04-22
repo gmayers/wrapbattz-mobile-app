@@ -19,7 +19,11 @@ let inFlight: Promise<string | null> | null = null;
 
 async function runRefresh(): Promise<string | null> {
   const tokens = getCached();
-  if (!tokens?.refreshToken) return null;
+  if (!tokens?.refreshToken) {
+    console.log('[api.refresh] no refresh token in store — cannot refresh');
+    return null;
+  }
+  console.log('[api.refresh] requesting new tokens');
   try {
     const { data } = await axios.post<TokenResponse>(
       `${API_BASE_URL}/auth/token/refresh/`,
@@ -31,9 +35,11 @@ async function runRefresh(): Promise<string | null> {
       refreshToken: data.refresh_token,
       expiresInSeconds: data.expires_in,
     });
+    console.log('[api.refresh] tokens refreshed and saved');
     emit('tokens-updated', undefined);
     return data.access_token;
-  } catch {
+  } catch (error) {
+    console.log('[api.refresh] refresh failed — clearing tokens', error);
     await clear();
     emit('tokens-cleared', undefined);
     emit('session-expired', undefined);
