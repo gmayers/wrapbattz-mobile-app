@@ -17,6 +17,13 @@ import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Dropdown from '../../components/Dropdown';
 import { nfcService } from '../../services/NFCService';
+import {
+  assignments as assignmentsApi,
+  sites as sitesApi,
+  tools as toolsApi,
+  vans as vansApi,
+} from '../../api/endpoints';
+import { ApiError } from '../../api/errors';
 
 type QuickActionParamList = {
   QuickActionModal: { tagUID?: string };
@@ -50,7 +57,7 @@ const QuickActionModalScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<QuickActionRouteProp>();
   const { colors } = useTheme();
-  const { deviceService, isAdminOrOwner } = useAuth();
+  const { isAdminOrOwner } = useAuth();
 
   const rawTag = route.params?.tagUID;
   const tagUID = (rawTag || '').toUpperCase();
@@ -79,50 +86,69 @@ const QuickActionModalScreen: React.FC = () => {
     setNotFound(false);
     setErrorMsg(null);
     try {
-      const d = await deviceService.getDeviceByNfcUuid(tagUID);
-      if (!d) setNotFound(true);
-      else setDevice(d);
-    } catch (err: any) {
-      if (err?.response?.status !== 401) {
-        setErrorMsg(err?.message || 'Could not load device.');
+      const tool = await toolsApi.getToolByNfc(tagUID);
+      // Look up the active assignment so we can return it later.
+      let currentAssignmentId: number | null = null;
+      try {
+        const active = await assignmentsApi.listMyActiveAssignments();
+        const match = active.find((a) => a.tool_id === tool.id);
+        if (match) currentAssignmentId = match.id;
+      } catch {
+        // Non-critical.
+      }
+      setDevice({
+        id: tool.id,
+        identifier: tool.name,
+        make: tool.make,
+        model: tool.model,
+        device_type: tool.category_name,
+        serial_number: tool.serial_number,
+        current_assignment: currentAssignmentId ? { id: String(currentAssignmentId) } : null,
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'not_found') {
+        setNotFound(true);
+      } else if (!(err instanceof ApiError && err.code === 'unauthorized')) {
+        setErrorMsg((err instanceof ApiError && err.message) || 'Could not load device.');
       }
     } finally {
       setLoading(false);
     }
-  }, [deviceService, tagUID]);
+  }, [tagUID]);
 
   useEffect(() => { loadDevice(); }, [loadDevice]);
 
   const loadDestinations = useCallback(async () => {
     setDestinationsLoading(true);
     try {
-      const [locs, vans] = await Promise.all([
-        deviceService.getLocations(),
-        deviceService.getVans().catch(() => []),
+      const [sitePage, vanPage] = await Promise.all([
+        sitesApi.listSites(),
+        vansApi.listVans().catch(() => ({ items: [], page: 1, page_size: 0, total: 0, total_pages: 0 })),
       ]);
-      const locList = Array.isArray(locs) ? locs : locs?.results || [];
-      const vanList = Array.isArray(vans) ? vans : vans?.results || [];
-      const locOpts: LocationOption[] = locList.map((l: any) => ({
+      const locOpts: LocationOption[] = sitePage.items.map((l) => ({
         label: `📍 ${l.name}`,
         value: String(l.id),
       }));
-      const vanOpts: LocationOption[] = vanList
-        .filter((v: any) => v.is_active !== false)
-        .map((v: any) => ({ label: `🚐 ${v.name || v.registration}`, value: String(v.id) }));
+      const vanOpts: LocationOption[] = vanPage.items
+        .filter((v) => v.status === 'active')
+        .map((v) => ({
+          label: `🚐 ${v.name || v.prefix_code}`,
+          value: String(v.id),
+        }));
       setLocationOptions(locOpts);
       setVehicleOptions(vanOpts);
       const combined = [...locOpts, ...vanOpts];
       if (combined.length > 0 && !selectedDestination) {
         setSelectedDestination(combined[0].value);
       }
-    } catch (err: any) {
-      if (err?.response?.status !== 401) {
+    } catch (err) {
+      if (!(err instanceof ApiError && err.code === 'unauthorized')) {
         Alert.alert('Error', 'Could not load locations.');
       }
     } finally {
       setDestinationsLoading(false);
     }
-  }, [deviceService, selectedDestination]);
+  }, [selectedDestination]);
 
   const handleOpenReturn = () => {
     if (!device?.current_assignment?.id) {
@@ -147,17 +173,19 @@ const QuickActionModalScreen: React.FC = () => {
     if (!assignmentId) return;
     setReturnLoading(true);
     try {
-      await deviceService.returnDeviceToLocation(assignmentId, {
-        location: selectedDestination,
+      await assignmentsApi.returnAssignment(Number(assignmentId), {
+        target_site_id: Number(selectedDestination),
+        condition: '',
+        notes: '',
       });
       setReturnOpen(false);
       Alert.alert('Returned', 'Device has been returned successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
-    } catch (err: any) {
+    } catch (err) {
       const msg =
-        err?.response?.data?.detail ||
-        err?.message ||
+        (err instanceof ApiError && err.message) ||
+        (err instanceof Error && err.message) ||
         'Return failed. Please try again.';
       Alert.alert('Return failed', msg);
     } finally {

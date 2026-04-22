@@ -37,24 +37,47 @@ eas build --platform ios --profile production
 - Mixed JavaScript/TypeScript codebase (gradual TS adoption, `strict: false`)
 - React Navigation v7 (stack + bottom tabs)
 - REST API backend at `webportal.battwrapz.com/api`
-- Axios for HTTP (two instances: token-auth + API-key-auth)
+- Axios for HTTP — a single instance in `src/api/client.ts`; bearer tokens live in SecureStore (`src/api/tokenStore.ts`) with single-flight refresh on 401
 - SQLite for optional offline storage
 - Stripe for payments, Sentry for error tracking
 - Path alias: `@/` maps to `src/` (configured in tsconfig + Jest)
 
-### API Layer — Two Authentication Patterns
+### API Layer
 
-**AuthContext.js** is the central hub. It creates two Axios instances:
-1. **`axiosInstance`** — Token-based auth (JWT access + refresh tokens in AsyncStorage). Has interceptors for auto-attaching tokens and global 401 handling with session expiry alerts.
-2. **`mobileApiInstance`** — API-key auth (key stored in SecureStore). Used for mobile-specific features like feature suggestions.
+The REST API lives at `https://api.tooltraq.com/api/v1/`. The OpenAPI spec is
+committed at `docs/api/openapi.json`; run `npm run api:types` to regenerate
+TypeScript types into `src/api/generated/schema.ts`.
 
-AuthContext exposes `deviceService` and `mobileService` objects with methods for all API operations. Most screens consume these via `useAuth()`.
-
-**`src/services/api.js`** is a legacy Axios wrapper with its own interceptors — being phased out but still used in some screens and hooks.
+Structure:
+- `src/api/client.ts` — single axios instance with bearer + refresh interceptors.
+- `src/api/tokenStore.ts` — SecureStore-backed tokens (access, refresh, expiresAt).
+- `src/api/interceptors/refreshOn401.ts` — single-flight token refresh; emits
+  `session-expired` on failure.
+- `src/api/events.ts` — tiny event bus; `SessionExpiryAlert` (under `src/auth/`)
+  shows the `Alert` — no UI inside interceptors.
+- `src/api/errors.ts` — typed `ApiError` with `.code` (`network`, `timeout`,
+  `unauthorized`, `validation`, …).
+- `src/api/endpoints/*.ts` — one file per OpenAPI tag (auth, account,
+  organizations, members, invitations, joinRequests, tools, toolPhotos,
+  assignments, sites, siteAssignments, vans, incidents, feedback).
+- `src/api/adapters.ts` — `toLegacyAssignment`/`toLegacyDevice`/etc. map new
+  schema shapes into the legacy shapes screens still consume (delete when
+  consumers are fully rewritten).
 
 ### State Management
-- **AuthContext** (`src/context/AuthContext.js`) — Auth state, user data, role checks (`isAdmin`, `isOwner`, `isAdminOrOwner`), API services, session monitoring (30-second interval + AppState listener), BillingService singleton
-- **SQLiteContext** (`src/context/SQLiteContext.js`) — Optional offline-first storage with local CRUD and sync. Tables: locations, devices, device_assignments, device_returns, reports
+- **AuthContext** (`src/auth/AuthContext.tsx`) — thin provider: status, user,
+  derived role flags (`isAdmin`, `isOwner`, `isAdminOrOwner`), and bound
+  actions (`login`, `logout`, `register`, `verifyEmail`, password flows,
+  `updateUser`, `updateOnboarding`, biometric/PIN helpers). No HTTP inside
+  the context — endpoints are imported directly where needed.
+- `src/context/AuthContext.js` — compat shim that re-exports the new provider
+  plus a couple of legacy aliases (`userData`, `axiosInstance`,
+  `getAccessToken`, `requestPasswordReset`). New code should import from
+  `src/auth/AuthContext` and `src/api/endpoints/*` directly.
+- **SQLiteContext** (`src/context/SQLiteContext.js`) — optional offline-first
+  storage with local CRUD and sync. Tables: locations, devices,
+  device_assignments, device_returns, reports. (Not yet renamed to match the
+  new API — still uses the old entity names.)
 
 ### Navigation Flow
 ```
@@ -86,10 +109,9 @@ NFC is core functionality. Three service files handle all operations:
 
 NFC testing requires physical devices — simulators don't support NFC. The NFCSimulator is auto-enabled in Jest via `jest.setup.js`.
 
-### Custom Hooks (in `src/screens/home/hooks/`)
-- **`useDevices.js`** — Fetch devices with active assignments (parallel API calls), assign/return operations, pull-to-refresh
-- **`useLocations.js`** — Full CRUD for locations, pull-to-refresh
-- **`useNFCOperations.js`** — NFC operation handling for home screen flows
+### Custom Hooks (in `src/screens/HomeScreen/hooks/`)
+- **`useDevices.ts`** — Fetch active assignments, assign/return via the new API; maps AssignmentRead → legacy shape for existing consumers.
+- **`useLocations.ts`** — Fetch sites, dropdown options, selection state.
 
 ### Key Utilities (`src/utils/CommonUtils.js`)
 - `Colors` constants used throughout the app
