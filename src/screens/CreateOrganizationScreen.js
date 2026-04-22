@@ -16,9 +16,11 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/Form/FormField';
+import { organizations as organizationsApi } from '../api/endpoints';
+import { ApiError } from '../api/errors';
 
 const CreateOrganizationScreen = ({ navigation }) => {
-  const { createOrganization, isLoading, updateOnboardingStatus, logout } = useAuth();
+  const { updateOnboarding, refreshUser, isLoading } = useAuth();
   const { colors } = useTheme();
 
   // Form state
@@ -105,35 +107,18 @@ const CreateOrganizationScreen = ({ navigation }) => {
     setSubmitting(true);
     
     try {
-      const organizationData = {
+      // The new /organizations/ schema only accepts the basic org fields;
+      // address fields are now stored on sites, not the organization.
+      await organizationsApi.createOrganization({
         name: name.trim(),
-        trading_name: tradingName.trim() || '', // Optional field
-        email: email.trim() || '', // Optional field
-        phone: phone.trim() || '', // Optional field
-        website: website.trim() || '', // Optional field
-        registered_address_line1: addressLine1.trim(),
-        registered_address_line2: addressLine2.trim() || '', // Optional field
-        registered_city: city.trim(),
-        registered_county: county.trim() || '', // Optional field
-        registered_postcode: postcode.trim(),
-        // Trading address defaults to registered address for simplicity
-        trading_address_line1: addressLine1.trim(),
-        trading_address_line2: addressLine2.trim() || '',
-        trading_city: city.trim(),
-        trading_county: county.trim() || '',
-        trading_postcode: postcode.trim()
-      };
-      
-      console.log('Organization data:', organizationData);
-      
-      // Call the API to create the organization
-      const result = await createOrganization(organizationData);
-      console.log('Organization creation result:', result);
-      
-      // The createOrganization function in AuthContext should already call updateOnboardingStatus
-      // But let's ensure it's called
-      await updateOnboardingStatus(true);
-      console.log('Onboarding status updated');
+        trading_name: tradingName.trim() || '',
+        email: email.trim() || null,
+        phone: phone.trim() || '',
+        website: website.trim() || '',
+      });
+
+      await updateOnboarding({ has_completed_onboarding: true });
+      await refreshUser();
       
       // Success message and navigation
       Alert.alert(
@@ -154,48 +139,25 @@ const CreateOrganizationScreen = ({ navigation }) => {
       );
       
     } catch (error) {
-      console.error('Error creating organization:', error);
-      
-      // Format error message
       let errorMessage = 'Failed to create organization. Please try again.';
-      
-      // Check if error has a response
-      if (error.response) {
-        const responseData = error.response.data;
-        console.log('Error response data:', responseData);
-        
-        // Handle object errors (field validation errors)
-        if (typeof responseData === 'object' && responseData !== null) {
-          const errorMessages = [];
-          
-          // Loop through all error fields
-          Object.entries(responseData).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              errorMessages.push(`${key}: ${value.join(', ')}`);
-            } else if (typeof value === 'string') {
-              errorMessages.push(`${key}: ${value}`);
-            } else {
-              errorMessages.push(`${key}: ${JSON.stringify(value)}`);
-            }
+
+      if (error instanceof ApiError) {
+        const detail = error.detail;
+        if (detail && typeof detail === 'object') {
+          const errorMessages = Object.entries(detail).map(([key, value]) => {
+            if (Array.isArray(value)) return `${key}: ${value.join(', ')}`;
+            if (typeof value === 'string') return `${key}: ${value}`;
+            return `${key}: ${JSON.stringify(value)}`;
           });
-          
-          if (errorMessages.length > 0) {
-            errorMessage = errorMessages.join('\n');
-          }
-        } 
-        // Handle string error
-        else if (typeof responseData === 'string') {
-          errorMessage = responseData;
+          if (errorMessages.length > 0) errorMessage = errorMessages.join('\n');
+        } else if (error.message) {
+          errorMessage = error.message;
         }
-        // Handle detail field error
-        else if (responseData.detail) {
-          errorMessage = responseData.detail;
-        }
-      } else if (error.message) {
+      } else if (error?.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert("Error", errorMessage);
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setSubmitting(false);
     }

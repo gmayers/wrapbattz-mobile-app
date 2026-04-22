@@ -14,47 +14,17 @@ import {
   Keyboard,
   ActivityIndicator,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext'; // Adjust path as needed
 import { useTheme } from '../context/ThemeContext';
+import { feedback as feedbackApi } from '../api/endpoints';
+import { ApiError } from '../api/errors';
 
 const SuggestFeatureScreen = ({ navigation }) => {
-  const { mobileService, getApiKey, mobileApiInstance } = useAuth();
   const { colors } = useTheme();
   const [featureSuggestion, setFeatureSuggestion] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiKeyLoaded, setApiKeyLoaded] = useState(false);
-
-  // Check if API key is available on component mount
-  useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        const key = await getApiKey();
-        console.log("API Key in SuggestFeatureScreen:", key);
-        
-        if (key) {
-          setApiKeyLoaded(true);
-        } else {
-          Alert.alert(
-            'Configuration Error',
-            'API key not found. Please restart the app or contact support.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
-          );
-        }
-      } catch (error) {
-        console.error('Error checking API key:', error);
-        Alert.alert(
-          'Error',
-          'Failed to verify app configuration. Please try again later.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-      }
-    };
-
-    checkApiKey();
-  }, []);
 
   // Form validation
   const validateForm = () => {
@@ -83,41 +53,31 @@ const SuggestFeatureScreen = ({ navigation }) => {
     if (!validateForm()) return;
     
     setIsSubmitting(true);
-    
+
     try {
-      // Get the API key directly before submission
-      const apiKey = await getApiKey();
-      console.log("Using API key for submission:", apiKey);
-      
-      // Format data according to the API schema
-      const suggestionData = {
-        feature_description: featureSuggestion.trim(),
-        additional_feedback: feedbackText.trim() || null,
-        name: name.trim() || null,
-        email: email.trim() || null,
-      };
-      
-      console.log("Submitting data:", JSON.stringify(suggestionData));
-      
-      // Manual approach with direct API key usage
-      const response = await mobileApiInstance.post('/mobile/feature-suggestions/', suggestionData, {
-        headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json',
-        }
+      const description = [
+        featureSuggestion.trim(),
+        feedbackText.trim() && `\n\nAdditional feedback:\n${feedbackText.trim()}`,
+        name.trim() && `\n\nFrom: ${name.trim()}`,
+        email.trim() && `\nEmail: ${email.trim()}`,
+      ]
+        .filter(Boolean)
+        .join('');
+
+      await feedbackApi.submitFeatureSuggestion({
+        subject: featureSuggestion.trim().slice(0, 120) || 'Feature suggestion',
+        description,
+        screen: 'SuggestFeature',
+        platform: Platform.OS,
       });
-      
-      console.log("API Response:", response.status, response.data);
-      
-      // Show success message
+
       Alert.alert(
         'Thank You!',
         'Your feature suggestion has been submitted successfully. We appreciate your feedback!',
         [
-          { 
-            text: 'OK', 
+          {
+            text: 'OK',
             onPress: () => {
-              // Clear form and navigate back
               resetForm();
               navigation.goBack();
             }
@@ -125,14 +85,9 @@ const SuggestFeatureScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error submitting feature suggestion:', error);
-      console.error('Error details:', error.response?.data);
-      
-      let errorMessage = 'Failed to submit your suggestion. Please try again.';
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      }
-      
+      const errorMessage =
+        (error instanceof ApiError && error.message) ||
+        'Failed to submit your suggestion. Please try again.';
       Alert.alert('Error', errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -151,16 +106,6 @@ const SuggestFeatureScreen = ({ navigation }) => {
     Keyboard.dismiss(); // Dismiss keyboard before navigation
     navigation.goBack();
   };
-
-  // Show loading indicator while API key is being checked
-  if (!apiKeyLoaded) {
-    return (
-      <SafeAreaView style={[styles.container, styles.loadingContainer, { backgroundColor: colors.surface }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Initializing...</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>

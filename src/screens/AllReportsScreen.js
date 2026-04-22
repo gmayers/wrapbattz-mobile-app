@@ -19,6 +19,9 @@ import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { BaseTextInput } from '../components/TextInput';
+import { incidents as incidentsApi } from '../api/endpoints';
+import { toLegacyReport } from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 const { width } = Dimensions.get('window');
 
@@ -44,12 +47,7 @@ const TYPE_CHOICES = [
 ];
 
 const AllReportsScreen = ({ navigation, route }) => {
-  const {
-    deviceService,
-    logout,
-    userData,
-    isAdminOrOwner
-  } = useAuth();
+  const { userData, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState('my');
@@ -79,28 +77,19 @@ const AllReportsScreen = ({ navigation, route }) => {
   }, [isAdminOrOwner]);
 
   const handleApiError = (error, defaultMessage) => {
-    // Skip 401 errors - they're handled globally by the axios interceptor
-    if (error.response?.status === 401) {
-      return;
-    }
-
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      Alert.alert('Error', error.message || defaultMessage);
-    }
+    if (error instanceof ApiError && error.code === 'unauthorized') return;
+    const message =
+      (error instanceof ApiError && error.message) || error?.message || defaultMessage;
+    Alert.alert('Error', message);
   };
 
   // Fetch current user's reports
   const fetchMyReports = async () => {
     try {
       setLoadingMyReports(true);
-      const data = await deviceService.getMyReports();
-      const reports = Array.isArray(data) ? data : data.results || [];
-      reports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+      const page = await incidentsApi.listMyIncidents();
+      const reports = page.items.map(toLegacyReport);
+      reports.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setMyReports(reports);
     } catch (error) {
       handleApiError(error, 'Failed to fetch your reports');
@@ -113,9 +102,9 @@ const AllReportsScreen = ({ navigation, route }) => {
   const fetchAllReports = async () => {
     try {
       setLoadingAllReports(true);
-      const data = await deviceService.getReports();
-      const reports = Array.isArray(data) ? data : data.results || [];
-      reports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+      const page = await incidentsApi.listIncidents();
+      const reports = page.items.map(toLegacyReport);
+      reports.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setAllReports(reports);
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization reports.');
@@ -165,41 +154,24 @@ const AllReportsScreen = ({ navigation, route }) => {
     }
 
     try {
-      let updateData;
-
+      const updateData = { status: selectedStatus };
       if (isMyReportUpdate) {
-        // My Reports: full edit
-        updateData = {
-          status: selectedStatus,
-          type: selectedType,
-          resolved: resolvedChecked,
-          description: description,
-        };
-      } else {
-        // All Reports: status only
-        updateData = {
-          status: selectedStatus,
-        };
-        if (selectedStatus === 'RESOLVED') {
-          updateData.resolved = true;
-        }
+        if (description) updateData.description = description;
       }
 
-      await deviceService.updateReport(selectedReport.id, updateData);
+      await incidentsApi.updateIncident(Number(selectedReport.id), updateData);
 
       Alert.alert('Success', 'Report has been updated successfully');
       setUpdateReportModalVisible(false);
-      fetchMyReports(); // Refresh my reports list
+      fetchMyReports();
       if (isAdminOrOwner) {
-        fetchAllReports(); // Refresh all reports list
+        fetchAllReports();
       }
     } catch (error) {
-      // Extract detailed field-level errors from DRF responses
-      if (error.response?.status === 400 && error.response.data && typeof error.response.data === 'object') {
-        const fieldErrors = [];
-        Object.entries(error.response.data).forEach(([field, errors]) => {
+      if (error instanceof ApiError && error.code === 'validation' && error.detail && typeof error.detail === 'object') {
+        const fieldErrors = Object.entries(error.detail).map(([field, errors]) => {
           const messages = Array.isArray(errors) ? errors.join(', ') : errors;
-          fieldErrors.push(`${field}: ${messages}`);
+          return `${field}: ${messages}`;
         });
         if (fieldErrors.length > 0) {
           Alert.alert('Validation Error', fieldErrors.join('\n'));
