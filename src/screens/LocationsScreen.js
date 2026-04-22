@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   StatusBar,
@@ -16,8 +15,9 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   Switch,
-  Image,
+  Image
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -42,8 +42,8 @@ const toSitePayload = (formData) => {
     prefix_code: formData.prefix_code || '',
     address_line1: address1,
     city: formData.town_or_city || '',
-    postcode: formData.postcode || '',
-  };
+    postcode: formData.postcode || ''
+};
 };
 
 const { width } = Dimensions.get('window');
@@ -73,8 +73,8 @@ const LocationsScreen = ({ navigation }) => {
     county: '',
     postcode: '',
     is_active: true,
-    signature: null,
-  });
+    signature: null
+});
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingLocation, setTogglingLocation] = useState(null);
@@ -141,16 +141,16 @@ const LocationsScreen = ({ navigation }) => {
   const handleInputChange = useCallback((field, value) => {
     setFormData(prevData => ({
       ...prevData,
-      [field]: value,
-    }));
+      [field]: value
+}));
     
     // Clear error for this field when user types
     setFormErrors(prevErrors => {
       if (prevErrors[field]) {
         return {
           ...prevErrors,
-          [field]: null,
-        };
+          [field]: null
+};
       }
       return prevErrors;
     });
@@ -198,8 +198,8 @@ const LocationsScreen = ({ navigation }) => {
         address_2: '',
         town_or_city: '',
         county: '',
-        postcode: '',
-      });
+        postcode: ''
+});
 
       fetchLocations();
       Alert.alert('Success', 'Location created successfully');
@@ -225,8 +225,8 @@ const LocationsScreen = ({ navigation }) => {
 
     try {
       await sitesApi.updateSite(Number(locationId), {
-        status: nextActive ? 'active' : 'inactive',
-      });
+        status: nextActive ? 'active' : 'inactive'
+});
       setLocations((prev) =>
         prev.map((loc) => (loc.id === locationId ? { ...loc, is_active: nextActive } : loc))
       );
@@ -258,8 +258,8 @@ const LocationsScreen = ({ navigation }) => {
       county: location.county || '',
       postcode: location.postcode || '',
       is_active: location.is_active !== undefined ? location.is_active : true,
-      signature: null,
-    });
+      signature: null
+});
     setModalVisible(true);
   }, []);
 
@@ -287,8 +287,8 @@ const LocationsScreen = ({ navigation }) => {
         county: '',
         postcode: '',
         is_active: true,
-        signature: null,
-      });
+        signature: null
+});
 
       // Refresh locations list
       fetchLocations();
@@ -669,12 +669,12 @@ const LocationsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   contentContainer: {
     flex: 1,
-    position: 'relative',
-  },
+    position: 'relative'
+},
   // Updated header styling
   header: {
     paddingHorizontal: '5%',
@@ -682,59 +682,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    marginBottom: '3%',
-  },
+    marginBottom: '3%'
+},
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   welcomeContainer: {
-    flex: 1,
-  },
+    flex: 1
+},
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    lineHeight: 30,
-  },
+    lineHeight: 30
+},
   profileButton: {
-    marginLeft: 10,
-  },
+    marginLeft: 10
+},
   avatarCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   avatarText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollViewContent: {
     padding: '4%',
-    paddingBottom: 20,
-  },
+    paddingBottom: 20
+},
   section: {
-    width: '100%',
-  },
+    width: '100%'
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#333',
-  },
+    color: '#333'
+},
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   locationCard: {
     marginBottom: 15,
     backgroundColor: '#FFFFFF',
@@ -745,64 +745,64 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
+    borderColor: '#F0F0F0'
+},
   locationContent: {
-    padding: 20,
-  },
+    padding: 20
+},
   locationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   locationTitleContainer: {
     flex: 1,
-    marginRight: 12,
-  },
+    marginRight: 12
+},
   locationTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 6,
-  },
+    marginBottom: 6
+},
   locationTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-  },
+    marginTop: 4
+},
   locationType: {
     fontSize: 12,
     color: ORANGE_COLOR,
     fontWeight: '600',
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   locationIcon: {
     justifyContent: 'center',
     alignItems: 'center',
     width: 24,
-    height: 24,
-  },
+    height: 24
+},
   addressContainer: {
     marginBottom: 16,
-    gap: 8,
-  },
+    gap: 8
+},
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
+    gap: 12
+},
   addressText: {
     fontSize: 14,
     color: '#666',
     flex: 1,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   locationActions: {
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    paddingTop: 16,
-  },
+    paddingTop: 16
+},
   viewDevicesButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -812,35 +812,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FFE4B5',
-  },
+    borderColor: '#FFE4B5'
+},
   viewDevicesText: {
     marginLeft: 8,
     color: ORANGE_COLOR,
     fontSize: 14,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   loader: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   // Enhanced empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-  },
+    paddingVertical: 40
+},
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   // Modal styles
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
+    backgroundColor: 'rgba(0,0,0,0.5)'
+},
   modalContent: {
     backgroundColor: 'white',
     margin: 20,
@@ -850,75 +850,75 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
-  },
+    elevation: 5
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
+    borderBottomColor: '#EEEEEE'
+},
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   formContainer: {
     padding: 15,
-    maxHeight: 600,
-  },
+    maxHeight: 600
+},
   formGroup: {
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   formRow: {
     flexDirection: 'row',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   label: {
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 6,
-    color: '#333',
-  },
+    color: '#333'
+},
   input: {
     borderWidth: 1,
     borderColor: '#DDDDDD',
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
-  },
+    backgroundColor: '#FAFAFA'
+},
   inputError: {
-    borderColor: '#EF4444',
-  },
+    borderColor: '#EF4444'
+},
   errorText: {
     color: '#EF4444',
     fontSize: 12,
-    marginTop: 4,
-  },
+    marginTop: 4
+},
   modalFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     padding: 15,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-  },
+    borderTopColor: '#EEEEEE'
+},
   // Auth error container
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   errorMessage: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   // Location footer with toggle and edit
   locationFooter: {
     flexDirection: 'row',
@@ -928,18 +928,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    backgroundColor: '#FAFAFA',
-  },
+    backgroundColor: '#FAFAFA'
+},
   toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
+    gap: 8
+},
   toggleLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
-  },
+    color: '#666'
+},
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -949,26 +949,26 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: ORANGE_COLOR,
-    backgroundColor: '#FFF',
-  },
+    backgroundColor: '#FFF'
+},
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: ORANGE_COLOR,
-  },
+    color: ORANGE_COLOR
+},
   // Signature section in edit mode
   signatureSection: {
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
+    borderTopColor: '#E0E0E0'
+},
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   signatureBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -977,19 +977,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
+    borderColor: '#E5E7EB'
+},
   signatureText: {
     fontSize: 14,
     color: '#333',
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   createdAtText: {
     fontSize: 12,
     color: '#666',
     marginTop: 6,
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+}
 });
 
 export default LocationsScreen;

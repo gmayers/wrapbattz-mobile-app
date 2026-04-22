@@ -6,11 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Switch,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -51,9 +51,9 @@ const ProfileScreen = ({ navigation }) => {
               status: 'inactive',
               plan_type: null,
               max_devices: toolCount,
-              next_billing_date: null,
-            },
-          });
+              next_billing_date: null
+}
+});
         } catch (usageError) {
           setBillingData({
             total_devices: 0,
@@ -63,9 +63,9 @@ const ProfileScreen = ({ navigation }) => {
               status: 'inactive',
               plan_type: null,
               max_devices: 0,
-              next_billing_date: null,
-            },
-          });
+              next_billing_date: null
+}
+});
         }
       }
     } catch (err) {
@@ -100,8 +100,8 @@ const ProfileScreen = ({ navigation }) => {
       setLoading(true);
       await authApi.changePassword({
         current_password: currentPassword,
-        new_password: newPassword,
-      });
+        new_password: newPassword
+});
       Alert.alert('Success', 'Password changed successfully');
     } catch (err) {
       const detail = err instanceof ApiError ? err.detail : undefined;
@@ -140,13 +140,13 @@ const ProfileScreen = ({ navigation }) => {
       [
         {
           text: 'Cancel',
-          style: 'cancel',
-        },
+          style: 'cancel'
+},
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => logout(),
-        },
+          onPress: () => logout()
+},
       ]
     );
   }, [logout]);
@@ -158,8 +158,8 @@ const ProfileScreen = ({ navigation }) => {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-    });
+      day: 'numeric'
+});
   };
   
   // Calculate user's initials for avatar
@@ -418,36 +418,36 @@ const ProfileScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
+    flex: 1
+},
   header: {
     alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 1,
-  },
+    borderBottomWidth: 1
+},
   avatarContainer: {
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   avatarText: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: 'white',
-  },
+    color: 'white'
+},
   nameText: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 5,
-  },
+    marginBottom: 5
+},
   emailText: {
-    fontSize: 16,
-  },
+    fontSize: 16
+},
   section: {
     margin: 20,
     marginTop: 10,
@@ -456,101 +456,101 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
-  },
+    elevation: 2
+},
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   billingBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 4,
-  },
+    borderRadius: 4
+},
   billingBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   infoLabel: {
-    fontSize: 16,
-  },
+    fontSize: 16
+},
   infoValue: {
     fontSize: 16,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   actionButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
     marginTop: 5,
-    borderTopWidth: 1,
-  },
+    borderTopWidth: 1
+},
   actionButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   noBillingContainer: {
     alignItems: 'center',
-    paddingVertical: 10,
-  },
+    paddingVertical: 10
+},
   noBillingText: {
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   setupButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 6,
-  },
+    borderRadius: 6
+},
   setupButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   settingLabel: {
-    fontSize: 16,
-  },
+    fontSize: 16
+},
   appearanceOption: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   appearanceIcon: {
-    marginRight: 12,
-  },
+    marginRight: 12
+},
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   radioInner: {
     width: 12,
     height: 12,
-    borderRadius: 6,
-  },
+    borderRadius: 6
+},
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -558,46 +558,46 @@ const styles = StyleSheet.create({
     margin: 20,
     marginTop: 10,
     padding: 15,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   logoutButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: 8,
-  },
+    marginLeft: 8
+},
   // Loading and error states
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
-    fontSize: 16,
-  },
+    fontSize: 16
+},
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
+    padding: 20
+},
   errorText: {
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+}
 });
 
 export default ProfileScreen;

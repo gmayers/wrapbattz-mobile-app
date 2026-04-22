@@ -8,10 +8,9 @@ import {
   Alert,
   Image,
   Modal,
-  Platform,
-  SafeAreaView,
+  Platform
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +24,7 @@ import RNFS from 'react-native-fs';
 import {
   assignments as assignmentsApi,
   incidents as incidentsApi,
-  toolPhotos as toolPhotosApi,
+  toolPhotos as toolPhotosApi
 } from '../api/endpoints';
 import { toLegacyAssignment } from '../api/adapters';
 import { ApiError } from '../api/errors';
@@ -47,8 +46,8 @@ const CreateReportScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({
     device_id: '',
     type: '',
-    description: '',
-  });
+    description: ''
+});
   const [photoUri, setPhotoUri] = useState(null);
   const [additionalPhotos, setAdditionalPhotos] = useState([]);
   const [signatureUri, setSignatureUri] = useState(null);
@@ -77,8 +76,8 @@ const CreateReportScreen = ({ navigation, route }) => {
 
       const formattedDevices = activeDevices.map((item) => ({
         label: `${item.device.identifier}${item.device.device_type ? ` - ${item.device.device_type}` : ''}`,
-        value: item.device.id,
-      }));
+        value: item.device.id
+}));
 
       if (formattedDevices.length === 0) {
         formattedDevices.unshift({ label: 'No active devices', value: '' });
@@ -153,13 +152,13 @@ const CreateReportScreen = ({ navigation, route }) => {
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.5,
-        });
+          quality: 0.5
+});
 
         console.log('📷 [CreateReport] Camera result:', {
           canceled: result.canceled,
-          assetCount: result.assets?.length || 0,
-        });
+          assetCount: result.assets?.length || 0
+});
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const imageAsset = result.assets[0];
@@ -168,8 +167,8 @@ const CreateReportScreen = ({ navigation, route }) => {
             width: imageAsset.width,
             height: imageAsset.height,
             mimeType: imageAsset.mimeType,
-            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
-          });
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown'
+});
 
           const permURI = await copyFileToPermanentStorage(imageAsset.uri);
           console.log('📷 [CreateReport] Main photo stored at:', permURI);
@@ -188,13 +187,13 @@ const CreateReportScreen = ({ navigation, route }) => {
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.5,
-        });
+          quality: 0.5
+});
 
         console.log('🖼️ [CreateReport] Gallery result:', {
           canceled: result.canceled,
-          assetCount: result.assets?.length || 0,
-        });
+          assetCount: result.assets?.length || 0
+});
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const imageAsset = result.assets[0];
@@ -203,8 +202,8 @@ const CreateReportScreen = ({ navigation, route }) => {
             width: imageAsset.width,
             height: imageAsset.height,
             mimeType: imageAsset.mimeType,
-            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
-          });
+            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown'
+});
 
           const permURI = await copyFileToPermanentStorage(imageAsset.uri);
           console.log('🖼️ [CreateReport] Main photo stored at:', permURI);
@@ -230,8 +229,8 @@ const CreateReportScreen = ({ navigation, route }) => {
       if (await checkAndRequestPermissions()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.5,
-        });
+          quality: 0.5
+});
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
@@ -253,8 +252,8 @@ const CreateReportScreen = ({ navigation, route }) => {
       if (await checkAndRequestPermissions()) {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.5,
-        });
+          quality: 0.5
+});
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
@@ -397,8 +396,8 @@ const CreateReportScreen = ({ navigation, route }) => {
         tool_id: toolId,
         type: formData.type,
         severity: 'medium',
-        description: formData.description,
-      });
+        description: formData.description
+});
 
       // Photos attach to the tool on the new API (not to the incident).
       const uploadPromises = [];
@@ -408,8 +407,8 @@ const CreateReportScreen = ({ navigation, route }) => {
           toolPhotosApi.uploadToolPhoto(toolId, {
             uri: photoUri,
             name: `report_photo_${Date.now()}.jpg`,
-            type: 'image/jpeg',
-          })
+            type: 'image/jpeg'
+})
         );
       }
 
@@ -418,8 +417,8 @@ const CreateReportScreen = ({ navigation, route }) => {
           toolPhotosApi.uploadToolPhoto(toolId, {
             uri: photo.uri,
             name: `report_photo_${Date.now()}_${i}.jpg`,
-            type: 'image/jpeg',
-          })
+            type: 'image/jpeg'
+})
         );
       });
 
@@ -429,8 +428,8 @@ const CreateReportScreen = ({ navigation, route }) => {
             uri: signatureUri,
             name: `signature_${Date.now()}.png`,
             type: 'image/png',
-            isSignature: true,
-          })
+            isSignature: true
+})
         );
       }
 
@@ -693,54 +692,54 @@ const CreateReportScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   formContainer: {
     padding: 20,
     backgroundColor: '#FFFFFF',
-    flex: 1,
-  },
+    flex: 1
+},
   formHeader: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   formTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
-  },
+    marginBottom: 5
+},
   userInfo: {
     fontSize: 14,
-    color: '#666',
-  },
+    color: '#666'
+},
   formGroup: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   formLabel: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   formInput: {
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ccc',
     padding: 10,
-    borderRadius: 5,
-  },
+    borderRadius: 5
+},
   dropdownContainer: {
-    marginTop: 0,
-  },
+    marginTop: 0
+},
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
-  },
+    marginHorizontal: -4
+},
   typeGridItem: {
     width: '50%',
-    padding: 4,
-  },
+    padding: 4
+},
   typeButtonGrid: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -751,114 +750,114 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     backgroundColor: '#F5F5F5',
     height: 60,
-    minWidth: '100%',
-  },
+    minWidth: '100%'
+},
   typeButtonSelected: {
     borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD',
-  },
+    backgroundColor: '#E3F2FD'
+},
   typeButtonText: {
     fontSize: 10,
     color: '#333',
     fontWeight: '500',
     flex: 0.85,
-    lineHeight: 16,
-  },
+    lineHeight: 16
+},
   typeButtonTextSelected: {
-    color: '#007AFF',
-  },
+    color: '#007AFF'
+},
   infoButtonContainer: {
     flex: 0.15,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
-  },
+    height: '100%'
+},
   photoSection: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   previewImage: {
     width: '100%',
     height: 200,
     borderRadius: 10,
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   photosSection: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   photoItem: {
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+},
   photoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   photoHeaderText: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
-  },
+    color: '#333'
+},
   removeText: {
     color: '#EF4444',
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   photoContent: {
     padding: 10,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   photoImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   addPhotoButton: {
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   signatureSection: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   signaturePreview: {
     width: '100%',
     height: 200,
     marginTop: 10,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   buttonContainer: {
     marginVertical: 20,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   modalInnerContainer: {
     width: '90%',
     height: '70%',
@@ -869,50 +868,50 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
-  },
+    elevation: 5
+},
   signatureCanvasContainer: {
     flex: 1,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+},
   signatureCanvas: {
     flex: 1,
     width: '100%',
-    height: '100%',
-  },
+    height: '100%'
+},
   signatureButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   signatureButton: {
     flex: 1,
-    marginHorizontal: 5,
-  },
+    marginHorizontal: 5
+},
   closeButtonRow: {
-    width: '100%',
-  },
+    width: '100%'
+},
   closeButton: {
-    width: '100%',
-  },
+    width: '100%'
+},
   // Error and loading styles
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   errorMessage: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   errorBanner: {
     backgroundColor: '#EF4444',
     padding: 10,
@@ -920,23 +919,23 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   errorBannerText: {
     color: '#FFFFFF',
     fontSize: 14,
-    flex: 1,
-  },
+    flex: 1
+},
   loadingContainer: {
     padding: 15,
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     color: '#666',
-    fontSize: 14,
-  },
+    fontSize: 14
+}
 });
 
 export default CreateReportScreen;

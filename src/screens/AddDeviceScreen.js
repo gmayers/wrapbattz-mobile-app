@@ -6,12 +6,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   TouchableOpacity,
   Text,
   Switch,
-  Dimensions,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BaseTextInput } from '../components/TextInput';
 import Button from '../components/Button';
@@ -24,7 +24,7 @@ import {
   assignments as assignmentsApi,
   members as membersApi,
   sites as sitesApi,
-  tools as toolsApi,
+  tools as toolsApi
 } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
@@ -91,14 +91,14 @@ const [formData, setFormData] = useState({
     model: true,
     serial_number: false,
     maintenance_interval: false,
-    contact: true,
-  });
+    contact: true
+});
   // Tag already registered modal state
   const [tagAlreadyRegisteredModal, setTagAlreadyRegisteredModal] = useState({
     visible: false,
     tagId: '',
-    deviceIdentifier: '',
-  });
+    deviceIdentifier: ''
+});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
@@ -183,8 +183,8 @@ const fetchUsers = async () => {
         user: m.user_id,
         user_first_name: m.first_name,
         user_last_name: m.last_name,
-        role: m.role,
-      }));
+        role: m.role
+}));
       
       // Extract current user ID from auth context
       const currentUserId = userData?.userId;
@@ -280,8 +280,8 @@ const fetchUsers = async () => {
 const handleInputChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value,
-    }));
+      [name]: value
+}));
   };
 
   // Fixed dropdown handling for "Other" values
@@ -361,8 +361,8 @@ const validateForm = () => {
       serial_number: formData.serial_number || '',
       maintenance_interval: formData.maintenance_interval || null,
       // Format date as DD/MM/YYYY as expected by the backend
-      next_maintenance_date: formatDate(formData.next_maintenance_date),
-    };
+      next_maintenance_date: formatDate(formData.next_maintenance_date)
+};
 
     // Include NFC tag ID if scanned before submission
     if (preScannedNfcTagId) {
@@ -391,8 +391,8 @@ const validateForm = () => {
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
-        ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {}),
-      });
+        ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {})
+});
 
       const createdDeviceId = createdTool.id;
       const identifier = createdTool.name;
@@ -406,16 +406,16 @@ const validateForm = () => {
             tool_id: createdDeviceId,
             assignee_user_id: Number(formData.user),
             condition: '',
-            notes: '',
-          });
+            notes: ''
+});
         }
       } else {
         await assignmentsApi.createAssignment({
           tool_id: createdDeviceId,
           assignee_site_id: Number(formData.location),
           condition: '',
-          notes: '',
-        });
+          notes: ''
+});
       }
 
       // Save the response for debugging / NFC write
@@ -520,8 +520,8 @@ const formatDate = (date) => {
       make: true,
       model: true,
       serial_number: false,
-      contact: true,
-    });
+      contact: true
+});
   };
 
   const handleAddAnother = () => {
@@ -572,8 +572,8 @@ const handlePreScanNfc = async () => {
         setTagAlreadyRegisteredModal({
           visible: true,
           tagId: tagId,
-          deviceIdentifier: existingTool.name,
-        });
+          deviceIdentifier: existingTool.name
+});
         return;
       }
     } catch (checkError) {
@@ -614,8 +614,8 @@ const handlePreScanNfc = async () => {
               } finally {
                 setIsScanningNfc(false);
               }
-            },
-          },
+            }
+},
         ]
       );
     } else {
@@ -636,8 +636,8 @@ const handleNFCWrite = async () => {
 
     // Device ID is always included as primary key
     const nfcData = {
-      id: deviceIdentifier,
-    };
+      id: deviceIdentifier
+};
 
     // Add optional fields based on user selection
     if (nfcWriteOptions.description && formData.description) {
@@ -1140,88 +1140,88 @@ return (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   keyboardAvoid: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollView: {
     flexGrow: 1,
     padding: 20,
     paddingBottom: 100, // Extra padding at bottom to ensure all content is accessible when keyboard is open
   },
   form: {
-    flex: 1,
-  },
+    flex: 1
+},
   formField: {
     marginBottom: 16,
-    ...(Platform.OS === 'ios' ? { zIndex: 10 } : {}),
-  },
+    ...(Platform.OS === 'ios' ? { zIndex: 10 } : {})
+},
   label: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
-  },
+    color: '#333'
+},
   dropdownContainer: {
     marginBottom: 5,
-    ...(Platform.OS === 'ios' ? { zIndex: 1000 } : {}),
-  },
+    ...(Platform.OS === 'ios' ? { zIndex: 1000 } : {})
+},
   iosDropdownContainer: {
     zIndex: 1000,
-    position: 'relative',
-  },
+    position: 'relative'
+},
   dateButton: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#F8F8F8',
-  },
+    backgroundColor: '#F8F8F8'
+},
   dateButtonText: {
     fontSize: 16,
-    color: '#333',
-  },
+    color: '#333'
+},
   submitButton: {
     marginTop: 20,
-    backgroundColor: ORANGE_COLOR,
-  },
+    backgroundColor: ORANGE_COLOR
+},
   modal: {
     justifyContent: 'flex-end',
     margin: 0,
-    padding: 20,
-  },
+    padding: 20
+},
   modalText: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   dataPreview: {
     backgroundColor: '#fafafa',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: '#ccc',
-  },
+    borderLeftColor: '#ccc'
+},
   dataPreviewTitle: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#333',
-  },
+    color: '#333'
+},
   dataPreviewItem: {
     fontSize: 13,
     color: ORANGE_COLOR,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   dataPreviewHint: {
     fontSize: 13,
     color: '#666',
     fontStyle: 'italic',
-    lineHeight: 18,
-  },
+    lineHeight: 18
+},
   successBadge: {
     backgroundColor: '#fff3e0',
     borderRadius: 10,
@@ -1229,18 +1229,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   successBadgeText: {
     color: ORANGE_COLOR,
     fontWeight: '600',
-    fontSize: 14,
-  },
+    fontSize: 14
+},
   nfcButton: {
     marginTop: 15,
     backgroundColor: ORANGE_COLOR,
-    width: '100%',
-  },
+    width: '100%'
+},
   cancelButton: {
     marginTop: 10,
     backgroundColor: '#f44336', // Red color
@@ -1249,28 +1249,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginVertical: 20,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+},
   successText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2e7d32',
-  },
+    color: '#2e7d32'
+},
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 20,
-  },
+    marginTop: 20
+},
   modalButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 15,
-    paddingBottom: Platform.OS === 'android' ? 20 : 0,
-  },
+    paddingBottom: Platform.OS === 'android' ? 20 : 0
+},
   actionButton: {
     flex: 1,
-    margin: 10,
-  },
+    margin: 10
+},
   addButton: {
     backgroundColor: '#666', // Gray for secondary action
   },
@@ -1279,37 +1279,37 @@ const styles = StyleSheet.create({
   },
   requiredField: {
     borderColor: 'red',
-    borderWidth: 1,
-  },
+    borderWidth: 1
+},
   requiredInput: {
     borderColor: 'red',
-    borderWidth: 1,
-  },
+    borderWidth: 1
+},
   nfcWritingContainer: {
     marginTop: 20,
     padding: 10,
     backgroundColor: '#f5f5f5',
-    borderRadius: 5,
-  },
+    borderRadius: 5
+},
   // New styles for toggle switch
   toggleContainer: {
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   toggleLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
-  },
+    color: '#333'
+},
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   toggle: {
-    marginHorizontal: 10,
-  },
+    marginHorizontal: 10
+},
   toggleTextActive: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -1317,8 +1317,8 @@ const styles = StyleSheet.create({
   },
   toggleTextInactive: {
     fontSize: 16,
-    color: '#777',
-  },
+    color: '#777'
+},
   bottomSpacer: {
     height: 100, // Extra space at the bottom
   },
@@ -1329,8 +1329,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
+    borderColor: '#e0e0e0'
+},
   nfcTagScanned: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1338,60 +1338,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#d4edda',
     padding: 12,
     borderRadius: 8,
-    marginTop: 8,
-  },
+    marginTop: 8
+},
   nfcTagInfo: {
-    flex: 1,
-  },
+    flex: 1
+},
   nfcTagLabel: {
     fontSize: 12,
     color: '#155724',
-    marginBottom: 2,
-  },
+    marginBottom: 2
+},
   nfcTagId: {
     fontSize: 14,
     fontWeight: '600',
     color: '#155724',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+},
   nfcClearButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#c3e6cb',
-    borderRadius: 5,
-  },
+    borderRadius: 5
+},
   nfcClearButtonText: {
     fontSize: 14,
-    color: '#155724',
-  },
+    color: '#155724'
+},
   nfcScanButton: {
     backgroundColor: ORANGE_COLOR,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
-  },
+    marginTop: 8
+},
   nfcScanButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
+    backgroundColor: '#ccc'
+},
   nfcScanButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   nfcHint: {
     fontSize: 12,
     color: '#666',
     marginTop: 8,
     textAlign: 'center',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   nfcInstructions: {
     fontSize: 13,
     color: '#666',
     marginBottom: 8,
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   // Write options styles
   writeOptionsContainer: {
     backgroundColor: '#fff',
@@ -1399,59 +1399,59 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   writeOptionsHint: {
     fontSize: 13,
     color: '#666',
     marginBottom: 10,
-    lineHeight: 18,
-  },
+    lineHeight: 18
+},
   writeOptionsTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: ORANGE_COLOR,
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   writeOptionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
+    borderBottomColor: '#eee'
+},
   writeOptionLabel: {
     fontSize: 14,
-    color: '#333',
-  },
+    color: '#333'
+},
   writeOptionLabelFixed: {
     fontSize: 14,
     color: '#666',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   writeOptionValue: {
     fontSize: 12,
     color: ORANGE_COLOR,
     fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+},
   // Custom modal styles
   customModalHeader: {
     borderBottomColor: ORANGE_COLOR,
     borderBottomWidth: 2,
-    paddingBottom: 12,
-  },
+    paddingBottom: 12
+},
   customModalContent: {
     maxHeight: '85%',
-    paddingBottom: Platform.OS === 'android' ? 10 : 0,
-  },
+    paddingBottom: Platform.OS === 'android' ? 10 : 0
+},
   successHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   successIcon: {
     fontSize: 24,
     color: '#4CAF50',
@@ -1463,40 +1463,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 36,
     borderRadius: 18,
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+},
   deviceIdBox: {
     backgroundColor: '#fff3e0',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: ORANGE_COLOR,
-  },
+    borderLeftColor: ORANGE_COLOR
+},
   deviceIdLabel: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   deviceIdValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: ORANGE_COLOR,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+},
   // Error modal styles (Tag Already Registered)
   errorModalHeader: {
     borderBottomColor: '#d32f2f',
     borderBottomWidth: 2,
-    paddingBottom: 12,
-  },
+    paddingBottom: 12
+},
   errorModalContent: {
-    maxHeight: '70%',
-  },
+    maxHeight: '70%'
+},
   errorIconContainer: {
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   errorIcon: {
     fontSize: 28,
     color: '#fff',
@@ -1507,46 +1507,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 50,
     borderRadius: 25,
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+},
   errorMessage: {
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
     marginBottom: 15,
-    lineHeight: 22,
-  },
+    lineHeight: 22
+},
   errorDeviceBox: {
     backgroundColor: '#ffebee',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: '#d32f2f',
-  },
+    borderLeftColor: '#d32f2f'
+},
   errorDeviceLabel: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   errorDeviceId: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#d32f2f',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
+},
   errorHint: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   errorButton: {
     flex: 1,
     backgroundColor: '#d32f2f',
-    marginHorizontal: 0,
-  },
+    marginHorizontal: 0
+}
 });
 
 export default AddDevicePage;

@@ -6,12 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -35,24 +35,24 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
   const [formData, setFormData] = useState<PasswordChangeForm>({
     current_password: '',
     new_password: '',
-    confirm_password: '',
-  });
+    confirm_password: ''
+});
   
   const [loading, setLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     navigation.setOptions({
-      title: 'Change Password',
-    });
+      title: 'Change Password'
+});
   }, [navigation]);
 
   const validateForm = (): boolean => {
     const validationRules = {
       current_password: FormValidation.commonRules.required(),
       new_password: FormValidation.commonRules.password(12),
-      confirm_password: FormValidation.commonRules.confirmPassword(formData.new_password),
-    };
+      confirm_password: FormValidation.commonRules.confirmPassword(formData.new_password)
+};
 
     const result: ValidationResult = FormValidation.validateForm(formData, validationRules);
     setErrors(result.errors);
@@ -62,15 +62,15 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
   const handleChange = (field: keyof PasswordChangeForm, value: string): void => {
     setFormData(prev => ({
       ...prev,
-      [field]: value,
-    }));
+      [field]: value
+}));
 
     // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
-        [field]: '',
-      }));
+        [field]: ''
+}));
     }
   };
 
@@ -84,8 +84,8 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
     try {
       await authApi.changePassword({
         current_password: formData.current_password,
-        new_password: formData.new_password,
-      });
+        new_password: formData.new_password
+});
 
       Alert.alert(
         'Success',
@@ -195,60 +195,60 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   keyboardAvoidView: {
-    flex: 1,
-  },
+    flex: 1
+},
   formContainer: {
-    padding: 20,
-  },
+    padding: 20
+},
   infoContainer: {
     flexDirection: 'row',
     backgroundColor: '#F9F9F9',
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    alignItems: 'flex-start',
-  },
+    alignItems: 'flex-start'
+},
   infoText: {
     fontSize: 14,
     color: '#666',
     marginLeft: 10,
     flex: 1,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
-  },
+    marginTop: 30
+},
   cancelButton: {
     flex: 1,
     backgroundColor: '#F2F2F2',
     padding: 15,
     borderRadius: 8,
     marginRight: 10,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
-  },
+    color: '#666'
+},
   saveButton: {
     flex: 1,
     backgroundColor: ORANGE_COLOR,
     padding: 15,
     borderRadius: 8,
     marginLeft: 10,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
+    color: '#FFFFFF'
+}
 });
 
 export default ChangePasswordScreen;

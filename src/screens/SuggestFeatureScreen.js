@@ -9,11 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  SafeAreaView,
   StatusBar,
   Keyboard,
-  ActivityIndicator,
+  ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { feedback as feedbackApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
@@ -68,8 +68,8 @@ const SuggestFeatureScreen = ({ navigation }) => {
         subject: featureSuggestion.trim().slice(0, 120) || 'Feature suggestion',
         description,
         screen: 'SuggestFeature',
-        platform: Platform.OS,
-      });
+        platform: Platform.OS
+});
 
       Alert.alert(
         'Thank You!',
@@ -222,20 +222,20 @@ const SuggestFeatureScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   loadingContainer: {
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   keyboardAvoidView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 100, // Extra padding at the bottom to ensure buttons stay visible
@@ -250,37 +250,37 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
-    },
+      height: 2
+},
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-  },
+    elevation: 3
+},
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 8,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   headerSubtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   formContainer: {
-    padding: 20,
-  },
+    padding: 20
+},
   inputGroup: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   textInput: {
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
@@ -305,20 +305,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-  },
+    borderTopColor: '#EEEEEE'
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   sectionSubtitle: {
     fontSize: 14,
     color: '#777',
     marginBottom: 15,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -336,13 +336,13 @@ const styles = StyleSheet.create({
     height: 50, // Fixed height for consistent appearance
   },
   submitButtonDisabled: {
-    backgroundColor: '#FFAA66',
-  },
+    backgroundColor: '#FFAA66'
+},
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   cancelButton: {
     borderRadius: 8,
     paddingVertical: 12,
@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#666666',
-    fontSize: 16,
-  },
+    fontSize: 16
+}
 });
 
 export default SuggestFeatureScreen;

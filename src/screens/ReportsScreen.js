@@ -4,15 +4,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   StatusBar,
   Alert,
   Platform,
   ActivityIndicator,
-  Dimensions,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -311,12 +311,12 @@ const ReportsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   contentContainer: {
     flex: 1,
-    position: 'relative',
-  },
+    position: 'relative'
+},
   // Updated header styling
   header: {
     paddingHorizontal: '5%',
@@ -324,66 +324,66 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    marginBottom: '3%',
-  },
+    marginBottom: '3%'
+},
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   welcomeContainer: {
-    flex: 1,
-  },
+    flex: 1
+},
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    lineHeight: 30,
-  },
+    lineHeight: 30
+},
   profileButton: {
-    marginLeft: 10,
-  },
+    marginLeft: 10
+},
   avatarCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   avatarText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+},
   createReportButton: {
     paddingHorizontal: 12,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollViewContent: {
     flexGrow: 1,
     padding: '4%',
-    paddingBottom: 20,
-  },
+    paddingBottom: 20
+},
   section: {
-    width: '100%',
-  },
+    width: '100%'
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#333',
-  },
+    color: '#333'
+},
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   reportCard: {
     marginBottom: 10,
     backgroundColor: '#FFFFFF',
@@ -392,50 +392,50 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3,
-  },
+    elevation: 3
+},
   reportContent: {
     gap: 4,
-    padding: 15,
-  },
+    padding: 15
+},
   reportText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
+    gap: 8
+},
   statusRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   // New style for "View Details" indicator
   viewDetailsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    alignSelf: 'flex-end',
-  },
+    alignSelf: 'flex-end'
+},
   viewDetailsText: {
     fontSize: 12,
     color: ORANGE_COLOR,
     fontWeight: '500',
-    marginRight: 2,
-  },
+    marginRight: 2
+},
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,59 +450,59 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
-    },
+      height: 2
+},
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
     height: 48,
-    width: '100%',
-  },
+    width: '100%'
+},
   viewAllText: {
     fontSize: 16,
     fontWeight: '600',
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   loader: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   // Enhanced empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-  },
+    paddingVertical: 40
+},
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   // Error state styling
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   errorView: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 30,
-  },
+    paddingVertical: 30
+},
   errorMessage: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   errorText: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
-    marginTop: 10,
-  },
+    marginTop: 10
+}
 });
 
 export default ReportsScreen;

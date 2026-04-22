@@ -9,10 +9,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Image,
-  TextInput as RNTextInput,
+  TextInput as RNTextInput
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../../components/Button';
 import FormField from '../../../components/Form/FormField';
 import PasswordField from '../../../components/Form/PasswordField';
@@ -48,8 +48,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     first_name: '',
     last_name: '',
     organization_invite_code: '',
-    phone_number: '',
-  });
+    phone_number: ''
+});
 
   // State for plan selection when not coming from pricing page
   const [selectedPlanType, setSelectedPlanType] = useState<string>(
@@ -101,13 +101,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
         email: formData.email,
         password: formData.password,
         first_name: formData.first_name,
-        last_name: formData.last_name,
-      });
+        last_name: formData.last_name
+});
 
       navigation.navigate('VerifyEmail', {
         emailVerificationId: response.email_verification_id,
-        email: formData.email,
-      });
+        email: formData.email
+});
     } catch (error: any) {
       const detail = error?.detail;
       if (detail && typeof detail === 'object') {
@@ -221,8 +221,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
                     alignItems: 'center',
                     borderWidth: 1.5,
                     borderColor: selectedPlanType === 'starter' ? colors.primary : colors.border,
-                    position: 'relative',
-                  }}
+                    position: 'relative'
+}}
                   onPress={() => setSelectedPlanType('starter')}
                 >
                   <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderInput, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
@@ -244,8 +244,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
                     alignItems: 'center',
                     borderWidth: 1.5,
                     borderColor: selectedPlanType === 'professional' ? colors.primary : colors.border,
-                    position: 'relative',
-                  }}
+                    position: 'relative'
+}}
                   onPress={() => setSelectedPlanType('professional')}
                 >
                   {selectedPlanType === 'professional' && (

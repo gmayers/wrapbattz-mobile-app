@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -13,8 +12,9 @@ import {
   TouchableWithoutFeedback,
   Platform,
   Image,
-  Dimensions,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +23,7 @@ import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
 import {
   incidents as incidentsApi,
-  toolPhotos as toolPhotosApi,
+  toolPhotos as toolPhotosApi
 } from '../api/endpoints';
 import { ApiError } from '../api/errors';
 
@@ -105,8 +105,8 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         image: p.url,
         is_signature: p.is_signature,
         description: p.description,
-        created_at: p.created_at,
-      }));
+        created_at: p.created_at
+}));
       setReportImages(mapped.filter((p) => !p.is_signature));
       setReportSignatures(mapped.filter((p) => p.is_signature));
     } catch (error) {
@@ -141,19 +141,19 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         description: incident.description,
         device: {
           id: incident.tool_id,
-          identifier: incident.tool_name,
-        },
+          identifier: incident.tool_name
+},
         device_id: incident.tool_id,
         location: incident.site_id
           ? { id: incident.site_id, name: incident.site_name ?? '' }
           : null,
         created_by: {
           id: incident.reported_by_id ?? null,
-          email: incident.reported_by_email ?? '',
-        },
+          email: incident.reported_by_email ?? ''
+},
         created_at: incident.created_at,
-        resolved: incident.status === 'RESOLVED' || incident.status === 'resolved',
-      };
+        resolved: incident.status === 'RESOLVED' || incident.status === 'resolved'
+};
 
       setReport(legacyReport);
       setSelectedStatus(legacyReport.status);
@@ -424,8 +424,8 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                 console.log(`🖼️ [ReportDetails] Rendering image ${index + 1}:`, {
                   id: image.id,
                   uri: image.image,
-                  hasToken: !!authToken,
-                });
+                  hasToken: !!authToken
+});
                 return (
                   <TouchableOpacity
                     key={image.id || index}
@@ -435,15 +435,15 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     <Image
                       source={{
                         uri: image.image,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-                      }}
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+}}
                       style={styles.reportImage}
                       resizeMode="contain"
                       onLoad={() => console.log(`✅ [ReportDetails] Image ${index + 1} loaded successfully:`, image.image)}
                       onError={(e) => console.error(`❌ [ReportDetails] Image ${index + 1} load error:`, {
                         uri: image.image,
-                        error: e.nativeEvent.error,
-                      })}
+                        error: e.nativeEvent.error
+})}
                     />
                   </TouchableOpacity>
                 );
@@ -461,8 +461,8 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                 console.log(`✍️ [ReportDetails] Rendering signature ${index + 1}:`, {
                   id: signature.id,
                   uri: signature.image,
-                  hasToken: !!authToken,
-                });
+                  hasToken: !!authToken
+});
                 return (
                   <TouchableOpacity
                     key={signature.id || index}
@@ -472,15 +472,15 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     <Image
                       source={{
                         uri: signature.image,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-                      }}
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+}}
                       style={styles.signatureImage}
                       resizeMode="contain"
                       onLoad={() => console.log(`✅ [ReportDetails] Signature ${index + 1} loaded successfully:`, signature.image)}
                       onError={(e) => console.error(`❌ [ReportDetails] Signature ${index + 1} load error:`, {
                         uri: signature.image,
-                        error: e.nativeEvent.error,
-                      })}
+                        error: e.nativeEvent.error
+})}
                     />
                   </TouchableOpacity>
                 );
@@ -563,8 +563,8 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                             sourceScreen: 'ReportDetails'
                           }
                         }
-                      ],
-                    });
+                      ]
+});
                   } else {
                     // If coming from a different device or no device in stack, navigate normally
                     navigation.navigate('DeviceDetails', { 
@@ -698,15 +698,15 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     <Image
                       source={{
                         uri: selectedImage,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-                      }}
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+}}
                       style={styles.fullScreenImage}
                       resizeMode="contain"
                       onLoad={() => console.log('✅ [ReportDetails] Modal image loaded successfully:', selectedImage)}
                       onError={(e) => console.error('❌ [ReportDetails] Modal image load error:', {
                         uri: selectedImage,
-                        error: e.nativeEvent.error,
-                      })}
+                        error: e.nativeEvent.error
+})}
                     />
                   </>
                 )}
@@ -722,8 +722,8 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -731,51 +731,51 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+    borderBottomColor: '#E0E0E0'
+},
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   backButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   backText: {
     fontSize: 17,
     color: ORANGE_COLOR,
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
     padding: 15,
-    paddingBottom: 30,
-  },
+    paddingBottom: 30
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
+    padding: 20
+},
   errorText: {
     marginTop: 10,
     fontSize: 16,
     color: '#EF4444',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   detailsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
@@ -785,115 +785,115 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3,
-  },
+    elevation: 3
+},
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    flex: 1,
-  },
+    flex: 1
+},
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-  },
+    borderRadius: 12
+},
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   detailsSection: {
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   detailRow: {
     flexDirection: 'row',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   detailLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    width: 120,
-  },
+    width: 120
+},
   detailValue: {
     fontSize: 14,
     color: '#333',
-    flex: 1,
-  },
+    flex: 1
+},
   descriptionSection: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   descriptionLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    marginBottom: 5,
-  },
+    marginBottom: 5
+},
   descriptionText: {
     fontSize: 14,
     color: '#333',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   actionButtons: {
-    gap: 10,
-  },
+    gap: 10
+},
   updateButton: {
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   deleteButton: {
-    borderColor: '#EF4444',
-  },
+    borderColor: '#EF4444'
+},
   deleteButtonText: {
-    color: '#EF4444',
-  },
+    color: '#EF4444'
+},
   viewDeviceButton: {
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalContainer: {
     width: '90%',
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 20,
-    paddingVertical: 25,
-  },
+    paddingVertical: 25
+},
   modalContent: {},
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: ORANGE_COLOR,
     marginBottom: 20,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   modalLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: '#555',
-    marginBottom: 5,
-  },
+    marginBottom: 5
+},
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   checkbox: {
     width: 20,
     height: 20,
@@ -902,22 +902,22 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     marginRight: 10,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   checkboxChecked: {
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   checkboxLabel: {
     fontSize: 16,
-    color: '#555',
-  },
+    color: '#555'
+},
   modalUpdateButton: {
     borderColor: ORANGE_COLOR,
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   modalCancelButton: {
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   modalTextInput: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -925,14 +925,14 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 15,
     minHeight: 80,
-    textAlignVertical: 'top',
-  },
+    textAlignVertical: 'top'
+},
   // Image and signature styles
   imagesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   imageContainer: {
     width: (width - 60) / 2,
     height: 120,
@@ -940,15 +940,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   reportImage: {
     width: '100%',
-    height: '100%',
-  },
+    height: '100%'
+},
   signaturesContainer: {
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   signatureContainer: {
     width: '100%',
     height: 150,
@@ -957,44 +957,44 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
+    borderColor: '#E0E0E0'
+},
   signatureImage: {
     width: '100%',
-    height: '100%',
-  },
+    height: '100%'
+},
   // Image modal styles
   imageModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   imageModalContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'transparent',
-  },
+    backgroundColor: 'transparent'
+},
   imageModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-  },
+    paddingBottom: 20
+},
   imageModalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+    color: '#FFFFFF'
+},
   imageModalCloseButton: {
-    padding: 10,
-  },
+    padding: 10
+},
   fullScreenImage: {
     flex: 1,
-    width: '100%',
-  },
+    width: '100%'
+}
 });
 
 export default ReportDetailsScreen;

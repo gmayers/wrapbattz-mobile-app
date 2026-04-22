@@ -9,9 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
-  SafeAreaView
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -114,8 +114,8 @@ const CreateOrganizationScreen = ({ navigation }) => {
         trading_name: tradingName.trim() || '',
         email: email.trim() || null,
         phone: phone.trim() || '',
-        website: website.trim() || '',
-      });
+        website: website.trim() || ''
+});
 
       await updateOnboarding({ has_completed_onboarding: true });
       await refreshUser();
@@ -351,43 +351,43 @@ const CreateOrganizationScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+    backgroundColor: '#f8f9fa'
+},
   container: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 30,
-  },
+    paddingBottom: 30
+},
   header: {
     padding: 20,
-    paddingTop: 10,
-  },
+    paddingTop: 10
+},
   stepIndicator: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF5500',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   subtitle: {
     fontSize: 15,
     color: '#666',
     marginBottom: 20,
-    lineHeight: 22,
-  },
+    lineHeight: 22
+},
   sectionDescription: {
     fontSize: 14,
     color: '#888',
     marginBottom: 16,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -398,14 +398,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-  },
+    elevation: 3
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   submitButton: {
     backgroundColor: '#FF5500', // Orange brand color
     borderRadius: 8,
@@ -420,46 +420,46 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 4,
-  },
+    elevation: 4
+},
   disabledButton: {
-    opacity: 0.7,
-  },
+    opacity: 0.7
+},
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   noteText: {
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   logoutLink: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
-    paddingVertical: 10,
-  },
+    paddingVertical: 10
+},
   logoutLinkText: {
     fontSize: 14,
     color: '#666',
     marginLeft: 6,
-    textDecorationLine: 'underline',
-  },
+    textDecorationLine: 'underline'
+},
   debugInfo: {
     margin: 20,
     padding: 10,
     backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-  },
+    borderRadius: 5
+},
   debugText: {
     fontSize: 12,
-    color: '#666',
-  },
+    color: '#666'
+}
 });
 
 export default CreateOrganizationScreen;

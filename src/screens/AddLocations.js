@@ -4,15 +4,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TextInput,
   StatusBar,
   Alert,
   Platform,
   KeyboardAvoidingView,
-  TouchableOpacity,
+  TouchableOpacity
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -32,8 +32,8 @@ const CreateLocationScreen = ({ navigation, route }) => {
     address_2: '',
     town_or_city: '',
     county: '',
-    postcode: '',
-  });
+    postcode: ''
+});
   
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,23 +43,23 @@ const CreateLocationScreen = ({ navigation, route }) => {
   useEffect(() => {
     navigation.setOptions({
       title: 'Create Location',
-      headerBackTitle: 'Back',
-    });
+      headerBackTitle: 'Back'
+});
   }, [navigation]);
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prevData => ({
       ...prevData,
-      [field]: value,
-    }));
+      [field]: value
+}));
     
     // Clear error for this field when user types
     setFormErrors(prevErrors => {
       if (prevErrors[field]) {
         return {
           ...prevErrors,
-          [field]: null,
-        };
+          [field]: null
+};
       }
       return prevErrors;
     });
@@ -108,8 +108,8 @@ const CreateLocationScreen = ({ navigation, route }) => {
         nickname: formData.building_name || '',
         address_line1: address1,
         city: formData.town_or_city || '',
-        postcode: formData.postcode || '',
-      });
+        postcode: formData.postcode || ''
+});
 
       Alert.alert(
         'Success',
@@ -310,60 +310,60 @@ const CreateLocationScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   keyboardAvoidingView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 40,
-  },
+    paddingBottom: 40
+},
   header: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
-  },
+    marginBottom: 5
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   formGroup: {
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   formRow: {
     flexDirection: 'row',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   label: {
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 6,
-    color: '#333',
-  },
+    color: '#333'
+},
   input: {
     borderWidth: 1,
     borderColor: '#DDDDDD',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
-  },
+    backgroundColor: '#FAFAFA'
+},
   inputError: {
-    borderColor: '#EF4444',
-  },
+    borderColor: '#EF4444'
+},
   errorText: {
     color: '#EF4444',
     fontSize: 12,
-    marginTop: 4,
-  },
+    marginTop: 4
+},
   errorBanner: {
     backgroundColor: '#EF4444',
     padding: 10,
@@ -371,41 +371,41 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   errorBannerText: {
     color: '#FFFFFF',
     fontSize: 14,
-    flex: 1,
-  },
+    flex: 1
+},
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 30,
-  },
+    marginTop: 30
+},
   organizationText: {
     fontSize: 14,
     color: '#666',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   warningText: {
     fontSize: 14,
     color: '#F59E0B',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   errorMessage: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+}
 });
 
 export default CreateLocationScreen;

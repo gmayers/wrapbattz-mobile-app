@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
+  ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 
@@ -32,8 +32,8 @@ const PricingScreen = ({ navigation }) => {
       selectedPlan: {
         type: planType,
         billing: isAnnual ? 'annual' : 'monthly',
-        price: planType === 'starter' ? 'FREE' : professionalPrice,
-      }
+        price: planType === 'starter' ? 'FREE' : professionalPrice
+}
     });
   };
   
@@ -147,19 +147,19 @@ const VolumeItem = ({ range, price }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
-  },
+    backgroundColor: '#121212'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
-    flexGrow: 1,
-  },
+    flexGrow: 1
+},
   appScreen: {
     flex: 1,
     backgroundColor: '#1E1E1E',
-    paddingBottom: 16,
-  },
+    paddingBottom: 16
+},
   bgGradient: {
     position: 'absolute',
     top: -140,
@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
     borderRadius: 140,
     backgroundColor: 'rgba(255, 119, 0, 0.1)',
     opacity: 0.7,
-    zIndex: 0,
-  },
+    zIndex: 0
+},
   bgGradient2: {
     position: 'absolute',
     bottom: -120,
@@ -180,51 +180,51 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     backgroundColor: 'rgba(255, 119, 0, 0.06)',
     opacity: 0.7,
-    zIndex: 0,
-  },
+    zIndex: 0
+},
   titleSection: {
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 24,
     paddingHorizontal: 20,
-    zIndex: 1,
-  },
+    zIndex: 1
+},
   pageTitle: {
     color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   pageSubtitle: {
     color: '#AAA',
     fontSize: 15,
     lineHeight: 20,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    zIndex: 1,
-  },
+    zIndex: 1
+},
   toggleOption: {
     fontSize: 15,
     color: '#AAA',
     paddingHorizontal: 12,
-    fontWeight: '400',
-  },
+    fontWeight: '400'
+},
   toggleOptionActive: {
     color: '#FFFFFF',
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   toggleSwitch: {
     width: 50,
     height: 26,
     borderRadius: 13,
     backgroundColor: '#FFC72C',
-    position: 'relative',
-  },
+    position: 'relative'
+},
   toggleSwitchThumb: {
     position: 'absolute',
     width: 20,
@@ -234,19 +234,19 @@ const styles = StyleSheet.create({
     top: 3,
     right: 3,
     // Add transition animation
-    transform: [{ translateX: 0 }],
-  },
+    transform: [{ translateX: 0 }]
+},
   toggleSwitchThumbLeft: {
     right: 'auto',
-    left: 3,
-  },
+    left: 3
+},
   pricingCards: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 12,
     zIndex: 1,
-    marginBottom: 24,
-  },
+    marginBottom: 24
+},
   pricingCard: {
     flex: 1,
     backgroundColor: '#2A2A2A',
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
-    },
+      height: 2
+},
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 3,
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   pricingCardFeatured: {
     flex: 1,
     backgroundColor: '#2A2A2A',
@@ -278,13 +278,13 @@ const styles = StyleSheet.create({
     shadowColor: "#FFC72C",
     shadowOffset: {
       width: 0,
-      height: 3,
-    },
+      height: 3
+},
     shadowOpacity: 0.29,
     shadowRadius: 4.65,
     elevation: 5,
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   cardBadge: {
     position: 'absolute',
     top: 10,
@@ -292,53 +292,53 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFC72C',
     paddingHorizontal: 25,
     paddingVertical: 3,
-    transform: [{ rotate: '45deg' }],
-  },
+    transform: [{ rotate: '45deg' }]
+},
   cardBadgeText: {
     color: '#0F1722',
     fontSize: 10,
-    fontWeight: '700',
-  },
+    fontWeight: '700'
+},
   planName: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   planPrice: {
     color: '#FFC72C',
     fontSize: 32,
     fontWeight: '800',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   pricePeriod: {
     color: '#AAA',
     fontSize: 11,
     marginBottom: 12,
     minHeight: 36,
-    lineHeight: 16,
-  },
+    lineHeight: 16
+},
   planFeatures: {
     marginBottom: 16,
-    flex: 1,
-  },
+    flex: 1
+},
   featureItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   featureIcon: {
     color: '#FFC72C',
     marginRight: 8,
     fontSize: 14,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+},
   featureText: {
     color: '#DDD',
     fontSize: 13,
     lineHeight: 17,
-    flex: 1,
-  },
+    flex: 1
+},
   ctaButton: {
     backgroundColor: '#FFC72C',
     borderRadius: 25,
@@ -360,40 +360,40 @@ const styles = StyleSheet.create({
   ctaButtonText: {
     color: '#0F1722',
     fontSize: 14,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   volumeSection: {
     paddingHorizontal: 16,
     marginBottom: 24,
-    zIndex: 1,
-  },
+    zIndex: 1
+},
   sectionHeading: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   volumeGrid: {
     flexDirection: 'row',
-    gap: 10,
-  },
+    gap: 10
+},
   volumeItem: {
     flex: 1,
     backgroundColor: 'rgba(255, 119, 0, 0.1)',
     borderRadius: 12,
     padding: 14,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   volumeRange: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   volumePrice: {
     color: '#AAA',
-    fontSize: 12,
-  },
+    fontSize: 12
+},
   missingFeature: {
     backgroundColor: 'rgba(255, 119, 0, 0.05)',
     borderRadius: 16,
@@ -401,21 +401,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 20,
-    zIndex: 1,
-  },
+    zIndex: 1
+},
   missingTitle: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#FFC72C',
-  },
+    color: '#FFC72C'
+},
   missingText: {
     fontSize: 14,
     color: '#CCC',
     marginBottom: 16,
     textAlign: 'center',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+}
 });
 
 export default PricingScreen;

@@ -3,15 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
   Modal,
   TouchableWithoutFeedback,
-  Dimensions,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
@@ -460,8 +460,8 @@ const renderReportCard = (report, isMyReport = false) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -469,62 +469,62 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+    borderBottomColor: '#E0E0E0'
+},
   backButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   backText: {
     fontSize: 17,
     color: ORANGE_COLOR,
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   createReportButton: {
     paddingHorizontal: 12,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+    borderBottomColor: '#E0E0E0'
+},
   tabButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
+    borderBottomColor: 'transparent'
+},
   activeTabButton: {
-    borderBottomColor: ORANGE_COLOR,
-  },
+    borderBottomColor: ORANGE_COLOR
+},
   tabText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#666',
-  },
+    color: '#666'
+},
   activeTabText: {
     color: ORANGE_COLOR,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
     padding: 15,
     paddingBottom: 80, // Add extra padding at the bottom for scrolling
   },
   section: {
-    flex: 1,
-  },
+    flex: 1
+},
   reportsGrid: {
-    width: '100%',
-  },
+    width: '100%'
+},
   reportCard: {
     width: '100%',
     marginBottom: 15,
@@ -534,99 +534,99 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3,
-  },
+    elevation: 3
+},
   reportContent: {
-    padding: 15,
-  },
+    padding: 15
+},
   reportText: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   cardActions: {
     width: '100%',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   updateButton: {
     width: '100%',
     borderColor: ORANGE_COLOR,
     backgroundColor: 'transparent',
-    borderRadius: 5,
-  },
+    borderRadius: 5
+},
   loader: {
-    marginTop: 20,
-  },
+    marginTop: 20
+},
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-  },
+    paddingVertical: 40
+},
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalContainer: {
     width: '90%',
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 20,
-    paddingVertical: 25,
-  },
+    paddingVertical: 25
+},
   modalContent: {},
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: ORANGE_COLOR,
     marginBottom: 20,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   modalText: {
     fontSize: 16,
     marginBottom: 10,
     color: '#555',
-    lineHeight: 22,
-  },
+    lineHeight: 22
+},
   modalTextBold: {
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   checkbox: {
     width: 20,
     height: 20,
@@ -635,23 +635,23 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     marginRight: 10,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   checkboxChecked: {
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   checkboxLabel: {
     fontSize: 16,
-    color: '#555',
-  },
+    color: '#555'
+},
   confirmButton: {
     marginTop: 10,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   cancelButton: {
     marginTop: 10,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   modalTextInput: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -659,8 +659,8 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 15,
     minHeight: 80,
-    textAlignVertical: 'top',
-  },
+    textAlignVertical: 'top'
+}
 });
 
 export default AllReportsScreen;

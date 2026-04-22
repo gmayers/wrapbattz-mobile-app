@@ -6,11 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
-  TextInput,
+  TextInput
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -67,18 +67,18 @@ const DataHandlingFeeScreen = ({ navigation }) => {
           active: deviceCount,
           inactive: 0,
           free_quota: 3,
-          billable: Math.max(0, deviceCount - 3),
-        },
+          billable: Math.max(0, deviceCount - 3)
+},
         tier: {
           name: '1-100 Stickers',
-          price_per_device: { monthly: 0.4, annual: 0.25 },
-        },
+          price_per_device: { monthly: 0.4, annual: 0.25 }
+},
         billing: {
           status: 'inactive',
           cycle: 'monthly',
-          free_quota: 3,
-        },
-      });
+          free_quota: 3
+}
+});
     } finally {
       setLoading(false);
     }
@@ -551,82 +551,82 @@ const DataHandlingFeeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
-  },
+    borderBottomColor: '#EFEFEF'
+},
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   deviceSummary: {
     padding: 20,
     backgroundColor: '#F9F9F9',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   deviceSummaryTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   deviceCountRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 6,
-  },
+    marginVertical: 6
+},
   deviceCountLabel: {
     fontSize: 16,
-    color: '#555',
-  },
+    color: '#555'
+},
   deviceCountValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   deviceSelector: {
     marginVertical: 16,
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   deviceSelectorLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
     marginBottom: 12,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   deviceSelectorControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   deviceSelectorButton: {
-    padding: 8,
-  },
+    padding: 8
+},
   deviceSelectorValue: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -636,164 +636,164 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 8,
     borderBottomWidth: 2,
-    borderBottomColor: ORANGE_COLOR,
-  },
+    borderBottomColor: ORANGE_COLOR
+},
   helperText: {
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
     marginTop: 8,
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   resetButton: {
     alignSelf: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
+    paddingHorizontal: 12
+},
   resetButtonText: {
     fontSize: 13,
     color: ORANGE_COLOR,
-    textDecorationLine: 'underline',
-  },
+    textDecorationLine: 'underline'
+},
   freeTierInfo: {
     marginTop: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
     backgroundColor: '#E1F5FE',
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   freeTierInfoText: {
     fontSize: 14,
-    color: '#0277BD',
-  },
+    color: '#0277BD'
+},
   planOptions: {
-    padding: 20,
-  },
+    padding: 20
+},
   planOptionsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   planOption: {
     padding: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   planOptionSelected: {
     borderColor: ORANGE_COLOR,
-    backgroundColor: 'rgba(255, 149, 0, 0.05)',
-  },
+    backgroundColor: 'rgba(255, 149, 0, 0.05)'
+},
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   planTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   savingsBadge: {
     backgroundColor: '#4CAF50',
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 4,
-  },
+    borderRadius: 4
+},
   savingsBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   planDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   tieredPricing: {
     backgroundColor: '#F5F5F5',
     padding: 12,
     borderRadius: 6,
-    marginVertical: 10,
-  },
+    marginVertical: 10
+},
   tieredPricingTitle: {
     fontSize: 15,
     fontWeight: '600',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   tierRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 4,
-  },
+    marginVertical: 4
+},
   tierDescription: {
     fontSize: 14,
-    color: '#555',
-  },
+    color: '#555'
+},
   tierPrice: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
-  },
+    color: '#333'
+},
   flatPricingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F5E9',
     padding: 12,
     borderRadius: 8,
-    marginVertical: 8,
-  },
+    marginVertical: 8
+},
   flatPricingText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2E7D32',
-    marginLeft: 8,
-  },
+    marginLeft: 8
+},
   flatPricingNote: {
     fontSize: 13,
     color: '#666',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   annualBreakdown: {
     backgroundColor: '#F5F5F5',
     padding: 10,
     borderRadius: 6,
-    marginVertical: 8,
-  },
+    marginVertical: 8
+},
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 3,
-  },
+    marginVertical: 3
+},
   breakdownLabel: {
     fontSize: 14,
-    color: '#555',
-  },
+    color: '#555'
+},
   breakdownValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
-  },
+    color: '#333'
+},
   costSummary: {
     margin: 20,
     padding: 16,
     backgroundColor: '#F9F9F9',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   costSummaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   tierBadgeContainer: {
     alignItems: 'center',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   tierBadge: {
     backgroundColor: ORANGE_COLOR,
     color: '#FFFFFF',
@@ -802,61 +802,61 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 12,
-    overflow: 'hidden',
-  },
+    overflow: 'hidden'
+},
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 6,
-  },
+    marginVertical: 6
+},
   costLabel: {
     fontSize: 15,
     color: '#555',
-    flex: 2,
-  },
+    flex: 2
+},
   costValue: {
     fontSize: 15,
     color: '#333',
     fontWeight: '500',
     flex: 1,
-    textAlign: 'right',
-  },
+    textAlign: 'right'
+},
   divider: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 10,
-  },
+    marginVertical: 10
+},
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    textAlign: 'right',
-  },
+    textAlign: 'right'
+},
   fineprint: {
     fontSize: 12,
     color: '#888',
     textAlign: 'center',
     marginHorizontal: 20,
-    lineHeight: 18,
-  },
+    lineHeight: 18
+},
   activateButton: {
     backgroundColor: ORANGE_COLOR,
     paddingVertical: 16,
     borderRadius: 8,
     marginHorizontal: 20,
     marginVertical: 20,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   activateButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   cancelButton: {
     backgroundColor: 'transparent',
     paddingVertical: 12,
@@ -865,27 +865,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
-  },
+    borderColor: '#ccc'
+},
   cancelButtonText: {
     color: '#666',
     fontSize: 16,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   navigationContainer: {
     marginHorizontal: 20,
     marginTop: 10,
     marginBottom: 30,
     backgroundColor: '#F9F9F9',
     borderRadius: 12,
-    padding: 16,
-  },
+    padding: 16
+},
   navigationTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   navButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -895,14 +895,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
+    borderColor: '#E0E0E0'
+},
   navButtonText: {
     flex: 1,
     fontSize: 15,
     color: '#333',
-    marginLeft: 12,
-  },
+    marginLeft: 12
+}
 });
 
 export default DataHandlingFeeScreen;

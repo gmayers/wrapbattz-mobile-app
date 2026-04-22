@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Linking,
-  RefreshControl,
+  RefreshControl
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -87,8 +87,8 @@ const PaymentHistoryScreen = ({ navigation }) => {
   const formatCurrency = (amount, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
-      currency: currency,
-    }).format(amount);
+      currency: currency
+}).format(amount);
   };
 
   const formatDate = (dateInput) => {
@@ -108,8 +108,8 @@ const PaymentHistoryScreen = ({ navigation }) => {
     return date.toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-    });
+      day: 'numeric'
+});
   };
 
   const getStatusColor = (status) => {
@@ -295,39 +295,39 @@ const PaymentHistoryScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   header: {
     padding: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
-  },
+    borderBottomColor: '#EFEFEF'
+},
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   statsContainer: {
     flexDirection: 'row',
     padding: 20,
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -336,129 +336,129 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   statLabel: {
     fontSize: 12,
     color: '#666',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center'
+},
   emptyText: {
     fontSize: 18,
     color: '#666',
     marginTop: 16,
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   emptySubtext: {
     fontSize: 14,
     color: '#999',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   paymentsContainer: {
-    padding: 20,
-  },
+    padding: 20
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   paymentCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   paymentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   paymentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
+    flex: 1
+},
   statusIcon: {
-    marginRight: 12,
-  },
+    marginRight: 12
+},
   paymentDetails: {
-    flex: 1,
-  },
+    flex: 1
+},
   paymentAmount: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   paymentDate: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
-  },
+    marginTop: 2
+},
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-  },
+    borderRadius: 4
+},
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
+    color: '#FFFFFF'
+},
   paymentDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   paymentMethodInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   paymentMethodText: {
     fontSize: 14,
     color: '#666',
-    marginLeft: 6,
-  },
+    marginLeft: 6
+},
   failureReasonContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF5F5',
     padding: 8,
     borderRadius: 6,
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   failureReasonText: {
     fontSize: 14,
     color: '#F44336',
     marginLeft: 6,
-    flex: 1,
-  },
+    flex: 1
+},
   receiptContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-  },
+    marginTop: 8
+},
   receiptText: {
     fontSize: 14,
     color: LINK_COLOR,
     marginLeft: 6,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+}
 });
 
 export default PaymentHistoryScreen;

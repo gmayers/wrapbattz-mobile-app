@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform, SafeAreaView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Alert, Platform
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import NFCManagerNav from './NFCManagerNav';
 import ReadTab from './ReadTab';
@@ -325,48 +327,48 @@ const getModalStyles = (colors) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalSafeArea: {
     width: '95%',
-    maxHeight: '90%',
-  },
+    maxHeight: '90%'
+},
   nfcModalContainer: {
     backgroundColor: colors.card,
     borderRadius: 10,
     padding: 10,
     overflow: 'hidden',
     flexDirection: 'column',
-    height: '100%',
-  },
+    height: '100%'
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
     paddingHorizontal: 5,
-    paddingTop: 5,
-  },
+    paddingTop: 5
+},
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
+    color: colors.textPrimary
+},
   closeButton: {
-    padding: 5,
-  },
+    padding: 5
+},
   tabContentContainer: {
     flex: 1,
     ...(Platform.OS === 'ios' ? {
       zIndex: 1,
-      position: 'relative',
-    } : {}),
-  },
+      position: 'relative'
+} : {})
+},
   emptyTabContent: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  }
+    alignItems: 'center'
+}
 });
 
 export default NfcManagerModal;

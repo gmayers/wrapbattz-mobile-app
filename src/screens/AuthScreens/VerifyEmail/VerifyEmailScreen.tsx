@@ -4,14 +4,14 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import Button from '../../../components/Button';
@@ -100,8 +100,8 @@ const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
                 color: colors.textSecondary,
                 textAlign: 'center',
                 marginTop: 8,
-                marginBottom: 24,
-              }}
+                marginBottom: 24
+}}
             >
               We sent a verification code to {email}. Enter it below to finish creating your account.
             </Text>
@@ -127,8 +127,8 @@ const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
                 textAlign: 'center',
                 letterSpacing: 4,
                 color: colors.textPrimary,
-                backgroundColor: colors.surface,
-              }}
+                backgroundColor: colors.surface
+}}
             />
 
             {error ? (

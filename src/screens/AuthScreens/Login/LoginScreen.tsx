@@ -6,15 +6,15 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Image,
   Alert,
   Switch,
   TextInput as RNTextInput,
-  StyleSheet,
+  StyleSheet
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -40,8 +40,8 @@ const LoginScreen: React.FC = () => {
     login,
     loginWithStoredCredentials,
     enableBiometricUnlock,
-    enablePinUnlock,
-  } = useAuth() as any;
+    enablePinUnlock
+} = useAuth() as any;
   const { colors, fonts } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
@@ -98,8 +98,8 @@ const LoginScreen: React.FC = () => {
       password: [
         { type: 'required' as const, message: 'Password is required' },
         { type: 'minLength' as const, value: 6, message: 'Password must be at least 6 characters' },
-      ],
-    };
+      ]
+};
     const result: ValidationResult = FormValidation.validateForm(formData, rules);
     setErrors(result.errors);
     return result.isValid;
@@ -129,13 +129,13 @@ const LoginScreen: React.FC = () => {
             } catch (e: any) {
               Alert.alert(`${cap.label} setup failed`, e?.message || 'Please try again.');
             }
-          },
-        });
+          }
+});
       }
       buttons.push({
         text: 'Use PIN',
-        onPress: () => setPinFlow({ kind: 'setup' }),
-      });
+        onPress: () => setPinFlow({ kind: 'setup' })
+});
       buttons.push({ text: 'Not now', style: 'cancel' });
 
       Alert.alert(
@@ -231,8 +231,8 @@ const LoginScreen: React.FC = () => {
       setPinFlow({
         kind: 'entry',
         error: 'Incorrect PIN',
-        attemptsRemaining: result.attemptsRemaining,
-      });
+        attemptsRemaining: result.attemptsRemaining
+});
       return;
     }
     setPinFlow({ kind: 'idle' });
@@ -266,8 +266,8 @@ const LoginScreen: React.FC = () => {
       setPinFlow({
         kind: 'confirm',
         firstPin: pinFlow.firstPin,
-        error: e?.message || 'Could not save PIN',
-      });
+        error: e?.message || 'Could not save PIN'
+});
     }
   };
 
@@ -293,16 +293,16 @@ const LoginScreen: React.FC = () => {
         errorText: pinFlow.error,
         attemptsRemaining: pinFlow.attemptsRemaining,
         onSubmit: handlePinEntrySubmit,
-        onCancel: () => setPinFlow({ kind: 'idle' }),
-      };
+        onCancel: () => setPinFlow({ kind: 'idle' })
+};
     }
     if (pinFlow.kind === 'setup') {
       return {
         visible: true,
         mode: 'setup' as PinModalMode,
         onSubmit: handlePinSetupSubmit,
-        onCancel: () => setPinFlow({ kind: 'idle' }),
-      };
+        onCancel: () => setPinFlow({ kind: 'idle' })
+};
     }
     if (pinFlow.kind === 'confirm') {
       return {
@@ -310,15 +310,15 @@ const LoginScreen: React.FC = () => {
         mode: 'confirm' as PinModalMode,
         errorText: pinFlow.error,
         onSubmit: handlePinConfirmSubmit,
-        onCancel: () => setPinFlow({ kind: 'idle' }),
-      };
+        onCancel: () => setPinFlow({ kind: 'idle' })
+};
     }
     return {
       visible: false,
       mode: 'entry' as PinModalMode,
       onSubmit: async () => {},
-      onCancel: () => setPinFlow({ kind: 'idle' }),
-    };
+      onCancel: () => setPinFlow({ kind: 'idle' })
+};
   })();
 
   const showBiometricButton =
@@ -514,8 +514,8 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   quickAuthWrap: {
     marginBottom: 20,
-    gap: 12,
-  },
+    gap: 12
+},
   quickAuthBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -523,15 +523,15 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 14,
     borderRadius: 10,
-    borderWidth: 1,
-  },
+    borderWidth: 1
+},
   quickAuthText: { fontSize: 16, fontWeight: '600' },
   staySignedInRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-  },
+    marginTop: 12
+},
   socialWrap: { marginTop: 28, gap: 12 },
   socialBtn: {
     flexDirection: 'row',
@@ -540,20 +540,20 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 14,
     borderRadius: 10,
-    borderWidth: 1,
-  },
+    borderWidth: 1
+},
   socialText: { fontSize: 16, fontWeight: '600' },
   divider: {
     marginVertical: 6,
     borderTopWidth: 1,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   dividerText: {
     position: 'relative',
     top: -10,
     fontSize: 12,
-    paddingHorizontal: 10,
-  },
+    paddingHorizontal: 10
+}
 });
 
 export default LoginScreen;

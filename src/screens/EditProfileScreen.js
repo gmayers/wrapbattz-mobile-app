@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -28,16 +28,16 @@ const EditProfileScreen = ({ navigation, route }) => {
     first_name: initialProfileData.first_name || '',
     last_name: initialProfileData.last_name || '',
     phone_number: initialProfileData.phone_number || '',
-    email: initialProfileData.email || user?.email || '',
-  });
+    email: initialProfileData.email || user?.email || ''
+});
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   
   useEffect(() => {
     navigation.setOptions({
-      title: 'Edit Profile',
-    });
+      title: 'Edit Profile'
+});
   }, [navigation]);
   
   const validateForm = () => {
@@ -65,15 +65,15 @@ const EditProfileScreen = ({ navigation, route }) => {
   const handleChange = (field, value) => {
     setFormData({
       ...formData,
-      [field]: value,
-    });
+      [field]: value
+});
     
     // Clear error for this field
     if (errors[field]) {
       setErrors({
         ...errors,
-        [field]: null,
-      });
+        [field]: null
+});
     }
   };
   
@@ -91,8 +91,8 @@ const EditProfileScreen = ({ navigation, route }) => {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone_number: formData.phone_number,
-        email: formData.email,
-      });
+        email: formData.email
+});
 
       Alert.alert(
         'Success',
@@ -214,62 +214,62 @@ const EditProfileScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
+    flex: 1
+},
   keyboardAvoidView: {
-    flex: 1,
-  },
+    flex: 1
+},
   formContainer: {
-    padding: 20,
-  },
+    padding: 20
+},
   formGroup: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   label: {
     fontSize: 16,
     fontWeight: '500',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   input: {
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
-    fontSize: 16,
-  },
+    fontSize: 16
+},
   inputError: {
   },
   errorText: {
     fontSize: 14,
-    marginTop: 5,
-  },
+    marginTop: 5
+},
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
-  },
+    marginTop: 30
+},
   cancelButton: {
     flex: 1,
     padding: 15,
     borderRadius: 8,
     marginRight: 10,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   saveButton: {
     flex: 1,
     padding: 15,
     borderRadius: 8,
     marginLeft: 10,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
+    color: '#FFFFFF'
+}
 });
 
 export default EditProfileScreen;

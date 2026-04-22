@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -11,8 +10,9 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
-  FlatList,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const ORANGE_COLOR = '#FFC72C';
@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   assignments as assignmentsApi,
-  sites as sitesApi,
+  sites as sitesApi
 } from '../api/endpoints';
 import { toLegacyAssignment, toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
@@ -163,8 +163,8 @@ const AllDevicesScreen = ({ navigation, route }) => {
       await assignmentsApi.returnAssignment(Number(selectedReturnDevice.id), {
         target_site_id: Number(selectedReturnLocation.id),
         condition: '',
-        notes: '',
-      });
+        notes: ''
+});
 
       Alert.alert('Success', 'Device has been returned successfully');
       setReturnDeviceModalVisible(false);
@@ -473,8 +473,8 @@ const AllDevicesScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -482,61 +482,61 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+    borderBottomColor: '#E0E0E0'
+},
   backButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   backText: {
     fontSize: 17,
     color: '#E5AE18', // Updated to orange
-    marginLeft: 4,
-  },
+    marginLeft: 4
+},
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
+    borderBottomColor: '#E0E0E0'
+},
   tabButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
+    borderBottomColor: 'transparent'
+},
   activeTabButton: {
     borderBottomColor: '#E5AE18', // Updated to orange
   },
   tabText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#666',
-  },
+    color: '#666'
+},
   activeTabText: {
     color: '#E5AE18', // Updated to orange
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollContent: {
-    padding: 15,
-  },
+    padding: 15
+},
   section: {
-    flex: 1,
-  },
+    flex: 1
+},
   devicesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   
   deviceCard: {
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   loader: {
     marginTop: 20,
     color: '#E5AE18', // Orange loader
@@ -545,26 +545,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginTop: 20,
-  },
+    marginTop: 20
+},
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+    justifyContent: 'flex-end'
+},
   modalOverlayTouchable: {
-    flex: 1,
-  },
+    flex: 1
+},
   modalContainer: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    maxHeight: '80%',
-  },
+    maxHeight: '80%'
+},
   modalContent: {
-    paddingHorizontal: 20,
-  },
+    paddingHorizontal: 20
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -572,90 +572,90 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-  },
+    borderBottomColor: '#E5E5EA'
+},
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   modalText: {
     fontSize: 16,
     marginBottom: 10,
     marginTop: 12,
     color: '#555',
     lineHeight: 22,
-    paddingHorizontal: 20,
-  },
+    paddingHorizontal: 20
+},
   modalTextBold: {
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   modalSectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#666',
     marginTop: 16,
     marginBottom: 8,
-    paddingHorizontal: 20,
-  },
+    paddingHorizontal: 20
+},
   locationList: {
     maxHeight: 250,
-    marginHorizontal: 20,
-  },
+    marginHorizontal: 20
+},
   locationListItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
-    paddingHorizontal: 4,
-  },
+    paddingHorizontal: 4
+},
   locationListItemSelected: {
     backgroundColor: '#FFF5E6',
     marginHorizontal: -4,
     paddingHorizontal: 8,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   locationListItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
+    flex: 1
+},
   locationListItemText: {
     fontSize: 16,
     color: '#333',
     marginLeft: 12,
-    flex: 1,
-  },
+    flex: 1
+},
   locationListItemTextSelected: {
     color: ORANGE_COLOR,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   emptyListText: {
     textAlign: 'center',
     color: '#999',
     paddingVertical: 20,
-    fontSize: 14,
-  },
+    fontSize: 14
+},
   listSeparator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E5EA',
-  },
+    backgroundColor: '#E5E5EA'
+},
   modalButtons: {
     flexDirection: 'row',
     gap: 10,
     marginTop: 20,
-    paddingHorizontal: 20,
-  },
+    paddingHorizontal: 20
+},
   confirmButton: {
     flex: 1,
     backgroundColor: ORANGE_COLOR,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+},
   cancelButton: {
     flex: 1,
-    borderColor: ORANGE_COLOR,
-  },
+    borderColor: ORANGE_COLOR
+}
 });
 
 export default AllDevicesScreen;

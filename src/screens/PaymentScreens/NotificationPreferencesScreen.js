@@ -4,15 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   Switch,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   TextInput,
   KeyboardAvoidingView,
-  Platform,
+  Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -35,8 +35,8 @@ const NotificationPreferencesScreen = ({ navigation }) => {
     cost_threshold_enabled: false,
     cost_threshold_amount: 50,
     device_count_alerts: true,
-    additional_emails: [],
-  });
+    additional_emails: []
+});
   const [newEmail, setNewEmail] = useState('');
 
   // Check permissions
@@ -75,8 +75,8 @@ const NotificationPreferencesScreen = ({ navigation }) => {
   const updatePreference = (key, value) => {
     setPreferences(prev => ({
       ...prev,
-      [key]: value,
-    }));
+      [key]: value
+}));
   };
 
   const savePreferences = async () => {
@@ -108,16 +108,16 @@ const NotificationPreferencesScreen = ({ navigation }) => {
 
     setPreferences(prev => ({
       ...prev,
-      additional_emails: [...prev.additional_emails, newEmail.trim()],
-    }));
+      additional_emails: [...prev.additional_emails, newEmail.trim()]
+}));
     setNewEmail('');
   };
 
   const removeEmail = (email) => {
     setPreferences(prev => ({
       ...prev,
-      additional_emails: prev.additional_emails.filter(e => e !== email),
-    }));
+      additional_emails: prev.additional_emails.filter(e => e !== email)
+}));
   };
 
   if (loading) {
@@ -354,95 +354,95 @@ const NotificationPreferencesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   header: {
     padding: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
-  },
+    borderBottomColor: '#EFEFEF'
+},
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   section: {
     backgroundColor: '#FFFFFF',
     marginVertical: 10,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
+    paddingVertical: 16
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   sectionDescription: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
+    borderBottomColor: '#F0F0F0'
+},
   settingInfo: {
     flex: 1,
-    marginRight: 16,
-  },
+    marginRight: 16
+},
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   settingDescription: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   thresholdContainer: {
     backgroundColor: '#F8F9FA',
     padding: 16,
     borderRadius: 8,
-    marginTop: 12,
-  },
+    marginTop: 12
+},
   thresholdLabel: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   thresholdInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   currencySymbol: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   thresholdInput: {
     flex: 1,
     borderWidth: 1,
@@ -450,13 +450,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   emailInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   emailInput: {
     flex: 1,
     borderWidth: 1,
@@ -465,16 +465,16 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#FFFFFF',
-    marginRight: 12,
-  },
+    marginRight: 12
+},
   addButton: {
     backgroundColor: ORANGE_COLOR,
     width: 44,
     height: 44,
     borderRadius: 8,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   emailItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -482,38 +482,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   emailText: {
     fontSize: 16,
     color: '#333',
-    flex: 1,
-  },
+    flex: 1
+},
   removeButton: {
-    padding: 8,
-  },
+    padding: 8
+},
   saveContainer: {
-    padding: 20,
-  },
+    padding: 20
+},
   saveButton: {
     backgroundColor: ORANGE_COLOR,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   saveButtonDisabled: {
-    opacity: 0.6,
-  },
+    opacity: 0.6
+},
   saveIcon: {
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+}
 });
 
 export default NotificationPreferencesScreen;

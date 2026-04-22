@@ -5,10 +5,10 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
-  Alert,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmailInput } from '../../components/TextInput';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext'; // Import AuthContext
@@ -66,8 +66,8 @@ const ForgotPasswordPage = ({ navigation }) => {
             onPress: () => {
               console.log('FP-11: Success alert acknowledged, navigating back');
               navigation.goBack();
-            },
-          },
+            }
+},
         ]
       );
     } catch (error) {

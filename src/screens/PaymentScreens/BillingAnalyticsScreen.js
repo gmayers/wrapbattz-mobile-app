@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Dimensions,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -80,9 +80,9 @@ const BillingAnalyticsScreen = ({ navigation }) => {
             current_period_cost: 6.00,
             average_monthly_cost: 2.87,
             device_count_average: 10.17,
-            subscription_start_date: '2024-02-01',
-          },
-        });
+            subscription_start_date: '2024-02-01'
+}
+});
       }
     } finally {
       setLoading(false);
@@ -102,8 +102,8 @@ const BillingAnalyticsScreen = ({ navigation }) => {
   const formatCurrency = (amount, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
-      currency: currency,
-    }).format(amount);
+      currency: currency
+}).format(amount);
   };
 
   const formatDate = (dateString) => {
@@ -111,8 +111,8 @@ const BillingAnalyticsScreen = ({ navigation }) => {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-GB', {
         year: 'numeric',
-        month: 'short',
-      });
+        month: 'short'
+});
     } catch {
       return dateString;
     }
@@ -139,8 +139,8 @@ const BillingAnalyticsScreen = ({ navigation }) => {
                       styles.bar,
                       {
                         height: `${height}%`,
-                        backgroundColor: '#E3F2FD',
-                      },
+                        backgroundColor: '#E3F2FD'
+},
                     ]}
                   />
                   <View
@@ -150,8 +150,8 @@ const BillingAnalyticsScreen = ({ navigation }) => {
                         height: `${billableHeight}%`,
                         backgroundColor: colors.primary,
                         position: 'absolute',
-                        bottom: 0,
-                      },
+                        bottom: 0
+},
                     ]}
                   />
                 </View>
@@ -195,8 +195,8 @@ const BillingAnalyticsScreen = ({ navigation }) => {
                       styles.bar,
                       {
                         height: `${Math.max(height, 5)}%`,
-                        backgroundColor: '#4CAF50',
-                      },
+                        backgroundColor: '#4CAF50'
+},
                     ]}
                   />
                 </View>
@@ -371,39 +371,39 @@ const BillingAnalyticsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   header: {
     padding: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
-  },
+    borderBottomColor: '#EFEFEF'
+},
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   summaryContainer: {
     flexDirection: 'row',
     padding: 20,
-    justifyContent: 'space-between',
-  },
+    justifyContent: 'space-between'
+},
   summaryCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -412,149 +412,149 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   summaryValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   summaryLabel: {
     fontSize: 12,
     color: '#666',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   chartContainer: {
     backgroundColor: '#FFFFFF',
     margin: 20,
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   chartTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   chart: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'end',
     height: 150,
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   chartBar: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 2,
-  },
+    marginHorizontal: 2
+},
   barContainer: {
     width: '80%',
     height: 120,
     justifyContent: 'flex-end',
-    position: 'relative',
-  },
+    position: 'relative'
+},
   bar: {
     width: '100%',
     borderRadius: 4,
-    minHeight: 4,
-  },
+    minHeight: 4
+},
   barLabel: {
     fontSize: 10,
     color: '#666',
     marginTop: 4,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   barValue: {
     fontSize: 10,
     fontWeight: '600',
     color: '#333',
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+},
   legendContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 8,
-  },
+    marginTop: 8
+},
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
-  },
+    marginHorizontal: 12
+},
   legendColor: {
     width: 12,
     height: 12,
     borderRadius: 2,
-    marginRight: 6,
-  },
+    marginRight: 6
+},
   legendText: {
     fontSize: 12,
-    color: '#666',
-  },
+    color: '#666'
+},
   projectionsContainer: {
-    margin: 20,
-  },
+    margin: 20
+},
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   projectionCard: {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   projectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   projectionDevices: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   projectionCosts: {
-    alignItems: 'flex-end',
-  },
+    alignItems: 'flex-end'
+},
   projectionMonthly: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   projectionAnnual: {
     fontSize: 14,
-    color: '#666',
-  },
+    color: '#666'
+},
   savingsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F1F8E9',
     padding: 8,
-    borderRadius: 6,
-  },
+    borderRadius: 6
+},
   savingsText: {
     fontSize: 14,
     color: '#4CAF50',
     marginLeft: 6,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   insightsContainer: {
-    margin: 20,
-  },
+    margin: 20
+},
   insightCard: {
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
@@ -563,43 +563,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   insightContent: {
     flex: 1,
-    marginLeft: 12,
-  },
+    marginLeft: 12
+},
   insightTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   insightText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 400,
-  },
+    minHeight: 400
+},
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
     marginTop: 16,
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   emptySubtext: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 40,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+}
 });
 
 export default BillingAnalyticsScreen;

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform, SafeAreaView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import TabBar from '../../../../components/TabBar';
 import NFCScanTab from './NFCScanTab';
@@ -32,8 +34,8 @@ const AssignDeviceModal = ({
         name="scan-outline"
         size={20}
         color={assignTab === 'nfcScan' ? colors.primary : colors.textSecondary}
-      />,
-    },
+      />
+},
     {
       key: 'selectMenu',
       title: 'Select Menu',
@@ -41,8 +43,8 @@ const AssignDeviceModal = ({
         name="list-outline"
         size={20}
         color={assignTab === 'selectMenu' ? colors.primary : colors.textSecondary}
-      />,
-    },
+      />
+},
   ];
 
   // Render the appropriate content based on the selected tab
@@ -147,20 +149,20 @@ const getAssignStyles = (colors) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   modalSafeArea: {
     width: '90%',
-    maxHeight: '80%',
-  },
+    maxHeight: '80%'
+},
   modalContainer: {
     backgroundColor: colors.card,
     borderRadius: 10,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
-  },
+    height: '100%'
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -168,67 +170,67 @@ const getAssignStyles = (colors) => StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.card,
-  },
+    backgroundColor: colors.card
+},
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
+    color: colors.textPrimary
+},
   tabBarContainer: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingVertical: 5,
-  },
+    paddingVertical: 5
+},
   tabButton: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center'
+},
   activeTabButton: {
     borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-  },
+    borderBottomColor: colors.primary
+},
   tabButtonContent: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center'
+},
   tabButtonText: {
     fontSize: 12,
     marginTop: 4,
     color: colors.textSecondary,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   activeTabButtonText: {
-    color: colors.primary,
-  },
+    color: colors.primary
+},
   tabContentContainer: {
     flex: 1,
     padding: 0,
-    backgroundColor: colors.card,
-  },
+    backgroundColor: colors.card
+},
   nfcScanContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
-  },
+    padding: 15
+},
   selectMenuContainer: {
     flex: 1,
-    padding: 15,
-  },
+    padding: 15
+},
   modalFooter: {
     padding: 15,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.card,
-  },
+    backgroundColor: colors.card
+},
   closeButton: {
-    backgroundColor: colors.primary,
-  },
+    backgroundColor: colors.primary
+}
 });
 
 export default AssignDeviceModal;

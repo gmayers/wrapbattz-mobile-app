@@ -6,10 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
@@ -125,8 +125,8 @@ const ManageBillingScreen = ({ navigation }) => {
         // Uses Safari View Controller (iOS) or Chrome Custom Tabs (Android)
         const result = await WebBrowser.openBrowserAsync(response.url, {
           presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-          controlsColor: ORANGE_COLOR,
-        });
+          controlsColor: ORANGE_COLOR
+});
 
         // Refresh billing data after user closes the portal
         if (result.type === 'dismiss' || result.type === 'cancel') {
@@ -357,8 +357,8 @@ const ManageBillingScreen = ({ navigation }) => {
   const formatCurrency = (amount, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
-      currency: currency,
-    }).format(amount);
+      currency: currency
+}).format(amount);
   };
 
   const formatDate = (dateInput) => {
@@ -379,8 +379,8 @@ const ManageBillingScreen = ({ navigation }) => {
     return date.toLocaleDateString('en-GB', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-    });
+      day: 'numeric'
+});
   };
   
   if (loading) {
@@ -561,8 +561,8 @@ const ManageBillingScreen = ({ navigation }) => {
                       // Open invoice in native in-app browser
                       await WebBrowser.openBrowserAsync(invoiceUrl, {
                         presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-                        controlsColor: ORANGE_COLOR,
-                      });
+                        controlsColor: ORANGE_COLOR
+});
                     } catch (error) {
                       console.log('Error opening invoice:', error);
                       Alert.alert(
@@ -657,176 +657,176 @@ const ManageBillingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+    backgroundColor: '#FFFFFF'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
-  },
+    borderBottomColor: '#EFEFEF'
+},
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   billingCard: {
     margin: 20,
     padding: 20,
     backgroundColor: '#F9F9F9',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
+    borderColor: '#EEEEEE'
+},
   billingCardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   billingCardLabel: {
     fontSize: 16,
-    color: '#555',
-  },
+    color: '#555'
+},
   billingCardValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   statusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 4,
-  },
+    borderRadius: 4
+},
   statusBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
 feesContainer: {
     marginTop: 15,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-  },
+    borderTopColor: '#E0E0E0'
+},
   feesTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   feesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+    marginBottom: 8
+},
   feesDescription: {
     fontSize: 14,
     color: '#555',
-    flex: 3,
-  },
+    flex: 3
+},
   feesAmount: {
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
     flex: 1,
-    textAlign: 'right',
-  },
+    textAlign: 'right'
+},
   feesDivider: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 8,
-  },
+    marginVertical: 8
+},
   feesTotalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-  },
+    color: '#333'
+},
   feesTotal: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   savingsNote: {
     marginTop: 12,
     padding: 10,
     backgroundColor: '#FFF8E1',
     borderRadius: 6,
     borderLeftWidth: 3,
-    borderLeftColor: '#FFC107',
-  },
+    borderLeftColor: '#FFC107'
+},
   savingsNoteText: {
     fontSize: 14,
-    color: '#F57C00',
-  },
+    color: '#F57C00'
+},
   invoicesSection: {
     margin: 20,
-    marginTop: 0,
-  },
+    marginTop: 0
+},
   invoicesSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   invoiceCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#EEEEEE',
     borderRadius: 8,
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   invoiceCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
+    borderBottomColor: '#EEEEEE'
+},
   invoiceCardDate: {
     fontSize: 14,
-    color: '#666',
-  },
+    color: '#666'
+},
   invoiceStatusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 4,
-  },
+    borderRadius: 4
+},
   invoiceStatusBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   invoiceCardBody: {
-    padding: 12,
-  },
+    padding: 12
+},
   invoiceCardAmount: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   invoiceCardPeriod: {
     fontSize: 13,
-    color: '#777',
-  },
+    color: '#777'
+},
   actionsContainer: {
     margin: 20,
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   portalButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -834,21 +834,21 @@ feesContainer: {
     backgroundColor: ORANGE_COLOR,
     paddingVertical: 16,
     borderRadius: 8,
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   buttonIcon: {
-    marginRight: 8,
-  },
+    marginRight: 8
+},
   portalButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -857,14 +857,14 @@ feesContainer: {
     borderColor: '#E0E0E0',
     borderRadius: 8,
     width: '48%',
-    justifyContent: 'center',
-  },
+    justifyContent: 'center'
+},
   secondaryButtonText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '500',
-    color: ORANGE_COLOR,
-  },
+    color: ORANGE_COLOR
+},
   reactivateButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -874,14 +874,14 @@ feesContainer: {
     borderColor: '#4CAF50',
     borderRadius: 8,
     width: '100%',
-    backgroundColor: '#F1F8F4',
-  },
+    backgroundColor: '#F1F8F4'
+},
   reactivateButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#4CAF50',
-  },
+    color: '#4CAF50'
+},
   cancelButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -891,56 +891,56 @@ feesContainer: {
     borderColor: '#FFCDD2',
     borderRadius: 8,
     width: '100%',
-    backgroundColor: '#FFF5F5',
-  },
+    backgroundColor: '#FFF5F5'
+},
   cancelButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '500',
-    color: '#EF4444',
-  },
+    color: '#EF4444'
+},
   portalDescription: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   noBillingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
+    padding: 20
+},
   noBillingText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
     marginTop: 20,
-    marginBottom: 12,
-  },
+    marginBottom: 12
+},
   noBillingSubtext: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     marginBottom: 30,
     paddingHorizontal: 40,
-    lineHeight: 20,
-  },
+    lineHeight: 20
+},
   activateButton: {
     backgroundColor: ORANGE_COLOR,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 8,
-  },
+    borderRadius: 8
+},
   activateButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   disabledButton: {
-    opacity: 0.6,
-  },
+    opacity: 0.6
+}
 });
 
 export default ManageBillingScreen;

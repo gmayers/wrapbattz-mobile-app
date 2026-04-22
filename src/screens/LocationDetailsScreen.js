@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   StatusBar,
@@ -12,8 +11,9 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
-  FlatList,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
   assignments as assignmentsApi,
   sites as sitesApi,
-  tools as toolsApi,
+  tools as toolsApi
 } from '../api/endpoints';
 import { toLegacyAssignment, toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
@@ -84,8 +84,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         return {
           ...legacy.device,
           assignmentId: legacy.id,
-          assignedDate: legacy.assigned_date,
-        };
+          assignedDate: legacy.assigned_date
+};
       });
       setDevices(mapped);
     } catch (error) {
@@ -127,8 +127,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     if (location) {
       navigation.setOptions({
         title: location.name || `${location.street_number} ${location.street_name}`,
-        headerBackTitle: 'Locations',
-      });
+        headerBackTitle: 'Locations'
+});
     }
   }, [location, navigation]);
 
@@ -177,8 +177,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         tool_id: Number(selectedDeviceForTransfer.id),
         assignee_site_id: Number(targetLocationId),
         condition: '',
-        notes: '',
-      });
+        notes: ''
+});
 
       Alert.alert(
         'Success',
@@ -503,38 +503,38 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
-  },
+    color: '#666'
+},
   scrollView: {
-    flex: 1,
-  },
+    flex: 1
+},
   scrollViewContent: {
-    padding: 15,
-  },
+    padding: 15
+},
   section: {
-    marginTop: 20,
-  },
+    marginTop: 20
+},
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
+    marginBottom: 15
+},
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   addressCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
@@ -542,27 +542,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3,
-  },
+    elevation: 3
+},
   addressContent: {
-    padding: 15,
-  },
+    padding: 15
+},
   addressText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 22,
-  },
+    lineHeight: 22
+},
   organizationInfo: {
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-  },
+    borderTopColor: '#EEEEEE'
+},
   organizationText: {
     fontSize: 14,
     color: '#666',
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   deviceCard: {
     marginBottom: 15,
     backgroundColor: '#FFFFFF',
@@ -573,68 +573,68 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
+    borderColor: '#F0F0F0'
+},
   deviceContent: {
-    padding: 20,
-  },
+    padding: 20
+},
   deviceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
-  },
+    marginBottom: 16
+},
   deviceTitleContainer: {
     flex: 1,
-    marginRight: 12,
-  },
+    marginRight: 12
+},
   deviceTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
-  },
+    marginBottom: 4
+},
   deviceType: {
     fontSize: 14,
     color: '#666',
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+},
   statusContainer: {
-    alignItems: 'flex-end',
-  },
+    alignItems: 'flex-end'
+},
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-  },
+    borderRadius: 12
+},
   statusText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   deviceDetails: {
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   detailRow: {
     flexDirection: 'row',
     marginBottom: 8,
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   detailLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#555',
-    width: 80,
-  },
+    width: 80
+},
   detailValue: {
     fontSize: 14,
     color: '#333',
-    flex: 1,
-  },
+    flex: 1
+},
   deviceActions: {
     flexDirection: 'row',
-    gap: 12,
-  },
+    gap: 12
+},
   viewButton: {
     flex: 1,
     flexDirection: 'row',
@@ -645,14 +645,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: ORANGE_COLOR,
-    backgroundColor: 'transparent',
-  },
+    backgroundColor: 'transparent'
+},
   viewButtonText: {
     marginLeft: 8,
     color: ORANGE_COLOR,
     fontSize: 14,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   assignButton: {
     flex: 1,
     flexDirection: 'row',
@@ -666,54 +666,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 3,
-  },
+    elevation: 3
+},
   assignButtonDisabled: {
     backgroundColor: '#CCC',
     shadowOpacity: 0,
-    elevation: 0,
-  },
+    elevation: 0
+},
   assignButtonText: {
     marginLeft: 8,
     color: '#0F1722',
     fontSize: 14,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   loader: {
-    marginVertical: 20,
-  },
+    marginVertical: 20
+},
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-  },
+    paddingVertical: 40
+},
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: '#666',
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   emptySubtext: {
     textAlign: 'center',
     fontSize: 14,
     color: '#999',
     marginTop: 5,
-    fontStyle: 'italic',
-  },
+    fontStyle: 'italic'
+},
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
-  },
+    backgroundColor: '#F5F5F5'
+},
   errorMessage: {
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
     marginBottom: 20,
-    marginTop: 10,
-  },
+    marginTop: 10
+},
   // Transfer button styles
   transferButton: {
     flexDirection: 'row',
@@ -725,20 +725,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: ORANGE_COLOR,
     backgroundColor: 'transparent',
-    marginTop: 12,
-  },
+    marginTop: 12
+},
   transferButtonText: {
     marginLeft: 8,
     color: ORANGE_COLOR,
     fontSize: 14,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+},
   // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
+    justifyContent: 'flex-end'
+},
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
@@ -746,36 +746,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    maxHeight: '80%',
-  },
+    maxHeight: '80%'
+},
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-  },
+    color: '#333'
+},
   modalCloseButton: {
-    padding: 5,
-  },
+    padding: 5
+},
   modalSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 20,
-  },
+    marginBottom: 20
+},
   selectLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#555',
-    marginBottom: 10,
-  },
+    marginBottom: 10
+},
   locationList: {
-    maxHeight: 300,
-  },
+    maxHeight: 300
+},
   locationItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -783,48 +783,48 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
+    borderBottomColor: '#F0F0F0'
+},
   locationItemDisabled: {
-    opacity: 0.5,
-  },
+    opacity: 0.5
+},
   locationItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
+    flex: 1
+},
   locationItemText: {
     marginLeft: 12,
-    flex: 1,
-  },
+    flex: 1
+},
   locationItemName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
-  },
+    color: '#333'
+},
   locationItemAddress: {
     fontSize: 13,
     color: '#666',
-    marginTop: 2,
-  },
+    marginTop: 2
+},
   noLocationsText: {
     textAlign: 'center',
     color: '#999',
     paddingVertical: 20,
-    fontSize: 14,
-  },
+    fontSize: 14
+},
   cancelButton: {
     marginTop: 15,
     paddingVertical: 14,
     borderRadius: 8,
     backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-  },
+    alignItems: 'center'
+},
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
-  },
+    color: '#666'
+}
 });
 
 export default LocationDetailsScreen;
