@@ -27,6 +27,7 @@ import Button from '../../../components/Button';
 import DeviceAuthService, { BiometricCapability } from '../../../services/DeviceAuthService';
 import PinAuthService from '../../../services/PinAuthService';
 import PinModal, { PinModalMode } from './PinModal';
+import { API_BASE_URL } from '../../../api/config';
 
 type PinFlow =
   | { kind: 'idle' }
@@ -150,8 +151,11 @@ const LoginScreen: React.FC = () => {
     if (!validateForm()) return;
     setIsLoading(true);
     setLoginError('');
+    const loginUrl = `${API_BASE_URL}/auth/login/`;
+    console.log(`[login] POST ${loginUrl} as ${formData.email}`);
     try {
       await login(formData.email, formData.password);
+      console.log(`[login] success for ${formData.email}`);
       // Already-enrolled devices skip the upsell
       const [bio, pin] = await Promise.all([
         DeviceAuthService.isBiometricEnabled(),
@@ -163,31 +167,30 @@ const LoginScreen: React.FC = () => {
         setTimeout(() => promptEnableQuickAuth(cap), 200);
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      const status = error?.status ?? error?.response?.status;
+      const code = error?.code;
+      const detail = error?.detail ?? error?.response?.data;
+      console.error(
+        `[login] failed ${loginUrl} — status=${status ?? 'n/a'} code=${code ?? 'n/a'}`,
+        detail ?? error?.message ?? error
+      );
       let errorMessage =
         'Unable to connect to the server. Please check your internet connection and try again.';
-      if (error.response) {
-        const status = error.response.status;
-        if (status === 401) {
-          errorMessage = 'Invalid email or password. Please try again.';
-        } else if (status === 400) {
-          errorMessage =
-            error.response.data?.detail ||
-            error.response.data?.message ||
-            'Invalid credentials. Please check your email and password.';
-        } else if (status === 403) {
-          errorMessage = 'Your account has been disabled. Please contact support.';
-        } else if (status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        } else {
-          errorMessage =
-            error.response.data?.detail ||
-            error.response.data?.message ||
-            'Login failed. Please try again.';
-        }
-      } else if (error.request) {
-        errorMessage = 'No response from server. Please check your internet connection.';
-      } else if (error.message) {
+      if (code === 'network' || code === 'timeout') {
+        errorMessage = `No response from ${loginUrl}. Check your connection and try again.`;
+      } else if (status === 401) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (status === 400) {
+        errorMessage =
+          (detail && typeof detail === 'object' && (detail.detail || detail.message)) ||
+          'Invalid credentials. Please check your email and password.';
+      } else if (status === 403) {
+        errorMessage = 'Your account has been disabled. Please contact support.';
+      } else if (status === 503) {
+        errorMessage = `Service unavailable (503) at ${loginUrl}. The API may be down or warming up.`;
+      } else if (typeof status === 'number' && status >= 500) {
+        errorMessage = `Server error ${status} at ${loginUrl}. Please try again later.`;
+      } else if (error?.message) {
         errorMessage = error.message;
       }
       setLoginError(errorMessage);
