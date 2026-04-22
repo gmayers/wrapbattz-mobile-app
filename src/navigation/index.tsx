@@ -12,7 +12,7 @@ import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import VerifyEmailScreen from '../screens/AuthScreens/VerifyEmail/VerifyEmailScreen';
 import ForgotPasswordPage from '../screens/AuthScreens/ForgotPasswordPage';
-import TabNavigation from './TabNavigation';
+import MainTabNavigator from './MainTabNavigator';
 import AllReportsScreen from '../screens/AllReportsScreen';
 import ReportDetailsScreen from '../screens/ReportDetailsScreen';
 import AllDevicesScreen from '../screens/AllDevicesScreen';
@@ -142,7 +142,7 @@ const MainStack = () => {
       {/* Main Tab Navigation */}
       <Stack.Screen
         name="MainTabs"
-        component={TabNavigation}
+        component={MainTabNavigator}
         options={{
           headerShown: false
         }}
