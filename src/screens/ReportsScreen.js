@@ -18,6 +18,9 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { incidents as incidentsApi } from '../api/endpoints';
+import { toLegacyReport } from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 const { width } = Dimensions.get('window');
 
@@ -43,16 +46,7 @@ const STATUS_CHOICES = [
 ];
 
 const ReportsScreen = ({ navigation }) => {
-  // Use proper auth context properties
-  const { 
-    deviceService, 
-    logout, 
-    userData,
-    user,
-    refreshRoleInfo,
-    error: authError,
-    clearError
-  } = useAuth();
+  const { userData, user, refreshUser } = useAuth();
   const { colors } = useTheme();
 
   const [reports, setReports] = useState([]);
@@ -64,42 +58,26 @@ const ReportsScreen = ({ navigation }) => {
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
   
   // Get user's name
-  const userName = userData?.name || user?.username || user?.email || 'User';
-
-  // Clear any auth errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (authError) clearError();
-    };
-  }, [authError, clearError]);
+  const userName =
+    (user?.first_name && `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}`) ||
+    user?.email ||
+    'User';
 
   useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-    
-    // Only refresh role info once when component mounts
-    if (refreshRoleInfo) {
-      refreshRoleInfo();
-    }
-  }, [navigation]);
+    navigation.setOptions({ headerShown: false });
+    if (refreshUser) refreshUser();
+  }, [navigation, refreshUser]);
 
-  // Use useCallback for improved performance
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Use deviceService instead of direct axios call
-      const reportsData = await deviceService.getMyReports();
-      
-      // Adapt to your response format
-      let allReports = Array.isArray(reportsData)
-        ? reportsData
-        : reportsData.results || [];
+      const page = await incidentsApi.listMyIncidents();
+      const allReports = page.items.map(toLegacyReport);
 
       // Sort by most recent first
-      allReports.sort((a, b) => new Date(b.created_at || b.report_date) - new Date(a.created_at || a.report_date));
+      allReports.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       // Filter to only show pending and in-progress reports first
       const filteredReports = allReports.filter(report =>
@@ -123,11 +101,10 @@ const ReportsScreen = ({ navigation }) => {
 
       setReports(displayReports);
     } catch (error) {
-      console.error('Error fetching reports:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
-        const errorMsg = error.response?.data?.message || 'Failed to fetch your reports. Please try again later.';
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
+        const errorMsg =
+          (error instanceof ApiError && error.message) ||
+          'Failed to fetch your reports. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
@@ -135,7 +112,7 @@ const ReportsScreen = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [deviceService, logout]);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {

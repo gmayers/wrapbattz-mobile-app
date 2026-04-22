@@ -16,21 +16,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
+import { sites as sitesApi } from '../api/endpoints';
+import { ApiError } from '../api/errors';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
 
 const CreateLocationScreen = ({ navigation, route }) => {
-  // Use AuthContext
-  const { 
-    deviceService, 
-    axiosInstance, 
-    userData, 
-    logout, 
-    error: authError, 
-    clearError, 
-    isLoading: authLoading 
-  } = useAuth();
+  const { isLoading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState({
     building_name: '',
@@ -45,13 +38,6 @@ const CreateLocationScreen = ({ navigation, route }) => {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-
-  // Clear auth errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (authError) clearError();
-    };
-  }, [authError, clearError]);
 
   // Set up navigation options
   useEffect(() => {
@@ -111,43 +97,41 @@ const CreateLocationScreen = ({ navigation, route }) => {
     setError(null);
     
     try {
-      // Add organization ID from user data context
-      const completeFormData = { 
-        ...formData,
-        organization: userData?.orgId
-      };
-      
-      // Use deviceService if available, otherwise use axiosInstance
-      if (deviceService && typeof deviceService.createLocation === 'function') {
-        await deviceService.createLocation(completeFormData);
-      } else {
-        await axiosInstance.post('/locations/', completeFormData);
-      }
-      
+      const address1 = [formData.street_number, formData.street_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      await sitesApi.createSite({
+        name: formData.building_name || address1 || 'New Site',
+        site_type: 'office',
+        description: formData.address_2 || '',
+        nickname: formData.building_name || '',
+        address_line1: address1,
+        city: formData.town_or_city || '',
+        postcode: formData.postcode || '',
+      });
+
       Alert.alert(
-        'Success', 
+        'Success',
         'Location created successfully',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('Error creating location:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status === 401) {
-        return;
-      }
-
-      if (error.response?.data?.errors) {
-        setFormErrors(error.response.data.errors);
+      if (error instanceof ApiError && error.code === 'unauthorized') return;
+      const detail = error instanceof ApiError ? error.detail : error?.response?.data;
+      if (detail && typeof detail === 'object' && 'errors' in detail) {
+        setFormErrors(detail.errors);
       } else {
-        const errorMsg = error.response?.data?.message || 'Failed to create location. Please try again.';
+        const errorMsg =
+          (error instanceof ApiError && error.message) ||
+          'Failed to create location. Please try again.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [deviceService, axiosInstance, formData, userData, validateForm, navigation, logout]);
+  }, [formData, validateForm, navigation]);
 
   // Render error banner
   const renderErrorBanner = () => {

@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const EditProfileScreen = ({ navigation, route }) => {
-  const { updateUserProfile, user, userData } = useAuth();
+  const { updateUser, user, userData } = useAuth();
   const { colors } = useTheme();
   
   // Get profile data from route params or use empty object
@@ -83,41 +83,33 @@ const EditProfileScreen = ({ navigation, route }) => {
     }
     
     setLoading(true);
-    
+
     try {
-      const userId = userData?.userId || user?.id || initialProfileData.id;
-      
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-      
-      // Update profile using AuthContext method
-      await updateUserProfile(userId, formData);
-      
+      // The new /account/ endpoint updates the authenticated user directly,
+      // no user ID required.
+      await updateUser({
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone_number: formData.phone_number,
+        email: formData.email,
+      });
+
       Alert.alert(
         'Success',
         'Profile updated successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err) {
-      console.error('Error updating profile:', err);
-      
-      if (err.response?.data) {
-        // Format API validation errors
+      const detail = err?.detail;
+      if (detail && typeof detail === 'object') {
         const apiErrors = {};
-        
-        Object.keys(err.response.data).forEach((key) => {
-          apiErrors[key] = err.response.data[key][0]; // Get first error message
+        Object.keys(detail).forEach((key) => {
+          const value = detail[key];
+          apiErrors[key] = Array.isArray(value) ? String(value[0]) : String(value);
         });
-        
         setErrors(apiErrors);
       } else {
-        Alert.alert('Error', 'Failed to update profile');
+        Alert.alert('Error', err?.message || 'Failed to update profile');
       }
     } finally {
       setLoading(false);

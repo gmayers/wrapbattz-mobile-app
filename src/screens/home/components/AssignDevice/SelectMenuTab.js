@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
 import Dropdown from '../../../../components/Dropdown';
 import Button from '../../../../components/Button';
-import { useAuth } from '../../../../context/AuthContext';
+import { tools as toolsApi } from '../../../../api/endpoints';
 import { useTheme } from '../../../../context/ThemeContext';
 
 const SelectMenuTab = ({ 
@@ -22,8 +22,6 @@ const SelectMenuTab = ({
   const [deviceOptions, setDeviceOptions] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
   
-  // Import deviceService and axiosInstance from AuthContext
-  const { deviceService, axiosInstance } = useAuth();
   
   // Transform locations into dropdown format and select first location
   useEffect(() => {
@@ -138,14 +136,8 @@ const SelectMenuTab = ({
     setAssignLoading(true);
 
     try {
-      console.log(`Assigning device ${selectedDeviceId} to current user`);
-      
-      // Use the dedicated assign-to-me endpoint which doesn't require any request body
-      // This endpoint automatically assigns the device to the authenticated user
-      const response = await axiosInstance.post(
-        `/device-assignments/device/${selectedDeviceId}/assign-to-me/`
-      );
-      
+      await toolsApi.assignToolToMe(Number(selectedDeviceId));
+
       Alert.alert(
         'Success', 
         'Device assigned successfully to your account.',

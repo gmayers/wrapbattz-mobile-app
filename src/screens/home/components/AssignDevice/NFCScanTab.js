@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../../../../components/Button';
 import DeviceInfoDisplay from '../../../../components/DeviceInfoDisplay';
 import { nfcService } from '../../../../services/NFCService';
-import { useAuth } from '../../../../context/AuthContext';
+import { tools as toolsApi } from '../../../../api/endpoints';
+import { ApiError } from '../../../../api/errors';
 import { useTheme } from '../../../../context/ThemeContext';
 
 
@@ -15,7 +16,6 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
   const [assignLoading, setAssignLoading] = useState(false);
   const [scannedDeviceData, setScannedDeviceData] = useState(null);
   const [deviceIdentifier, setDeviceIdentifier] = useState(null);
-  const { deviceService } = useAuth();
 
   const cancelNfcRead = async () => {
     try {
@@ -68,26 +68,32 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
       // Step 1: Read NFC tag to get hardware UUID
       const { tagId } = await readNfcTag();
 
-      // Step 2: Look up device by NFC UUID via API
-      console.log('[NFCScanTab] Looking up device by NFC UUID:', tagId);
-      const device = await deviceService.getDeviceByNfcUuid(tagId);
-
-      if (!device) {
-        throw new Error(
-          'Device not found.\n\n' +
-          'This NFC tag is not registered with any device in your organization.\n\n' +
-          'If this is a new device, please add it first using the Add Device screen.'
-        );
+      // Step 2: Look up tool by NFC tag UID via API
+      let tool;
+      try {
+        tool = await toolsApi.getToolByNfc(tagId);
+      } catch (lookupError) {
+        if (lookupError instanceof ApiError && lookupError.code === 'not_found') {
+          throw new Error(
+            'Tool not found.\n\n' +
+            'This NFC tag is not registered with any tool in your organization.\n\n' +
+            'If this is a new tool, please add it first using the Add Tool screen.'
+          );
+        }
+        throw lookupError;
       }
 
-      console.log('[NFCScanTab] Found device:', device.identifier);
+      // Step 3: Store tool data for display (legacy field names for DeviceInfoDisplay)
+      const legacyDevice = {
+        ...tool,
+        identifier: tool.name,
+        device_type: tool.category_name ?? '',
+      };
+      setScannedDeviceData(legacyDevice);
+      setDeviceIdentifier(tool.name);
 
-      // Step 3: Store device data for display
-      setScannedDeviceData(device);
-      setDeviceIdentifier(device.identifier);
-
-      // Step 4: Assign using device ID
-      await assignDevice(device.id);
+      // Step 4: Assign using tool ID
+      await assignDevice(tool.id);
     } catch (error) {
       // Reset state on error
       setScannedDeviceData(null);
@@ -113,10 +119,9 @@ const NFCScanTab = ({ onAssignComplete, handleApiError }) => {
     }
   };
 
-  const assignDevice = async (deviceId) => {
+  const assignDevice = async (toolId) => {
     try {
-      // Use assignDeviceToMe with the device ID (simpler than identifier-based)
-      await deviceService.assignDeviceToMe(deviceId, {});
+      await toolsApi.assignToolToMe(toolId);
 
       Alert.alert('Success', 'Device assigned successfully to your account.');
 

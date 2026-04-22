@@ -24,6 +24,27 @@ import Card from '../components/Card';
 import SearchBar from '../components/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { sites as sitesApi } from '../api/endpoints';
+import { toLegacyLocation } from '../api/adapters';
+import { ApiError } from '../api/errors';
+
+// Map the screen's legacy address form shape to the new Site* payload.
+const toSitePayload = (formData) => {
+  const address1 = [formData.street_number, formData.street_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return {
+    name: formData.name?.trim() || address1 || formData.building_name || 'New Site',
+    site_type: formData.site_type || 'office',
+    description: formData.address_2 || '',
+    nickname: formData.building_name || '',
+    prefix_code: formData.prefix_code || '',
+    address_line1: address1,
+    city: formData.town_or_city || '',
+    postcode: formData.postcode || '',
+  };
+};
 
 const { width } = Dimensions.get('window');
 
@@ -32,17 +53,7 @@ const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext
-  const {
-    deviceService,
-    axiosInstance,
-    logout,
-    isAdminOrOwner,
-    userData,
-    user,
-    refreshRoleInfo,
-    error: authError,
-    clearError
-  } = useAuth();
+  const { isAdminOrOwner, userData, user, refreshUser } = useAuth();
   const { colors } = useTheme();
 
   const [locations, setLocations] = useState([]);
@@ -69,42 +80,25 @@ const LocationsScreen = ({ navigation }) => {
   const [togglingLocation, setTogglingLocation] = useState(null);
   
   // Get user's name
-  const userName = userData?.name || user?.username || user?.email || 'User';
-
-  // Reset AuthContext errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (authError) clearError();
-    };
-  }, [authError, clearError]);
+  const userName =
+    (user?.first_name && `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}`) ||
+    user?.email ||
+    'User';
 
   useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-    
-    // Only refresh role info once when component mounts
-    if (refreshRoleInfo) {
-      refreshRoleInfo();
-    }
-  }, [navigation]);
+    navigation.setOptions({ headerShown: false });
+    if (refreshUser) refreshUser();
+  }, [navigation, refreshUser]);
 
   const fetchLocations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const locationsData = await deviceService.getLocations();
-      
-      // Adapt to your response format
-      let allLocations = Array.isArray(locationsData)
-        ? locationsData
-        : locationsData.results || [];
-      
+      const page = await sitesApi.listSites();
+      const allLocations = page.items.map(toLegacyLocation);
       setLocations(allLocations);
       setFilteredLocations(allLocations);
     } catch (error) {
-      console.error('Error fetching locations:', error);
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
         Alert.alert('Error', 'Failed to fetch locations. Please try again later.');
       }
       setLocations([]);
@@ -112,7 +106,7 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [deviceService, logout]);
+  }, []);
 
   // Use useCallback for event handlers to prevent unnecessary re-renders
   useEffect(() => {
@@ -193,16 +187,8 @@ const LocationsScreen = ({ navigation }) => {
     setIsSubmitting(true);
     
     try {
-      // Add organization ID from user data context
-      const completeFormData = { 
-        ...formData,
-        organization: userData?.orgId // Add organization ID from context
-      };
-      
-      // Use the deviceService to create location
-      await deviceService.createLocation(completeFormData);
-      
-      // Close modal and reset form
+      await sitesApi.createSite(toSitePayload(formData));
+
       setModalVisible(false);
       setFormData({
         name: '',
@@ -214,86 +200,50 @@ const LocationsScreen = ({ navigation }) => {
         county: '',
         postcode: '',
       });
-      
-      // Refresh locations list
+
       fetchLocations();
-      
       Alert.alert('Success', 'Location created successfully');
     } catch (error) {
-      console.error('Error creating location:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status === 401) {
-        return;
-      }
-
-      if (error.response?.data?.errors) {
-        setFormErrors(error.response.data.errors);
+      if (error instanceof ApiError && error.code === 'unauthorized') return;
+      const detail = error instanceof ApiError ? error.detail : error?.response?.data;
+      if (detail && typeof detail === 'object' && 'errors' in detail) {
+        setFormErrors(detail.errors);
       } else {
         Alert.alert(
           'Error',
-          error.response?.data?.message || 'Failed to create location. Please try again.'
+          (error instanceof ApiError && error.message) || 'Failed to create location. Please try again.'
         );
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [deviceService, formData, logout, userData, validateForm, fetchLocations]);
+  }, [formData, validateForm, fetchLocations]);
 
   const handleToggleActive = useCallback(async (locationId, currentStatus) => {
     setTogglingLocation(locationId);
-
-    const newStatus = currentStatus === undefined ? false : !currentStatus;
-
-    console.log('Toggling location:', {
-      locationId,
-      currentStatus,
-      newStatus,
-      endpoint: `/locations/${locationId}/`
-    });
+    const nextActive = currentStatus === undefined ? false : !currentStatus;
 
     try {
-      const response = await deviceService.updateLocation(locationId, {
-        is_active: newStatus
+      await sitesApi.updateSite(Number(locationId), {
+        status: nextActive ? 'active' : 'inactive',
       });
-
-      console.log('Toggle response:', response);
-
-      // Update local state
-      setLocations(prevLocations =>
-        prevLocations.map(loc =>
-          loc.id === locationId ? { ...loc, is_active: newStatus } : loc
-        )
+      setLocations((prev) =>
+        prev.map((loc) => (loc.id === locationId ? { ...loc, is_active: nextActive } : loc))
       );
-      setFilteredLocations(prevLocations =>
-        prevLocations.map(loc =>
-          loc.id === locationId ? { ...loc, is_active: newStatus } : loc
-        )
+      setFilteredLocations((prev) =>
+        prev.map((loc) => (loc.id === locationId ? { ...loc, is_active: nextActive } : loc))
       );
     } catch (error) {
-      console.error('Error toggling location status:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data
-        }
-      });
-
-      if (error.response?.status !== 401) {
-        const errorMessage = error.response?.data?.detail ||
-                            error.response?.data?.message ||
-                            error.message ||
-                            'Failed to update location status. Please try again.';
-        Alert.alert('Error', errorMessage);
-      }
+      if (error instanceof ApiError && error.code === 'unauthorized') return;
+      Alert.alert(
+        'Error',
+        (error instanceof ApiError && error.message) ||
+          'Failed to update location status. Please try again.'
+      );
     } finally {
       setTogglingLocation(null);
     }
-  }, [deviceService]);
+  }, []);
 
   const handleEditLocation = useCallback((location) => {
     setEditMode(true);
@@ -321,10 +271,7 @@ const LocationsScreen = ({ navigation }) => {
     setIsSubmitting(true);
 
     try {
-      const updateData = { ...formData };
-      delete updateData.signature; // Remove signature from update for now
-
-      await deviceService.updateLocation(editingLocationId, updateData);
+      await sitesApi.updateSite(Number(editingLocationId), toSitePayload(formData));
 
       // Close modal and reset form
       setModalVisible(false);
@@ -348,24 +295,20 @@ const LocationsScreen = ({ navigation }) => {
 
       Alert.alert('Success', 'Location updated successfully');
     } catch (error) {
-      console.error('Error updating location:', error);
-
-      if (error.response?.status === 401) {
-        return;
-      }
-
-      if (error.response?.data?.errors) {
-        setFormErrors(error.response.data.errors);
+      if (error instanceof ApiError && error.code === 'unauthorized') return;
+      const detail = error instanceof ApiError ? error.detail : error?.response?.data;
+      if (detail && typeof detail === 'object' && 'errors' in detail) {
+        setFormErrors(detail.errors);
       } else {
         Alert.alert(
           'Error',
-          error.response?.data?.message || 'Failed to update location. Please try again.'
+          (error instanceof ApiError && error.message) || 'Failed to update location. Please try again.'
         );
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [deviceService, formData, editingLocationId, validateForm, fetchLocations]);
+  }, [formData, editingLocationId, validateForm, fetchLocations]);
 
   const renderLocationCard = useCallback((location) => (
     <Card key={location.id} style={styles.locationCard}>

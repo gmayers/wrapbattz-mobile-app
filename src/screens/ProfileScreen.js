@@ -14,14 +14,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import axios from 'axios';
-
-// API endpoints
-const API_BASE_URL = 'https://webportal.battwrapz.com/api';
+import * as authApi from '../api/endpoints/auth';
+import { tools as toolsApi } from '../api/endpoints';
+import { ApiError } from '../api/errors';
 
 const ProfileScreen = ({ navigation }) => {
-  // Use AuthContext
-  const { user, userData, logout, updateUserProfile, getUserProfile, axiosInstance, isAdminOrOwner } = useAuth();
+  const { user, userData, logout, updateUser, refreshUser, isAdminOrOwner } = useAuth();
   const { colors, themeMode, setThemeMode } = useTheme();
   
   const [profileData, setProfileData] = useState(null);
@@ -31,92 +29,53 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch profile data
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Get user profile from AuthContext
-      // (This should have been implemented in your AuthContext as described in your earlier code)
-      const userId = userData?.userId || user?.id;
+      const me = await refreshUser();
+      setProfileData(me);
 
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      // Get user profile using authContext method
-      const profileResponse = await getUserProfile(userId);
-      setProfileData(profileResponse);
-
-      // Sync notification states with fetched profile data
-      if (profileResponse) {
-        setNotificationsEnabled(profileResponse.push_notifications_enabled ?? false);
-        setEmailNotificationsEnabled(profileResponse.email_notifications_enabled ?? false);
-      }
-
-      // Only fetch billing data for admin/owner
+      // New API has no billing endpoint yet. For admin/owner, surface the
+      // tool count so the existing billing card renders something real.
       if (isAdminOrOwner) {
         try {
-          // Use /billing/usage/ endpoint (the correct endpoint)
-          const billingResponse = await axiosInstance.get('/billing/usage/');
-          const data = billingResponse.data;
-
-          // Map flat response fields to expected structure
+          const page = await toolsApi.listTools({ page: 1, page_size: 1 });
+          const toolCount = page.total ?? 0;
           setBillingData({
-            total_devices: data.device_count || 0,
-            free_devices_remaining: Math.max(0, (data.free_devices || 3) - (data.device_count || 0)),
-            billable_devices: data.billable_devices || 0,
+            total_devices: toolCount,
+            free_devices_remaining: Math.max(0, 3 - toolCount),
+            billable_devices: Math.max(0, toolCount - 3),
             billing: {
-              status: data.subscription_status || 'inactive',
-              plan_type: data.billing_period || null,
-              max_devices: data.device_count || 0,
-              next_billing_date: data.next_billing_date || null
-            }
+              status: 'inactive',
+              plan_type: null,
+              max_devices: toolCount,
+              next_billing_date: null,
+            },
           });
-        } catch (billingError) {
-          console.log('ℹ️ Billing status not available, fetching device count...');
-
-          // Don't use mock data - fetch real device count and show "not set up" state
-          try {
-            const devicesResponse = await axiosInstance.get('/devices/');
-            const deviceCount = devicesResponse.data?.length || 0;
-
-            setBillingData({
-              total_devices: deviceCount,
-              free_devices_remaining: Math.max(0, 3 - deviceCount),
-              billable_devices: Math.max(0, deviceCount - 3),
-              billing: {
-                status: 'inactive',  // Show as inactive, not fake "active"
-                plan_type: null,
-                max_devices: deviceCount,
-                next_billing_date: null
-              }
-            });
-          } catch (deviceError) {
-            console.log('ℹ️ Device list not available, using defaults');
-            // If we can't get device count either, show 0
-            setBillingData({
-              total_devices: 0,
-              free_devices_remaining: 3,
-              billable_devices: 0,
-              billing: {
-                status: 'inactive',
-                plan_type: null,
-                max_devices: 0,
-                next_billing_date: null
-              }
-            });
-          }
+        } catch (usageError) {
+          setBillingData({
+            total_devices: 0,
+            free_devices_remaining: 3,
+            billable_devices: 0,
+            billing: {
+              status: 'inactive',
+              plan_type: null,
+              max_devices: 0,
+              next_billing_date: null,
+            },
+          });
         }
       }
     } catch (err) {
-      console.error('Error fetching profile:', err);
-      setError('Failed to load profile data');
+      if (!(err instanceof ApiError && err.code === 'unauthorized')) {
+        setError('Failed to load profile data');
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, userData, getUserProfile, isAdminOrOwner, axiosInstance]);
+  }, [refreshUser, isAdminOrOwner]);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -126,117 +85,53 @@ const ProfileScreen = ({ navigation }) => {
   const handleUpdateProfile = useCallback(async (updatedData) => {
     try {
       setLoading(true);
-      const userId = userData?.userId || user?.id;
-
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      // Update profile using the AuthContext method
-      await updateUserProfile(userId, updatedData);
-
-      // Refresh profile data to get updated values from server
+      await updateUser(updatedData);
       await fetchProfileData();
-
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
-      console.error('Error updating profile:', err);
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert('Error', (err instanceof ApiError && err.message) || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
-  }, [userData, user, updateUserProfile, fetchProfileData]);
-  
+  }, [updateUser, fetchProfileData]);
+
   const handleChangePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       setLoading(true);
-      
-      // Call password change endpoint directly
-      await axiosInstance.post('/auth/password/change/', {
-        old_password: currentPassword,
-        new_password1: newPassword,
-        new_password2: newPassword
+      await authApi.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
       });
-      
       Alert.alert('Success', 'Password changed successfully');
     } catch (err) {
-      console.error('Error changing password:', err);
-      
-      if (err.response?.data?.old_password) {
-        Alert.alert('Error', err.response.data.old_password[0]);
-      } else if (err.response?.data?.new_password1) {
-        Alert.alert('Error', err.response.data.new_password1[0]);
-      } else {
-        Alert.alert('Error', 'Failed to change password');
-      }
+      const detail = err instanceof ApiError ? err.detail : undefined;
+      const pickFirst = (key) => {
+        const value = detail && typeof detail === 'object' ? detail[key] : undefined;
+        if (Array.isArray(value) && value.length > 0) return String(value[0]);
+        if (typeof value === 'string') return value;
+        return undefined;
+      };
+      const message =
+        pickFirst('current_password') ||
+        pickFirst('new_password') ||
+        (err instanceof ApiError && err.message) ||
+        'Failed to change password';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
-  }, [axiosInstance]);
-  
-  const handlePushNotificationToggle = useCallback(async (value) => {
-    // Optimistically update UI
-    const previousValue = notificationsEnabled;
+  }, []);
+
+  // Notification preference toggles are no-ops until the new API exposes a
+  // preference endpoint. The local state updates optimistically so the UI
+  // still feels responsive.
+  const handlePushNotificationToggle = useCallback((value) => {
     setNotificationsEnabled(value);
+  }, []);
 
-    try {
-      const userId = userData?.userId || user?.id;
-
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      // Update push notification preference in profile
-      await updateUserProfile(userId, {
-        push_notifications_enabled: value
-      });
-
-      // Update profileData state directly instead of re-fetching
-      setProfileData(prevData => ({
-        ...prevData,
-        push_notifications_enabled: value
-      }));
-
-    } catch (err) {
-      console.error('Error updating push notification preferences:', err);
-      // Revert the switch if update fails
-      setNotificationsEnabled(previousValue);
-      Alert.alert('Error', 'Failed to update push notification preferences');
-    }
-  }, [userData, user, updateUserProfile, notificationsEnabled]);
-
-  const handleEmailNotificationToggle = useCallback(async (value) => {
-    // Optimistically update UI
-    const previousValue = emailNotificationsEnabled;
+  const handleEmailNotificationToggle = useCallback((value) => {
     setEmailNotificationsEnabled(value);
-
-    try {
-      const userId = userData?.userId || user?.id;
-
-      if (!userId) {
-        throw new Error('User ID not found');
-      }
-
-      // Update email notification preference in profile
-      await updateUserProfile(userId, {
-        email_notifications_enabled: value
-      });
-
-      // Update profileData state directly instead of re-fetching
-      setProfileData(prevData => ({
-        ...prevData,
-        email_notifications_enabled: value
-      }));
-
-      Alert.alert('Success', 'Email notification preferences updated');
-
-    } catch (err) {
-      console.error('Error updating email notification preferences:', err);
-      // Revert the switch if update fails
-      setEmailNotificationsEnabled(previousValue);
-      Alert.alert('Error', 'Failed to update email notification preferences');
-    }
-  }, [userData, user, updateUserProfile, emailNotificationsEnabled]);
+  }, []);
   
   const handleLogout = useCallback(() => {
     Alert.alert(

@@ -22,6 +22,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Dropdown from '../components/Dropdown';
 import RNFS from 'react-native-fs';
+import {
+  assignments as assignmentsApi,
+  incidents as incidentsApi,
+  toolPhotos as toolPhotosApi,
+} from '../api/endpoints';
+import { toLegacyAssignment } from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 const REPORT_TYPES = {
   DAMAGED: "Device is physically damaged or broken",
@@ -33,16 +40,7 @@ const REPORT_TYPES = {
 };
 
 const CreateReportScreen = ({ navigation, route }) => {
-  // Using more properties from the auth context
-  const { 
-    deviceService, 
-    axiosInstance,
-    error: authError, 
-    clearError, 
-    userData, 
-    logout,
-    isLoading: authLoading
-  } = useAuth();
+  const { userData, isLoading: authLoading } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -65,52 +63,41 @@ const CreateReportScreen = ({ navigation, route }) => {
   const signatureDataRef = useRef(null);
   const isAutoCapture = useRef(false);
 
-  // Clear auth context errors when component unmounts
-  useEffect(() => {
-    return () => {
-      if (authError) clearError();
-    };
-  }, [authError, clearError]);
-
   const fetchActiveDevices = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Using deviceService from auth context
-      const data = await deviceService.getMyActiveAssignments();
-      const activeDevices = Array.isArray(data) 
-        ? data.filter(assignment => !assignment.returned_date)
-        : [];
-        
+
+      const rawList = await assignmentsApi.listMyActiveAssignments();
+      const activeDevices = rawList
+        .map(toLegacyAssignment)
+        .filter((assignment) => !assignment.returned_date);
+
       setDevices(activeDevices);
 
-      const formattedDevices = activeDevices.map(item => ({
-        label: `${item.device.identifier} - ${item.device.device_type}`,
-        value: item.device.id
+      const formattedDevices = activeDevices.map((item) => ({
+        label: `${item.device.identifier}${item.device.device_type ? ` - ${item.device.device_type}` : ''}`,
+        value: item.device.id,
       }));
 
       if (formattedDevices.length === 0) {
-        formattedDevices.unshift({ label: "No active devices", value: "" });
+        formattedDevices.unshift({ label: 'No active devices', value: '' });
       }
 
       setDeviceItems(formattedDevices);
 
       if (activeDevices.length > 0 && activeDevices[0]?.device?.id) {
-        setFormData(prev => ({ ...prev, device_id: activeDevices[0].device.id }));
+        setFormData((prev) => ({ ...prev, device_id: activeDevices[0].device.id }));
       }
     } catch (error) {
-      console.error('Error fetching devices:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
         setError('Failed to fetch devices. Please try again.');
         Alert.alert('Error', 'Failed to fetch devices');
       }
     } finally {
       setLoading(false);
     }
-  }, [deviceService, logout]);
+  }, []);
 
   useEffect(() => {
     fetchActiveDevices();
@@ -404,176 +391,68 @@ const CreateReportScreen = ({ navigation, route }) => {
     setError(null);
     
     try {
-      // Format the report data according to the API expectations
-      const reportData = {
-        device_id: formData.device_id,
+      const toolId = Number(formData.device_id);
+
+      await incidentsApi.createIncident({
+        tool_id: toolId,
         type: formData.type,
+        severity: 'medium',
         description: formData.description,
-        report_date: new Date().toISOString().split('T')[0],
-      };
-
-      // Use the appropriate method to create a report
-      // First, check if deviceService has a createReport method
-      let reportResponse;
-      if (typeof deviceService.createReport === 'function') {
-        reportResponse = await deviceService.createReport(reportData);
-      } else {
-        // If not, use the axiosInstance directly as a fallback
-        reportResponse = await axiosInstance.post('/reports/', reportData);
-        reportResponse = reportResponse.data; // Extract data from axios response
-      }
-      
-      const reportId = reportResponse.id;
-      console.log('Report created successfully:', reportId);
-
-      // Upload photos and signature to the device-photos endpoint
-      const uploadPromises = [];
-
-      console.log('📤 [CreateReport] Starting photo uploads...', {
-        hasMainPhoto: !!photoUri,
-        additionalPhotoCount: additionalPhotos.length,
-        hasSignature: !!signatureUri,
-        reportId,
-        deviceId: formData.device_id,
       });
 
-      // Main photo
+      // Photos attach to the tool on the new API (not to the incident).
+      const uploadPromises = [];
+
       if (photoUri) {
-        const fileName = `report_photo_${Date.now()}.jpg`;
-        console.log('📤 [CreateReport] Preparing main photo upload:', {
-          uri: photoUri,
-          type: 'image/jpeg',
-          name: fileName,
-        });
-
-        const photoForm = new FormData();
-        photoForm.append('image', {
-          uri: photoUri,
-          type: 'image/jpeg',
-          name: fileName,
-        });
-        photoForm.append('device', formData.device_id);
-        photoForm.append('report', reportId);
         uploadPromises.push(
-          deviceService.createDevicePhoto(photoForm)
-            .then(res => {
-              console.log('✅ [CreateReport] Main photo uploaded successfully:', {
-                id: res?.id,
-                imageUrl: res?.image,
-              });
-              return res;
-            })
-            .catch(err => {
-              console.error('❌ [CreateReport] Main photo upload failed:', {
-                status: err.response?.status,
-                data: err.response?.data,
-                message: err.message,
-              });
-              throw err;
-            })
+          toolPhotosApi.uploadToolPhoto(toolId, {
+            uri: photoUri,
+            name: `report_photo_${Date.now()}.jpg`,
+            type: 'image/jpeg',
+          })
         );
       }
 
-      // Additional photos
-      for (let i = 0; i < additionalPhotos.length; i++) {
-        const fileName = `report_photo_${Date.now()}_${i}.jpg`;
-        console.log(`📤 [CreateReport] Preparing additional photo ${i + 1} upload:`, {
-          uri: additionalPhotos[i].uri,
-          type: 'image/jpeg',
-          name: fileName,
-        });
-
-        const photoForm = new FormData();
-        photoForm.append('image', {
-          uri: additionalPhotos[i].uri,
-          type: 'image/jpeg',
-          name: fileName,
-        });
-        photoForm.append('device', formData.device_id);
-        photoForm.append('report', reportId);
+      additionalPhotos.forEach((photo, i) => {
         uploadPromises.push(
-          deviceService.createDevicePhoto(photoForm)
-            .then(res => {
-              console.log(`✅ [CreateReport] Additional photo ${i + 1} uploaded:`, {
-                id: res?.id,
-                imageUrl: res?.image,
-              });
-              return res;
-            })
-            .catch(err => {
-              console.error(`❌ [CreateReport] Additional photo ${i + 1} upload failed:`, {
-                status: err.response?.status,
-                data: err.response?.data,
-                message: err.message,
-              });
-              throw err;
-            })
+          toolPhotosApi.uploadToolPhoto(toolId, {
+            uri: photo.uri,
+            name: `report_photo_${Date.now()}_${i}.jpg`,
+            type: 'image/jpeg',
+          })
         );
-      }
+      });
 
-      // Signature
       if (signatureUri) {
-        const signatureFileName = `signature_${Date.now()}.png`;
-        console.log('📤 [CreateReport] Preparing signature upload:', {
-          uri: signatureUri,
-          type: 'image/png',
-          name: signatureFileName,
-        });
-
-        const signatureForm = new FormData();
-        signatureForm.append('image', {
-          uri: signatureUri,
-          type: 'image/png',
-          name: signatureFileName,
-        });
-        signatureForm.append('device', formData.device_id);
-        signatureForm.append('report', reportId);
-        signatureForm.append('is_signature', 'true');
         uploadPromises.push(
-          deviceService.createDevicePhoto(signatureForm)
-            .then(res => {
-              console.log('✅ [CreateReport] Signature uploaded:', {
-                id: res?.id,
-                imageUrl: res?.image,
-              });
-              return res;
-            })
-            .catch(err => {
-              console.error('❌ [CreateReport] Signature upload failed:', {
-                status: err.response?.status,
-                data: err.response?.data,
-                message: err.message,
-              });
-              throw err;
-            })
+          toolPhotosApi.uploadToolPhoto(toolId, {
+            uri: signatureUri,
+            name: `signature_${Date.now()}.png`,
+            type: 'image/png',
+            isSignature: true,
+          })
         );
       }
 
-      // Wait for all uploads to complete
-      const uploadResults = await Promise.allSettled(uploadPromises);
-      const failedUploads = uploadResults.filter(r => r.status === 'rejected');
-      if (failedUploads.length > 0) {
-        console.warn(`${failedUploads.length} of ${uploadResults.length} uploads failed`);
-      }
+      await Promise.allSettled(uploadPromises);
 
       Alert.alert(
-        'Success', 
+        'Success',
         'Report submitted successfully',
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('Error submitting report:', error);
-
-      // Skip 401 errors - they're handled globally by the axios interceptor
-      if (error.response?.status !== 401) {
-        const errorMsg = error.response?.data?.message || 'Failed to submit report. Please try again.';
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
+        const errorMsg =
+          (error instanceof ApiError && error.message) ||
+          'Failed to submit report. Please try again.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
     } finally {
       setIsSubmitting(false);
     }
-  }, [validateForm, formData, photoUri, additionalPhotos, signatureUri, deviceService, navigation, logout]);
+  }, [validateForm, formData, photoUri, additionalPhotos, signatureUri, navigation]);
 
   const renderTypeButton = useCallback((type, description) => (
     <TouchableOpacity

@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
-import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/client';
 import Button from './Button';
 
 const ORANGE_COLOR = '#FFC72C';
 
-const DirectCardInput = ({ 
+const DirectCardInput = ({
   onPaymentMethodCreated,
   onError,
   customerId,
-  style 
+  style
 }) => {
   const { createPaymentMethod } = useStripe();
-  const { axiosInstance } = useAuth();
   const [cardDetails, setCardDetails] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,8 +39,7 @@ const DirectCardInput = ({
         throw new Error(error.message);
       }
 
-      // Attach payment method to customer via backend
-      await axiosInstance.post('/billing/attach-payment-method/', {
+      await apiClient.post('/billing/attach-payment-method/', {
         payment_method_id: paymentMethod.id,
         customer_id: customerId,
       });

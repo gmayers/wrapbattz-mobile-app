@@ -18,6 +18,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { PasswordChangeForm, ValidationResult, NavigationProp } from '../../types';
 import { FormValidation } from '../../utils/FormValidation';
 import PasswordField from '../../components/Form/PasswordField';
+import * as authApi from '../../api/endpoints/auth';
+import { ApiError } from '../../api/errors';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -26,7 +28,8 @@ interface ChangePasswordScreenProps {
 }
 
 const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation }) => {
-  const { axiosInstance, userData } = useAuth();
+  // useAuth is kept only so the screen fails loud if mounted outside the provider.
+  useAuth();
   const { colors } = useTheme();
 
   const [formData, setFormData] = useState<PasswordChangeForm>({
@@ -47,7 +50,7 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
   const validateForm = (): boolean => {
     const validationRules = {
       current_password: FormValidation.commonRules.required(),
-      new_password: FormValidation.commonRules.password(8),
+      new_password: FormValidation.commonRules.password(12),
       confirm_password: FormValidation.commonRules.confirmPassword(formData.new_password),
     };
 
@@ -79,85 +82,38 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
     setLoading(true);
 
     try {
-      const userId = userData?.userId || userData?.id;
-
-      if (userId) {
-        // Try updating through profile endpoint
-        await axiosInstance.patch(`/profile/${userId}/`, {
-          password: formData.new_password,
-          password_confirm: formData.confirm_password,
-          current_password: formData.current_password
-        });
-      } else {
-        // Fallback to auth endpoint
-        await axiosInstance.post('/auth/password/change/', {
-          old_password: formData.current_password,
-          new_password1: formData.new_password,
-          new_password2: formData.confirm_password,
-        });
-      }
+      await authApi.changePassword({
+        current_password: formData.current_password,
+        new_password: formData.new_password,
+      });
 
       Alert.alert(
         'Success',
         'Password changed successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
-    } catch (err: any) {
-      console.error('Error changing password:', err);
-
-      if (err.response?.data) {
-        // Format API validation errors
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.detail : undefined;
+      if (detail && typeof detail === 'object') {
         const apiErrors: Record<string, string> = {};
-
-        // Handle different error field names
-        if (err.response.data.old_password) {
-          apiErrors.current_password = Array.isArray(err.response.data.old_password) 
-            ? err.response.data.old_password[0] 
-            : err.response.data.old_password;
-        }
-        if (err.response.data.current_password) {
-          apiErrors.current_password = Array.isArray(err.response.data.current_password) 
-            ? err.response.data.current_password[0] 
-            : err.response.data.current_password;
-        }
-
-        if (err.response.data.new_password1) {
-          apiErrors.new_password = Array.isArray(err.response.data.new_password1) 
-            ? err.response.data.new_password1[0] 
-            : err.response.data.new_password1;
-        }
-        if (err.response.data.password) {
-          apiErrors.new_password = Array.isArray(err.response.data.password) 
-            ? err.response.data.password[0] 
-            : err.response.data.password;
-        }
-
-        if (err.response.data.new_password2) {
-          apiErrors.confirm_password = Array.isArray(err.response.data.new_password2) 
-            ? err.response.data.new_password2[0] 
-            : err.response.data.new_password2;
-        }
-        if (err.response.data.password_confirm) {
-          apiErrors.confirm_password = Array.isArray(err.response.data.password_confirm) 
-            ? err.response.data.password_confirm[0] 
-            : err.response.data.password_confirm;
-        }
-
-        if (err.response.data.non_field_errors) {
-          const message = Array.isArray(err.response.data.non_field_errors) 
-            ? err.response.data.non_field_errors[0] 
-            : err.response.data.non_field_errors;
-          Alert.alert('Error', message);
-        }
-
+        const pick = (key: string): string | undefined => {
+          const value = (detail as Record<string, unknown>)[key];
+          if (Array.isArray(value) && value.length > 0) return String(value[0]);
+          if (typeof value === 'string') return value;
+          return undefined;
+        };
+        const current = pick('current_password') ?? pick('old_password');
+        const next = pick('new_password') ?? pick('password');
+        if (current) apiErrors.current_password = current;
+        if (next) apiErrors.new_password = next;
+        const nonField = pick('detail') ?? pick('non_field_errors');
+        if (nonField) Alert.alert('Error', nonField);
         setErrors(apiErrors);
       } else {
-        Alert.alert('Error', 'Failed to change password. Please try again.');
+        Alert.alert(
+          'Error',
+          (err instanceof ApiError && err.message) || 'Failed to change password. Please try again.'
+        );
       }
     } finally {
       setLoading(false);

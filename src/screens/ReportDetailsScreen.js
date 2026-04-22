@@ -21,6 +21,11 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
+import {
+  incidents as incidentsApi,
+  toolPhotos as toolPhotosApi,
+} from '../api/endpoints';
+import { ApiError } from '../api/errors';
 
 const ORANGE_COLOR = '#FFC72C';
 const { width } = Dimensions.get('window');
@@ -45,7 +50,7 @@ const STATUS_CHOICES = [
 ];
 
 const ReportDetailsScreen = ({ navigation, route }) => {
-  const { deviceService, logout, userData, isAdminOrOwner, getAccessToken } = useAuth();
+  const { userData, isAdminOrOwner, getAccessToken } = useAuth();
   const { colors } = useTheme();
   const { reportId } = route.params;
 
@@ -82,116 +87,81 @@ const ReportDetailsScreen = ({ navigation, route }) => {
     fetchReportImages();
   }, [reportId]);
 
-  // Fetch device photos associated with this report
+  // Fetch tool photos associated with this incident's tool.
+  // The new API doesn't scope photos to incidents — photos belong to tools.
+  // If the incident is loaded, pull photos for its tool_id.
   const fetchReportImages = async () => {
     try {
-      console.log('🖼️ [ReportDetails] Fetching images for report:', reportId);
       setLoadingImages(true);
-
-      // Fetch photos filtered by report ID server-side
-      const data = await deviceService.getDevicePhotos({ report: reportId });
-      console.log('🖼️ [ReportDetails] Raw API response:', {
-        isArray: Array.isArray(data),
-        hasResults: !!data?.results,
-        dataKeys: data ? Object.keys(data) : 'null',
-        rawData: JSON.stringify(data).substring(0, 500),
-      });
-
-      const photos = Array.isArray(data) ? data : data.results || [];
-      console.log('🖼️ [ReportDetails] Parsed photos count:', photos.length);
-
-      // Log each photo's details
-      photos.forEach((photo, index) => {
-        console.log(`🖼️ [ReportDetails] Photo ${index + 1}:`, {
-          id: photo.id,
-          image: photo.image,
-          is_signature: photo.is_signature,
-          device: photo.device,
-          report: photo.report,
-          created_at: photo.created_at,
-        });
-      });
-
-      // Separate images and signatures
-      const images = photos.filter(photo => !photo.is_signature);
-      const signatures = photos.filter(photo => photo.is_signature);
-
-      console.log('🖼️ [ReportDetails] Separated:', {
-        imagesCount: images.length,
-        signaturesCount: signatures.length,
-        imageUrls: images.map(img => img.image),
-        signatureUrls: signatures.map(sig => sig.image),
-      });
-
-      setReportImages(images);
-      setReportSignatures(signatures);
+      const toolId = report?.device_id;
+      if (!toolId) {
+        setReportImages([]);
+        setReportSignatures([]);
+        return;
+      }
+      const photos = await toolPhotosApi.listToolPhotos(toolId);
+      const mapped = photos.map((p) => ({
+        id: p.id,
+        image: p.url,
+        is_signature: p.is_signature,
+        description: p.description,
+        created_at: p.created_at,
+      }));
+      setReportImages(mapped.filter((p) => !p.is_signature));
+      setReportSignatures(mapped.filter((p) => p.is_signature));
     } catch (error) {
-      console.error('❌ [ReportDetails] Failed to fetch report images:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-      // Don't show an alert for images, just log the error
+      // Non-critical.
     } finally {
       setLoadingImages(false);
     }
   };
 
   const handleApiError = (error, defaultMessage) => {
-    // Skip 401 errors - they're handled globally by the axios interceptor
-    if (error.response?.status === 401) {
-      return;
-    }
-
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      setError(errorMessage);
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      setError('No response from server. Please try again later.');
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      setError(error.message || defaultMessage);
-      Alert.alert('Error', error.message || defaultMessage);
-    }
+    if (error instanceof ApiError && error.code === 'unauthorized') return;
+    const msg =
+      (error instanceof ApiError && error.message) || error?.message || defaultMessage;
+    setError(msg);
+    Alert.alert('Error', msg);
   };
 
   const fetchReportDetails = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Make API call to get report details
-      // Try to get specific report, fallback to getting all reports and filtering
-      let foundReport = null;
-      
-      try {
-        // Try the new getReport method first
-        foundReport = await deviceService.getReport(reportId);
-      } catch (directError) {
-        console.log('Direct report fetch failed, trying to get from all reports:', directError);
-        // Fallback: get all reports and filter
-        const allReports = await deviceService.getReports();
-        foundReport = Array.isArray(allReports) 
-          ? allReports.find(r => r.id === reportId)
-          : (allReports.results || []).find(r => r.id === reportId);
-      }
-      
-      if (!foundReport) {
-        throw new Error('Report not found');
-      }
-      
-      setReport(foundReport);
-      
-      // Initialize modal state with current values
-      setSelectedStatus(foundReport.status);
-      setSelectedType(foundReport.type);
-      setResolvedChecked(foundReport.resolved || false);
-      setDescription(foundReport.description || '');
-      
-      // Fetch associated images and signatures
+
+      const incident = await incidentsApi.getIncident(Number(reportId));
+
+      // Legacy-shape adaptation for the existing JSX:
+      const legacyReport = {
+        id: incident.id,
+        uuid: incident.uuid,
+        type: incident.type,
+        severity: incident.severity,
+        status: incident.status,
+        description: incident.description,
+        device: {
+          id: incident.tool_id,
+          identifier: incident.tool_name,
+        },
+        device_id: incident.tool_id,
+        location: incident.site_id
+          ? { id: incident.site_id, name: incident.site_name ?? '' }
+          : null,
+        created_by: {
+          id: incident.reported_by_id ?? null,
+          email: incident.reported_by_email ?? '',
+        },
+        created_at: incident.created_at,
+        resolved: incident.status === 'RESOLVED' || incident.status === 'resolved',
+      };
+
+      setReport(legacyReport);
+      setSelectedStatus(legacyReport.status);
+      setSelectedType(legacyReport.type);
+      setResolvedChecked(legacyReport.resolved);
+      setDescription(legacyReport.description || '');
+
       fetchReportImages();
-      
     } catch (error) {
       handleApiError(error, 'Failed to fetch report details');
     } finally {
@@ -246,56 +216,19 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
   const handleConfirmUpdate = async () => {
     try {
-      let updateData;
-
+      const updateData = {};
+      if (selectedStatus) updateData.status = selectedStatus;
       if (isReportCreator) {
-        // Creator can update all fields
-        updateData = {
-          status: selectedStatus,
-          type: selectedType,
-          resolved: resolvedChecked,
-          description: description,
-        };
-
-        if (resolvedChecked) {
-          updateData.resolved_date = new Date().toISOString().split('T')[0];
-        }
-      } else {
-        // Admin/owner can only update status
-        updateData = {
-          status: selectedStatus,
-        };
-
-        if (selectedStatus === 'RESOLVED') {
-          updateData.resolved = true;
-          updateData.resolved_date = new Date().toISOString().split('T')[0];
-        }
+        if (description) updateData.description = description;
       }
 
-      await deviceService.updateReport(reportId, updateData);
+      await incidentsApi.updateIncident(Number(reportId), updateData);
 
       Alert.alert('Success', 'Report has been updated successfully');
       setUpdateModalVisible(false);
-      fetchReportDetails(); // Refresh report details
+      fetchReportDetails();
     } catch (error) {
-      // Show detailed error info for debugging
-      if (error.response) {
-        const status = error.response.status;
-        let details = '';
-        try {
-          details = typeof error.response.data === 'string'
-            ? error.response.data
-            : JSON.stringify(error.response.data, null, 2);
-        } catch (e) {
-          details = 'Could not parse response';
-        }
-        Alert.alert(
-          `Error ${status}`,
-          details.substring(0, 500)
-        );
-      } else {
-        handleApiError(error, 'Failed to update report');
-      }
+      handleApiError(error, 'Failed to update report');
     }
   };
 

@@ -20,6 +20,14 @@ import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { nfcService } from '../services/NFCService';
+import {
+  assignments as assignmentsApi,
+  members as membersApi,
+  sites as sitesApi,
+  tools as toolsApi,
+} from '../api/endpoints';
+import { toLegacyLocation } from '../api/adapters';
+import { ApiError } from '../api/errors';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
@@ -28,8 +36,7 @@ const ORANGE_COLOR = '#FFC72C';
 
 
 const AddDevicePage = ({ navigation }) => {
-  // Use auth context with all needed properties including getOrganizationMembers
-  const { deviceService, axiosInstance, userData, user, getOrganizationMembers } = useAuth();
+  const { userData, user } = useAuth();
   const { colors } = useTheme();
 
   // Calculate date 2 weeks from today
@@ -160,24 +167,24 @@ const [formData, setFormData] = useState({
 
   const fetchLocations = async () => {
     try {
-      logMessage('Fetching locations...');
-      const locationsData = await deviceService.getLocations();
-      logMessage(`Fetched ${locationsData.length} locations`);
-      setLocations(locationsData);
+      const page = await sitesApi.listSites();
+      const siteList = page.items.map(toLegacyLocation);
+      setLocations(siteList);
     } catch (error) {
-      console.error('Error fetching locations:', error);
-      logMessage(`Error fetching locations: ${error.message}`);
+      console.error('Error fetching sites:', error);
       Alert.alert('Error', 'Failed to load locations. Please try again.');
     }
   };
-  
+
 const fetchUsers = async () => {
     try {
-      logMessage('Fetching organization members...');
-      
-      // Use getOrganizationMembers from auth context
-      const membersData = await getOrganizationMembers();
-      logMessage(`Fetched ${membersData.length} organization members`);
+      const page = await membersApi.listMembers();
+      const membersData = page.items.map((m) => ({
+        user: m.user_id,
+        user_first_name: m.first_name,
+        user_last_name: m.last_name,
+        role: m.role,
+      }));
       
       // Extract current user ID from auth context
       const currentUserId = userData?.userId;
@@ -376,50 +383,44 @@ const validateForm = () => {
     logMessage('Starting device creation and assignment process');
 
     try {
-      // STEP 1: Create the device (without assignment data)
+      // STEP 1: Create the tool
       const deviceData = prepareDeviceData();
-      logMessage('Creating device without assignment data');
-      
-      // Use axiosInstance from AuthContext for proper token handling
-      const deviceResponse = await axiosInstance.post('/devices/', deviceData);
-      
-      // Extract the device ID and identifier
-      const createdDeviceId = deviceResponse.data.id;
-      const identifier = deviceResponse.data.identifier;
-      
-      logMessage(`Device created successfully with ID: ${createdDeviceId}, identifier: ${identifier}`);
-      
-      // STEP 2: Assign the device based on the toggle selection
+      const finalMake = formData.make === 'Other' ? otherMake : formData.make;
+      const createdTool = await toolsApi.createTool({
+        name: deviceData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
+        make: finalMake || '',
+        model: formData.model || '',
+        serial_number: formData.serial_number || '',
+        ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {}),
+      });
+
+      const createdDeviceId = createdTool.id;
+      const identifier = createdTool.name;
+
+      // STEP 2: Assign the tool
       if (isUserAssignment) {
         if (formData.user === userData?.userId || formData.user === user?.id) {
-          // OPTION A: If current user, use assign-to-me endpoint which doesn't need any body
-          logMessage('Assigning device to current user (self)');
-          await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign-to-me/`);
-          logMessage('Device assigned to current user successfully');
+          await toolsApi.assignToolToMe(createdDeviceId);
         } else {
-          // OPTION B: For other users, use regular assign endpoint with user parameter
-          logMessage(`Assigning device to user: ${formData.user}`);
-          const assignmentData = {
-            user: formData.user
-          };
-          await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign/`, assignmentData);
-          logMessage('Device assigned to user successfully');
+          await assignmentsApi.createAssignment({
+            tool_id: createdDeviceId,
+            assignee_user_id: Number(formData.user),
+            condition: '',
+            notes: '',
+          });
         }
       } else {
-        // OPTION C: Assign to location
-        logMessage(`Assigning device to location: ${formData.location}`);
-        const assignmentData = {
-          location: formData.location
-        };
-        await axiosInstance.post(`/device-assignments/device/${createdDeviceId}/assign/`, assignmentData);
-        logMessage('Device assigned to location successfully');
+        await assignmentsApi.createAssignment({
+          tool_id: createdDeviceId,
+          assignee_site_id: Number(formData.location),
+          condition: '',
+          notes: '',
+        });
       }
-      
-      // Save the full API response for debugging
-      setApiResponse(deviceResponse.data);
-      setCreatedDeviceId(deviceResponse.data.id);
-      
-      // Set the identifier for use in NFC tag writing
+
+      // Save the response for debugging / NFC write
+      setApiResponse(createdTool);
+      setCreatedDeviceId(createdDeviceId);
       setDeviceIdentifier(identifier);
       
       // Show the success modal
@@ -564,21 +565,22 @@ const handlePreScanNfc = async () => {
 
     logMessage(`Pre-scanned NFC tag ID: ${tagId}`);
 
-    // Check if the NFC tag is already registered with another device
+    // Check if the NFC tag is already registered with another tool
     try {
-      const existingDevice = await deviceService.getDeviceByNfcUuid(tagId);
-      if (existingDevice) {
-        logMessage(`NFC tag ${tagId} is already registered with device ${existingDevice.identifier}`);
+      const existingTool = await toolsApi.getToolByNfc(tagId);
+      if (existingTool) {
         setTagAlreadyRegisteredModal({
           visible: true,
           tagId: tagId,
-          deviceIdentifier: existingDevice.identifier,
+          deviceIdentifier: existingTool.name,
         });
         return;
       }
     } catch (checkError) {
-      // 404 = not found = tag is available for registration
-      logMessage('NFC tag is available for registration');
+      if (!(checkError instanceof ApiError && checkError.code === 'not_found')) {
+        throw checkError;
+      }
+      // Tag is available.
     }
 
     setPreScannedNfcTagId(tagId);
