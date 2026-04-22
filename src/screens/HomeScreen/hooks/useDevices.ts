@@ -1,145 +1,161 @@
-// src/screens/HomeScreen/hooks/useDevices.ts
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
-import { useAuth } from '../../../context/AuthContext';
+import { assignments as assignmentsApi, tools as toolsApi } from '../../../api/endpoints';
+import { ApiError } from '../../../api/errors';
+import type { AssignmentRead, ToolRead } from '../../../api/types';
 
-interface Assignment {
-  id: string;
+// Legacy shape consumed by DevicesList / ReturnDeviceModal. Keep this mapping
+// until those components are rewritten against AssignmentRead directly.
+export interface LegacyAssignment {
+  id: number;
+  uuid: string;
+  user_name: string;
+  location_name: string;
   device: {
-    id: string;
+    id: number;
     identifier: string;
     device_type: string;
-    current_assignment?: {
-      id: string;
-    };
+    status: string;
+    current_assignment?: { id: number };
   };
   user: string;
-  location: any;
-  assigned_date: string;
-  returned_date?: string;
+  location: { id: number; name: string } | null;
+  assigned_date: string | null;
+  returned_date: string | null;
+  status: string;
+  condition: string;
+  notes: string;
 }
 
-interface UseDevicesReturn {
-  assignments: Assignment[];
+function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
+  return {
+    id: a.id,
+    uuid: a.uuid,
+    user_name: a.assignee_user_email ?? '',
+    location_name: a.assignee_site_name ?? '',
+    device: {
+      id: a.tool_id,
+      identifier: a.tool_name,
+      device_type: '',
+      status: a.status ?? 'active',
+      current_assignment: { id: a.id },
+    },
+    user: a.assignee_user_email ?? '',
+    location:
+      a.assignee_site_id != null
+        ? { id: a.assignee_site_id, name: a.assignee_site_name ?? '' }
+        : null,
+    assigned_date: a.assigned_at ?? null,
+    returned_date: a.returned_at ?? null,
+    status: a.status ?? 'active',
+    condition: a.condition ?? '',
+    notes: a.notes ?? '',
+  };
+}
+
+export interface LegacyDevice {
+  id: number;
+  identifier: string;
+  device_type: string;
+  status: string;
+}
+
+function toLegacyDevice(tool: ToolRead): LegacyDevice {
+  return {
+    id: tool.id,
+    identifier: tool.name,
+    device_type: tool.category_name ?? '',
+    status: tool.status ?? '',
+  };
+}
+
+export interface UseDevicesReturn {
+  assignments: LegacyAssignment[];
   loading: boolean;
   fetchDevices: () => Promise<void>;
-  handleDeviceReturn: (assignmentId: string, locationId: string) => Promise<void>;
-  fetchDevicesByLocation: (locationId: string) => Promise<any[]>;
+  handleDeviceReturn: (assignmentId: number | string, siteId: number | string) => Promise<void>;
+  fetchDevicesByLocation: (siteId: string | number) => Promise<LegacyDevice[]>;
+}
+
+function reportError(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    Alert.alert('Error', error.message || fallback);
+  } else if (error instanceof Error) {
+    Alert.alert('Error', error.message || fallback);
+  } else {
+    Alert.alert('Error', fallback);
+  }
 }
 
 export const useDevices = (): UseDevicesReturn => {
-  const { deviceService, userData, logout } = useAuth();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [legacyAssignments, setLegacyAssignments] = useState<LegacyAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const userId = userData?.userId;
-
-  const handleApiError = useCallback((error: any, defaultMessage: string) => {
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      Alert.alert('Error', error.message || defaultMessage);
-    }
-
-    if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: async () => await logout() }]
-      );
-    }
-  }, [logout]);
 
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
-      const myAssignments = await deviceService.getMyActiveAssignments();
-      const assignmentList = Array.isArray(myAssignments) ? myAssignments : (myAssignments?.results || []);
-
-      // Preserve all API fields (including user_name, location_name) for StandardDeviceCard
-      const formattedAssignments = assignmentList.map((assignment: any) => ({
-        ...assignment,
-      }));
-      
-      // Sort assignments: active (no returned_date) first, then by assigned_date (newest first)
-      const sortedAssignments = formattedAssignments.sort((a, b) => {
-        // First priority: active assignments (no returned_date) come first
+      const list = await assignmentsApi.listMyActiveAssignments();
+      const mapped = list.map(toLegacyAssignment);
+      // Active (no returned_date) first, then by assigned_date desc.
+      mapped.sort((a, b) => {
         if (!a.returned_date && b.returned_date) return -1;
         if (a.returned_date && !b.returned_date) return 1;
-        
-        // Second priority: sort by assigned_date (newest first)
-        return new Date(b.assigned_date).getTime() - new Date(a.assigned_date).getTime();
+        const at = a.assigned_date ? new Date(a.assigned_date).getTime() : 0;
+        const bt = b.assigned_date ? new Date(b.assigned_date).getTime() : 0;
+        return bt - at;
       });
-      
-      setAssignments(sortedAssignments);
+      setLegacyAssignments(mapped);
     } catch (error) {
-      handleApiError(error, 'Failed to fetch devices');
+      reportError(error, 'Failed to fetch devices');
     } finally {
       setLoading(false);
     }
-  }, [deviceService, userId, handleApiError]);
+  }, []);
 
-  const handleDeviceReturn = useCallback(async (assignmentId: string, locationId: string) => {
-    try {
-      // Using the updated returnDeviceToLocation method from deviceService
-      await deviceService.returnDeviceToLocation(assignmentId, {
-        location: locationId
-      });
-      
-      Alert.alert(
-        'Success',
-        'Device has been returned successfully',
-        [{ text: 'OK', onPress: () => fetchDevices() }]
-      );
-    } catch (error) {
-      let errorMessage = 'Failed to return device. Please try again.';
-      
-      if (error.response && error.response.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
+  const handleDeviceReturn = useCallback(
+    async (assignmentId: number | string, siteId: number | string) => {
+      try {
+        await assignmentsApi.returnAssignment(Number(assignmentId), {
+          target_site_id: Number(siteId),
+          condition: '',
+          notes: '',
+        });
+        Alert.alert('Success', 'Device has been returned successfully', [
+          { text: 'OK', onPress: () => fetchDevices() },
+        ]);
+      } catch (error) {
+        reportError(error, 'Failed to return device.');
+        throw error;
       }
-      
-      Alert.alert('Error', errorMessage);
-      throw error; // Re-throw to let the component handle loading states
-    }
-  }, [deviceService, fetchDevices]);
+    },
+    [fetchDevices]
+  );
 
-  const fetchDevicesByLocation = useCallback(async (locationId: string) => {
-    try {
-      // Use the getLocationAssignments method to get devices by location
-      const assignments = await deviceService.getLocationAssignments(locationId);
-      
-      // Process the assignments to extract available devices
-      const availableDevices = assignments
-        .filter((assignment: any) => {
-          // Filter for available devices or devices assigned to location that haven't been returned
-          return assignment.device && 
-            !assignment.returned_date && // Exclude returned devices
-            (assignment.device.status === 'available' || 
-             (assignment.location && assignment.location.id === parseInt(locationId)));
-        })
-        .map((assignment: any) => assignment.device);
-        
-      return availableDevices;
-    } catch (error) {
-      handleApiError(error, 'Failed to fetch devices for the selected location');
-      return [];
-    }
-  }, [deviceService, handleApiError]);
+  const fetchDevicesByLocation = useCallback(
+    async (_siteId: string | number): Promise<LegacyDevice[]> => {
+      try {
+        // The new API doesn't scope "available" by site — an available tool is
+        // available everywhere. Callers that need site-scoped assignments can
+        // use `assignmentsApi.listAssignmentsBySite`.
+        const page = await assignmentsApi.listAvailableTools();
+        return page.items.map(toLegacyDevice);
+      } catch (error) {
+        reportError(error, 'Failed to fetch available devices');
+        return [];
+      }
+    },
+    []
+  );
 
   return {
-    assignments,
+    assignments: legacyAssignments,
     loading,
     fetchDevices,
     handleDeviceReturn,
     fetchDevicesByLocation,
   };
 };
+
+// Silence unused import warning if the tools module is later removed from here.
+export type { ToolRead } from '../../../api/types';
+void toolsApi;

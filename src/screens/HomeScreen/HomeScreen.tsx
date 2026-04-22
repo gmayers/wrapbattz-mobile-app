@@ -29,7 +29,7 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { logout, userData, user, refreshRoleInfo } = useAuth();
+  const { userData, user, refreshUser } = useAuth();
   const { colors, isDark } = useTheme();
   
   // Modal states
@@ -60,13 +60,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // User data
   const userRole = userData?.role;
   const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
-  const userName = userData?.name || user?.username || user?.email || 'User';
+  const userName =
+    (user?.first_name && `${user.first_name}${user.last_name ? ` ${user.last_name}` : ''}`) ||
+    user?.email ||
+    'User';
 
 
   useEffect(() => {
-    // Try to refresh role info from token on component mount
-    if (refreshRoleInfo) {
-      refreshRoleInfo();
+    if (refreshUser) {
+      refreshUser();
     }
 
     NfcManager.start();

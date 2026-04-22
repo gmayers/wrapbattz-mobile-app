@@ -14,26 +14,26 @@ import StandardDeviceCard from '../../../components/StandardDeviceCard';
 import { useTheme } from '../../../context/ThemeContext';
 
 interface Assignment {
-  id: string;
+  id: number | string;
   device: {
-    id: string;
+    id: number | string;
     identifier: string;
     device_type: string;
     current_assignment?: {
-      id: string;
+      id: number | string;
     };
   };
   user: string;
   location: any;
-  assigned_date: string;
-  returned_date?: string;
+  assigned_date: string | null;
+  returned_date?: string | null;
 }
 
 interface DevicesListProps {
   assignments: Assignment[];
   loading: boolean;
   isAdminOrOwner: boolean;
-  onDevicePress: (deviceId: string) => void;
+  onDevicePress: (deviceId: number | string) => void;
   onDeviceReturn: (assignment: Assignment) => void;
   onViewAllPress: () => void;
   onAddDevicePress: () => void;

@@ -1,20 +1,32 @@
-// src/screens/HomeScreen/hooks/useLocations.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { useAuth } from '../../../context/AuthContext';
+import { sites as sitesApi } from '../../../api/endpoints';
+import { ApiError } from '../../../api/errors';
+import type { SiteRead } from '../../../api/types';
 
-interface Location {
-  id: string;
+export interface LegacyLocation {
+  id: number;
   name: string;
+  site_type: string;
+  status: string;
 }
 
-interface LocationOption {
+function toLegacyLocation(site: SiteRead): LegacyLocation {
+  return {
+    id: site.id,
+    name: site.name,
+    site_type: site.site_type,
+    status: site.status,
+  };
+}
+
+export interface LocationOption {
   label: string;
   value: string;
 }
 
-interface UseLocationsReturn {
-  locations: Location[];
+export interface UseLocationsReturn {
+  locations: LegacyLocation[];
   locationOptions: LocationOption[];
   selectedReturnLocation: string;
   setSelectedReturnLocation: (location: string) => void;
@@ -22,54 +34,39 @@ interface UseLocationsReturn {
   resetSelection: () => void;
 }
 
+function reportError(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    Alert.alert('Error', error.message || fallback);
+  } else if (error instanceof Error) {
+    Alert.alert('Error', error.message || fallback);
+  } else {
+    Alert.alert('Error', fallback);
+  }
+}
+
 export const useLocations = (): UseLocationsReturn => {
-  const { deviceService, logout } = useAuth();
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<LegacyLocation[]>([]);
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState<string>('');
 
-  const handleApiError = useCallback((error: any, defaultMessage: string) => {
-    if (error.response) {
-      const errorMessage = error.response.data.detail || defaultMessage;
-      Alert.alert('Error', errorMessage);
-    } else if (error.request) {
-      Alert.alert('Error', 'No response from server. Please try again later.');
-    } else {
-      Alert.alert('Error', error.message || defaultMessage);
-    }
-
-    if (error.response?.status === 401) {
-      Alert.alert(
-        'Session Expired',
-        'Your session has expired. Please login again.',
-        [{ text: 'OK', onPress: async () => await logout() }]
-      );
-    }
-  }, [logout]);
-
   const fetchLocations = useCallback(async () => {
     try {
-      const data = await deviceService.getLocations();
-      const locationList = Array.isArray(data) ? data : (data?.results || []);
-      setLocations(locationList);
+      const page = await sitesApi.listSites();
+      setLocations(page.items.map(toLegacyLocation));
     } catch (error) {
-      handleApiError(error, 'Failed to fetch locations');
+      reportError(error, 'Failed to fetch locations');
     }
-  }, [deviceService, handleApiError]);
+  }, []);
 
-  // Transform locations into dropdown format
   useEffect(() => {
-    if (locations.length > 0) {
-      const options = locations.map(location => ({
-        label: location.name,
-        value: location.id
-      }));
-      setLocationOptions(options);
-      
-      // Set a default location if we have options and none is selected yet
-      if (options.length > 0 && (!selectedReturnLocation || selectedReturnLocation === '')) {
-        setSelectedReturnLocation(options[0].value);
-      }
+    if (locations.length === 0) return;
+    const options: LocationOption[] = locations.map((loc) => ({
+      label: loc.name,
+      value: String(loc.id),
+    }));
+    setLocationOptions(options);
+    if (options.length > 0 && !selectedReturnLocation) {
+      setSelectedReturnLocation(options[0].value);
     }
   }, [locations, selectedReturnLocation]);
 
