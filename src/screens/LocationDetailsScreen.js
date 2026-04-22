@@ -333,23 +333,6 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     );
   }, [location, userData]);
 
-  // Check for auth errors
-  if (authError) {
-    return (
-      <SafeAreaView style={styles.errorContainer}>
-        <Text style={styles.errorMessage}>{authError}</Text>
-        <Button
-          title="Try Again"
-          onPress={() => {
-            clearError();
-            handleTryAgain();
-          }}
-          size="medium"
-        />
-      </SafeAreaView>
-    );
-  }
-
   // Show loading state
   if (isLoading) {
     return (

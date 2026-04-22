@@ -27,7 +27,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     rows: [
       { key: 'profile',        label: 'Profile',              icon: 'person-circle-outline', kind: 'nav', destination: 'EditProfile' },
       { key: 'changePassword', label: 'Change Password',      icon: 'key-outline',           kind: 'nav', destination: 'ChangePassword' },
-      { key: 'security',       label: 'Biometric & PIN',      icon: 'finger-print-outline',  kind: 'nav', destination: 'SecurityPreferences' },
+      // 'SecurityPreferences' (biometric/PIN) screen not built yet.
     ],
   },
   {
@@ -45,8 +45,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     requiredRole: 'admin',
     rows: [
       { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization' },
-      { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
-      { key: 'inviteCode', label: 'Invite Code', icon: 'link-outline',      kind: 'nav', destination: 'InviteCode' },
+      // 'Members' and 'InviteCode' screens not built yet.
     ],
   },
   {
@@ -66,7 +65,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     requiredRole: 'all',
     rows: [
       { key: 'suggestFeature', label: 'Suggest a Feature', icon: 'bulb-outline',               kind: 'nav', destination: 'SuggestFeature' },
-      { key: 'about',          label: 'About',             icon: 'information-circle-outline',  kind: 'nav', destination: 'About' },
+      // 'About' screen not built yet.
     ],
   },
   {

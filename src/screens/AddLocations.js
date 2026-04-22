@@ -147,20 +147,6 @@ const CreateLocationScreen = ({ navigation, route }) => {
     );
   };
 
-  // If AuthContext has an error, show error screen
-  if (authError) {
-    return (
-      <SafeAreaView style={styles.errorContainer}>
-        <Text style={styles.errorMessage}>{authError}</Text>
-        <Button
-          title="Try Again"
-          onPress={clearError}
-          size="medium"
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />

@@ -29,6 +29,9 @@ import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
+import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
+import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
+import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
 
 const Stack = createStackNavigator();
 
@@ -260,6 +263,50 @@ const MainStack = () => {
         headerShown: false,
         presentation: 'modal',
         gestureEnabled: true,
+      }}
+    />
+    <Stack.Screen
+      name="NotificationPreferences"
+      component={NotificationPreferencesScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Notifications',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="PaymentHistory"
+      component={PaymentHistoryScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Payment History',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="BillingAnalytics"
+      component={BillingAnalyticsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Billing Analytics',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="SuggestFeature"
+      component={SuggestFeatureScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Suggest a Feature',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     />
     {/* Add CreateOrganization screen to MainStack for users who need to access it */}

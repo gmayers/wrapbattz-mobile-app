@@ -214,23 +214,6 @@ const ReportsScreen = ({ navigation }) => {
     </TouchableOpacity>
   ), [getStatusColor, getStatusLabel, getTypeLabel, handleViewReportDetails]);
 
-  // If AuthContext itself has an error state, we could show it here
-  if (authError) {
-    return (
-      <SafeAreaView style={styles.errorContainer}>
-        <Text style={styles.errorMessage}>{authError}</Text>
-        <Button
-          title="Try Again"
-          onPress={() => {
-            clearError();
-            fetchReports();
-          }}
-          size="medium"
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="dark-content" />

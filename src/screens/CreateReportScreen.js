@@ -484,23 +484,6 @@ const CreateReportScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   ), [formData.type]);
 
-  // Handle auth errors
-  if (authError) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorMessage}>{authError}</Text>
-        <Button
-          title="Try Again"
-          onPress={() => {
-            clearError();
-            fetchActiveDevices();
-          }}
-          size="medium"
-        />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.surface }]}>
       <ScrollView
