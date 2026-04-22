@@ -22,11 +22,9 @@ function create(): AxiosInstance {
   });
 
   instance.interceptors.request.use((config) => {
-    if (__DEV__) {
-      const method = (config.method ?? 'get').toUpperCase();
-      const url = fullUrl(config.baseURL, config.url);
-      console.log(`[api] → ${method} ${url}`);
-    }
+    const method = (config.method ?? 'get').toUpperCase();
+    const url = fullUrl(config.baseURL, config.url);
+    console.log(`[api] → ${method} ${url}`);
     return config;
   });
   instance.interceptors.request.use(attachToken);
@@ -42,13 +40,12 @@ function create(): AxiosInstance {
       return response;
     },
     (error) => {
-      if (__DEV__) {
-        const cfg = error.config ?? {};
-        const method = (cfg.method ?? 'get').toUpperCase();
-        const url = fullUrl(cfg.baseURL, cfg.url);
-        const status = error.response?.status ?? 'no-response';
-        console.log(`[api] ✕ ${status} ${method} ${url} — ${error.message}`);
-      }
+      // Log errors in release builds too — these are the ones users see.
+      const cfg = error.config ?? {};
+      const method = (cfg.method ?? 'get').toUpperCase();
+      const url = fullUrl(cfg.baseURL, cfg.url);
+      const status = error.response?.status ?? 'no-response';
+      console.log(`[api] ✕ ${status} ${method} ${url} — ${error.message}`);
       return Promise.reject(fromAxiosError(error));
     }
   );
