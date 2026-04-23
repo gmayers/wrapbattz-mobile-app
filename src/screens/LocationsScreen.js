@@ -310,90 +310,121 @@ const LocationsScreen = ({ navigation }) => {
     }
   }, [formData, editingLocationId, validateForm, fetchLocations]);
 
-  const renderLocationCard = useCallback((location) => (
-    <Card key={location.id} style={styles.locationCard}>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
-        activeOpacity={0.7}
-      >
-        <View style={styles.locationContent}>
-          {/* Location Header */}
-          <View style={styles.locationHeader}>
-            <View style={styles.locationTitleContainer}>
-              <Text style={styles.locationTitle}>
-                {location.name || location.building_name || `${location.street_number} ${location.street_name}`}
-              </Text>
-              <View style={styles.locationTypeContainer}>
-                <Ionicons name="location" size={14} color={colors.primary} />
-                <Text style={styles.locationType}>Location</Text>
-              </View>
-            </View>
-            <View style={styles.locationIcon}>
-              <Ionicons name="chevron-forward" size={20} color="#CCC" />
-            </View>
-          </View>
-          
-          {/* Address Details */}
-          <View style={styles.addressContainer}>
-            <View style={styles.addressRow}>
-              <Ionicons name="home-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.addressText}>
-                {location.street_number} {location.street_name}
-              </Text>
-            </View>
-            
-            {location.address_2 && (
-              <View style={styles.addressRow}>
-                <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.addressText}>{location.address_2}</Text>
-              </View>
-            )}
-            
-            <View style={styles.addressRow}>
-              <Ionicons name="map-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.addressText}>
-                {location.town_or_city}{location.county ? `, ${location.county}` : ''} {location.postcode}
-              </Text>
-            </View>
-          </View>
-          
-          {/* Action Button */}
-          <View style={styles.locationActions}>
-            <View style={styles.viewDevicesButton}>
-              <Ionicons name="cube-outline" size={18} color={colors.primary} />
-              <Text style={styles.viewDevicesText}>View Available Devices</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
+  const renderLocationCard = useCallback((location) => {
+    const isActive = location.is_active !== undefined ? location.is_active : true;
+    const addressLine = [location.street_number, location.street_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const regionLine = [
+      [location.town_or_city, location.county].filter(Boolean).join(', '),
+      location.postcode,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
 
-      {/* Toggle and Edit Section (outside touchable to prevent conflict) */}
-      {isAdminOrOwner && (
-        <View style={styles.locationFooter}>
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleLabel}>Active:</Text>
-            <Switch
-              value={location.is_active !== undefined ? location.is_active : true}
-              onValueChange={() => handleToggleActive(location.id, location.is_active)}
-              trackColor={{ false: '#CCCCCC', true: '#FFD699' }}
-              thumbColor={location.is_active ? ORANGE_COLOR : '#f4f3f4'}
-              disabled={togglingLocation === location.id}
-            />
+    return (
+      <Card
+        key={location.id}
+        style={[
+          styles.locationCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.borderLight,
+            opacity: isActive ? 1 : 0.72,
+          },
+        ]}
+      >
+        <View style={[styles.accentBar, { backgroundColor: colors.primary }]} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('LocationDetails', { locationId: location.id })}
+          activeOpacity={0.85}
+        >
+          <View style={styles.locationContent}>
+            <View style={styles.locationHeader}>
+              <View style={styles.locationTitleContainer}>
+                <Text style={[styles.locationTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                  {location.name || location.building_name || addressLine || 'Unnamed site'}
+                </Text>
+                <View style={[styles.locationTypeContainer, { backgroundColor: colors.primary + '22' }]}>
+                  <Ionicons name="location" size={13} color={colors.primary} />
+                  <Text style={[styles.locationType, { color: colors.primary }]}>Location</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </View>
+
+            <View style={styles.addressContainer}>
+              {addressLine ? (
+                <View style={styles.addressRow}>
+                  <Ionicons name="home-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.addressText, { color: colors.textSecondary }]}>
+                    {addressLine}
+                  </Text>
+                </View>
+              ) : null}
+
+              {location.address_2 ? (
+                <View style={styles.addressRow}>
+                  <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.addressText, { color: colors.textSecondary }]}>
+                    {location.address_2}
+                  </Text>
+                </View>
+              ) : null}
+
+              {regionLine ? (
+                <View style={styles.addressRow}>
+                  <Ionicons name="map-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.addressText, { color: colors.textSecondary }]}>
+                    {regionLine}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View
+              style={[
+                styles.viewDevicesButton,
+                { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+            >
+              <Ionicons name="cube-outline" size={18} color={colors.onPrimary} />
+              <Text style={[styles.viewDevicesText, { color: colors.onPrimary }]}>
+                View Available Devices
+              </Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleEditLocation(location);
-            }}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.primary} />
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </Card>
-  ), [navigation, isAdminOrOwner, togglingLocation, handleToggleActive, handleEditLocation]);
+        </TouchableOpacity>
+
+        {isAdminOrOwner && (
+          <View style={[styles.locationFooter, { borderTopColor: colors.borderLight }]}>
+            <View style={styles.toggleContainer}>
+              <Text style={[styles.toggleLabel, { color: colors.textSecondary }]}>Active</Text>
+              <Switch
+                value={isActive}
+                onValueChange={() => handleToggleActive(location.id, location.is_active)}
+                trackColor={{ false: colors.border, true: colors.primary + '66' }}
+                thumbColor={isActive ? colors.primary : colors.textMuted}
+                disabled={togglingLocation === location.id}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.editButton, { borderColor: colors.primary }]}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEditLocation(location);
+              }}
+            >
+              <Ionicons name="create-outline" size={18} color={colors.primary} />
+              <Text style={[styles.editButtonText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Card>
+    );
+  }, [navigation, colors, isAdminOrOwner, togglingLocation, handleToggleActive, handleEditLocation]);
 
   const renderCreateLocationModal = () => (
     <Modal
@@ -736,89 +767,86 @@ const styles = StyleSheet.create({
     marginBottom: 15
 },
   locationCard: {
-    marginBottom: 15,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    marginBottom: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+},
+  accentBar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
 },
   locationContent: {
-    padding: 20
+    paddingVertical: 18,
+    paddingRight: 18,
+    paddingLeft: 22,
 },
   locationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16
+    marginBottom: 14,
 },
   locationTitleContainer: {
     flex: 1,
-    marginRight: 12
+    marginRight: 12,
 },
   locationTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 6
+    fontWeight: '700',
+    marginBottom: 8,
+    lineHeight: 22,
 },
   locationTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    gap: 4,
 },
   locationType: {
-    fontSize: 12,
-    color: ORANGE_COLOR,
-    fontWeight: '600',
-    marginLeft: 4
-},
-  locationIcon: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 24,
-    height: 24
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
 },
   addressContainer: {
     marginBottom: 16,
-    gap: 8
+    gap: 6,
 },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 10,
 },
   addressText: {
     fontSize: 14,
-    color: '#666',
     flex: 1,
-    lineHeight: 20
-},
-  locationActions: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 16
+    lineHeight: 20,
 },
   viewDevicesButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 16,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FFE4B5'
+    gap: 8,
 },
   viewDevicesText: {
-    marginLeft: 8,
-    color: ORANGE_COLOR,
     fontSize: 14,
-    fontWeight: '600'
+    fontWeight: '700',
 },
   loader: {
     marginVertical: 20
@@ -924,21 +952,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    backgroundColor: '#FAFAFA'
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
 },
   toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
 },
   toggleLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666'
+    fontSize: 13,
+    fontWeight: '600',
 },
   editButton: {
     flexDirection: 'row',
@@ -946,15 +971,12 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: ORANGE_COLOR,
-    backgroundColor: '#FFF'
 },
   editButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: ORANGE_COLOR
+    fontSize: 13,
+    fontWeight: '700',
 },
   // Signature section in edit mode
   signatureSection: {

@@ -12,8 +12,10 @@ const ToolsScreen: React.FC = () => {
   const { userData } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const { isLoading, groups, filter, setFilter } = useMyTools();
   const isAdminOrOwner = userData?.role === 'admin' || userData?.role === 'owner';
+  const { isLoading, groups, filter, setFilter } = useMyTools(
+    isAdminOrOwner ? 'all' : 'mine'
+  );
 
   const sections = groups.map(g => ({ title: g.siteName, data: g.tools, group: g }));
 

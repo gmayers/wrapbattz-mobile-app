@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const me = await account.getMe();
+      const me = await account.getMeBootstrap();
       applyUser(me);
     } catch {
       await tokenStore.clear();

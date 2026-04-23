@@ -1,4 +1,5 @@
 import { apiClient } from '../client';
+import { BOOTSTRAP_TIMEOUT_MS } from '../config';
 import type {
   NotificationMarkReadRequest,
   NotificationRead,
@@ -10,9 +11,19 @@ import type {
   UserUpdate,
 } from '../types';
 
-export async function getMe(): Promise<UserMe> {
-  const { data } = await apiClient.get<UserMe>('/account/');
+export interface GetMeOptions {
+  timeout?: number;
+}
+
+export async function getMe(options: GetMeOptions = {}): Promise<UserMe> {
+  const { data } = await apiClient.get<UserMe>('/account/', {
+    timeout: options.timeout,
+  });
   return data;
+}
+
+export function getMeBootstrap(): Promise<UserMe> {
+  return getMe({ timeout: BOOTSTRAP_TIMEOUT_MS });
 }
 
 export async function updateMe(payload: UserUpdate): Promise<UserMe> {

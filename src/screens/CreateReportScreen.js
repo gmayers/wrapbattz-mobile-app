@@ -453,63 +453,79 @@ const CreateReportScreen = ({ navigation, route }) => {
     }
   }, [validateForm, formData, photoUri, additionalPhotos, signatureUri, navigation]);
 
-  const renderTypeButton = useCallback((type, description) => (
-    <TouchableOpacity
-      key={type}
-      style={[
-        styles.typeButtonGrid,
-        formData.type === type && styles.typeButtonSelected,
-      ]}
-      onPress={() => {
-        setFormData(prev => ({ ...prev, type }));
-      }}
-    >
-      <Text style={[
-        styles.typeButtonText,
-        formData.type === type && styles.typeButtonTextSelected,
-      ]} numberOfLines={2}>
-        {type}
-      </Text>
+  const renderTypeButton = useCallback((type, description) => {
+    const selected = formData.type === type;
+    return (
       <TouchableOpacity
-        style={styles.infoButtonContainer}
-        onPress={() => Alert.alert(type, description)}
+        key={type}
+        style={[
+          styles.typeButtonGrid,
+          { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+          selected && {
+            backgroundColor: colors.primary,
+            borderColor: colors.primary,
+          },
+        ]}
+        onPress={() => setFormData(prev => ({ ...prev, type }))}
+        activeOpacity={0.8}
       >
-        <Ionicons
-          name="information-circle-outline"
-          size={18}
-          color={formData.type === type ? '#007AFF' : '#666'}
-        />
+        <Text
+          style={[
+            styles.typeButtonText,
+            { color: colors.textPrimary },
+            selected && { color: colors.onPrimary },
+          ]}
+          numberOfLines={2}
+        >
+          {type}
+        </Text>
+        <TouchableOpacity
+          style={styles.infoButtonContainer}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => Alert.alert(type, description)}
+        >
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color={selected ? colors.onPrimary : colors.textSecondary}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  ), [formData.type]);
+    );
+  }, [formData.type, colors]);
+
+  const cardStyle = [
+    styles.card,
+    { backgroundColor: colors.card, borderColor: colors.borderLight },
+  ];
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.surface }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
-        style={[styles.formContainer, { backgroundColor: colors.surface }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        style={[styles.formContainer, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.formContent, { paddingBottom: insets.bottom + 24 }]}
       >
       {error && (
-        <View style={styles.errorBanner}>
+        <View style={[styles.errorBanner, { backgroundColor: colors.error }]}>
           <Text style={styles.errorBannerText}>{error}</Text>
           <TouchableOpacity onPress={() => setError(null)}>
             <Ionicons name="close-circle" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       )}
-      
+
       <View style={styles.formHeader}>
         <Text style={[styles.formTitle, { color: colors.textPrimary }]}>Create Report</Text>
         {userData?.name && (
-          <Text style={styles.userInfo}>Reporting as: {userData.name}</Text>
+          <Text style={[styles.userInfo, { color: colors.textSecondary }]}>Reporting as: {userData.name}</Text>
         )}
       </View>
-      
-      <View style={styles.formGroup}>
+
+      <View style={cardStyle}>
         <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Device</Text>
         {loading || authLoading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading devices...</Text>
+          <View style={[styles.loadingContainer, { backgroundColor: colors.surfaceAlt }]}>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading devices…</Text>
           </View>
         ) : (
           <Dropdown
@@ -524,10 +540,10 @@ const CreateReportScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      <View style={styles.formGroup}>
+      <View style={cardStyle}>
         <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Report Type</Text>
         <View style={styles.typeGrid}>
-          {Object.entries(REPORT_TYPES).map(([type, description], index) => (
+          {Object.entries(REPORT_TYPES).map(([type, description]) => (
             <View key={type} style={styles.typeGridItem}>
               {renderTypeButton(type, description)}
             </View>
@@ -535,21 +551,26 @@ const CreateReportScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      <BaseTextInput
-        label="Description"
-        value={formData.description}
-        onChangeText={text => setFormData(prev => ({ ...prev, description: text }))}
-        placeholder="Enter description"
-        multiline
-        numberOfLines={4}
-        style={styles.formInput}
-      />
+      <View style={cardStyle}>
+        <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Description</Text>
+        <BaseTextInput
+          value={formData.description}
+          onChangeText={text => setFormData(prev => ({ ...prev, description: text }))}
+          placeholder="Describe what happened"
+          multiline
+          numberOfLines={5}
+          style={styles.descriptionInput}
+        />
+      </View>
 
-      <View style={styles.photoSection}>
+      <View style={cardStyle}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Main Photo</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Main Photo', 'This photo will be the primary image associated with this report.')}>
-            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Main Photo</Text>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => Alert.alert('Main Photo', 'This photo will be the primary image associated with this report.')}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
         <Button
@@ -563,19 +584,25 @@ const CreateReportScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      <View style={styles.photosSection}>
+      <View style={cardStyle}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Additional Photos</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Additional Photos', 'Add more photos to provide complete documentation of the issue.')}>
-            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Additional Photos</Text>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => Alert.alert('Additional Photos', 'Add more photos to provide complete documentation of the issue.')}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-        
+
         {additionalPhotos.map((photo, index) => (
-          <View key={index} style={styles.photoItem}>
+          <View
+            key={index}
+            style={[styles.photoItem, { borderColor: colors.borderLight }]}
+          >
             <TouchableOpacity onPress={() => toggleSection(index)}>
-              <View style={styles.photoHeader}>
-                <Text style={styles.photoHeaderText}>
+              <View style={[styles.photoHeader, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[styles.photoHeaderText, { color: colors.textPrimary }]}>
                   {activeSections.includes(index) ? '▲' : '▼'} Photo {index + 1}
                 </Text>
                 <TouchableOpacity onPress={() => handleRemovePhoto(index)}>
@@ -584,7 +611,7 @@ const CreateReportScreen = ({ navigation, route }) => {
               </View>
             </TouchableOpacity>
             {activeSections.includes(index) && (
-              <View style={styles.photoContent}>
+              <View style={[styles.photoContent, { backgroundColor: colors.card }]}>
                 <Image source={{ uri: photo.uri }} style={styles.photoImage} />
               </View>
             )}
@@ -599,11 +626,14 @@ const CreateReportScreen = ({ navigation, route }) => {
         />
       </View>
 
-      <View style={styles.signatureSection}>
+      <View style={cardStyle}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Signature</Text>
-          <TouchableOpacity onPress={() => Alert.alert('Signature', 'Your signature confirms that the information in this report is accurate to the best of your knowledge.')}>
-            <Ionicons name="information-circle-outline" size={18} color="#666" />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Signature</Text>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => Alert.alert('Signature', 'Your signature confirms that the information in this report is accurate to the best of your knowledge.')}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
         <Button
@@ -692,154 +722,131 @@ const CreateReportScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF'
 },
   formContainer: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    flex: 1
+    flex: 1,
+},
+  formContent: {
+    padding: 16,
+    gap: 14,
 },
   formHeader: {
-    marginBottom: 20
+    marginBottom: 4,
 },
   formTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5
+    fontSize: 26,
+    fontWeight: '700',
+    marginBottom: 4,
 },
   userInfo: {
     fontSize: 14,
-    color: '#666'
 },
-  formGroup: {
-    marginBottom: 20
+  card: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
 },
   formLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12
-},
-  formInput: {
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5
+    fontWeight: '700',
+    marginBottom: 12,
+},
+  descriptionInput: {
+    minHeight: 110,
+    textAlignVertical: 'top',
 },
   dropdownContainer: {
-    marginTop: 0
+    marginTop: 0,
 },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4
+    marginHorizontal: -4,
 },
   typeGridItem: {
     width: '50%',
-    padding: 4
+    padding: 4,
 },
   typeButtonGrid: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#F5F5F5',
-    height: 60,
-    minWidth: '100%'
-},
-  typeButtonSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#E3F2FD'
+    height: 68,
+    minWidth: '100%',
 },
   typeButtonText: {
-    fontSize: 10,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     flex: 0.85,
-    lineHeight: 16
-},
-  typeButtonTextSelected: {
-    color: '#007AFF'
+    lineHeight: 16,
 },
   infoButtonContainer: {
     flex: 0.15,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%'
-},
-  photoSection: {
-    marginVertical: 20
+    height: '100%',
 },
   previewImage: {
     width: '100%',
     height: 200,
     borderRadius: 10,
-    marginTop: 10
-},
-  photosSection: {
-    marginVertical: 20
+    marginTop: 12,
 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10
+    justifyContent: 'space-between',
+    marginBottom: 12,
 },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginRight: 8
+    fontWeight: '700',
+    flex: 1,
 },
   photoItem: {
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    overflow: 'hidden'
+    borderRadius: 10,
+    overflow: 'hidden',
 },
   photoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#F5F5F5'
+    padding: 12,
 },
   photoHeaderText: {
     flex: 1,
-    fontSize: 16,
-    color: '#333'
+    fontSize: 15,
+    fontWeight: '600',
 },
   removeText: {
     color: '#EF4444',
-    fontWeight: '600'
+    fontWeight: '600',
 },
   photoContent: {
     padding: 10,
-    backgroundColor: '#FFFFFF'
 },
   photoImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8
+    borderRadius: 8,
 },
   addPhotoButton: {
-    marginTop: 10
-},
-  signatureSection: {
-    marginVertical: 20
+    marginTop: 10,
 },
   signaturePreview: {
     width: '100%',
     height: 200,
-    marginTop: 10,
-    borderRadius: 8
+    marginTop: 12,
+    borderRadius: 8,
 },
   buttonContainer: {
-    marginVertical: 20,
-    alignItems: 'center'
+    marginTop: 10,
+    alignItems: 'stretch',
 },
   modalOverlay: {
     flex: 1,
