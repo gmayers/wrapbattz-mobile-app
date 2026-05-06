@@ -10,6 +10,7 @@ import QuickActionsGrid from './components/QuickActionsGrid';
 import DataOverview from './components/DataOverview';
 import ControlRoomScreen from './ControlRoom/ControlRoomScreen';
 import FleetStatusScreen from './FleetStatus/FleetStatusScreen';
+import OfficeWorkerDashboardScreen from './OfficeWorker/OfficeWorkerDashboardScreen';
 
 const DashboardScreen: React.FC = () => {
   const { userData } = useAuth();
@@ -20,6 +21,9 @@ const DashboardScreen: React.FC = () => {
   }
   if (role === 'admin') {
     return <FleetStatusScreen />;
+  }
+  if (role === 'office_worker') {
+    return <OfficeWorkerDashboardScreen />;
   }
   return <StandardDashboard role={role} />;
 };

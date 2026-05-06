@@ -17,6 +17,35 @@ jest.mock('../../../hooks/useScanTag', () => ({
   useScanTag: () => ({ scan: jest.fn() }),
 }));
 
+jest.mock('../OfficeWorker/hooks/useOfficeWorkerWhereData', () => ({
+  useOfficeWorkerWhereData: () => ({
+    isLoading: false,
+    refresh: jest.fn(),
+    organizationName: 'TESTORG',
+    userInitials: 'XY',
+    hasUnreadAlerts: null,
+    counts: { sites: 0, vehicles: 0, toolboxes: 0, total: 0 },
+    totalToolsPlaced: 0,
+    locations: [],
+    pendingApprovals: null,
+    returnsDue: null,
+  }),
+}));
+jest.mock('../OfficeWorker/hooks/useOfficeWorkerTeamData', () => ({
+  useOfficeWorkerTeamData: () => ({
+    isLoading: false,
+    refresh: jest.fn(),
+    organizationName: 'TESTORG',
+    userInitials: 'XY',
+    hasUnreadAlerts: null,
+    totalMembers: 0,
+    totalToolsOut: 0,
+    onSite: null,
+    hq: null,
+    members: [],
+  }),
+}));
+
 describe('DashboardScreen', () => {
   beforeEach(() => { mockNavigate.mockClear(); });
 
@@ -45,5 +74,12 @@ describe('DashboardScreen', () => {
     expect(screen.getByLabelText('Audit')).toBeTruthy();
     expect(screen.getByLabelText('Alerts')).toBeTruthy();
     expect(screen.getByLabelText('Report')).toBeTruthy();
+  });
+
+  it('renders office-worker dashboard for office_worker role', () => {
+    currentRole = 'office_worker';
+    render(<DashboardScreen />);
+    expect(screen.getByLabelText('Where tab')).toBeTruthy();
+    expect(screen.getByLabelText('Team tab')).toBeTruthy();
   });
 });
