@@ -16,6 +16,13 @@ describe('SegmentedTabs', () => {
     expect(onChange).toHaveBeenCalledWith('right');
   });
 
+  it('does not call onChange when the already-active tab is pressed', () => {
+    const onChange = jest.fn();
+    render(<SegmentedTabs left="Where" right="Team" value="left" onChange={onChange} />);
+    fireEvent.press(screen.getByText('Where'));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('marks the active tab as accessibilityState.selected', () => {
     render(<SegmentedTabs left="Where" right="Team" value="right" onChange={() => {}} />);
     const right = screen.getByLabelText('Team tab');
