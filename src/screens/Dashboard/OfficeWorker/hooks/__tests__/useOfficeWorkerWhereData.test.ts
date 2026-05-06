@@ -63,6 +63,14 @@ describe('useOfficeWorkerWhereData', () => {
     expect(tb?.toolCount).toBe(1);
   });
 
+  it('groups distinct worker initials per site from active assignments', async () => {
+    const { result } = renderHook(() => useOfficeWorkerWhereData());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const chelsea = result.current.locations.find(l => l.name === 'Chelsea Wharf');
+    expect(chelsea?.workerInitials).toHaveLength(2);
+    expect(chelsea?.workerInitials.sort()).toEqual(['M', 'S']);
+  });
+
   it('reports total tools placed across all assignments to a site', async () => {
     const { result } = renderHook(() => useOfficeWorkerWhereData());
     await waitFor(() => expect(result.current.isLoading).toBe(false));

@@ -17,6 +17,7 @@ import { computeInitials } from '../../shared/identity';
 import type { LocationItem, WhereData } from '../types';
 
 const TOOLBOX_TYPES = new Set(['toolbox', 'TOOLBOX']);
+const LOCATION_PAGE_SIZE = 200;
 
 interface RawData {
   org: OrganizationRead | null;
@@ -46,8 +47,8 @@ export function useOfficeWorkerWhereData(): WhereData {
     try {
       const [org, sitesPage, vansPage, assignmentsPage, joinRequestsPage] = await Promise.all([
         organizationsApi.getMyOrganization().catch(() => null),
-        sitesApi.listSites(),
-        vansApi.listVans(),
+        sitesApi.listSites({ page_size: LOCATION_PAGE_SIZE }),
+        vansApi.listVans({ page_size: LOCATION_PAGE_SIZE }),
         assignmentsApi.listAssignments({ status: 'active' }),
         joinRequestsApi.listJoinRequests().catch(() => null),
       ]);
@@ -90,6 +91,7 @@ export function useOfficeWorkerWhereData(): WhereData {
     const siteToolCount = new Map<number, number>();
     const siteWorkerEmails = new Map<number, Set<string>>();
     const vanToolCount = new Map<number, number>();
+    // BACKEND_GAP: no assignee_van_id on AssignmentRead — vanWorkerEmails stays empty.
     const vanWorkerEmails = new Map<number, Set<string>>();
 
     for (const a of raw.activeAssignments) {

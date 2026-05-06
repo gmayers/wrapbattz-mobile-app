@@ -1,8 +1,12 @@
 import { apiClient } from '../client';
 import type { PagedVans, VanCreate, VanRead, VanUpdate } from '../types';
 
-export async function listVans(): Promise<PagedVans> {
-  const { data } = await apiClient.get<PagedVans>('/vans/');
+export interface ListVansFilter {
+  page_size?: number;
+}
+
+export async function listVans(filter: ListVansFilter = {}): Promise<PagedVans> {
+  const { data } = await apiClient.get<PagedVans>('/vans/', { params: filter });
   return data;
 }
 
