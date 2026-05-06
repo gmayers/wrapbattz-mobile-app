@@ -14,6 +14,12 @@ interface Props {
   onPress: () => void;
 }
 
+const KIND_LABEL: Record<LocationKind, string> = {
+  site: 'Site',
+  vehicle: 'Vehicle',
+  toolbox: 'Toolbox',
+};
+
 const LocationCard: React.FC<Props> = ({
   kind,
   name,
@@ -29,7 +35,7 @@ const LocationCard: React.FC<Props> = ({
       style={styles.card}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${toolsLabel}`}
+      accessibilityLabel={`${KIND_LABEL[kind]}: ${name}, ${toolsLabel}`}
       activeOpacity={0.85}
     >
       <View style={styles.topRow}>

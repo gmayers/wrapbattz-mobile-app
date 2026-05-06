@@ -29,7 +29,7 @@ describe('LocationCard', () => {
 
   it('calls onPress', () => {
     render(<LocationCard {...baseProps} />);
-    fireEvent.press(screen.getByLabelText('Chelsea Wharf, 8 tools'));
+    fireEvent.press(screen.getByLabelText('Site: Chelsea Wharf, 8 tools'));
     expect(baseProps.onPress).toHaveBeenCalledTimes(1);
   });
 });

@@ -56,7 +56,7 @@ describe('LocationDetailScreen', () => {
     render(<LocationDetailScreen />);
     fireEvent.press(screen.getByLabelText('Tools tab'));
     fireEvent.press(screen.getByLabelText('Drill'));
-    expect(mockNavigate).toHaveBeenCalledWith('DeviceDetails', { id: 11 });
+    expect(mockNavigate).toHaveBeenCalledWith('DeviceDetails', { deviceId: 11 });
   });
 
   it('renders empty copy on Users tab when no users', () => {

@@ -62,7 +62,7 @@ const TeamMemberDetailScreen: React.FC = () => {
               name={t.name}
               identifier={t.identifier}
               status={t.status}
-              onPress={() => navigation.navigate('DeviceDetails', { id: t.toolId })}
+              onPress={() => navigation.navigate('DeviceDetails', { deviceId: t.toolId })}
             />
           ))
         )}

@@ -13,7 +13,7 @@ interface Props {
 
 const SegmentedTabs: React.FC<Props> = ({ left, right, value, onChange }) => {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessibilityRole="tablist">
       <Tab label={left} active={value === 'left'} onPress={() => value !== 'left' && onChange('left')} />
       <Tab label={right} active={value === 'right'} onPress={() => value !== 'right' && onChange('right')} />
     </View>

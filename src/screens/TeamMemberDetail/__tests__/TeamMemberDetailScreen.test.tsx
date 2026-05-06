@@ -39,6 +39,6 @@ describe('TeamMemberDetailScreen', () => {
   it('navigates to DeviceDetails on tool press', () => {
     render(<TeamMemberDetailScreen />);
     fireEvent.press(screen.getByLabelText('Drill'));
-    expect(mockNavigate).toHaveBeenCalledWith('DeviceDetails', { id: 11 });
+    expect(mockNavigate).toHaveBeenCalledWith('DeviceDetails', { deviceId: 11 });
   });
 });

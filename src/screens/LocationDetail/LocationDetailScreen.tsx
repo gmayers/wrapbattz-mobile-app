@@ -77,7 +77,7 @@ const LocationDetailScreen: React.FC = () => {
                 identifier={t.identifier}
                 status={t.status}
                 assigneeName={t.assigneeName}
-                onPress={() => navigation.navigate('DeviceDetails', { id: t.toolId })}
+                onPress={() => navigation.navigate('DeviceDetails', { deviceId: t.toolId })}
               />
             ))
           )
