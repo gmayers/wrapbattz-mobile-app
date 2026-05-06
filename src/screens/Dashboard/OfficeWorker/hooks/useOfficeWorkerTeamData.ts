@@ -45,6 +45,11 @@ export function useOfficeWorkerTeamData(): TeamData {
     setIsLoading(true);
     setError(undefined);
     try {
+      // BACKEND_GAP: listMembers / listAssignments / listSiteAssignments do
+      // not expose a page_size query param in the current OpenAPI spec.
+      // Server-default page size applies; large orgs (>50 members or >50
+      // active assignments) will see undercounts. Revisit when the spec
+      // adds pagination params to these endpoints.
       const [org, membersPage, activePage, siteAssignmentsPage] = await Promise.all([
         organizationsApi.getMyOrganization().catch(() => null),
         membersApi.listMembers(),
@@ -76,6 +81,8 @@ export function useOfficeWorkerTeamData(): TeamData {
       toolCountByUser.set(a.assignee_user_id, (toolCountByUser.get(a.assignee_user_id) ?? 0) + 1);
     }
 
+    // First active site assignment per user wins. The schema does not yet
+    // model "primary" site for users with multiple concurrent placements.
     const siteAssignmentByUser = new Map<number, SiteAssignmentRead>();
     for (const sa of raw.siteAssignments) {
       if (!sa.is_active) continue;

@@ -96,4 +96,11 @@ describe('useOfficeWorkerTeamData', () => {
     expect(result.current.onSite).toBeNull();
     expect(result.current.hq).toBeNull();
   });
+
+  it('captures error when listMembers rejects', async () => {
+    mockListMembers.mockRejectedValueOnce(new Error('members boom'));
+    const { result } = renderHook(() => useOfficeWorkerTeamData());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.error).toBe('members boom');
+  });
 });
