@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { tabsForRole, TabConfig } from './mainTabs';
+
+const Q_BUTTON = require('../../assets/q-button.jpeg');
 
 interface Props extends BottomTabBarProps {
   onScanPress: () => void;
@@ -47,14 +49,14 @@ const MainTabBar: React.FC<Props> = ({ state, navigation, insets, onScanPress })
   const renderFab = (tab: TabConfig) => (
     <View key={tab.key} style={styles.fabSlot}>
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
+        style={[styles.fab, { shadowColor: colors.primary }]}
         onPress={onScanPress}
         accessibilityRole="button"
         accessibilityLabel="Scan NFC tag"
         accessibilityHint="Starts the NFC reader to scan a tool"
         activeOpacity={0.85}
       >
-        <Ionicons name={tab.iconFocused as any} size={30} color={(colors as any).onPrimary ?? '#0F1722'} />
+        <Image source={Q_BUTTON} style={styles.fabImage} resizeMode="cover" />
       </TouchableOpacity>
       <Text style={[styles.fabLabel, { color: colors.primary }]}>{tab.label}</Text>
     </View>
@@ -113,10 +115,16 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  fabImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   fabLabel: {
     fontSize: 11,

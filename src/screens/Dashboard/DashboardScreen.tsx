@@ -8,12 +8,25 @@ import { useDashboardStats } from './hooks/useDashboardStats';
 import { useScanTag } from '../../hooks/useScanTag';
 import QuickActionsGrid from './components/QuickActionsGrid';
 import DataOverview from './components/DataOverview';
+import ControlRoomScreen from './ControlRoom/ControlRoomScreen';
+import FleetStatusScreen from './FleetStatus/FleetStatusScreen';
 
 const DashboardScreen: React.FC = () => {
   const { userData } = useAuth();
+  const role = userData?.role as any;
+
+  if (role === 'owner') {
+    return <ControlRoomScreen />;
+  }
+  if (role === 'admin') {
+    return <FleetStatusScreen />;
+  }
+  return <StandardDashboard role={role} />;
+};
+
+const StandardDashboard: React.FC<{ role: any }> = ({ role }) => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
-  const role = userData?.role as any;
   const actions = quickActionsForRole(role);
   const stats = useDashboardStats(role);
   const { scan } = useScanTag();

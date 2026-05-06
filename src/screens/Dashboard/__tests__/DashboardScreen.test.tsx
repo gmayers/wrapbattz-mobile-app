@@ -29,12 +29,21 @@ describe('DashboardScreen', () => {
     expect(screen.getByLabelText('Notifications')).toBeTruthy();
   });
 
-  it('renders 8 QuickAction tiles for admin role', () => {
+  it('renders Fleet status quick actions for admin role', () => {
     currentRole = 'admin';
     render(<DashboardScreen />);
-    expect(screen.getByLabelText('Add Tool')).toBeTruthy();
-    expect(screen.getByLabelText('Sites')).toBeTruthy();
-    expect(screen.getByLabelText('Invite User')).toBeTruthy();
-    expect(screen.getByLabelText('Billing')).toBeTruthy();
+    expect(screen.getByLabelText('Add device')).toBeTruthy();
+    expect(screen.getByLabelText('Print tags')).toBeTruthy();
+    expect(screen.getByLabelText('Log maint.')).toBeTruthy();
+    expect(screen.getByLabelText('Export')).toBeTruthy();
+  });
+
+  it('renders Control room quick actions for owner role', () => {
+    currentRole = 'owner';
+    render(<DashboardScreen />);
+    expect(screen.getByLabelText('Add')).toBeTruthy();
+    expect(screen.getByLabelText('Audit')).toBeTruthy();
+    expect(screen.getByLabelText('Alerts')).toBeTruthy();
+    expect(screen.getByLabelText('Report')).toBeTruthy();
   });
 });
