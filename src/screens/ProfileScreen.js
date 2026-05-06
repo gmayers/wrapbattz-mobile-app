@@ -403,6 +403,22 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Team Section - Only for site_workers */}
+        {userData?.role === 'site_worker' ? (
+          <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Team</Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { borderTopColor: colors.borderLight }]}
+              onPress={() => navigation.navigate('TeamRoster')}
+              accessibilityRole="button"
+              accessibilityLabel="Team"
+            >
+              <Text style={[styles.actionButtonText, { color: colors.primary }]}>Team</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         {/* Logout Button */}
         <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: colors.error }]}
