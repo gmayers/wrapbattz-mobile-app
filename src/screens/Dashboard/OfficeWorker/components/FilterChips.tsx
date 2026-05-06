@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { palette } from '../../shared/palette';
 
 export interface FilterChipItem<K extends string = string> {
@@ -26,8 +26,8 @@ function FilterChips<K extends string>({ items, value, onChange }: Props<K>) {
           <TouchableOpacity
             key={item.key}
             style={[styles.chip, active && styles.chipActive]}
-            onPress={() => onChange(item.key)}
-            accessibilityRole="button"
+            onPress={() => active || onChange(item.key)}
+            accessibilityRole="radio"
             accessibilityLabel={`${item.label} filter`}
             accessibilityState={{ selected: active }}
             activeOpacity={0.85}
@@ -36,7 +36,6 @@ function FilterChips<K extends string>({ items, value, onChange }: Props<K>) {
           </TouchableOpacity>
         );
       })}
-      <View style={styles.endPad} />
     </ScrollView>
   );
 }
@@ -65,7 +64,6 @@ const styles = StyleSheet.create({
   },
   label: { color: palette.textSecondary, fontSize: 13, fontWeight: '600' },
   labelActive: { color: palette.amber, fontWeight: '700' },
-  endPad: { width: 4 },
 });
 
 export default FilterChips;

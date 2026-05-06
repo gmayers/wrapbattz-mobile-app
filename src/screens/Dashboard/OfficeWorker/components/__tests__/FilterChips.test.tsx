@@ -25,6 +25,13 @@ describe('FilterChips', () => {
     expect(onChange).toHaveBeenCalledWith('vehicles');
   });
 
+  it('does not call onChange when the active chip is re-tapped', () => {
+    const onChange = jest.fn();
+    render(<FilterChips items={ITEMS} value="all" onChange={onChange} />);
+    fireEvent.press(screen.getByText('All'));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('marks the active chip selected', () => {
     render(<FilterChips items={ITEMS} value="sites" onChange={() => {}} />);
     expect(screen.getByLabelText('Sites filter').props.accessibilityState).toEqual({ selected: true });
