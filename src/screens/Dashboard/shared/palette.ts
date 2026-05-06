@@ -14,6 +14,9 @@ export const palette = {
   orange: '#F97316',
   green: '#22C55E',
   blue: '#58A6FF',
+  violet: '#A78BFA',
+  pink: '#EC4899',
+  teal: '#14B8A6',
   placeholder: '#3E444C',
 };
 

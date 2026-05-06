@@ -1,12 +1,14 @@
+import { palette } from './palette';
+
 const PALETTE = [
-  '#F97316', // orange
-  '#22C55E', // green
-  '#58A6FF', // blue
-  '#FFC72C', // amber
-  '#A78BFA', // violet
-  '#EC4899', // pink
-  '#14B8A6', // teal
-  '#F85149', // red
+  palette.orange,
+  palette.green,
+  palette.blue,
+  palette.amber,
+  palette.violet,
+  palette.pink,
+  palette.teal,
+  palette.red,
 ];
 
 export function computeInitials(
