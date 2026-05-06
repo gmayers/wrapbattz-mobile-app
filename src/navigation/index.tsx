@@ -32,6 +32,9 @@ import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScree
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
 import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
+import LocationDetailScreen from '../screens/LocationDetail/LocationDetailScreen';
+import TeamMemberDetailScreen from '../screens/TeamMemberDetail/TeamMemberDetailScreen';
+import TeamRosterScreen from '../screens/TeamRoster/TeamRosterScreen';
 
 const Stack = createStackNavigator();
 
@@ -316,6 +319,37 @@ const MainStack = () => {
       options={{
         headerShown: true,
         headerTitle: 'Create Organization',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="LocationDetail"
+      component={LocationDetailScreen}
+      options={{
+        headerShown: true,
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="TeamMemberDetail"
+      component={TeamMemberDetailScreen}
+      options={{
+        headerShown: true,
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="TeamRoster"
+      component={TeamRosterScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Team',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,
