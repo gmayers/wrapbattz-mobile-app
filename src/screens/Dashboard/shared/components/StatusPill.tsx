@@ -9,6 +9,13 @@ interface Props {
   tone: StatusTone;
 }
 
+const TONES: Record<StatusTone, { fg: string; bg: string }> = {
+  green: { fg: palette.green, bg: palette.greenSoft },
+  amber: { fg: palette.amber, bg: palette.amberSoft },
+  red: { fg: palette.red, bg: palette.redSoft },
+  muted: { fg: palette.textMuted, bg: palette.card },
+};
+
 const StatusPill: React.FC<Props> = ({ label, tone }) => {
   if (!label) return null;
   const palette_ = TONES[tone];
@@ -17,13 +24,6 @@ const StatusPill: React.FC<Props> = ({ label, tone }) => {
       <Text style={[styles.label, { color: palette_.fg }]}>{label}</Text>
     </View>
   );
-};
-
-const TONES: Record<StatusTone, { fg: string; bg: string }> = {
-  green: { fg: palette.green, bg: 'rgba(34, 197, 94, 0.14)' },
-  amber: { fg: palette.amber, bg: palette.amberSoft },
-  red: { fg: palette.red, bg: palette.redSoft },
-  muted: { fg: palette.textMuted, bg: palette.card },
 };
 
 const styles = StyleSheet.create({

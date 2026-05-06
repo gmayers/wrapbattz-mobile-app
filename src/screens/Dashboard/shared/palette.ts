@@ -13,6 +13,7 @@ export const palette = {
   redSoft: 'rgba(248, 81, 73, 0.14)',
   orange: '#F97316',
   green: '#22C55E',
+  greenSoft: 'rgba(34, 197, 94, 0.14)',
   blue: '#58A6FF',
   violet: '#A78BFA',
   pink: '#EC4899',

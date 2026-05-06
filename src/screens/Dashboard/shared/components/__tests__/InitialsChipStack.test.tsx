@@ -8,7 +8,7 @@ describe('InitialsChipStack', () => {
     expect(screen.getByText('MJ')).toBeTruthy();
     expect(screen.getByText('SW')).toBeTruthy();
     expect(screen.getByText('LG')).toBeTruthy();
-    expect(screen.queryByText('+')).toBeNull();
+    expect(screen.queryByText(/^\+\d+$/)).toBeNull();
   });
 
   it('renders +N overflow when more than 3', () => {
