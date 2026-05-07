@@ -85,6 +85,10 @@ export function useSiteWorkerData(): SiteWorkerData {
       a.expected_return_at === todayIso && !a.returned_at
     );
 
+    // BACKEND_GAP: AssignmentRead.returned_at lacks an explicit `Format: date-time`
+    // in the openapi schema, so we assume the API returns a plain YYYY-MM-DD date
+    // string. If the backend ever returns a datetime, this equality silently fails
+    // and "RETURNED" reads 0 — confirm on device, swap to date-prefix comparison if needed.
     const returnedToday = raw.returnedPage.items.filter((a) =>
       a.returned_at === todayIso
     ).length;

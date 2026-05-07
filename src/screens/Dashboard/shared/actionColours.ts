@@ -10,7 +10,7 @@ const REPORT_INK = '#26120B';
 const REQUEST_INK = '#001229';
 
 export const actionColours: Record<ActionKind, ActionColour> = {
-  return:  { fg: palette.amber,         bg: palette.amber,        ink: RETURN_INK  },
+  return:  { fg: palette.amber,         bg: palette.amberSoft,    ink: RETURN_INK  },
   report:  { fg: palette.orange,        bg: palette.orangeSoft,   ink: REPORT_INK  },
   request: { fg: palette.blue,          bg: palette.blueSoft,     ink: REQUEST_INK },
   log:     { fg: palette.textSecondary, bg: palette.card,         ink: NEUTRAL_INK },
