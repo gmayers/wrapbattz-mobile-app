@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { palette } from '../../shared/palette';
+import { useAccent } from '../../../../theme/AccentContext';
 
 export interface FilterChipItem<K extends string = string> {
   key: K;
@@ -14,6 +15,9 @@ interface Props<K extends string> {
 }
 
 function FilterChips<K extends string>({ items, value, onChange }: Props<K>) {
+  const accent = useAccent();
+  const activeChipStyle = { backgroundColor: accent.bg, borderColor: accent.fg };
+  const activeLabelStyle = { color: accent.fg };
   return (
     <ScrollView
       horizontal
@@ -25,14 +29,14 @@ function FilterChips<K extends string>({ items, value, onChange }: Props<K>) {
         return (
           <TouchableOpacity
             key={item.key}
-            style={[styles.chip, active && styles.chipActive]}
+            style={[styles.chip, active && activeChipStyle]}
             onPress={() => active || onChange(item.key)}
             accessibilityRole="radio"
             accessibilityLabel={`${item.label} filter`}
             accessibilityState={{ selected: active }}
             activeOpacity={0.85}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
+            <Text style={[styles.label, active && [styles.labelActive, activeLabelStyle]]}>{item.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -58,12 +62,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: {
-    backgroundColor: palette.amberSoft,
-    borderColor: palette.amber,
-  },
   label: { color: palette.textSecondary, fontSize: 13, fontWeight: '600' },
-  labelActive: { color: palette.amber, fontWeight: '700' },
+  labelActive: { fontWeight: '700' },
 });
 
 export default FilterChips;
