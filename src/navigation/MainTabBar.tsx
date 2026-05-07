@@ -5,6 +5,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { tabsForRole, TabConfig } from './mainTabs';
+import { tabAccents, isTabAccentKey } from '../theme/tabAccents';
 
 const Q_BUTTON = require('../../assets/q-button.jpeg');
 
@@ -29,7 +30,8 @@ const MainTabBar: React.FC<Props> = ({ state, navigation, insets, onScanPress })
         navigation.navigate(tab.key);
       }
     };
-    const tint = focused ? colors.primary : colors.textMuted;
+    const accent = isTabAccentKey(tab.key) ? tabAccents[tab.key] : undefined;
+    const tint = focused ? (accent?.fg ?? colors.primary) : colors.textMuted;
     return (
       <TouchableOpacity
         key={tab.key}
