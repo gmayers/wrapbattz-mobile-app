@@ -11,6 +11,7 @@ import DataOverview from './components/DataOverview';
 import ControlRoomScreen from './ControlRoom/ControlRoomScreen';
 import FleetStatusScreen from './FleetStatus/FleetStatusScreen';
 import OfficeWorkerDashboardScreen from './OfficeWorker/OfficeWorkerDashboardScreen';
+import SiteWorkerDashboardScreen from './SiteWorker/SiteWorkerDashboardScreen';
 
 const DashboardScreen: React.FC = () => {
   const { userData } = useAuth();
@@ -24,6 +25,9 @@ const DashboardScreen: React.FC = () => {
   }
   if (role === 'office_worker') {
     return <OfficeWorkerDashboardScreen />;
+  }
+  if (role === 'site_worker') {
+    return <SiteWorkerDashboardScreen />;
   }
   return <StandardDashboard role={role} />;
 };

@@ -45,17 +45,28 @@ jest.mock('../OfficeWorker/hooks/useOfficeWorkerTeamData', () => ({
     members: [],
   }),
 }));
+jest.mock('../SiteWorker/hooks/useSiteWorkerData', () => ({
+  useSiteWorkerData: () => ({
+    isLoading: false,
+    refresh: jest.fn(),
+    organizationName: 'TESTORG',
+    siteTagline: 'TESTORG / SITE',
+    userInitials: 'XY',
+    hasUnreadAlerts: null,
+    checkedOut: 0,
+    returnedToday: 0,
+    overdueCount: 0,
+    rows: [],
+  }),
+}));
 
 describe('DashboardScreen', () => {
   beforeEach(() => { mockNavigate.mockClear(); });
 
-  it('renders 4 QuickAction tiles for worker role', () => {
+  it('renders site-worker dashboard with Your actions title for site_worker role', () => {
     currentRole = 'site_worker';
     render(<DashboardScreen />);
-    expect(screen.getByLabelText('Scan')).toBeTruthy();
-    expect(screen.getByLabelText('Report Issue')).toBeTruthy();
-    expect(screen.getByLabelText('My Tools')).toBeTruthy();
-    expect(screen.getByLabelText('Notifications')).toBeTruthy();
+    expect(screen.getByText('Your actions')).toBeTruthy();
   });
 
   it('renders Fleet status quick actions for admin role', () => {
