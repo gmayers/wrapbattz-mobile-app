@@ -48,7 +48,13 @@ export type ToolUpdate = S['ToolUpdate'];
 export type PagedTools = S['PagedTools'];
 export type ToolPhotoRead = S['ToolPhotoRead'];
 
-export type AssignmentRead = S['AssignmentRead'];
+export type AssignmentRead = S['AssignmentRead'] & {
+  /**
+   * BACKEND_GAP: present in /api/v1/assignments/mine/active/ responses but not yet
+   * in the generated openapi schema. Inline-extend until the schema regenerates.
+   */
+  expected_return_at?: string | null;
+};
 export type AssignmentCreate = S['AssignmentCreate'];
 export type AssignmentUpdate = S['AssignmentUpdate'];
 export type AssignmentReturn = S['AssignmentReturn'];
