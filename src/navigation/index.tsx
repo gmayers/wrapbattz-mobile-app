@@ -6,6 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAccentSetter } from '../theme/AccentContext';
+import { tabAccents, isTabAccentKey, TabAccentKey } from '../theme/tabAccents';
+import type { NavigationState, PartialState } from '@react-navigation/native';
 
 // Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -51,6 +54,20 @@ const linking: LinkingOptions<ReactNavigation.RootParamList> = {
     },
   },
 };
+
+function findFocusedBottomTab(
+  state: NavigationState | PartialState<NavigationState> | undefined,
+): TabAccentKey | null {
+  let current: any = state;
+  while (current && Array.isArray(current.routes)) {
+    const idx = typeof current.index === 'number' ? current.index : 0;
+    const route = current.routes[idx];
+    if (!route) return null;
+    if (isTabAccentKey(route.name)) return route.name;
+    current = route.state;
+  }
+  return null;
+}
 
 const AuthStack = () => {
   const { colors } = useTheme();
@@ -409,13 +426,20 @@ const OnboardingStack = () => {
 
 export const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const setAccent = useAccentSetter();
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      linking={linking}
+      onStateChange={(state) => {
+        const key = findFocusedBottomTab(state);
+        if (key) setAccent(tabAccents[key]);
+      }}
+    >
       {isAuthenticated ? <OnboardingStack /> : <AuthStack />}
     </NavigationContainer>
   );

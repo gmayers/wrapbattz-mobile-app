@@ -8,6 +8,7 @@ import { AuthProvider } from './src/auth/AuthContext';
 import { SessionExpiryAlert } from './src/auth/SessionExpiryAlert';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/index';
+import { AccentProvider } from './src/theme/AccentContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import NfcManager from 'react-native-nfc-manager';
@@ -117,7 +118,9 @@ function App() {
         <AuthProvider>
           <SessionExpiryAlert />
           <ThemeProvider>
-            <AppNavigator />
+            <AccentProvider>
+              <AppNavigator />
+            </AccentProvider>
           </ThemeProvider>
         </AuthProvider>
       </StripeProvider>
