@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { palette } from '../palette';
+import { useAccent } from '../../../../theme/AccentContext';
 
 interface Props {
   tagline: string;
@@ -22,6 +23,7 @@ const DashboardHeader: React.FC<Props> = ({
   onAlertsPress,
   onAvatarPress,
 }) => {
+  const accent = useAccent();
   return (
     <View style={styles.container}>
       <View style={styles.left}>
@@ -50,13 +52,13 @@ const DashboardHeader: React.FC<Props> = ({
           {hasUnreadAlerts ? <View style={styles.bellDot} /> : null}
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.avatar}
+          style={[styles.avatar, { backgroundColor: accent.fg }]}
           onPress={onAvatarPress}
           accessibilityRole="button"
           accessibilityLabel="Open profile"
           activeOpacity={0.85}
         >
-          <Text style={styles.avatarText}>{initials}</Text>
+          <Text style={[styles.avatarText, { color: accent.ink }]}>{initials}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -126,12 +128,10 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: palette.amber,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#1B1300',
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.5,
