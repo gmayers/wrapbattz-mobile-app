@@ -33,7 +33,7 @@ describe('WhereTab', () => {
   it('passes location id through to onLocationPress', () => {
     const onLocationPress = jest.fn();
     render(<WhereTab locations={sampleLocations} totalToolsPlaced={18} pendingApprovals={null} returnsDue={null} onLocationPress={onLocationPress} onReview={() => {}} />);
-    fireEvent.press(screen.getByLabelText('Chelsea Wharf, 8 tools'));
+    fireEvent.press(screen.getByLabelText('Site: Chelsea Wharf, 8 tools'));
     expect(onLocationPress).toHaveBeenCalledWith(sampleLocations[0]);
   });
 });
