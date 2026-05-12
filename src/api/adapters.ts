@@ -131,23 +131,31 @@ export interface LegacyReport {
   description: string;
   device_id: number;
   device_name: string;
+  device: { id: number; identifier: string };
   location_id: number | null;
   location_name: string;
+  report_date: string;
+  resolved: boolean;
   created_at: string;
 }
 
 export function toLegacyReport(i: IncidentRead): LegacyReport {
+  const reportDate = i.created_at ? i.created_at.slice(0, 10) : '';
+  const status = (i.status || '').toUpperCase();
   return {
     id: i.id,
     uuid: i.uuid,
     type: i.type,
     severity: i.severity,
-    status: i.status,
+    status,
     description: i.description,
     device_id: i.tool_id,
     device_name: i.tool_name,
+    device: { id: i.tool_id, identifier: i.tool_name || `Tool #${i.tool_id}` },
     location_id: i.site_id ?? null,
     location_name: i.site_name ?? '',
+    report_date: reportDate,
+    resolved: status === 'RESOLVED',
     created_at: i.created_at,
   };
 }

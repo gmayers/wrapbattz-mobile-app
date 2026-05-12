@@ -84,21 +84,19 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchReportDetails();
-    fetchReportImages();
   }, [reportId]);
 
-  // Fetch tool photos associated with this incident's tool.
-  // The new API doesn't scope photos to incidents — photos belong to tools.
-  // If the incident is loaded, pull photos for its tool_id.
-  const fetchReportImages = async () => {
+  // Fetch tool photos when we know which tool the report is about. The new API
+  // scopes photos to tools, not incidents — we need the tool_id, which only
+  // exists after fetchReportDetails resolves.
+  useEffect(() => {
+    if (!report?.device_id) return;
+    fetchReportImages(report.device_id);
+  }, [report?.device_id]);
+
+  const fetchReportImages = async (toolId) => {
     try {
       setLoadingImages(true);
-      const toolId = report?.device_id;
-      if (!toolId) {
-        setReportImages([]);
-        setReportSignatures([]);
-        return;
-      }
       const photos = await toolPhotosApi.listToolPhotos(toolId);
       const mapped = photos.map((p) => ({
         id: p.id,
@@ -131,28 +129,38 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
       const incident = await incidentsApi.getIncident(Number(reportId));
 
-      // Legacy-shape adaptation for the existing JSX:
+      const status = (incident.status || '').toUpperCase();
+      const reportDate = incident.created_at ? incident.created_at.slice(0, 10) : '';
+
+      // Legacy-shape adaptation for the existing JSX. Note: the new API only
+      // gives reported_by_email — no first/last name — so the JSX falls back
+      // to email when name fields are absent.
       const legacyReport = {
         id: incident.id,
         uuid: incident.uuid,
         type: incident.type,
         severity: incident.severity,
-        status: incident.status,
+        status,
         description: incident.description,
         device: {
           id: incident.tool_id,
           identifier: incident.tool_name
 },
         device_id: incident.tool_id,
+        device_name: incident.tool_name,
         location: incident.site_id
           ? { id: incident.site_id, name: incident.site_name ?? '' }
           : null,
         created_by: {
           id: incident.reported_by_id ?? null,
-          email: incident.reported_by_email ?? ''
+          email: incident.reported_by_email ?? '',
+          first_name: '',
+          last_name: ''
 },
+        report_date: reportDate,
         created_at: incident.created_at,
-        resolved: incident.status === 'RESOLVED' || incident.status === 'resolved'
+        updated_at: incident.updated_at ?? incident.created_at,
+        resolved: status === 'RESOLVED'
 };
 
       setReport(legacyReport);
@@ -160,8 +168,9 @@ const ReportDetailsScreen = ({ navigation, route }) => {
       setSelectedType(legacyReport.type);
       setResolvedChecked(legacyReport.resolved);
       setDescription(legacyReport.description || '');
-
-      fetchReportImages();
+      // Note: fetchReportImages is now triggered by a useEffect on
+      // report.device_id, so we don't call it inline here. The previous
+      // inline call captured a stale `report` closure and short-circuited.
     } catch (error) {
       handleApiError(error, 'Failed to fetch report details');
     } finally {
@@ -276,7 +285,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading report details...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading report details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -323,14 +332,14 @@ const ReportDetailsScreen = ({ navigation, route }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Report Details Card */}
-        <View style={[styles.detailsCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Device: {report.device?.identifier || 'Unknown'}</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Device: {report.device?.identifier || report.device_name || 'Unknown'}</Text>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
               <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
             </View>
@@ -338,55 +347,59 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
           <View style={styles.detailsSection}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Report Date:</Text>
-              <Text style={styles.detailValue}>{report.report_date}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Report Date:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.report_date || '—'}</Text>
             </View>
-            
+
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Type:</Text>
-              <Text style={styles.detailValue}>{getTypeLabel(report.type)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Type:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{getTypeLabel(report.type)}</Text>
             </View>
-            
+
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Status:</Text>
-              <Text style={styles.detailValue}>{getStatusLabel(report.status)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Status:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{getStatusLabel(report.status)}</Text>
             </View>
-            
+
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Resolved:</Text>
-              <Text style={styles.detailValue}>{report.resolved ? 'Yes' : 'No'}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Resolved:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.resolved ? 'Yes' : 'No'}</Text>
             </View>
-            
+
             {report.resolved_date && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Resolved Date:</Text>
-                <Text style={styles.detailValue}>{report.resolved_date}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Resolved Date:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.resolved_date}</Text>
               </View>
             )}
-            
-            {report.created_by && (
+
+            {report.created_by && (report.created_by.email || report.created_by.first_name || report.created_by.last_name) && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Reported By:</Text>
-                <Text style={styles.detailValue}>
-                  {report.created_by.first_name} {report.created_by.last_name}
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Reported By:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
+                  {`${report.created_by.first_name || ''} ${report.created_by.last_name || ''}`.trim() || report.created_by.email}
                 </Text>
               </View>
             )}
-            
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Created At:</Text>
-              <Text style={styles.detailValue}>{new Date(report.created_at).toLocaleString()}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Last Updated:</Text>
-              <Text style={styles.detailValue}>{new Date(report.updated_at).toLocaleString()}</Text>
-            </View>
+
+            {report.created_at && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Created At:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{new Date(report.created_at).toLocaleString()}</Text>
+              </View>
+            )}
+
+            {report.updated_at && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Last Updated:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{new Date(report.updated_at).toLocaleString()}</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.descriptionSection}>
-            <Text style={styles.descriptionLabel}>Description:</Text>
-            <Text style={styles.descriptionText}>{report.description}</Text>
+            <Text style={[styles.descriptionLabel, { color: colors.textSecondary }]}>Description:</Text>
+            <Text style={[styles.descriptionText, { color: colors.textPrimary }]}>{report.description}</Text>
           </View>
 
           <View style={styles.actionButtons}>
@@ -412,113 +425,111 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 
         {/* Report Images Section */}
         {loadingImages ? (
-          <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Loading Images...</Text>
+          <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Loading Images...</Text>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : reportImages.length > 0 ? (
-          <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Report Images ({reportImages.length})</Text>
+          <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Report Images ({reportImages.length})</Text>
             <View style={styles.imagesContainer}>
-              {reportImages.map((image, index) => {
-                console.log(`🖼️ [ReportDetails] Rendering image ${index + 1}:`, {
-                  id: image.id,
-                  uri: image.image,
-                  hasToken: !!authToken
-});
-                return (
+              {!authToken ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                reportImages.map((image, index) => (
                   <TouchableOpacity
-                    key={image.id || index}
+                    key={`${image.id || index}-${authToken ? 'auth' : 'noauth'}`}
                     onPress={() => handleImagePress(image.image)}
-                    style={styles.imageContainer}
+                    style={[styles.imageContainer, { backgroundColor: colors.surfaceAlt ?? colors.background }]}
                   >
                     <Image
                       source={{
                         uri: image.image,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+                        headers: { Authorization: `Bearer ${authToken}` }
 }}
                       style={styles.reportImage}
                       resizeMode="contain"
-                      onLoad={() => console.log(`✅ [ReportDetails] Image ${index + 1} loaded successfully:`, image.image)}
-                      onError={(e) => console.error(`❌ [ReportDetails] Image ${index + 1} load error:`, {
+                      onError={(e) => console.error(`[ReportDetails] Image load error:`, {
                         uri: image.image,
                         error: e.nativeEvent.error
 })}
                     />
                   </TouchableOpacity>
-                );
-              })}
+                ))
+              )}
             </View>
           </View>
         ) : null}
 
         {/* Report Signatures Section */}
         {reportSignatures.length > 0 && (
-          <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Signatures ({reportSignatures.length})</Text>
+          <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Signatures ({reportSignatures.length})</Text>
             <View style={styles.signaturesContainer}>
-              {reportSignatures.map((signature, index) => {
-                console.log(`✍️ [ReportDetails] Rendering signature ${index + 1}:`, {
-                  id: signature.id,
-                  uri: signature.image,
-                  hasToken: !!authToken
-});
-                return (
+              {!authToken ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                reportSignatures.map((signature, index) => (
                   <TouchableOpacity
-                    key={signature.id || index}
+                    key={`${signature.id || index}-${authToken ? 'auth' : 'noauth'}`}
                     onPress={() => handleImagePress(signature.image)}
-                    style={styles.signatureContainer}
+                    style={[styles.signatureContainer, { backgroundColor: colors.surfaceAlt ?? colors.background, borderColor: colors.border }]}
                   >
                     <Image
                       source={{
                         uri: signature.image,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+                        headers: { Authorization: `Bearer ${authToken}` }
 }}
                       style={styles.signatureImage}
                       resizeMode="contain"
-                      onLoad={() => console.log(`✅ [ReportDetails] Signature ${index + 1} loaded successfully:`, signature.image)}
-                      onError={(e) => console.error(`❌ [ReportDetails] Signature ${index + 1} load error:`, {
+                      onError={(e) => console.error('[ReportDetails] Signature load error:', {
                         uri: signature.image,
                         error: e.nativeEvent.error
 })}
                     />
                   </TouchableOpacity>
-                );
-              })}
+                ))
+              )}
             </View>
           </View>
         )}
 
         {/* Device Info Section */}
         {report.device && (
-          <View style={styles.detailsCard}>
-            <Text style={styles.sectionTitle}>Device Information</Text>
-            
+          <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Device Information</Text>
+
             <View style={styles.detailsSection}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Identifier:</Text>
-                <Text style={styles.detailValue}>{report.device.identifier}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Identifier:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.device.identifier}</Text>
               </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Type:</Text>
-                <Text style={styles.detailValue}>{report.device.device_type}</Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Make:</Text>
-                <Text style={styles.detailValue}>{report.device.make}</Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Model:</Text>
-                <Text style={styles.detailValue}>{report.device.model}</Text>
-              </View>
-              
+
+              {report.device.device_type ? (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Type:</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.device.device_type}</Text>
+                </View>
+              ) : null}
+
+              {report.device.make ? (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Make:</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.device.make}</Text>
+                </View>
+              ) : null}
+
+              {report.device.model ? (
+                <View style={styles.detailRow}>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Model:</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.device.model}</Text>
+                </View>
+              ) : null}
+
               {report.device.serial_number && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Serial Number:</Text>
-                  <Text style={styles.detailValue}>{report.device.serial_number}</Text>
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Serial Number:</Text>
+                  <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{report.device.serial_number}</Text>
                 </View>
               )}
             </View>
@@ -692,23 +703,20 @@ const ReportDetailsScreen = ({ navigation, route }) => {
                     <Ionicons name="close" size={24} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
-                {selectedImage && (
-                  <>
-                    {console.log('🔍 [ReportDetails] Modal showing image:', selectedImage, 'hasToken:', !!authToken)}
-                    <Image
-                      source={{
-                        uri: selectedImage,
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+                {selectedImage && authToken && (
+                  <Image
+                    key={`modal-${selectedImage}`}
+                    source={{
+                      uri: selectedImage,
+                      headers: { Authorization: `Bearer ${authToken}` }
 }}
-                      style={styles.fullScreenImage}
-                      resizeMode="contain"
-                      onLoad={() => console.log('✅ [ReportDetails] Modal image loaded successfully:', selectedImage)}
-                      onError={(e) => console.error('❌ [ReportDetails] Modal image load error:', {
-                        uri: selectedImage,
-                        error: e.nativeEvent.error
+                    style={styles.fullScreenImage}
+                    resizeMode="contain"
+                    onError={(e) => console.error('[ReportDetails] Modal image load error:', {
+                      uri: selectedImage,
+                      error: e.nativeEvent.error
 })}
-                    />
-                  </>
+                  />
                 )}
               </View>
             </TouchableWithoutFeedback>
@@ -722,21 +730,17 @@ const ReportDetailsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5'
 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 15,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0'
 },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333'
 },
   backButton: {
     flexDirection: 'row',
@@ -744,7 +748,6 @@ const styles = StyleSheet.create({
 },
   backText: {
     fontSize: 17,
-    color: ORANGE_COLOR,
     marginLeft: 4
 },
   scrollView: {
@@ -762,7 +765,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666'
 },
   errorContainer: {
     flex: 1,
@@ -777,7 +779,6 @@ const styles = StyleSheet.create({
     textAlign: 'center'
 },
   detailsCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     marginBottom: 20,
     padding: 15,
@@ -796,7 +797,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     flex: 1
 },
   statusBadge: {
@@ -815,7 +815,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 15
 },
   detailRow: {
@@ -825,12 +824,10 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
     width: 120
 },
   detailValue: {
     fontSize: 14,
-    color: '#333',
     flex: 1
 },
   descriptionSection: {
@@ -839,12 +836,10 @@ const styles = StyleSheet.create({
   descriptionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
     marginBottom: 5
 },
   descriptionText: {
     fontSize: 14,
-    color: '#333',
     lineHeight: 20
 },
   actionButtons: {

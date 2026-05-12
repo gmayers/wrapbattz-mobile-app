@@ -167,52 +167,52 @@ const ReportsScreen = ({ navigation }) => {
 
   // Updated to make the card clickable
   const renderReportCard = useCallback((report) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       key={report.id}
       onPress={() => handleViewReportDetails(report)}
       activeOpacity={0.7}
     >
       <Card
-        title={`Device: ${report.device?.identifier || 'Unknown'}`}
-        style={styles.reportCard}
+        title={`Device: ${report.device?.identifier || report.device_name || 'Unknown'}`}
+        style={[styles.reportCard, { backgroundColor: colors.surface }]}
       >
         <View style={styles.reportContent}>
-          <Text style={styles.reportText}>Date: {report.report_date}</Text>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>Date: {report.report_date || '—'}</Text>
           <TouchableOpacity
             onPress={(e) => {
-              e.stopPropagation(); // Prevent card click
+              e.stopPropagation();
               Alert.alert('Type Info', getTypeLabel(report.type));
             }}
             style={styles.typeRow}
           >
-            <Text style={styles.reportText}>Type: {getTypeLabel(report.type)}</Text>
-            <Ionicons name="information-circle-outline" size={16} color="#666" />
+            <Text style={[styles.reportText, { color: colors.textSecondary }]}>Type: {getTypeLabel(report.type)}</Text>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           <View style={styles.statusRow}>
-            <Text style={styles.reportText}>Status: </Text>
+            <Text style={[styles.reportText, { color: colors.textSecondary }]}>Status: </Text>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
               <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
             </View>
           </View>
-          <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
           {report.resolved_date && (
-            <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
+            <Text style={[styles.reportText, { color: colors.textSecondary }]}>Resolved Date: {report.resolved_date}</Text>
           )}
-          <Text 
-            style={styles.reportText} 
-            numberOfLines={2} // Limit to 2 lines with ellipsis
+          <Text
+            style={[styles.reportText, { color: colors.textSecondary }]}
+            numberOfLines={2}
             ellipsizeMode="tail"
           >
             Description: {report.description}
           </Text>
           <View style={styles.viewDetailsContainer}>
-            <Text style={styles.viewDetailsText}>View Details</Text>
+            <Text style={[styles.viewDetailsText, { color: colors.primary }]}>View Details</Text>
             <Ionicons name="chevron-forward" size={14} color={colors.primary} />
           </View>
         </View>
       </Card>
     </TouchableOpacity>
-  ), [getStatusColor, getStatusLabel, getTypeLabel, handleViewReportDetails]);
+  ), [getStatusColor, getStatusLabel, getTypeLabel, handleViewReportDetails, colors]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -255,8 +255,8 @@ const ReportsScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Reports</Text>
-            <Text style={styles.sectionSubtitle}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Reports</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
               {userData?.name ? `Showing ${userData.name}'s` : 'Showing your'} pending and in-progress reports
             </Text>
 
@@ -280,7 +280,7 @@ const ReportsScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
-                <Text style={styles.emptyText}>No reports found</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No reports found</Text>
                 <Button
                   title="Create Your First Report"
                   onPress={handleCreateReport}
@@ -377,16 +377,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#333'
 },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 15
 },
   reportCard: {
     marginBottom: 10,
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -400,7 +397,6 @@ const styles = StyleSheet.create({
 },
   reportText: {
     fontSize: 14,
-    color: '#666',
     lineHeight: 20
 },
   typeRow: {
@@ -475,7 +471,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
     marginTop: 10
 },
   // Error state styling

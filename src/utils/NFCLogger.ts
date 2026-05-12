@@ -129,7 +129,9 @@ class NFCLogger {
     const operation = this.currentOperations.get(operationId);
 
     if (!operation) {
-      this.warn(`No operation found with ID: ${operationId}`);
+      // Operation already ended (e.g. logStep called from a finally block
+      // after endOperation cleared the entry). Silently ignore — this is a
+      // harmless lifecycle race, not a bug worth a warning.
       return;
     }
 

@@ -546,7 +546,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               );
             })
           ) : (
-            <Text style={styles.emptyText}>No assignment history available</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No assignment history available</Text>
           )}
         </View>
 
@@ -558,40 +558,40 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
             <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
           ) : deviceReports.length > 0 ? (
             deviceReports.map(report => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={report.id}
-                style={styles.reportItem}
+                style={[styles.reportItem, { backgroundColor: colors.surfaceAlt ?? colors.background }]}
                 onPress={() => handleViewReport(report.id)}
                 activeOpacity={0.7}
               >
                 <View style={styles.reportHeader}>
-                  <Text style={styles.reportDate}>{formatDate(report.report_date)}</Text>
+                  <Text style={[styles.reportDate, { color: colors.textPrimary }]}>{formatDate(report.report_date)}</Text>
                   <View style={[
-                    styles.reportStatusBadge, 
+                    styles.reportStatusBadge,
                     { backgroundColor: getStatusColor(report.status === 'RESOLVED' ? 'available' : 'damaged') }
                   ]}>
                     <Text style={styles.statusText}>{report.status}</Text>
                   </View>
                 </View>
-                
-                <Text style={styles.reportType}>Type: {report.type}</Text>
-                <Text 
-                  style={styles.reportDescription}
+
+                <Text style={[styles.reportType, { color: colors.textSecondary }]}>Type: {report.type}</Text>
+                <Text
+                  style={[styles.reportDescription, { color: colors.textSecondary }]}
                   numberOfLines={2}
                   ellipsizeMode="tail"
                 >
                   {report.description}
                 </Text>
-                
+
                 <View style={styles.viewDetailsContainer}>
-                  <Text style={styles.viewDetailsText}>View Report Details</Text>
+                  <Text style={[styles.viewDetailsText, { color: colors.primary }]}>View Report Details</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                 </View>
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyReportsContainer}>
-              <Text style={styles.emptyText}>No reports for this device</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No reports for this device</Text>
               <Button
                 title="Create Report"
                 onPress={handleCreateReport}
@@ -956,7 +956,6 @@ const styles = StyleSheet.create({
   reportItem: {
     marginBottom: 15,
     padding: 12,
-    backgroundColor: '#f9f9f9',
     borderRadius: 6,
     borderLeftWidth: 3,
     borderLeftColor: ORANGE_COLOR
@@ -970,7 +969,6 @@ const styles = StyleSheet.create({
   reportDate: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#555'
 },
   reportStatusBadge: {
     paddingHorizontal: 8,
@@ -979,12 +977,10 @@ const styles = StyleSheet.create({
 },
   reportType: {
     fontSize: 14,
-    color: '#555',
     marginBottom: 5
 },
   reportDescription: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 10,
     lineHeight: 18
 },
@@ -1002,7 +998,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     fontSize: 14,
-    color: '#666',
     marginVertical: 15
 },
   emptyReportsContainer: {
