@@ -16,6 +16,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
 import { billingService } from '../../services/BillingService';
+import { getSubscription as getNewSubscription } from '../../api/endpoints/billing';
+import { Linking, Platform } from 'react-native';
 
 // TOOLTRAQ yellow color to match existing UI
 const ORANGE_COLOR = '#FFC72C';
@@ -39,6 +41,27 @@ const ManageBillingScreen = ({ navigation }) => {
   const [billingData, setBillingData] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [processingAction, setProcessingAction] = useState(false);
+  // New /billing/subscription state. Used to detect IAP-sourced subs and
+  // redirect users to native subscription management. Will be null until the
+  // backend endpoint ships or if the call 404s.
+  const [iapSourcedState, setIapSourcedState] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const s = await getNewSubscription();
+        if (cancelled) return;
+        if (s?.source === 'apple_iap' || s?.source === 'google_iap') {
+          setIapSourcedState(s);
+        }
+      } catch {
+        // 404 (endpoint not shipped) or any other error — silently fall
+        // through to the existing Stripe-driven render.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const fetchBillingData = async () => {
     try {
       setLoading(true);
@@ -421,6 +444,40 @@ const ManageBillingScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('DataHandlingFee')}
           >
             <Text style={styles.activateButtonText}>Set Up Billing</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // If the org's active subscription was purchased through Apple/Google
+  // (mobile IAP), the Stripe-driven controls below don't apply — Apple
+  // and Google require subscription management to happen in their native
+  // surfaces. Render a deep link instead.
+  if (iapSourcedState) {
+    const url = iapSourcedState.source === 'apple_iap'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions';
+    const store = iapSourcedState.source === 'apple_iap' ? 'the App Store' : 'Google Play';
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Manage Billing</Text>
+        </View>
+        <View style={{ padding: 24, gap: 12 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>
+            Managed via {store}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20 }}>
+            Your subscription was purchased on this platform. To change plan,
+            update payment method, or cancel, please use {store}'s own
+            subscription management.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginTop: 8 }}
+            onPress={() => Linking.openURL(url)}
+          >
+            <Text style={{ color: '#000', fontWeight: '700' }}>Open {store}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
