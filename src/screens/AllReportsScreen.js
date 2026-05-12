@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -68,13 +68,20 @@ const AllReportsScreen = ({ navigation, route }) => {
   const [description, setDescription] = useState('');
   const [isMyReportUpdate, setIsMyReportUpdate] = useState(false);
 
-  useEffect(() => {
+  const refreshAll = useCallback(() => {
     fetchMyReports();
-
-    if (isAdminOrOwner) {
-      fetchAllReports();
-    }
+    if (isAdminOrOwner) fetchAllReports();
   }, [isAdminOrOwner]);
+
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
+
+  // Re-fetch whenever this screen regains focus (e.g. after CreateReport goBack)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', refreshAll);
+    return unsubscribe;
+  }, [navigation, refreshAll]);
 
   const handleApiError = (error, defaultMessage) => {
     if (error instanceof ApiError && error.code === 'unauthorized') return;
@@ -190,31 +197,31 @@ const renderReportCard = (report, isMyReport = false) => (
     activeOpacity={0.7}
   >
     <Card
-      title={`Device: ${report.device?.identifier || 'Unknown'}`}
-      style={styles.reportCard}
+      title={`Device: ${report.device?.identifier || report.device_name || 'Unknown'}`}
+      style={[styles.reportCard, { backgroundColor: colors.surface }]}
     >
       <View style={styles.reportContent}>
-        <Text style={styles.reportText}>Date: {report.report_date}</Text>
+        <Text style={[styles.reportText, { color: colors.textSecondary }]}>Date: {report.report_date || '—'}</Text>
         <TouchableOpacity
           onPress={() => Alert.alert('Type Info', report.type)}
           style={styles.typeRow}
         >
-          <Text style={styles.reportText}>Type: {report.type}</Text>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>Type: {report.type}</Text>
           <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
         </TouchableOpacity>
         <View style={styles.statusRow}>
-          <Text style={styles.reportText}>Status: </Text>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>Status: </Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) }]}>
             <Text style={styles.statusText}>{getStatusLabel(report.status)}</Text>
           </View>
         </View>
-        <Text style={styles.reportText}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
+        <Text style={[styles.reportText, { color: colors.textSecondary }]}>Resolved: {report.resolved ? 'Yes' : 'No'}</Text>
         {report.resolved_date && (
-          <Text style={styles.reportText}>Resolved Date: {report.resolved_date}</Text>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>Resolved Date: {report.resolved_date}</Text>
         )}
-        <Text style={styles.reportText}>Description: {report.description}</Text>
+        <Text style={[styles.reportText, { color: colors.textSecondary }]}>Description: {report.description}</Text>
         {report.created_by && (
-          <Text style={styles.reportText}>
+          <Text style={[styles.reportText, { color: colors.textSecondary }]}>
             Created by: {report.created_by.first_name} {report.created_by.last_name}
           </Text>
         )}
@@ -312,7 +319,7 @@ const renderReportCard = (report, isMyReport = false) => (
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
-                <Text style={styles.emptyText}>No reports found</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No reports found</Text>
                 <Button
                   title="Create Your First Report"
                   onPress={() => navigation.navigate('CreateReport')}
@@ -343,7 +350,7 @@ const renderReportCard = (report, isMyReport = false) => (
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="document-text-outline" size={48} color={colors.disabled} />
-                <Text style={styles.emptyText}>No reports found</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No reports found</Text>
               </View>
             )}
           </View>
@@ -529,7 +536,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 15,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -541,7 +547,6 @@ const styles = StyleSheet.create({
 },
   reportText: {
     fontSize: 14,
-    color: '#666',
     lineHeight: 20,
     marginBottom: 4
 },
@@ -588,7 +593,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
     marginTop: 10
 },
   modalOverlay: {

@@ -32,6 +32,7 @@ import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScree
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
 import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
+import MembersScreen from '../screens/Members/MembersScreen';
 
 const Stack = createStackNavigator();
 
@@ -264,6 +265,11 @@ const MainStack = () => {
         presentation: 'modal',
         gestureEnabled: true,
       }}
+    />
+    <Stack.Screen
+      name="Members"
+      component={MembersScreen}
+      options={{ headerShown: false }}
     />
     <Stack.Screen
       name="NotificationPreferences"

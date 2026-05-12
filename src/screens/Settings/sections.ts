@@ -45,7 +45,8 @@ const ALL_SECTIONS: SettingsSection[] = [
     requiredRole: 'admin',
     rows: [
       { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization' },
-      // 'Members' and 'InviteCode' screens not built yet.
+      { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
+      // 'InviteCode' screen not built yet.
     ],
   },
   {

@@ -125,11 +125,23 @@ const NotificationPreferencesScreen = ({ navigation }) => {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ORANGE_COLOR} />
-          <Text style={styles.loadingText}>Loading preferences...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading preferences...</Text>
         </View>
       </SafeAreaView>
     );
   }
+
+  const sectionTitleStyle = [styles.sectionTitle, { color: colors.textPrimary }];
+  const sectionDescStyle = [styles.sectionDescription, { color: colors.textSecondary }];
+  const settingLabelStyle = [styles.settingLabel, { color: colors.textPrimary }];
+  const settingDescStyle = [styles.settingDescription, { color: colors.textSecondary }];
+  const settingRowStyle = [styles.settingRow, { borderBottomColor: colors.border }];
+  const sectionStyle = [styles.section, { backgroundColor: colors.surface }];
+  const inputStyle = {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt ?? colors.surface,
+    color: colors.textPrimary,
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -146,12 +158,12 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Email Notifications Section */}
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={styles.sectionTitle}>Email Notifications</Text>
-            <View style={styles.settingRow}>
+          <View style={sectionStyle}>
+            <Text style={sectionTitleStyle}>Email Notifications</Text>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Enable Email Notifications</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Enable Email Notifications</Text>
+                <Text style={settingDescStyle}>
                   Receive billing notifications via email
                 </Text>
               </View>
@@ -165,13 +177,13 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Payment Notifications */}
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={styles.sectionTitle}>Payment Notifications</Text>
+          <View style={sectionStyle}>
+            <Text style={sectionTitleStyle}>Payment Notifications</Text>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Payment Success</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Payment Success</Text>
+                <Text style={settingDescStyle}>
                   Notify when payments are processed successfully
                 </Text>
               </View>
@@ -184,10 +196,10 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               />
             </View>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Payment Failures</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Payment Failures</Text>
+                <Text style={settingDescStyle}>
                   Notify when payments fail or require attention
                 </Text>
               </View>
@@ -200,10 +212,10 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               />
             </View>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Invoice Created</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Invoice Created</Text>
+                <Text style={settingDescStyle}>
                   Notify when new invoices are generated
                 </Text>
               </View>
@@ -218,13 +230,13 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Subscription Notifications */}
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={styles.sectionTitle}>Subscription Notifications</Text>
+          <View style={sectionStyle}>
+            <Text style={sectionTitleStyle}>Subscription Notifications</Text>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Subscription Changes</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Subscription Changes</Text>
+                <Text style={settingDescStyle}>
                   Notify about plan changes, cancellations, and renewals
                 </Text>
               </View>
@@ -237,10 +249,10 @@ const NotificationPreferencesScreen = ({ navigation }) => {
               />
             </View>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Device Count Alerts</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Device Count Alerts</Text>
+                <Text style={settingDescStyle}>
                   Notify when device count changes significantly
                 </Text>
               </View>
@@ -255,13 +267,13 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Cost Threshold Alerts */}
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={styles.sectionTitle}>Cost Threshold Alerts</Text>
+          <View style={sectionStyle}>
+            <Text style={sectionTitleStyle}>Cost Threshold Alerts</Text>
 
-            <View style={styles.settingRow}>
+            <View style={settingRowStyle}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Enable Cost Alerts</Text>
-                <Text style={styles.settingDescription}>
+                <Text style={settingLabelStyle}>Enable Cost Alerts</Text>
+                <Text style={settingDescStyle}>
                   Notify when monthly costs exceed a threshold
                 </Text>
               </View>
@@ -275,12 +287,12 @@ const NotificationPreferencesScreen = ({ navigation }) => {
             </View>
 
             {preferences.cost_threshold_enabled && (
-              <View style={styles.thresholdContainer}>
-                <Text style={styles.thresholdLabel}>Alert when monthly cost exceeds:</Text>
+              <View style={[styles.thresholdContainer, { backgroundColor: colors.surfaceAlt ?? colors.background }]}>
+                <Text style={[styles.thresholdLabel, { color: colors.textSecondary }]}>Alert when monthly cost exceeds:</Text>
                 <View style={styles.thresholdInputContainer}>
-                  <Text style={styles.currencySymbol}>£</Text>
+                  <Text style={[styles.currencySymbol, { color: colors.textPrimary }]}>£</Text>
                   <TextInput
-                    style={styles.thresholdInput}
+                    style={[styles.thresholdInput, inputStyle]}
                     value={preferences.cost_threshold_amount?.toString() || ''}
                     onChangeText={(text) => {
                       const amount = parseFloat(text) || 0;
@@ -288,6 +300,7 @@ const NotificationPreferencesScreen = ({ navigation }) => {
                     }}
                     keyboardType="numeric"
                     placeholder="50"
+                    placeholderTextColor={colors.textMuted ?? colors.textSecondary}
                   />
                 </View>
               </View>
@@ -295,18 +308,19 @@ const NotificationPreferencesScreen = ({ navigation }) => {
           </View>
 
           {/* Additional Email Recipients */}
-          <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={styles.sectionTitle}>Additional Recipients</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={sectionStyle}>
+            <Text style={sectionTitleStyle}>Additional Recipients</Text>
+            <Text style={sectionDescStyle}>
               Add extra email addresses to receive billing notifications
             </Text>
 
             <View style={styles.emailInputContainer}>
               <TextInput
-                style={styles.emailInput}
+                style={[styles.emailInput, inputStyle]}
                 value={newEmail}
                 onChangeText={setNewEmail}
                 placeholder="Enter email address"
+                placeholderTextColor={colors.textMuted ?? colors.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -316,8 +330,8 @@ const NotificationPreferencesScreen = ({ navigation }) => {
             </View>
 
             {preferences.additional_emails.map((email, index) => (
-              <View key={index} style={styles.emailItem}>
-                <Text style={styles.emailText}>{email}</Text>
+              <View key={index} style={[styles.emailItem, { backgroundColor: colors.surfaceAlt ?? colors.background }]}>
+                <Text style={[styles.emailText, { color: colors.textPrimary }]}>{email}</Text>
                 <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removeEmail(email)}
@@ -354,7 +368,6 @@ const NotificationPreferencesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5'
 },
   loadingContainer: {
     flex: 1,
@@ -364,26 +377,20 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666'
 },
   header: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF'
 },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 8
 },
   headerSubtitle: {
     fontSize: 16,
-    color: '#666'
 },
   section: {
-    backgroundColor: '#FFFFFF',
     marginVertical: 10,
     paddingHorizontal: 20,
     paddingVertical: 16
@@ -391,12 +398,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8
 },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 16
 },
   settingRow: {
@@ -405,7 +410,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0'
 },
   settingInfo: {
     flex: 1,
@@ -414,23 +418,19 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
     marginBottom: 4
 },
   settingDescription: {
     fontSize: 14,
-    color: '#666',
     lineHeight: 20
 },
   thresholdContainer: {
-    backgroundColor: '#F8F9FA',
     padding: 16,
     borderRadius: 8,
     marginTop: 12
 },
   thresholdLabel: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8
 },
   thresholdInputContainer: {
@@ -440,17 +440,14 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginRight: 8
 },
   thresholdInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF'
 },
   emailInputContainer: {
     flexDirection: 'row',
@@ -460,11 +457,9 @@ const styles = StyleSheet.create({
   emailInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
     marginRight: 12
 },
   addButton: {
@@ -479,14 +474,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
     padding: 12,
     borderRadius: 8,
     marginBottom: 8
 },
   emailText: {
     fontSize: 16,
-    color: '#333',
     flex: 1
 },
   removeButton: {

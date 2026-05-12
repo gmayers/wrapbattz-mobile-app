@@ -67,30 +67,43 @@ export function useControlRoomData(): ControlRoomData {
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
-    try {
-      const [org, toolsPage, activeAssignmentsPage, incidentsPage, sitesPage, membersPage] =
-        await Promise.all([
-          organizationsApi.getMyOrganization().catch(() => null),
-          toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
-          assignmentsApi.listAssignments({ status: 'active' }),
-          incidentsApi.listIncidents(),
-          sitesApi.listSites(),
-          membersApi.listMembers(),
-        ]);
-      setRaw({
-        org,
-        tools: toolsPage.items,
-        toolsTotal: toolsPage.total ?? toolsPage.items.length,
-        activeAssignments: activeAssignmentsPage.items,
-        incidents: incidentsPage.items,
-        sites: sitesPage.items,
-        members: membersPage.items,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load control room data');
-    } finally {
-      setIsLoading(false);
+    const results = await Promise.allSettled([
+      organizationsApi.getMyOrganization(),
+      toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
+      assignmentsApi.listAssignments({ status: 'active' }),
+      incidentsApi.listIncidents(),
+      sitesApi.listSites(),
+      membersApi.listMembers(),
+    ]);
+    const [orgR, toolsR, assignR, incR, sitesR, membersR] = results;
+    const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    if (failures.length > 0) {
+      // Log each rejection but only surface a banner if EVERYTHING failed —
+      // partial data is more useful than a wholesale empty dashboard.
+      failures.forEach((f) => console.warn('[ControlRoom] endpoint failed:', f.reason));
+      if (failures.length === results.length) {
+        setError(
+          failures[0].reason instanceof Error
+            ? failures[0].reason.message
+            : 'Failed to load control room data',
+        );
+      }
     }
+    const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
+    const assignPage = assignR.status === 'fulfilled' ? assignR.value : null;
+    const incPage = incR.status === 'fulfilled' ? incR.value : null;
+    const sitesPage = sitesR.status === 'fulfilled' ? sitesR.value : null;
+    const membersPage = membersR.status === 'fulfilled' ? membersR.value : null;
+    setRaw({
+      org: orgR.status === 'fulfilled' ? orgR.value : null,
+      tools: toolsPage?.items ?? [],
+      toolsTotal: toolsPage?.total ?? toolsPage?.items?.length ?? 0,
+      activeAssignments: assignPage?.items ?? [],
+      incidents: incPage?.items ?? [],
+      sites: sitesPage?.items ?? [],
+      members: membersPage?.items ?? [],
+    });
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {

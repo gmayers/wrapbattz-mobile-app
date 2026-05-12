@@ -111,7 +111,7 @@ const ControlRoomScreen: React.FC = () => {
             lines={attentionLines}
             footerLabel="Resolve"
             footerColor={palette.red}
-            onFooterPress={() => navigation.navigate('incidents')}
+            onFooterPress={() => navigation.navigate('AllReports')}
           />
           <View style={styles.gridGap} />
           <MetricCard

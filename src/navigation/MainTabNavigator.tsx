@@ -11,6 +11,7 @@ import SettingsScreen from '../screens/Settings/SettingsScreen';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useScanTag } from '../hooks/useScanTag';
+import ScanOverlay from '../components/ScanOverlay';
 
 const Tab = createBottomTabNavigator();
 
@@ -38,6 +39,7 @@ const MainTabNavigator: React.FC = () => {
         )}
         <Tab.Screen name="settings" component={SettingsScreen} options={{ tabBarLabel: 'Settings' }} />
       </Tab.Navigator>
+      <ScanOverlay />
     </SafeAreaView>
   );
 };
