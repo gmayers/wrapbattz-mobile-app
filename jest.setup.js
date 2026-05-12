@@ -103,13 +103,16 @@ jest.mock('react-native-nfc-manager', () => {
 });
 
 // Mock Expo modules
-jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn(() => Promise.resolve()),
-  getItemAsync: jest.fn(() => Promise.resolve(null)),
-  deleteItemAsync: jest.fn(() => Promise.resolve()),
-  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
-  WHEN_UNLOCKED: 'WHEN_UNLOCKED',
-}));
+jest.mock('expo-secure-store', () => {
+  const store = new Map();
+  return {
+    setItemAsync: jest.fn((k, v) => { store.set(k, v); return Promise.resolve(); }),
+    getItemAsync: jest.fn((k) => Promise.resolve(store.get(k) ?? null)),
+    deleteItemAsync: jest.fn((k) => { store.delete(k); return Promise.resolve(); }),
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+    WHEN_UNLOCKED: 'WHEN_UNLOCKED',
+  };
+});
 
 jest.mock('expo-local-authentication', () => ({
   hasHardwareAsync: jest.fn(() => Promise.resolve(false)),
