@@ -458,3 +458,35 @@ This work is config in App Store Connect / Play Console, not code. Spec document
 - Tier definitions and prices: configured in App Store Connect, Play Console, and the backend's `tiers` table. Not in this repo.
 - Webhook secrets, service account JSONs: backend ops.
 - Marketing copy on store listings: separate workflow.
+
+## QA checklist (mobile)
+
+Requires:
+- A new `eas build --profile production` after the mobile plan landed (react-native-iap native module won't link in older bundles).
+- Sandbox Apple ID + Play Console license test account.
+- At least one Auto-Renewable Subscription product in App Store Connect AND one Subscription product in Play Console, with sandbox pricing.
+- Backend `/billing/catalog`, `/billing/subscription`, `/billing/iap/verify`, `/billing/iap/restore` reachable (mock or real).
+- `EXPO_PUBLIC_IAP_ENABLED=true` set so Settings → Subscription is visible.
+
+### Happy path
+- [ ] Sign in as an org owner with no active sub. Open Settings → Subscription. See tier list with **store-provided** prices (not backend-provided).
+- [ ] Tap Subscribe on a tier. Native sheet appears. Confirm. App shows "verifying" then "active". Settings shows new plan. Backend `/billing/subscription` returns the new state.
+
+### Restore
+- [ ] Uninstall and reinstall the app. Sign in. Open Subscription. Tap "Restore purchases". App shows "Restored" toast. State is correct.
+
+### Cancel
+- [ ] On an active IAP-sourced sub, tap "Manage subscription". Native subscription management opens. Cancel from there. Reopen app. State updates (via webhook → backend → mobile refresh on focus).
+
+### Already-subscribed conflict
+- [ ] On an org that already has a Stripe sub, attempt to subscribe via IAP. Backend returns 409. App shows the conflict message and refunds automatically via Apple/Google (no `finishTransaction` called).
+
+### Network failure
+- [ ] Disable network mid-purchase. Confirm purchase in native sheet. App shows error, but on re-enabling network the queued receipt is processed on next app focus.
+
+### Android pending
+- [ ] Use a cash payment in Play sandbox. App shows "pending". Later webhook delivers, state becomes "active" on next refresh.
+
+### ManageBilling routing
+- [ ] On an IAP-sourced sub, open Settings → Manage Billing. Screen shows "Managed via [store]" and a deep-link button (NOT the Stripe controls).
+- [ ] On a Stripe-sourced (or no) sub, the existing Stripe-driven UI renders unchanged.
