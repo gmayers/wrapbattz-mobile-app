@@ -54,6 +54,13 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Billing',
     requiredRole: 'admin',
     rows: [
+      // The Subscription row is gated on EXPO_PUBLIC_IAP_ENABLED. Backend
+      // /billing/catalog and /billing/subscription don't exist yet, so keep
+      // the row hidden in production until that ships. Flip the env var to
+      // 'true' in eas.json (or a local .env) to expose the screen.
+      ...(process.env.EXPO_PUBLIC_IAP_ENABLED === 'true'
+        ? [{ key: 'subscription', label: 'Subscription', icon: 'card-outline', kind: 'nav' as const, destination: 'Subscribe' }]
+        : []),
       { key: 'manageBilling',    label: 'Manage Billing',      icon: 'card-outline',        kind: 'nav', destination: 'ManageBilling' },
       { key: 'paymentHistory',   label: 'Payment History',     icon: 'receipt-outline',     kind: 'nav', destination: 'PaymentHistory' },
       { key: 'dataHandlingFee',  label: 'Data Handling Fee',   icon: 'document-outline',    kind: 'nav', destination: 'DataHandlingFee' },

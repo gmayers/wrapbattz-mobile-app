@@ -33,6 +33,7 @@ import NotificationPreferencesScreen from '../screens/PaymentScreens/Notificatio
 import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
 import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
+import SubscribeScreen from '../screens/Subscribe/SubscribeScreen';
 
 const Stack = createStackNavigator();
 
@@ -269,6 +270,11 @@ const MainStack = () => {
     <Stack.Screen
       name="Members"
       component={MembersScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Subscribe"
+      component={SubscribeScreen}
       options={{ headerShown: false }}
     />
     <Stack.Screen
