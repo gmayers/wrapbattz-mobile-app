@@ -114,6 +114,19 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+jest.mock('react-native-iap', () => ({
+  initConnection: jest.fn(() => Promise.resolve(true)),
+  endConnection: jest.fn(() => Promise.resolve(true)),
+  getSubscriptions: jest.fn(() => Promise.resolve([])),
+  requestSubscription: jest.fn(() => Promise.resolve(null)),
+  finishTransaction: jest.fn(() => Promise.resolve()),
+  getAvailablePurchases: jest.fn(() => Promise.resolve([])),
+  purchaseUpdatedListener: jest.fn(() => ({ remove: jest.fn() })),
+  purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
+  flushFailedPurchasesCachedAsPendingAndroid: jest.fn(() => Promise.resolve()),
+  acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('expo-local-authentication', () => ({
   hasHardwareAsync: jest.fn(() => Promise.resolve(false)),
   isEnrolledAsync: jest.fn(() => Promise.resolve(false)),
