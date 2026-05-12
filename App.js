@@ -2,7 +2,7 @@ import 'expo-dev-client';
 import React, { useEffect, useCallback } from 'react';
 
 console.log('🎯 App.js - File loaded successfully!');
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/auth/AuthContext';
 import { SessionExpiryAlert } from './src/auth/SessionExpiryAlert';
@@ -17,6 +17,7 @@ import * as Updates from 'expo-updates';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { STRIPE_CONFIG, validateStripeConfig } from './src/config/stripe';
+import { iapService, flushPendingReceipts } from './src/iap';
 // Initialize Sentry
 Sentry.init({
   dsn: process.env.SENTRY_DSN || 'https://277ff03f5d87270ffeba62cd99fbd265@o4508371086999552.ingest.de.sentry.io/4510799870623824',
@@ -83,9 +84,20 @@ function App() {
 
     checkForUpdates();
 
+    // Initialize IAP (best effort — store may be unavailable in dev/sim) and
+    // flush any receipts that didn't reach the backend last time the app
+    // closed. AppState 'active' transitions trigger another flush attempt.
+    iapService.init().catch((e) => console.warn('[iap] init failed:', e));
+    flushPendingReceipts().catch((e) => console.warn('[iap] initial flush failed:', e));
+    const appStateSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') flushPendingReceipts().catch(() => {});
+    });
+
     // Cleanup function
     return () => {
       console.log('🧹 App.js - Cleaning up...');
+      appStateSub.remove();
+      iapService.teardown().catch(() => {});
       // Clean up NFC when app is unmounted
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         NfcManager.isSupported()
