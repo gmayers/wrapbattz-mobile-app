@@ -114,9 +114,11 @@ Permissions are correct today: admin/owner sees the Register button; site worker
 - `SectionList`: `contentContainerStyle={{ paddingBottom: 24 }}`. Keep `stickySectionHeadersEnabled`.
 - Empty state: same copy, but wrap in a card-like view with `padding: 32`, icon (`construct-outline`, large, muted), and the copy below.
 
-**`src/screens/Tools/hooks/useMyTools.ts` (light touch)**
+**`src/screens/Tools/hooks/useMyTools.ts`**
 
-- Confirm `ToolItem` exposes the current assignee (`assigneeName`) and/or the current site name. If not, derive from the existing assignment data so `ToolsListItem` can show the third meta line. No API changes required.
+- Extend `ToolItem` with `siteName?: string` (where it lives) and `assigneeName?: string` (who owns it).
+- In `groupMine`: set `siteName` from `assignment.assignee_site_name`. Stop overloading `toolType` with the site name — set `toolType` from category or make/model if available, otherwise `undefined`.
+- In `groupAll`: leave `assigneeName`/`siteName` `undefined` until the API surfaces per-tool current-assignment info; `ToolsListItem` simply hides the third line when both are absent.
 
 ### Acceptance
 
@@ -138,7 +140,7 @@ Survey of `src/screens` revealed three patterns mixed across ~30 screens:
 2. **`<SafeAreaView>` with no `edges` prop** in `AllReportsScreen`, `AllDevicesScreen`, `DeviceDetailsScreen`, `ReportDetailsScreen`, etc. Defaults to all four edges → double-padded with bottom tabs and the keyboard on Android.
 3. **Hardcoded magic paddings**, e.g. `ReportDetailsScreen.js:978` `paddingTop: Platform.OS === 'ios' ? 60 : 40`.
 
-The bottom tab bar (`MainTabBar`) also doesn't pad for Android gesture-nav inset.
+The bottom tab bar (`MainTabBar.tsx:73-74`) already applies `insets.bottom` correctly via `useSafeAreaInsets`. No change needed there.
 
 ### Design
 
@@ -181,7 +183,7 @@ Implementation:
 
 **Bottom-nav clearance — `src/navigation/MainTabBar.tsx`**
 
-- Apply `paddingBottom: insets.bottom` (from `useSafeAreaInsets()`) to the tab bar container so it clears the Android gesture-nav pill and the iPhone home indicator.
+No change. Already applies `Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10)` to `paddingBottom` and `(Platform.OS === 'ios' ? 80 : 64) + insets.bottom` to `height` — correct for both Android gesture-nav and iPhone home indicator.
 
 **Per-screen migration**
 
@@ -222,9 +224,8 @@ Implement in this order — each step lands a verifiable visible change without 
    1. Create `ScreenScaffold`.
    2. Remove the custom header height override in `MainStack`.
    3. Migrate one tab screen (Tools) and one headerless detail screen (DeviceDetails) as a pattern reference.
-   4. Apply `MainTabBar` bottom inset.
-   5. Migrate the remaining screens in the table.
-   6. Remove magic-number paddings.
+   4. Migrate the remaining screens in the table.
+   5. Remove magic-number paddings.
 3. **Section 2** (lands on the standardized scaffold):
    1. Update `ToolsListItem`.
    2. Update `SiteGroupHeader`.
