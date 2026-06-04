@@ -65,15 +65,19 @@ Body:
   "product_id": "com.tooltraq.sub.pro.monthly",
   "transaction_id": "2000000123456789",
   "original_transaction_id": "2000000123456789",
-  "receipt": "<base64-encoded-receipt or unified-receipt>",
-  "purchase_token": "..."
+  "receipt": "<JWS signed transaction on iOS, Play purchase token on Android>",
+  "purchase_token": "<same as receipt; redundant for safety>"
 }
 ```
 
+**Receipt payload semantics (iOS):** The mobile app uses `expo-iap` (StoreKit 2 / OpenIAP spec). It does **not** send a legacy base64 unified receipt. The `receipt` field is the **JWS signed transaction** string from `Purchase.purchaseToken`. The `purchase_token` field on iOS mirrors the same JWS. Validate via Apple App Store Server API's `Get Transaction Info` / `Get All Subscription Statuses` endpoints (which themselves return JWS responses you decode and verify).
+
+**Receipt payload semantics (Android):** The `receipt` and `purchase_token` fields both carry the Google Play purchase token. Validate via Google Play Developer API `purchases.subscriptionsv2.get`.
+
 Behavior:
-1. Validate receipt with Apple App Store Server API (try production endpoint first, retry against sandbox on `21007`) OR Google Play Developer API (`purchases.subscriptionsv2.get`).
+1. Validate the JWS / purchase token with the respective server API. Pick sandbox vs production by the JWS `environment` claim on iOS (or by the configured base URL — `https://api.storekit.itunes.apple.com` for prod, `https://api.storekit-sandbox.itunes.apple.com` for sandbox); do **not** use the legacy `21007` retry pattern (that was the deprecated `verifyReceipt` API and does not apply to App Store Server API).
 2. Check the org has no other active subscription. If so → `409 { "code": "subscription_exists" }`.
-3. Record the receipt in `iap_receipts`, dedupe on `(platform, transaction_id)`.
+3. Record the receipt in `iap_receipts`, dedupe on `(platform, transaction_id)`. Store the raw JWS / token; backend can re-verify any time.
 4. Upsert `org_subscriptions` with the new state.
 5. Return the updated subscription state (same shape as `GET /billing/subscription`).
 
@@ -241,7 +245,7 @@ Seed `tiers` with at least one row per platform product you've created in App St
 
 ### Phase 2 — Apple receipt validation
 
-**Task B6: Apple receipt validator service.** Function takes (receipt, transaction_id). Calls App Store Server API's `Get Transaction Info` and `Get All Subscription Statuses`. Decodes JWS responses. Returns canonical struct: `{ status, current_period_end, product_id, original_transaction_id, expiry_intent }`. Try production endpoint first; if response indicates sandbox receipt (`21007`), retry against sandbox. **Acceptance:** unit tests with fixture receipts pass (use Apple's sample data).
+**Task B6: Apple receipt validator service.** Function takes (jws_signed_transaction, transaction_id). The mobile app sends a JWS signed transaction (StoreKit 2 / OpenIAP), not a legacy unified receipt. Decode the JWS header to read the `environment` claim (`"Production"` vs `"Sandbox"`) and pick the matching App Store Server API base URL — there is no `21007` retry path. Verify the JWS signature against Apple's published certificate chain. Call App Store Server API's `Get Transaction Info` and `Get All Subscription Statuses` (responses are also JWS — decode + verify). Return canonical struct: `{ status, current_period_end, product_id, original_transaction_id, expiry_intent }`. Use Apple's [app-store-server-library](https://github.com/apple/app-store-server-library-node) (Node) or equivalent in your language — do not roll your own JWS verification. **Acceptance:** unit tests with fixture JWS strings pass (use Apple's sample data).
 
 **Task B7: Entitlement linking service.** Function takes (org_id, user_id, validated_apple_payload). Checks no other active sub exists for this org. Upserts `org_subscriptions`. Records `iap_receipts`. Returns the new subscription state. **Acceptance:** test cases: new sub (success), org already has stripe (409 subscription_exists), same Apple ID for two orgs (409 receipt_already_consumed_by_other_org).
 
@@ -292,7 +296,7 @@ Seed `tiers` with at least one row per platform product you've created in App St
 
 ## Mobile/backend coordination
 
-- Mobile pushes the JS for IAP, but the feature is **dark in production** until `EXPO_PUBLIC_IAP_ENABLED=true` is set at build time and a new `eas build --profile production` is shipped (need react-native-iap native module linked).
+- Mobile pushes the JS for IAP, but the feature is **dark in production** until `EXPO_PUBLIC_IAP_ENABLED=true` is set at build time and a new `eas build --profile production` is shipped (need `expo-iap` native module linked — the `react-native-iap` dep was swapped to `expo-iap` on 2026-05-21 so it integrates as a first-class Expo Module).
 - Backend can ship endpoints incrementally without affecting production users.
 - Recommended go-live sequence:
   1. Backend: B1–B16 in staging.

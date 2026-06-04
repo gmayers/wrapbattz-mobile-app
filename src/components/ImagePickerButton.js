@@ -1,7 +1,6 @@
 import React from 'react';
 import { Alert, Button } from 'react-native';
 import * as ExpoImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
 import RNFS from 'react-native-fs';
 import { useTheme } from '../context/ThemeContext';
 
@@ -34,25 +33,16 @@ const ImagePickerButton = ({ onImageSelected }) => {
     }
   };
 
-  const checkAndRequestPermissions = async () => {
-    const cameraPermission = await ExpoImagePicker.getCameraPermissionsAsync();
-    const mediaLibraryPermission = await MediaLibrary.getPermissionsAsync();
-
-    if (
-      cameraPermission.status !== 'granted' ||
-      mediaLibraryPermission.status !== 'granted'
-    ) {
-      const newCameraPermission =
-        await ExpoImagePicker.requestCameraPermissionsAsync();
-      const newMediaLibraryPermission =
-        await MediaLibrary.requestPermissionsAsync();
-
-      return (
-        newCameraPermission.status === 'granted' &&
-        newMediaLibraryPermission.status === 'granted'
-      );
+  // Gallery selection uses the Android/iOS system photo picker, which requires
+  // no permission. Only the camera needs a runtime permission, so that's all we
+  // request — keeping the app clear of the broad media-read permissions.
+  const ensureCameraPermission = async () => {
+    const current = await ExpoImagePicker.getCameraPermissionsAsync();
+    if (current.status === 'granted') {
+      return true;
     }
-    return true;
+    const requested = await ExpoImagePicker.requestCameraPermissionsAsync();
+    return requested.status === 'granted';
   };
 
   const handleImagePicker = () => {
@@ -66,7 +56,7 @@ const ImagePickerButton = ({ onImageSelected }) => {
   const takePhoto = async () => {
     try {
       console.log('📷 [ImagePicker] Taking photo...');
-      if (await checkAndRequestPermissions()) {
+      if (await ensureCameraPermission()) {
         let result = await ExpoImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           quality: 1,
@@ -89,48 +79,44 @@ const ImagePickerButton = ({ onImageSelected }) => {
             fileName: imageAsset.fileName,
           });
 
-          const asset = await MediaLibrary.createAssetAsync(imageAsset.uri);
-          console.log('📷 [ImagePicker] Saved to media library:', asset.id);
-
           const permURI = await copyFileToPermanentStorage(imageAsset.uri);
           onImageSelected(permURI);
         }
       }
     } catch (error) {
       console.error('❌ [ImagePicker] Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo and save to gallery.');
+      Alert.alert('Error', 'Failed to take photo.');
     }
   };
 
   const chooseFromGallery = async () => {
     try {
       console.log('🖼️ [ImagePicker] Opening gallery...');
-      if (await checkAndRequestPermissions()) {
-        const result = await ExpoImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 1,
+      // Uses the system photo picker — no permission required.
+      const result = await ExpoImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      });
+
+      console.log('🖼️ [ImagePicker] Gallery result:', {
+        canceled: result.canceled,
+        assetCount: result.assets?.length || 0,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageAsset = result.assets[0];
+        console.log('🖼️ [ImagePicker] Image selected:', {
+          uri: imageAsset.uri,
+          width: imageAsset.width,
+          height: imageAsset.height,
+          type: imageAsset.type,
+          mimeType: imageAsset.mimeType,
+          fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
+          fileName: imageAsset.fileName,
         });
 
-        console.log('🖼️ [ImagePicker] Gallery result:', {
-          canceled: result.canceled,
-          assetCount: result.assets?.length || 0,
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const imageAsset = result.assets[0];
-          console.log('🖼️ [ImagePicker] Image selected:', {
-            uri: imageAsset.uri,
-            width: imageAsset.width,
-            height: imageAsset.height,
-            type: imageAsset.type,
-            mimeType: imageAsset.mimeType,
-            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown',
-            fileName: imageAsset.fileName,
-          });
-
-          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
-          onImageSelected(permURI);
-        }
+        const permURI = await copyFileToPermanentStorage(imageAsset.uri);
+        onImageSelected(permURI);
       }
     } catch (error) {
       console.error('❌ [ImagePicker] Error selecting image from gallery:', error);

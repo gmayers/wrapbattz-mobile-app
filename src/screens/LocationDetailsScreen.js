@@ -220,14 +220,14 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     
     return (
       <Card
-        style={styles.deviceCard}
+        style={[styles.deviceCard, { backgroundColor: colors.card }]}
       >
         <View style={styles.deviceContent}>
           {/* Device Header */}
           <View style={styles.deviceHeader}>
             <View style={styles.deviceTitleContainer}>
-              <Text style={styles.deviceTitle}>{device.identifier}</Text>
-              <Text style={styles.deviceType}>{device.device_type}</Text>
+              <Text style={[styles.deviceTitle, { color: colors.textPrimary }]}>{device.identifier}</Text>
+              <Text style={[styles.deviceType, { color: colors.textSecondary }]}>{device.device_type}</Text>
             </View>
             <View style={styles.statusContainer}>
               <View style={[styles.statusBadge, { backgroundColor: '#10B981' }]}>
@@ -239,23 +239,23 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           {/* Device Details */}
           <View style={styles.deviceDetails}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Make:</Text>
-              <Text style={styles.detailValue}>{device.make || 'N/A'}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Make:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.make || 'N/A'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Model:</Text>
-              <Text style={styles.detailValue}>{device.model || 'N/A'}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Model:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.model || 'N/A'}</Text>
             </View>
             {device.serial_number && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Serial:</Text>
-                <Text style={styles.detailValue}>{device.serial_number}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Serial:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.serial_number}</Text>
               </View>
             )}
             {device.description && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Description:</Text>
-                <Text style={styles.detailValue}>{device.description}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Description:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.description}</Text>
               </View>
             )}
           </View>
@@ -305,25 +305,25 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     if (!location) return null;
     
     return (
-      <Card title="Location Details" style={styles.addressCard}>
+      <Card title="Location Details" style={[styles.addressCard, { backgroundColor: colors.card }]}>
         <View style={styles.addressContent}>
           {location.name && (
-            <Text style={styles.addressText}>{location.name}</Text>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.name}</Text>
           )}
-          <Text style={styles.addressText}>
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>
             {location.street_number} {location.street_name}
           </Text>
           {location.address_2 && (
-            <Text style={styles.addressText}>{location.address_2}</Text>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.address_2}</Text>
           )}
-          <Text style={styles.addressText}>
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>
             {location.town_or_city}{location.county ? `, ${location.county}` : ''}
           </Text>
-          <Text style={styles.addressText}>{location.postcode}</Text>
-          
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.postcode}</Text>
+
           {userData?.name && (
             <View style={styles.organizationInfo}>
-              <Text style={styles.organizationText}>
+              <Text style={[styles.organizationText, { color: colors.textSecondary }]}>
                 Organization: {userData.name}'s Organization
               </Text>
             </View>
@@ -340,7 +340,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         <StatusBar barStyle="dark-content" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading location details...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading location details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -374,7 +374,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available Devices</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Available Devices</Text>
             {isAdminOrOwner && (
               <Button
                 title="Add New Device"
@@ -397,8 +397,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="cube-outline" size={48} color={colors.disabled} />
-              <Text style={styles.emptyText}>No available devices at this location</Text>
-              <Text style={styles.emptySubtext}>All devices are either assigned to users or located elsewhere</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No available devices at this location</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>All devices are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
                 <Button
                   title="Add New Device"
@@ -438,12 +438,12 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             </View>
 
             {selectedDeviceForTransfer && (
-              <Text style={styles.modalSubtitle}>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
                 Transfer {selectedDeviceForTransfer.identifier} to another location
               </Text>
             )}
 
-            <Text style={styles.selectLabel}>Select Destination Location:</Text>
+            <Text style={[styles.selectLabel, { color: colors.textSecondary }]}>Select Destination Location:</Text>
 
             <FlatList
               data={otherLocations}
@@ -463,10 +463,10 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                     <View style={styles.locationItemContent}>
                       <Ionicons name="location-outline" size={20} color={colors.primary} />
                       <View style={styles.locationItemText}>
-                        <Text style={styles.locationItemName}>
+                        <Text style={[styles.locationItemName, { color: colors.textPrimary }]}>
                           {item.name || `${item.street_number} ${item.street_name}`}
                         </Text>
-                        <Text style={styles.locationItemAddress}>
+                        <Text style={[styles.locationItemAddress, { color: colors.textSecondary }]}>
                           {item.town_or_city}, {item.postcode}
                         </Text>
                       </View>
@@ -480,7 +480,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                 );
               }}
               ListEmptyComponent={
-                <Text style={styles.noLocationsText}>No other locations available</Text>
+                <Text style={[styles.noLocationsText, { color: colors.textMuted }]}>No other locations available</Text>
               }
             />
 

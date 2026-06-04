@@ -1,8 +1,9 @@
 import axios, { type AxiosInstance } from 'axios';
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
-import { fromAxiosError } from './errors';
+import { ApiError, fromAxiosError } from './errors';
 import { attachToken } from './interceptors/attachToken';
 import { installRefreshOn401 } from './interceptors/refreshOn401';
+import { installRetryOnTransient } from './interceptors/retryOnTransient';
 
 declare const __DEV__: boolean;
 
@@ -29,6 +30,9 @@ function create(): AxiosInstance {
   });
   instance.interceptors.request.use(attachToken);
   installRefreshOn401(instance);
+  // Registered after refresh so it sees the raw axios error (with config) for
+  // post-refresh requests too. Retries idempotent GETs on transient failures.
+  installRetryOnTransient(instance);
 
   instance.interceptors.response.use(
     (response) => {
@@ -40,6 +44,9 @@ function create(): AxiosInstance {
       return response;
     },
     (error) => {
+      // Already mapped (e.g. surfaced from a retried/refreshed nested request) —
+      // pass through untouched so we don't relabel it as a generic 'network' error.
+      if (error instanceof ApiError) return Promise.reject(error);
       // Log errors in release builds too — these are the ones users see.
       const cfg = error.config ?? {};
       const method = (cfg.method ?? 'get').toUpperCase();

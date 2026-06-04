@@ -1,5 +1,5 @@
 // LocationsScreen.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,10 @@ const toSitePayload = (formData) => {
     prefix_code: formData.prefix_code || '',
     address_line1: address1,
     city: formData.town_or_city || '',
-    postcode: formData.postcode || ''
+    // Normalize to canonical uppercase UK postcode. The backend rejects
+    // lowercase postcodes ("invalid postcode"), so a user typing "sw1a 1aa"
+    // would fail; uppercasing here makes case irrelevant to the user.
+    postcode: formData.postcode?.trim().toUpperCase() || ''
 };
 };
 
@@ -90,7 +93,13 @@ const LocationsScreen = ({ navigation }) => {
     if (refreshUser) refreshUser();
   }, [navigation, refreshUser]);
 
+  // In-flight guard: rapid tab navigation fires the focus listener repeatedly;
+  // skip a refetch while one is already running so requests don't pile up.
+  const isFetchingLocationsRef = useRef(false);
+
   const fetchLocations = useCallback(async () => {
+    if (isFetchingLocationsRef.current) return;
+    isFetchingLocationsRef.current = true;
     setIsLoading(true);
     try {
       const page = await sitesApi.listSites();
@@ -105,6 +114,7 @@ const LocationsScreen = ({ navigation }) => {
       setFilteredLocations([]);
     } finally {
       setIsLoading(false);
+      isFetchingLocationsRef.current = false;
     }
   }, []);
 
@@ -456,7 +466,7 @@ const LocationsScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Location Name (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Location Name (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={formData.name}
@@ -466,7 +476,7 @@ const LocationsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Building Name (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Building Name (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={formData.building_name}
@@ -477,7 +487,7 @@ const LocationsScreen = ({ navigation }) => {
             
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>Street Number*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Street Number*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -493,7 +503,7 @@ const LocationsScreen = ({ navigation }) => {
               </View>
               
               <View style={[styles.formGroup, { flex: 2 }]}>
-                <Text style={styles.label}>Street Name*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Street Name*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -510,7 +520,7 @@ const LocationsScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Address Line 2 (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Address Line 2 (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={formData.address_2}
@@ -520,7 +530,7 @@ const LocationsScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Town/City*</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Town/City*</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -537,7 +547,7 @@ const LocationsScreen = ({ navigation }) => {
             
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>County (Optional)</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>County (Optional)</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.county}
@@ -547,7 +557,7 @@ const LocationsScreen = ({ navigation }) => {
               </View>
               
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Postcode*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Postcode*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -916,7 +926,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
-    backgroundColor: '#FAFAFA'
+    backgroundColor: '#FAFAFA',
+    // Explicit dark text: without it, OS dark mode renders typed text white
+    // on this light (#FAFAFA) input box, making it unreadable.
+    color: '#1A1A1A'
 },
   inputError: {
     borderColor: '#EF4444'

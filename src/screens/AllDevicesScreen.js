@@ -218,10 +218,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
       >
         <View style={styles.cardContent}>
           <View style={styles.cardInfo}>
-            <Text style={styles.infoText}>Make: {device.make}</Text>
-            <Text style={styles.infoText}>Model: {device.model}</Text>
-            <Text style={styles.infoText}>Serial: {device.serial_number}</Text>
-            <Text style={styles.infoText}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Make: {device.make}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Model: {device.model}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Serial: {device.serial_number}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
           </View>
           <View style={styles.cardActions}>
             <Button

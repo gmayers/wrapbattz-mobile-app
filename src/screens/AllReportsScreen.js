@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -68,9 +68,22 @@ const AllReportsScreen = ({ navigation, route }) => {
   const [description, setDescription] = useState('');
   const [isMyReportUpdate, setIsMyReportUpdate] = useState(false);
 
-  const refreshAll = useCallback(() => {
-    fetchMyReports();
-    if (isAdminOrOwner) fetchAllReports();
+  // In-flight guard: the focus listener fires on every tab return; skip if a
+  // refresh is already running so the two report fetches don't pile up under
+  // rapid navigation.
+  const isRefreshingRef = useRef(false);
+
+  const refreshAll = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      await Promise.allSettled([
+        fetchMyReports(),
+        isAdminOrOwner ? fetchAllReports() : Promise.resolve(),
+      ]);
+    } finally {
+      isRefreshingRef.current = false;
+    }
   }, [isAdminOrOwner]);
 
   useEffect(() => {

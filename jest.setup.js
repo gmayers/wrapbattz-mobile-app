@@ -98,6 +98,11 @@ jest.mock('react-native-nfc-manager', () => {
       StateChanged: 'StateChanged',
     },
     Ndef: mockNdef,
+    NfcError: {
+      // Mirror the real library: cancellations are a typed error with an
+      // EMPTY message (the cancel signal is the type, not the text).
+      UserCancel: class UserCancel extends Error {},
+    },
     default: mockNfcManager,
   };
 });
@@ -114,17 +119,24 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
-jest.mock('react-native-iap', () => ({
+jest.mock('expo-iap', () => ({
   initConnection: jest.fn(() => Promise.resolve(true)),
-  endConnection: jest.fn(() => Promise.resolve(true)),
-  getSubscriptions: jest.fn(() => Promise.resolve([])),
-  requestSubscription: jest.fn(() => Promise.resolve(null)),
+  endConnection: jest.fn(() => Promise.resolve()),
+  fetchProducts: jest.fn(() => Promise.resolve([])),
+  requestPurchase: jest.fn(() => Promise.resolve()),
   finishTransaction: jest.fn(() => Promise.resolve()),
   getAvailablePurchases: jest.fn(() => Promise.resolve([])),
   purchaseUpdatedListener: jest.fn(() => ({ remove: jest.fn() })),
   purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
-  flushFailedPurchasesCachedAsPendingAndroid: jest.fn(() => Promise.resolve()),
-  acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve()),
+  ErrorCode: {
+    UserCancelled: 'user-cancelled',
+    NetworkError: 'network-error',
+    ItemUnavailable: 'item-unavailable',
+    AlreadyOwned: 'already-owned',
+    NotPrepared: 'not-prepared',
+    ServiceError: 'service-error',
+    BillingUnavailable: 'billing-unavailable',
+  },
 }));
 
 jest.mock('expo-local-authentication', () => ({

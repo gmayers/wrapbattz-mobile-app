@@ -43,16 +43,6 @@ const AddDevicePage = ({ navigation }) => {
   const twoWeeksFromNow = new Date();
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
   
-  const ITEM_CHOICES = [
-    { label: 'Battery', value: 'Battery', key: 'device-battery' },
-    { label: 'Charger', value: 'Charger', key: 'device-charger' },
-    { label: 'Adapter', value: 'Adapter', key: 'device-adapter' },
-    { label: 'Cable', value: 'Cable', key: 'device-cable' },
-    { label: 'Drill', value: 'Drill', key: 'device-drill' },
-    { label: 'Saw', value: 'Saw', key: 'device-saw' },
-    { label: 'Other', value: 'Other', key: 'device-other' }
-  ];
-
   const MAKES = [
     { label: 'Makita', value: 'Makita', key: 'make-makita' },
     { label: 'Milwaukee', value: 'Milwaukee', key: 'make-milwaukee' },
@@ -69,7 +59,7 @@ const [formData, setFormData] = useState({
     description: '',
     make: 'Makita',
     model: '',
-    device_type: 'Battery',
+    category_id: null, // Tool category (make/model/type) — resolved from /tools/categories/
     serial_number: '',
     maintenance_interval: '',
     next_maintenance_date: twoWeeksFromNow,
@@ -103,8 +93,8 @@ const [formData, setFormData] = useState({
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [userOptions, setUserOptions] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [otherMake, setOtherMake] = useState('');
-  const [otherDeviceType, setOtherDeviceType] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [createdDeviceId, setCreatedDeviceId] = useState(null);
   // Toggle for user/location assignment
@@ -138,10 +128,11 @@ const [formData, setFormData] = useState({
     };
   }, []);
 
-  // Fetch locations and users on component mount
+  // Fetch locations, users and categories on component mount
   useEffect(() => {
     fetchLocations();
     fetchUsers();
+    fetchCategories();
   }, []);
 
 
@@ -173,6 +164,32 @@ const [formData, setFormData] = useState({
     } catch (error) {
       console.error('Error fetching sites:', error);
       Alert.alert('Error', 'Failed to load locations. Please try again.');
+    }
+  };
+
+  // Categories (make/model/type) now live in their own table; the tool create
+  // payload references one by category_id, so load the options for the dropdown.
+  const fetchCategories = async () => {
+    try {
+      const categories = await toolsApi.listToolCategories();
+      const options = categories.map((c) => ({
+        label: c.name,
+        value: c.id,
+        key: `category-${c.id}`
+      }));
+      logMessage(`Loaded ${options.length} tool categories`);
+      setCategoryOptions(options);
+
+      // Default to the first category if the form doesn't have one yet.
+      setFormData(prev =>
+        prev.category_id == null && options.length > 0
+          ? { ...prev, category_id: options[0].value }
+          : prev
+      );
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      logMessage(`Error fetching categories: ${error.message}`);
+      Alert.alert('Error', 'Failed to load device categories. Please try again.');
     }
   };
 
@@ -297,16 +314,8 @@ const handleInputChange = (name, value) => {
     }
   };
 
-  const handleDeviceTypeChange = (value) => {
-    if (value === 'Other') {
-      // Just set dropdown to "Other" but don't clear the custom value yet
-      handleInputChange('device_type', 'Other');
-    } else {
-      // For standard options, update normally
-      handleInputChange('device_type', value);
-      // Clear otherDeviceType when selecting a standard option
-      setOtherDeviceType('');
-    }
+  const handleCategoryChange = (value) => {
+    handleInputChange('category_id', value);
   };
 const validateForm = () => {
     // Collect all missing required fields
@@ -319,9 +328,11 @@ const validateForm = () => {
     if (formData.make === null || formData.make === undefined || formData.make === '') 
       missingFields.push('Make');
     
-    if (!formData.model || formData.model.trim() === '') 
+    if (!formData.model || formData.model.trim() === '')
       missingFields.push('Model');
-    
+
+    // Category (category_id) is nullable — not required.
+
     // Check location or user based on assignment toggle
     if (isUserAssignment) {
       if (!formData.user || formData.user === '' || formData.user === 0)
@@ -356,8 +367,7 @@ const validateForm = () => {
       description: formData.description,
       make: finalMake || '',
       model: formData.model,
-      device_type: formData.device_type || '',
-      ...(formData.device_type === 'Other' && otherDeviceType ? { custom_type: otherDeviceType } : {}),
+      category_id: formData.category_id,
       serial_number: formData.serial_number || '',
       maintenance_interval: formData.maintenance_interval || null,
       // Format date as DD/MM/YYYY as expected by the backend
@@ -391,6 +401,7 @@ const validateForm = () => {
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
+        category_id: formData.category_id != null ? Number(formData.category_id) : null,
         ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {})
 });
 
@@ -498,7 +509,7 @@ const formatDate = (date) => {
       description: '',
       make: 'Makita', // Reset to default
       model: '',
-      device_type: 'Battery', // Reset to default
+      category_id: categoryOptions.length > 0 ? categoryOptions[0].value : null, // Reset to first category
       serial_number: '',
       maintenance_interval: '',
       next_maintenance_date: twoWeeksFromNow, // Reset to 2 weeks from now
@@ -506,7 +517,6 @@ const formatDate = (date) => {
       user: userOptions.length > 0 ? userOptions[0].value : '', // Reset to first user
     });
     setOtherMake('');
-    setOtherDeviceType('');
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
@@ -764,34 +774,22 @@ return (
               />
             </View>
 
-            {/* Device Type Dropdown */}
+            {/* Category Dropdown (make/model/type lookup) — optional */}
             <View style={styles.formField}>
-              <Text style={[styles.label, { color: colors.textPrimary }]}>Device Type</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Category (optional)</Text>
               <Dropdown
-                value={formData.device_type}
-                onValueChange={handleDeviceTypeChange}
-                items={ITEM_CHOICES}
-                placeholder="Select Device Type"
+                value={formData.category_id}
+                onValueChange={handleCategoryChange}
+                items={categoryOptions}
+                placeholder={categoryOptions.length === 0 ? 'No categories available' : 'Select Category'}
                 testID="device-type-dropdown"
+                disabled={categoryOptions.length === 0}
                 containerStyle={[
                   styles.dropdownContainer,
                   Platform.OS === 'ios' && styles.iosDropdownContainer
                 ]}
               />
             </View>
-
-            {/* Other Device Type Input */}
-            {formData.device_type === 'Other' && (
-              <View style={styles.formField}>
-                <Text style={styles.label}>Specify Device Type *</Text>
-                <BaseTextInput
-                  value={otherDeviceType}
-                  onChangeText={(text) => setOtherDeviceType(text)}
-                  placeholder="Enter other device type"
-                  style={otherDeviceType ? {} : styles.requiredInput}
-                />
-              </View>
-            )}
 
             {/* Serial Number Input */}
             <View style={styles.formField}>

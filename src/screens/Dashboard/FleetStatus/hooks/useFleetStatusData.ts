@@ -60,19 +60,29 @@ export function useFleetStatusData(): FleetStatusData {
     setIsLoading(true);
     setError(undefined);
     try {
-      const [org, toolsPage, activePage, incidentsPage] = await Promise.all([
-        organizationsApi.getMyOrganization().catch(() => null),
+      // allSettled, not all: a single slow/failed endpoint must not blank the
+      // entire dashboard. Each card falls back to empty; we only surface an
+      // error if every data call failed.
+      const [orgR, toolsR, activeR, incidentsR] = await Promise.allSettled([
+        organizationsApi.getMyOrganization(),
         toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
         assignmentsApi.listAssignments({ status: 'active' }),
         incidentsApi.listIncidents(),
       ]);
+      const org = orgR.status === 'fulfilled' ? orgR.value : null;
+      const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
+      const activePage = activeR.status === 'fulfilled' ? activeR.value : null;
+      const incidentsPage = incidentsR.status === 'fulfilled' ? incidentsR.value : null;
       setRaw({
         org,
-        tools: toolsPage.items,
-        toolsTotal: toolsPage.total ?? toolsPage.items.length,
-        activeAssignments: activePage.items,
-        incidents: incidentsPage.items,
+        tools: toolsPage?.items ?? [],
+        toolsTotal: toolsPage?.total ?? toolsPage?.items.length ?? 0,
+        activeAssignments: activePage?.items ?? [],
+        incidents: incidentsPage?.items ?? [],
       });
+      if (!toolsPage && !activePage && !incidentsPage) {
+        setError('Failed to load fleet status');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load fleet status');
     } finally {

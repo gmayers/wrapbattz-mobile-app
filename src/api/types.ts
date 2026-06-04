@@ -48,6 +48,15 @@ export type ToolUpdate = S['ToolUpdate'];
 export type PagedTools = S['PagedTools'];
 export type ToolPhotoRead = S['ToolPhotoRead'];
 
+// Tool make/model/type were extracted into a dedicated table on the backend;
+// tools now reference a row by `category_id`. Hand-written because the committed
+// OpenAPI spec predates the `/tools/categories/` endpoint — replace with the
+// generated type once docs/api/openapi.json is regenerated (`npm run api:types`).
+export interface ToolCategory {
+  id: number;
+  name: string;
+}
+
 export type AssignmentRead = S['AssignmentRead'];
 export type AssignmentCreate = S['AssignmentCreate'];
 export type AssignmentUpdate = S['AssignmentUpdate'];

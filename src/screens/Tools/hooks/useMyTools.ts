@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as assignmentsApi from '../../../api/endpoints/assignments';
 import * as toolsApi from '../../../api/endpoints/tools';
@@ -84,8 +84,14 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
 
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // In-flight guard: useFocusEffect fires refresh() on every tab return (and on
+  // mount, alongside the initial load). Skip while a load is already running so
+  // focus events don't stack extra requests.
+  const inFlightRef = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
+    inFlightRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -107,6 +113,7 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
             'Could not load tools. Please try again.'
         );
       } finally {
+        inFlightRef.current = false;
         if (!cancelled) setIsLoading(false);
       }
     };
@@ -119,6 +126,7 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
 
   useFocusEffect(
     useCallback(() => {
+      if (inFlightRef.current) return;
       refresh();
     }, [refresh])
   );
