@@ -81,6 +81,14 @@ const ProfileScreen = ({ navigation }) => {
   useEffect(() => {
     fetchProfileData();
   }, [fetchProfileData]);
+
+  // Keep the displayed profile in sync with the auth context. EditProfile saves
+  // via updateUser(), which refreshes the context `user`; without this, returning
+  // to this already-mounted screen would keep showing the pre-edit snapshot and
+  // look like "changes didn't save".
+  useEffect(() => {
+    if (user) setProfileData((prev) => ({ ...prev, ...user }));
+  }, [user]);
   
   const handleUpdateProfile = useCallback(async (updatedData) => {
     try {

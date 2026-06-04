@@ -64,9 +64,13 @@ export function useDashboardStats(role: Role | undefined): DashboardStats {
         const openIncidents = (incidentsPage?.items ?? []).filter(
           (i) => !CLOSED_STATUSES.has(i.status)
         );
+        const inUseCount = activeAssignments?.total ?? 0;
         setAdmin({
-          activeTools: toolsPage?.total ?? 0,
-          inUse: activeAssignments?.total ?? 0,
+          // Total can't be less than what's in use — guards against a "0 tools /
+          // N in use" display when listTools is empty/failed under backend
+          // flakiness (the empty-tools symptom itself is a backend issue).
+          activeTools: Math.max(toolsPage?.total ?? 0, inUseCount),
+          inUse: inUseCount,
           missing: openIncidents.filter((i) => MISSING_TYPES.has(i.type)).length,
           maintenanceDue: openIncidents.filter((i) => MAINTENANCE_TYPES.has(i.type)).length,
         });

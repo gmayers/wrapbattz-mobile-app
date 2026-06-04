@@ -439,53 +439,26 @@ const validateForm = () => {
       
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      logMessage(`Error in device creation/assignment: ${error.message}`);
-      
-      // Enhanced error handling to provide better feedback
+      logMessage(`Error in device creation/assignment: ${error?.message}`);
+
+      // The api client throws a typed ApiError (not a raw axios error), so read
+      // its fields instead of error.response/error.request.
       let errorMessage = 'Failed to create device. Please try again.';
-      
-      if (error.response) {
-        logMessage(`Server error status: ${error.response.status}`);
-        logMessage(`Server error data: ${JSON.stringify(error.response.data, null, 2)}`);
-        
-        if (error.response.data) {
-          if (error.response.data.errors) {
-            // Handle structured error responses
-            const errorMessages = [];
-            
-            // Handle general errors
-            if (error.response.data.errors.general) {
-              errorMessages.push(...error.response.data.errors.general);
-            }
-            
-            // Handle field-specific errors
-            Object.entries(error.response.data.errors).forEach(([field, errors]) => {
-              if (field !== 'general') {
-                errors.forEach(err => {
-                  errorMessages.push(`${field}: ${err}`);
-                });
-              }
-            });
-            
-            if (errorMessages.length > 0) {
-              errorMessage = errorMessages.join('\n');
-            }
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          } else if (error.response.data.detail) {
-            errorMessage = error.response.data.detail;
-          } else if (typeof error.response.data === 'string') {
-            errorMessage = error.response.data;
-          }
+      if (error instanceof ApiError) {
+        if (error.code === 'unauthorized') return; // handled globally by auth
+        if (error.code === 'timeout' || error.code === 'network') {
+          // The tool may already have been created before the assignment step
+          // failed — warn so the user doesn't create a duplicate on retry.
+          errorMessage =
+            `${error.message} The device may already have been created — ` +
+            'check the device list before trying again.';
+        } else {
+          errorMessage = error.message || errorMessage;
         }
-      } else if (error.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response received from server. Please check your connection.';
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        errorMessage = `An error occurred: ${error.message}`;
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
-      
+
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);

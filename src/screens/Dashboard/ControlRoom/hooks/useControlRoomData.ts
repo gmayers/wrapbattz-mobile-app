@@ -114,9 +114,12 @@ export function useControlRoomData(): ControlRoomData {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
 
-    const devices = raw.org?.tool_count ?? raw.toolsTotal;
     const tags = countTaggedTools(raw.tools);
     const inUse = raw.activeAssignments.length;
+    // Total can't be less than what's in use — guards the donut against a
+    // "0 devices / N in use" display when listTools is empty/failed under
+    // backend flakiness (the empty-tools symptom is a backend issue).
+    const devices = Math.max(raw.org?.tool_count ?? 0, raw.toolsTotal, inUse);
     const available = Math.max(0, devices - inUse);
     const openIncidents = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
     const maintenance = openIncidents.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;

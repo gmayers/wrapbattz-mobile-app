@@ -97,8 +97,13 @@ export function useFleetStatusData(): FleetStatusData {
   const data = useMemo<Omit<FleetStatusData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
-    const total = raw.org?.tool_count ?? raw.toolsTotal;
     const inUse = raw.activeAssignments.length;
+    // Guard against a nonsensical "0 devices / N in use" donut: when the tools
+    // count is missing (org.tool_count null AND the listTools fetch failed or
+    // returned empty under backend flakiness), the total must still be at least
+    // the number currently assigned. The underlying empty-tools symptom is a
+    // backend issue tracked separately.
+    const total = Math.max(raw.org?.tool_count ?? 0, raw.toolsTotal, inUse);
     const open = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
     const maintenance = open.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
     // BACKEND_GAP: missing-status not directly tracked on tools — derived from incidents.

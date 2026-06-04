@@ -36,7 +36,7 @@ const StandardDashboard: React.FC<{ role: any }> = ({ role }) => {
       scan();
       return;
     }
-    if (a.destination) navigation.navigate(a.destination);
+    if (a.destination) navigation.navigate(a.destination, a.params);
   };
 
   return (
