@@ -131,7 +131,7 @@ const QuickActionModalScreen: React.FC = () => {
         const items = history.items ?? [];
         // Find the most recent active assignment to determine current holder
         const active = items
-          .filter((h) => h.status === 'active')
+          .filter((h) => h.status === 'active' || h.returned_at == null)
           .sort((a, b) => String(b.assigned_at ?? '').localeCompare(String(a.assigned_at ?? '')));
         const current = active[0] ?? null;
 

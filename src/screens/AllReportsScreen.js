@@ -112,7 +112,6 @@ const AllReportsScreen = ({ navigation, route }) => {
     { key: 'description', label: 'Description' },
     { key: 'report_date', label: 'Report Date' },
     { key: 'resolved', label: 'Resolved' },
-    { key: 'reporter_name', label: 'Reporter' },
   ];
 
   const handleExportCsv = async () => {
@@ -125,9 +124,6 @@ const AllReportsScreen = ({ navigation, route }) => {
       description: r.description || '',
       report_date: r.report_date || '',
       resolved: r.resolved ? 'Yes' : 'No',
-      reporter_name: r.created_by
-        ? `${r.created_by.first_name || ''} ${r.created_by.last_name || ''}`.trim()
-        : '',
     }));
     try {
       await shareCsv('reports.csv', rows, EXPORT_COLUMNS);

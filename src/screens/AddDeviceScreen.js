@@ -361,35 +361,7 @@ const validateForm = () => {
     return true;
   };
 
-// Prepare device data without user/location assignment
-  const prepareDeviceData = () => {
-    logMessage('Preparing device data for submission');
 
-    // Determine the make value based on selection
-    const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-    // Create the request data object - WITHOUT user or location
-    const requestData = {
-      description: formData.description,
-      make: finalMake || '',
-      model: formData.model,
-      category: formData.category,
-      serial_number: formData.serial_number || '',
-      maintenance_interval: formData.maintenance_interval || null,
-      // Format date as DD/MM/YYYY as expected by the backend
-      next_maintenance_date: formatDate(formData.next_maintenance_date)
-};
-
-    // Include NFC tag ID if scanned before submission
-    if (preScannedNfcTagId) {
-      requestData.nfc_tag_id = preScannedNfcTagId;
-      logMessage(`Including pre-scanned NFC tag ID: ${preScannedNfcTagId}`);
-    }
-
-    logMessage(`Prepared device data: ${JSON.stringify(requestData)}`);
-    return requestData;
-  };
-
-  
 // Handle device creation and assignment as separate steps
   const handleSubmit = async () => {
     if (!validateForm()) return;
