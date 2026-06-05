@@ -21,19 +21,43 @@ const EditProfileScreen = ({ navigation, route }) => {
   const { updateUser, user, userData } = useAuth();
   const { colors } = useTheme();
   
-  // Get profile data from route params or use empty object
+  // Get profile data from route params; fall back to the current user so
+  // fields aren't blank when navigating here from Settings without params.
   const initialProfileData = route.params?.profileData || {};
-  
-  const [formData, setFormData] = useState({
-    first_name: initialProfileData.first_name || '',
-    last_name: initialProfileData.last_name || '',
-    phone_number: initialProfileData.phone_number || '',
-    email: initialProfileData.email || user?.email || ''
-});
-  
+
+  const seedFromUser = (u) => ({
+    first_name: u?.first_name || '',
+    last_name: u?.last_name || '',
+    phone_number: u?.phone_number || '',
+    email: u?.email || '',
+  });
+
+  const [formData, setFormData] = useState(() => {
+    const fromParams = {
+      first_name: initialProfileData.first_name || '',
+      last_name: initialProfileData.last_name || '',
+      phone_number: initialProfileData.phone_number || '',
+      email: initialProfileData.email || '',
+    };
+    // If route params provided at least an email, use them; otherwise seed from user.
+    if (fromParams.email) return fromParams;
+    return seedFromUser(user);
+  });
+
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  
+
+  // If user loads asynchronously after mount, seed the form — but only when
+  // every field is still at its empty initial value (don't clobber edits).
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => {
+      const allEmpty = !prev.first_name && !prev.last_name && !prev.email && !prev.phone_number;
+      if (!allEmpty) return prev;
+      return seedFromUser(user);
+    });
+  }, [user]);
+
   useEffect(() => {
     navigation.setOptions({
       title: 'Edit Profile'
