@@ -158,7 +158,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback(
     async (payload: UserUpdate) => {
-      const me = await account.updateMe(payload);
+      await account.updateMe(payload);
+      // Re-fetch the full UserMe after the PATCH so that applyUser always
+      // receives a complete object regardless of what the server echoes back
+      // in the PATCH response (e.g. partial/missing fields).
+      const me = await account.getMe();
       applyUser(me);
       return me;
     },
