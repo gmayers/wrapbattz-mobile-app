@@ -82,3 +82,11 @@ export async function assignToolByIdentifier(identifier: string): Promise<Assign
   );
   return data;
 }
+
+export async function requestTool(
+  toolId: number,
+  body: { message?: string } = {},
+): Promise<{ id: number; status: string }> {
+  const { data } = await apiClient.post(`/tools/${toolId}/request/`, body);
+  return data as { id: number; status: string };
+}

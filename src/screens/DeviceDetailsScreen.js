@@ -74,6 +74,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   // State for assignment
   const [assignLoading, setAssignLoading] = useState(false);
 
+  // State for request device
+  const [requesting, setRequesting] = useState(false);
+
   // State for transfer to location
   const [transferModalVisible, setTransferModalVisible] = useState(false);
   const [locations, setLocations] = useState([]);
@@ -238,6 +241,24 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
       handleApiError(error, 'Failed to assign device');
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  // Handle request device (tool held by another user)
+  const handleRequestDevice = async () => {
+    if (!device) return;
+    setRequesting(true);
+    try {
+      await toolsApi.requestTool(toolId, {});
+      Alert.alert('Request sent', 'The current holder will be notified that you need this device.');
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'not_found') {
+        Alert.alert('Coming soon', "Requesting devices isn't available yet.");
+      } else {
+        Alert.alert('Error', (error instanceof ApiError && error.message) || error?.message || 'Failed to send request.');
+      }
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -461,7 +482,17 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                 style={[styles.assignButton, assignLoading && styles.disabledButton]}
               />
             )}
-            
+
+            {/* Show request button when the tool is held by another user */}
+            {heldByOtherUser && (
+              <Button
+                title={requesting ? "Requesting..." : "Request Device"}
+                onPress={handleRequestDevice}
+                disabled={requesting}
+                style={[styles.requestButton, requesting && styles.disabledButton]}
+              />
+            )}
+
             {isAdminOrOwner && (
               <Button
                 title="Transfer to Location"
@@ -878,6 +909,10 @@ const styles = StyleSheet.create({
 },
   reportButton: {
     borderColor: ORANGE_COLOR
+},
+  requestButton: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6'
 },
   sectionLoader: {
     marginVertical: 15
