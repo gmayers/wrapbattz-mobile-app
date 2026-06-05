@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Dropdown from '../../components/Dropdown';
+import NfcManager from 'react-native-nfc-manager';
 import { nfcService } from '../../services/NFCService';
 import {
   assignments as assignmentsApi,
@@ -184,6 +185,15 @@ const QuickActionModalScreen: React.FC = () => {
     return () => { cancelled.current = true; };
   }, [loadDevice]);
 
+  // Cancel any pending NFC technology request when this modal unmounts so the
+  // OS doesn't fire a dangling "NFC read failed / operation cancelled" alert
+  // after the user navigates away (e.g. pressing back after an assign error).
+  useEffect(() => {
+    return () => {
+      NfcManager.cancelTechnologyRequest().catch(() => {});
+    };
+  }, []);
+
   const loadDestinations = useCallback(async () => {
     setDestinationsLoading(true);
     try {
@@ -285,30 +295,43 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device) return;
     setUpgrading(true);
     try {
-      const result = await nfcService.writeDeviceToNFC(
-        {
-          deviceId: device.identifier || String(device.id),
-          make: device.make || '',
-          model: device.model || '',
-          serialNumber: device.serial_number || '',
-          maintenanceInterval: device.maintenance_interval || 0,
-          description: device.description || '',
-        },
-        { includeUniversalLink: true }
-      );
+      const result = await Promise.race([
+        nfcService.writeDeviceToNFC(
+          {
+            deviceId: device.identifier || String(device.id),
+            make: device.make || '',
+            model: device.model || '',
+            serialNumber: device.serial_number || '',
+            maintenanceInterval: device.maintenance_interval || 0,
+            description: device.description || '',
+          },
+          { includeUniversalLink: true }
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'NFC timed out — hold the tag steady against the device and try again.'
+                )
+              ),
+            20000
+          )
+        ),
+      ]);
       if (result.success) {
         const urlOnly = result.data?.writtenJson === false;
         Alert.alert(
-          'Tag upgraded',
+          'Tag updated',
           urlOnly
-            ? 'Tag has been upgraded with the launch URL only. Tag capacity was too small for the full JSON payload; device details will be fetched via network when the tag is tapped.'
-            : 'Tag has been upgraded successfully. The next tap will launch the app directly.'
+            ? 'Tag has been updated with the launch URL only. Tag capacity was too small for the full JSON payload; device details will be fetched via network when the tag is tapped.'
+            : 'Tag has been updated successfully. The next tap will launch the app directly.'
         );
       } else {
-        Alert.alert('Upgrade failed', result.error || 'Could not write to tag.');
+        Alert.alert('Re-write failed', result.error || 'Could not write to tag.');
       }
     } catch (err: any) {
-      Alert.alert('Upgrade failed', err?.message || 'Unknown error.');
+      Alert.alert('Re-write failed', err?.message || 'Unknown error.');
     } finally {
       setUpgrading(false);
     }
@@ -449,7 +472,7 @@ const QuickActionModalScreen: React.FC = () => {
                   />
                 ) : null}
                 <Button
-                  title={upgrading ? 'Hold tag to device…' : 'Upgrade NFC tag'}
+                  title={upgrading ? 'Hold tag steady…' : 'Re-write tag data'}
                   onPress={handleUpgradeTag}
                   variant="outlined"
                   loading={upgrading}
@@ -457,6 +480,9 @@ const QuickActionModalScreen: React.FC = () => {
                   style={styles.actionBtn}
                   testID="quick-action-upgrade"
                 />
+                <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
+                  Refreshes the device data stored on this NFC tag.
+                </Text>
               </>
             ) : null}
           </View>
