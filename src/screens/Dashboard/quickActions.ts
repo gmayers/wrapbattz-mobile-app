@@ -11,7 +11,8 @@ export interface QuickAction {
 }
 
 const WORKER_ACTIONS: QuickAction[] = [
-  { key: 'scan',          label: 'Scan',          icon: 'scan-circle-outline', onPressType: 'scan' },
+  { key: 'scan',          label: 'Scan',          icon: 'scan-circle-outline',  onPressType: 'scan' },
+  { key: 'whoHasIt',      label: 'Who has it?',   icon: 'search-outline',       onPressType: 'scan' },
   { key: 'reportIssue',   label: 'Report Issue',  icon: 'alert-circle-outline', destination: 'CreateReport' },
   // Open the Tools tab inside MainTabs — navigating to bare 'MainTabs' lands on
   // Dashboard, so the button appeared unlinked.

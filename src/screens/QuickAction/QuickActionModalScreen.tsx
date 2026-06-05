@@ -24,6 +24,7 @@ import {
   vans as vansApi,
 } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
+import { pickLastUserHolder } from '../Tools/hooks/lastHeld';
 
 type QuickActionParamList = {
   QuickActionModal: { tagUID?: string };
@@ -46,6 +47,7 @@ interface DeviceLike {
   serial_number?: string;
   maintenance_interval?: number;
   description?: string;
+  is_available?: boolean;
   current_assignment?: {
     id: string;
     user_name?: string;
@@ -76,6 +78,10 @@ const QuickActionModalScreen: React.FC = () => {
 
   const [upgrading, setUpgrading] = useState(false);
 
+  // Holder info derived from history
+  const [holderLine, setHolderLine] = useState<string | null>(null);
+  const [holderLoading, setHolderLoading] = useState(false);
+
   const loadDevice = useCallback(async () => {
     if (!tagUID) {
       setErrorMsg('Missing tag ID.');
@@ -85,6 +91,7 @@ const QuickActionModalScreen: React.FC = () => {
     setLoading(true);
     setNotFound(false);
     setErrorMsg(null);
+    setHolderLine(null);
     try {
       const tool = await toolsApi.getToolByNfc(tagUID);
       // Look up the active assignment so we can return it later.
@@ -103,7 +110,41 @@ const QuickActionModalScreen: React.FC = () => {
         model: tool.model,
         device_type: tool.category_name,
         serial_number: tool.serial_number,
+        is_available: tool.is_available,
         current_assignment: currentAssignmentId ? { id: String(currentAssignmentId) } : null,
+      });
+
+      // Load holder info from history (non-blocking — renders card first)
+      setHolderLoading(true);
+      toolsApi.getToolHistory(tool.id).then((history) => {
+        const items = history.items ?? [];
+        // Find the most recent active assignment to determine current holder
+        const active = items
+          .filter((h) => h.status === 'active')
+          .sort((a, b) => String(b.assigned_at ?? '').localeCompare(String(a.assigned_at ?? '')));
+        const current = active[0] ?? null;
+
+        if (tool.is_available || !current) {
+          setHolderLine('Available');
+        } else if (current.assignee_user_id) {
+          setHolderLine(`👤 ${current.assignee_user_email || 'Unknown user'}`);
+        } else if (current.assignee_site_id) {
+          const siteName = current.assignee_site_name || 'Unknown location';
+          // Also find last user holder
+          const lastUser = pickLastUserHolder(items.filter((h) => h.status !== 'active'));
+          if (lastUser) {
+            setHolderLine(`📍 ${siteName} · last held by ${lastUser}`);
+          } else {
+            setHolderLine(`📍 ${siteName}`);
+          }
+        } else {
+          setHolderLine('Available');
+        }
+      }).catch(() => {
+        // Non-critical — just don't show holder line
+        setHolderLine(null);
+      }).finally(() => {
+        setHolderLoading(false);
       });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'not_found') {
@@ -315,6 +356,22 @@ const QuickActionModalScreen: React.FC = () => {
         </View>
       ) : device ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Holder / location block — shown prominently above action buttons */}
+          <View style={[styles.holderBlock, { backgroundColor: colors.card, borderColor: colors.borderLight }]} testID="quick-action-holder-block">
+            {holderLoading ? (
+              <View style={styles.holderLoadingRow}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.holderLoadingText, { color: colors.textSecondary }]}>
+                  Checking holder…
+                </Text>
+              </View>
+            ) : holderLine ? (
+              <Text style={[styles.holderText, { color: colors.textPrimary }]} testID="quick-action-holder-line">
+                {holderLine}
+              </Text>
+            ) : null}
+          </View>
+
           <View style={[styles.deviceCard, { backgroundColor: colors.card, borderColor: colors.borderLight }]}>
             <Text style={[styles.deviceIdentifier, { color: colors.textPrimary }]} testID="quick-action-device-identifier">
               {device.identifier || device.make || 'Device'}
@@ -324,19 +381,6 @@ const QuickActionModalScreen: React.FC = () => {
                 Type: {device.device_type}
               </Text>
             ) : null}
-            {device.current_assignment?.user_name ? (
-              <Text style={[styles.deviceMeta, { color: colors.textSecondary }]}>
-                Assigned to: {device.current_assignment.user_name}
-              </Text>
-            ) : device.current_assignment?.location_name ? (
-              <Text style={[styles.deviceMeta, { color: colors.textSecondary }]}>
-                At: {device.current_assignment.location_name}
-              </Text>
-            ) : (
-              <Text style={[styles.deviceMeta, { color: colors.textMuted }]}>
-                No active assignment
-              </Text>
-            )}
           </View>
 
           <View style={styles.actionsGroup} testID="quick-action-buttons">
@@ -473,6 +517,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+  },
+  holderBlock: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  holderLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  holderLoadingText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  holderText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   deviceCard: {
     borderRadius: 12,
