@@ -223,6 +223,19 @@ jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
 
+// Mock expo-file-system
+jest.mock('expo-file-system', () => ({
+  cacheDirectory: 'file:///cache/',
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+}));
+
+// Mock expo-sharing
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  shareAsync: jest.fn(() => Promise.resolve()),
+}));
+
 // Global test helpers
 global.testHelpers = {
   sentry: {
