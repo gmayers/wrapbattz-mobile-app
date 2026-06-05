@@ -87,6 +87,8 @@ export interface LegacyDevice {
   serial_number: string;
   status: string;
   nfc_tag_id: string | null;
+  /** Mirrors ToolRead.is_available; undefined when derived from an AssignmentRead. */
+  is_available?: boolean;
 }
 
 export function toLegacyDevice(t: ToolRead): LegacyDevice {
@@ -99,6 +101,7 @@ export function toLegacyDevice(t: ToolRead): LegacyDevice {
     serial_number: t.serial_number ?? '',
     status: t.status ?? '',
     nfc_tag_id: t.nfc_tag_id ?? null,
+    is_available: t.is_available,
   };
 }
 

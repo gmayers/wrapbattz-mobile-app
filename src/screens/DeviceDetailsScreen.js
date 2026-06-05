@@ -197,7 +197,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   // Handle assign device to current user
   const handleAssignToMe = async () => {
-    if (!device || device.status !== 'available') {
+    const available =
+      device?.is_available !== undefined ? device.is_available : device?.status === 'available';
+    if (!device || !available) {
       Alert.alert('Error', 'This device is not available for assignment.');
       return;
     }
@@ -322,8 +324,13 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     );
   }
 
-  // Determine if the device is available for assignment
-  const canAssign = device.status === 'available';
+  // Determine if the device is available for assignment.
+  // Use is_available when present (comes from ToolRead via toLegacyDevice);
+  // fall back to the legacy status string for any stale callers.
+  const canAssign =
+    device.is_available !== undefined
+      ? device.is_available === true
+      : device.status === 'available';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>

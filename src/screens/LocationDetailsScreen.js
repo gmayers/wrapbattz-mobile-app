@@ -215,9 +215,11 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   }, [fetchLocationDetails, fetchLocationDevices]);
 
   const renderDeviceCard = useCallback((device) => {
-    // Since we're only showing unassigned devices, all should be available for assignment
+    // Devices listed here come from site-assignment records, meaning the tool is
+    // currently held by this location. Treat a non-null current_assignment as "held".
+    const isHeld = !!device.current_assignment?.id;
     const isAssigning = assigningDevice === device.id;
-    
+
     return (
       <Card
         style={[styles.deviceCard, { backgroundColor: colors.card }]}
@@ -230,12 +232,12 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               <Text style={[styles.deviceType, { color: colors.textSecondary }]}>{device.device_type}</Text>
             </View>
             <View style={styles.statusContainer}>
-              <View style={[styles.statusBadge, { backgroundColor: '#10B981' }]}>
-                <Text style={styles.statusText}>Available</Text>
+              <View style={[styles.statusBadge, { backgroundColor: isHeld ? '#3B82F6' : '#10B981' }]}>
+                <Text style={styles.statusText}>{isHeld ? 'At Location' : 'Available'}</Text>
               </View>
             </View>
           </View>
-          
+
           {/* Device Details */}
           <View style={styles.deviceDetails}>
             <View style={styles.detailRow}>
@@ -259,7 +261,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               </View>
             )}
           </View>
-          
+
           {/* Action Buttons */}
           <View style={styles.deviceActions}>
             <TouchableOpacity
@@ -270,23 +272,26 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.assignButton, isAssigning && styles.assignButtonDisabled]}
-              onPress={() => handleAssignDevice(device.id)}
-              disabled={isAssigning}
-            >
-              <Ionicons
-                name={isAssigning ? "hourglass-outline" : "person-add-outline"}
-                size={18}
-                color="#0F1722"
-              />
-              <Text style={styles.assignButtonText}>
-                {isAssigning ? 'Assigning...' : 'Assign to Me'}
-              </Text>
-            </TouchableOpacity>
+            {/* Show Assign only when the tool is not already held */}
+            {!isHeld && (
+              <TouchableOpacity
+                style={[styles.assignButton, isAssigning && styles.assignButtonDisabled]}
+                onPress={() => handleAssignDevice(device.id)}
+                disabled={isAssigning}
+              >
+                <Ionicons
+                  name={isAssigning ? "hourglass-outline" : "person-add-outline"}
+                  size={18}
+                  color="#0F1722"
+                />
+                <Text style={styles.assignButtonText}>
+                  {isAssigning ? 'Assigning...' : 'Assign to Me'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Transfer Button - Admin/Owner only */}
+          {/* Transfer Button — shown for held tools (admin/owner) or always for admin/owner */}
           {isAdminOrOwner && otherLocations.length > 0 && (
             <TouchableOpacity
               style={styles.transferButton}

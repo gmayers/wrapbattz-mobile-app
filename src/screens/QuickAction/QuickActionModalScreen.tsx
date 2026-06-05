@@ -424,13 +424,16 @@ const QuickActionModalScreen: React.FC = () => {
 
             {isAdminOrOwner ? (
               <>
-                <Button
-                  title="Assign device"
-                  onPress={handleAssign}
-                  variant="outlined"
-                  style={styles.actionBtn}
-                  testID="quick-action-assign"
-                />
+                {/* Only offer Assign when the tool is available; if held, Return/Transfer covers it */}
+                {device.is_available !== false ? (
+                  <Button
+                    title="Assign device"
+                    onPress={handleAssign}
+                    variant="outlined"
+                    style={styles.actionBtn}
+                    testID="quick-action-assign"
+                  />
+                ) : null}
                 <Button
                   title={upgrading ? 'Hold tag to device…' : 'Upgrade NFC tag'}
                   onPress={handleUpgradeTag}
