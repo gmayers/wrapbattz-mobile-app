@@ -393,61 +393,61 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
           <View style={styles.detailsSection}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Type:</Text>
-              <Text style={styles.detailValue}>{getDeviceTypeLabel(device.device_type)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Type:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{getDeviceTypeLabel(device.device_type)}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Make:</Text>
-              <Text style={styles.detailValue}>{device.make}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Make:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.make}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Model:</Text>
-              <Text style={styles.detailValue}>{device.model}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Model:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.model}</Text>
             </View>
             
             {device.serial_number && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Serial Number:</Text>
-                <Text style={styles.detailValue}>{device.serial_number}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Serial Number:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.serial_number}</Text>
               </View>
             )}
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Status:</Text>
-              <Text style={styles.detailValue}>{getStatusLabel(device.status)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Status:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{getStatusLabel(device.status)}</Text>
             </View>
             
             {device.maintenance_interval && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Maintenance Interval:</Text>
-                <Text style={styles.detailValue}>{device.maintenance_interval} days</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Maintenance Interval:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.maintenance_interval} days</Text>
               </View>
             )}
             
             {device.next_maintenance && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Next Maintenance:</Text>
-                <Text style={styles.detailValue}>{formatDate(device.next_maintenance)}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Next Maintenance:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.next_maintenance)}</Text>
               </View>
             )}
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Created At:</Text>
-              <Text style={styles.detailValue}>{formatDate(device.created_at)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Created At:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.created_at)}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Updated At:</Text>
-              <Text style={styles.detailValue}>{formatDate(device.updated_at)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Updated At:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.updated_at)}</Text>
             </View>
           </View>
 
           {device.description && (
             <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionLabel}>Description:</Text>
-              <Text style={styles.descriptionText}>{device.description}</Text>
+              <Text style={[styles.descriptionLabel, { color: colors.textSecondary }]}>Description:</Text>
+              <Text style={[styles.descriptionText, { color: colors.textPrimary }]}>{device.description}</Text>
             </View>
           )}
 
@@ -494,7 +494,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                   {/* Assignment Status Badge */}
                   <View style={styles.historyHeader}>
                     <View style={styles.historyDateContainer}>
-                      <Text style={styles.historyDate}>
+                      <Text style={[styles.historyDate, { color: colors.textPrimary }]}>
                         {formatDate(assignment.assigned_date)}
                         {assignment.returned_date ? 
                           ` → ${formatDate(assignment.returned_date)}` : 
@@ -506,7 +506,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.assignmentType}>
+                    <Text style={[styles.assignmentType, { color: colors.textSecondary }]}>
                       {assignment.user ? 'User Assignment' : 'Location Assignment'}
                     </Text>
                   </View>
@@ -519,10 +519,10 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                           <Ionicons name="person" size={16} color={colors.primary} />
                         </View>
                         <View style={styles.assignmentText}>
-                          <Text style={styles.assignmentLabel}>Assigned to Person:</Text>
-                          <Text style={styles.assignmentValue}>{assignment.user_name}</Text>
+                          <Text style={[styles.assignmentLabel, { color: colors.textSecondary }]}>Assigned to Person:</Text>
+                          <Text style={[styles.assignmentValue, { color: colors.textPrimary }]}>{assignment.user_name}</Text>
                           {assignment.user_email && (
-                            <Text style={styles.assignmentSubtext}>{assignment.user_email}</Text>
+                            <Text style={[styles.assignmentSubtext, { color: colors.textSecondary }]}>{assignment.user_email}</Text>
                           )}
                         </View>
                       </View>
@@ -535,8 +535,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                           <Ionicons name="location" size={16} color={colors.primary} />
                         </View>
                         <View style={styles.assignmentText}>
-                          <Text style={styles.assignmentLabel}>Assigned to Location:</Text>
-                          <Text style={styles.assignmentValue}>{assignment.location_name}</Text>
+                          <Text style={[styles.assignmentLabel, { color: colors.textSecondary }]}>Assigned to Location:</Text>
+                          <Text style={[styles.assignmentValue, { color: colors.textPrimary }]}>{assignment.location_name}</Text>
                         </View>
                       </View>
                     )}
@@ -548,8 +548,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                           <Ionicons name="person-add" size={16} color={colors.textSecondary} />
                         </View>
                         <View style={styles.assignmentText}>
-                          <Text style={styles.assignmentLabel}>Assigned by:</Text>
-                          <Text style={styles.assignmentValue}>{assignment.assigned_by_name}</Text>
+                          <Text style={[styles.assignmentLabel, { color: colors.textSecondary }]}>Assigned by:</Text>
+                          <Text style={[styles.assignmentValue, { color: colors.textPrimary }]}>{assignment.assigned_by_name}</Text>
                         </View>
                       </View>
                     )}
@@ -557,8 +557,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     {/* Previous Assignment Link */}
                     {assignment.previous_assignment_details && (
                       <View style={styles.previousAssignmentInfo}>
-                        <Text style={styles.previousAssignmentLabel}>Previous Assignment:</Text>
-                        <Text style={styles.previousAssignmentText}>
+                        <Text style={[styles.previousAssignmentLabel, { color: colors.textSecondary }]}>Previous Assignment:</Text>
+                        <Text style={[styles.previousAssignmentText, { color: colors.textSecondary }]}>
                           {assignment.previous_assignment_details.user_name 
                             ? `${assignment.previous_assignment_details.user_name} (${formatDate(assignment.previous_assignment_details.assigned_date)} - ${formatDate(assignment.previous_assignment_details.returned_date)})`
                             : `Location assignment (${formatDate(assignment.previous_assignment_details.assigned_date)} - ${formatDate(assignment.previous_assignment_details.returned_date)})`
@@ -656,7 +656,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
               Select a location to transfer this device to.
             </Text>
 
@@ -683,6 +683,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                       <Text
                         style={[
                           styles.locationListItemText,
+                          { color: colors.textPrimary },
                           isSelected && styles.locationListItemTextSelected,
                         ]}
                       >
@@ -696,7 +697,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                 );
               }}
               ListEmptyComponent={
-                <Text style={styles.emptyListText}>No locations available</Text>
+                <Text style={[styles.emptyListText, { color: colors.textMuted }]}>No locations available</Text>
               }
               ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
             />
@@ -1117,7 +1118,6 @@ const styles = StyleSheet.create({
 },
   modalCancelButton: {
     flex: 1,
-    borderColor: '#999'
 },
   modalConfirmButton: {
     flex: 1,

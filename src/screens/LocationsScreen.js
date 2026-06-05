@@ -58,7 +58,7 @@ const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext
   const { isAdminOrOwner, userData, user, refreshUser } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [locations, setLocations] = useState([]);
   const [filteredLocations, setFilteredLocations] = useState([]);
@@ -577,14 +577,14 @@ const LocationsScreen = ({ navigation }) => {
             {/* Edit Mode: Show Created By Signature */}
             {editMode && editingLocationId && (
               <View style={styles.signatureSection}>
-                <Text style={styles.sectionLabel}>Created By:</Text>
-                <View style={styles.signatureBox}>
+                <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Created By:</Text>
+                <View style={[styles.signatureBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
-                  <Text style={styles.signatureText}>
+                  <Text style={[styles.signatureText, { color: colors.textPrimary }]}>
                     {locations.find(l => l.id === editingLocationId)?.created_by?.first_name || 'N/A'} {locations.find(l => l.id === editingLocationId)?.created_by?.last_name || ''}
                   </Text>
                 </View>
-                <Text style={styles.createdAtText}>
+                <Text style={[styles.createdAtText, { color: colors.textSecondary }]}>
                   Created: {locations.find(l => l.id === editingLocationId)?.created_at ? new Date(locations.find(l => l.id === editingLocationId).created_at).toLocaleString() : 'N/A'}
                 </Text>
               </View>
@@ -619,7 +619,7 @@ const LocationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Updated Header Section */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -668,10 +668,10 @@ const LocationsScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Organization Locations</Text>
-            <Text style={styles.sectionSubtitle}>
-              {userData?.orgId 
-                ? `Manage ${userData.name ? userData.name + "'s" : "your"} organization's locations` 
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Organization Locations</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              {userData?.orgId
+                ? `Manage ${userData.name ? userData.name + "'s" : "your"} organization's locations`
                 : "Manage your organization's locations"}
             </Text>
             
@@ -684,7 +684,7 @@ const LocationsScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="location-outline" size={48} color={colors.disabled} />
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   {searchQuery.trim() ? `No locations found matching "${searchQuery}"` : "No locations found"}
                 </Text>
                 {!searchQuery.trim() && isAdminOrOwner && (

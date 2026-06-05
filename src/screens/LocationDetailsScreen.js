@@ -34,7 +34,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;
   
   const { isAdminOrOwner, userData, isLoading: authLoading } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [location, setLocation] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -338,8 +338,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   // Show loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading location details...</Text>
@@ -351,7 +351,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   // Show error state if location fetch failed
   if (error && !location) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
+      <SafeAreaView style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorMessage}>{error}</Text>
         <Button
@@ -366,7 +366,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -445,7 +445,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               </Text>
             )}
 
-            <Text style={[styles.selectLabel, { color: colors.textSecondary }]}>Select Destination Location:</Text>
+            <Text style={[styles.selectLabel, { color: colors.textPrimary }]}>Select Destination Location:</Text>
 
             <FlatList
               data={otherLocations}
@@ -487,13 +487,13 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             />
 
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, { backgroundColor: colors.surfaceAlt }]}
               onPress={() => {
                 setTransferModalVisible(false);
                 setSelectedDeviceForTransfer(null);
               }}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
