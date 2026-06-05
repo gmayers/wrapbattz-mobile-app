@@ -13,6 +13,7 @@ import type {
 } from '../../../../api/types';
 import { useAuth } from '../../../../context/AuthContext';
 import type { FleetException, FleetStatusData } from '../types';
+import { computeInventory } from './donutTotals';
 
 const TOOLS_PAGE_SIZE = 200;
 
@@ -98,17 +99,17 @@ export function useFleetStatusData(): FleetStatusData {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
     const inUse = raw.activeAssignments.length;
-    // Guard against a nonsensical "0 devices / N in use" donut: when the tools
-    // count is missing (org.tool_count null AND the listTools fetch failed or
-    // returned empty under backend flakiness), the total must still be at least
-    // the number currently assigned. The underlying empty-tools symptom is a
-    // backend issue tracked separately.
-    const total = Math.max(raw.org?.tool_count ?? 0, raw.toolsTotal, inUse);
     const open = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
     const maintenance = open.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
     // BACKEND_GAP: missing-status not directly tracked on tools — derived from incidents.
     const missingFromIncidents = open.filter((i) => MISSING_TYPES.has(i.type)).length;
-    const available = Math.max(0, total - inUse - maintenance - missingFromIncidents);
+    const { total, available } = computeInventory({
+      toolCount: raw.org?.tool_count ?? null,
+      toolsTotal: raw.toolsTotal,
+      inUse,
+      maintenance,
+      missing: missingFromIncidents,
+    });
 
     const tagsUsed = raw.tools.filter((t) => !!t.nfc_tag_id && t.nfc_tag_id.length > 0).length;
     // BACKEND_GAP: total NFC-tag inventory (issued tag pool) not exposed.
