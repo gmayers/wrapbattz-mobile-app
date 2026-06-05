@@ -36,6 +36,13 @@ export async function updateOnboarding(payload: OnboardingUpdate): Promise<UserM
   return data;
 }
 
+// Permanently delete the authenticated user's account (App Store guideline
+// 5.1.1(v) requires in-app account deletion). Backend must implement
+// DELETE /account/ — see the backend handoff note.
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete('/account/');
+}
+
 export async function registerPushToken(payload: PushTokenRequest): Promise<PushTokenRead> {
   const { data } = await apiClient.post<PushTokenRead>('/account/push-tokens/', payload);
   return data;

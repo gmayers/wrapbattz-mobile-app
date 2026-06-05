@@ -8,7 +8,7 @@ export interface SettingsRow {
   icon: string;
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
-  onPressType?: 'logout';
+  onPressType?: 'logout' | 'deleteAccount';
   destructive?: boolean;
 }
 
@@ -28,6 +28,8 @@ const ALL_SECTIONS: SettingsSection[] = [
       { key: 'profile',        label: 'Profile',              icon: 'person-circle-outline', kind: 'nav', destination: 'EditProfile' },
       { key: 'changePassword', label: 'Change Password',      icon: 'key-outline',           kind: 'nav', destination: 'ChangePassword' },
       // 'SecurityPreferences' (biometric/PIN) screen not built yet.
+      // App Store guideline 5.1.1(v): account creation requires in-app deletion.
+      { key: 'deleteAccount',  label: 'Delete Account',       icon: 'trash-outline',         kind: 'action', onPressType: 'deleteAccount', destructive: true },
     ],
   },
   {

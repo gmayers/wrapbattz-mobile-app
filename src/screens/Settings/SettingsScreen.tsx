@@ -9,7 +9,7 @@ import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
 
 const SettingsScreen: React.FC = () => {
-  const { userData, logout } = useAuth();
+  const { userData, logout, deleteAccount } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const sections = getSectionsForRole(userData?.role as any);
@@ -26,6 +26,37 @@ const SettingsScreen: React.FC = () => {
           try { await logout(); } catch { Alert.alert('Error', 'Failed to logout.'); }
         } },
       ], { cancelable: true });
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'deleteAccount') {
+      // Two-step destructive confirmation to prevent accidental deletion.
+      Alert.alert(
+        'Delete Account',
+        'This permanently deletes your account and your personal data. This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete Account', style: 'destructive', onPress: () => {
+            Alert.alert(
+              'Confirm Deletion',
+              'Are you absolutely sure? Your account will be permanently deleted.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete Permanently', style: 'destructive', onPress: async () => {
+                  try {
+                    // On success the auth state flips to unauthenticated and the
+                    // app routes back to the login screen automatically.
+                    await deleteAccount();
+                  } catch (e: any) {
+                    Alert.alert('Error', e?.message || 'Failed to delete account. Please try again.');
+                  }
+                } },
+              ],
+              { cancelable: true }
+            );
+          } },
+        ],
+        { cancelable: true }
+      );
       return;
     }
   };

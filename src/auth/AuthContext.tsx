@@ -53,6 +53,7 @@ export interface AuthContextValue {
   refreshUser: () => Promise<UserMe | null>;
   updateUser: (payload: UserUpdate) => Promise<UserMe>;
   updateOnboarding: (payload: OnboardingUpdate) => Promise<UserMe>;
+  deleteAccount: () => Promise<void>;
 
   loginWithStoredCredentials: () => Promise<UserMe>;
   enableBiometricUnlock: () => Promise<void>;
@@ -173,6 +174,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyUser]
   );
 
+  const deleteAccount = useCallback(async () => {
+    await account.deleteAccount();
+    // Account is gone server-side — drop local tokens and return to the
+    // unauthenticated state so the app routes back to the auth stack.
+    await tokenStore.clear();
+    applyUser(null);
+  }, [applyUser]);
+
   const loginWithStoredCredentials = useCallback(async () => {
     const response = await qaLoginWithStoredCredentials();
     applyUser(response.user);
@@ -227,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       updateUser,
       updateOnboarding,
+      deleteAccount,
 
       loginWithStoredCredentials,
       enableBiometricUnlock,
@@ -246,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser,
     updateUser,
     updateOnboarding,
+    deleteAccount,
     loginWithStoredCredentials,
     enableBiometricUnlock,
     disableBiometricUnlock,

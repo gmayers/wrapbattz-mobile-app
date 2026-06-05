@@ -271,20 +271,6 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    Alert.alert(
-      'Google sign-in coming soon',
-      'Backend endpoint (/auth/google/) and OAuth client configuration required before this will work.',
-    );
-  };
-
-  const handleAppleSignIn = () => {
-    Alert.alert(
-      'Apple sign-in coming soon',
-      'Backend endpoint (/auth/apple/) and Apple Developer configuration required before this will work.',
-    );
-  };
-
   const pinModalProps = (() => {
     if (pinFlow.kind === 'entry') {
       return {
@@ -324,7 +310,6 @@ const LoginScreen: React.FC = () => {
   const showBiometricButton =
     biometricEnabled && hasStoredCreds && biometricCap?.available && biometricCap?.enrolled;
   const showPinButton = pinEnabled && hasStoredCreds;
-  const showAppleButton = Platform.OS === 'ios';
 
   const biometricIcon = (() => {
     if (!biometricCap) return 'finger-print';
@@ -438,35 +423,6 @@ const LoginScreen: React.FC = () => {
                 testID="login-button"
               />
 
-              {/* Social login */}
-              <View style={styles.socialWrap}>
-                <View style={[styles.divider, { borderTopColor: colors.borderLight }]}>
-                  <Text style={[styles.dividerText, { color: colors.textMuted, backgroundColor: colors.background }]}>
-                    or continue with
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.socialBtn, { borderColor: colors.borderInput, backgroundColor: colors.card }]}
-                  onPress={handleGoogleSignIn}
-                  testID="google-login-button"
-                >
-                  <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
-                  <Text style={[styles.socialText, { color: colors.textPrimary }]}>Continue with Google</Text>
-                </TouchableOpacity>
-
-                {showAppleButton && (
-                  <TouchableOpacity
-                    style={[styles.socialBtn, { borderColor: colors.borderInput, backgroundColor: '#000' }]}
-                    onPress={handleAppleSignIn}
-                    testID="apple-login-button"
-                  >
-                    <Ionicons name="logo-apple" size={20} color="#FFF" />
-                    <Text style={[styles.socialText, { color: '#FFF' }]}>Continue with Apple</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
               <TouchableOpacity
                 style={{ alignItems: 'center', marginTop: 20 }}
                 testID="forgot-password-button"
@@ -532,17 +488,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 12
 },
-  socialWrap: { marginTop: 28, gap: 12 },
-  socialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1
-},
-  socialText: { fontSize: 16, fontWeight: '600' },
   divider: {
     marginVertical: 6,
     borderTopWidth: 1,
