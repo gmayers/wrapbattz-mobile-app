@@ -21,7 +21,7 @@ const ToolsScreen: React.FC = () => {
 
   const handleToolPress = (t: ToolItem) => navigation.navigate('DeviceDetails', { deviceId: t.id });
 
-  if (isLoading) {
+  if (isLoading && !hasLoadedOnce) {
     return (
       <View style={[styles.loader, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />

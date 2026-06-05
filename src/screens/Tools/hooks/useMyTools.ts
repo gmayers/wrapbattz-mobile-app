@@ -105,7 +105,7 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
 
   // Track whether we've completed at least one successful load so the empty
   // state is not shown while the first request is still in flight.
-  const hasLoadedOnce = useRef(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,13 +118,13 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
         if (filter === 'mine') {
           const mine = await assignmentsApi.listMyActiveAssignments();
           if (!cancelled) {
-            hasLoadedOnce.current = true;
+            setHasLoadedOnce(true);
             setGroups(groupMine(mine));
           }
         } else {
           const page = await toolsApi.listTools({ page_size: 200 });
           if (!cancelled) {
-            hasLoadedOnce.current = true;
+            setHasLoadedOnce(true);
             setGroups(groupAll(page.items));
           }
         }
@@ -156,5 +156,5 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
     }, [refresh])
   );
 
-  return { isLoading, hasLoadedOnce: hasLoadedOnce.current, groups, filter, setFilter, error, refresh };
+  return { isLoading, hasLoadedOnce, groups, filter, setFilter, error, refresh };
 }
