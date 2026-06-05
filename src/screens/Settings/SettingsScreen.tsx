@@ -16,7 +16,7 @@ const SettingsScreen: React.FC = () => {
 
   const handleRowPress = (row: SettingsRowConfig) => {
     if (row.kind === 'nav' && row.destination) {
-      navigation.navigate(row.destination);
+      navigation.navigate(row.destination, row.params);
       return;
     }
     if (row.kind === 'action' && row.onPressType === 'logout') {

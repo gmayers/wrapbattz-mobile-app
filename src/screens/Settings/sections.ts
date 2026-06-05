@@ -8,6 +8,7 @@ export interface SettingsRow {
   icon: string;
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
+  params?: Record<string, unknown>;
   onPressType?: 'logout' | 'deleteAccount';
   destructive?: boolean;
 }
@@ -46,7 +47,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Organization',
     requiredRole: 'admin',
     rows: [
-      { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization' },
+      { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization', params: { mode: 'edit' } },
       { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
       // 'InviteCode' screen not built yet.
     ],
