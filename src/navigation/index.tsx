@@ -34,6 +34,7 @@ import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen
 import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import SubscribeScreen from '../screens/Subscribe/SubscribeScreen';
+import { WhatsNewProvider } from '../components/WhatsNewModal';
 
 const Stack = createStackNavigator();
 
@@ -394,7 +395,13 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer linking={linking}>
-      {isAuthenticated ? <OnboardingStack /> : <AuthStack />}
+      {isAuthenticated ? (
+        <WhatsNewProvider>
+          <OnboardingStack />
+        </WhatsNewProvider>
+      ) : (
+        <AuthStack />
+      )}
     </NavigationContainer>
   );
 };

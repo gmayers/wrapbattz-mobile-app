@@ -7,16 +7,22 @@ import { getSectionsForRole, SettingsRow as SettingsRowConfig } from './sections
 import SettingsRow from './components/SettingsRow';
 import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
+import { useWhatsNewPrompt } from '../../components/WhatsNewModal';
 
 const SettingsScreen: React.FC = () => {
   const { userData, logout, deleteAccount } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
+  const { openManually: openWhatsNew } = useWhatsNewPrompt();
   const sections = getSectionsForRole(userData?.role as any);
 
   const handleRowPress = (row: SettingsRowConfig) => {
     if (row.kind === 'nav' && row.destination) {
       navigation.navigate(row.destination, row.params);
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'whatsNew') {
+      openWhatsNew();
       return;
     }
     if (row.kind === 'action' && row.onPressType === 'logout') {

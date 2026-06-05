@@ -9,7 +9,7 @@ export interface SettingsRow {
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
   params?: Record<string, unknown>;
-  onPressType?: 'logout' | 'deleteAccount';
+  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew';
   destructive?: boolean;
 }
 
@@ -75,6 +75,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Support',
     requiredRole: 'all',
     rows: [
+      { key: 'whatsNew',       label: "What's New",         icon: 'sparkles-outline',           kind: 'action', onPressType: 'whatsNew' },
       { key: 'suggestFeature', label: 'Suggest a Feature', icon: 'bulb-outline',               kind: 'nav', destination: 'SuggestFeature' },
       // 'About' screen not built yet.
     ],
