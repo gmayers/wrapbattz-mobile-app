@@ -678,7 +678,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                       <Ionicons
                         name="location-outline"
                         size={20}
-                        color={isSelected ? ORANGE_COLOR : '#666'}
+                        color={isSelected ? ORANGE_COLOR : colors.textSecondary}
                       />
                       <Text
                         style={[

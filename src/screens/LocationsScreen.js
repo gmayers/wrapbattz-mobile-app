@@ -636,7 +636,7 @@ const LocationsScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Profile')}
           >
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarText}>
+              <Text style={[styles.avatarText, { color: colors.onPrimary }]}>
                 {userName.charAt(0).toUpperCase()}
               </Text>
             </View>
