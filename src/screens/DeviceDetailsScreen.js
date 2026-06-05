@@ -26,6 +26,7 @@ import {
   tools as toolsApi
 } from '../api/endpoints';
 import {
+  deriveHolder,
   toLegacyAssignment,
   toLegacyDevice,
   toLegacyLocation,
@@ -54,7 +55,7 @@ const STATUS_CHOICES = [
 ];
 
 const DeviceDetailsScreen = ({ navigation, route }) => {
-  const { userData, isAdminOrOwner } = useAuth();
+  const { userData, user, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
   const { deviceId } = route.params;
   
@@ -66,6 +67,10 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  // Active holder kind derived from history ('user' | 'site' | null)
+  const [activeHolderKind, setActiveHolderKind] = useState(null);
+  const [activeHolderUserId, setActiveHolderUserId] = useState(null);
+
   // State for assignment
   const [assignLoading, setAssignLoading] = useState(false);
 
@@ -141,14 +146,33 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     }
   }, [toolId]);
 
-  // Fetch tool assignment history
+  // Fetch tool assignment history and compute active holder kind
   const fetchDeviceHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
       const page = await toolsApi.getToolHistory(toolId);
-      setDeviceHistory(page.items.map(toLegacyAssignment));
+      const items = page.items ?? [];
+
+      // Derive active holder from the most recent active assignment
+      const activeItems = items
+        .filter((h) => h.status === 'active' || h.returned_at == null)
+        .sort((a, b) => String(b.assigned_at ?? '').localeCompare(String(a.assigned_at ?? '')));
+      const activeAssignment = activeItems[0] ?? null;
+      if (activeAssignment) {
+        const holder = deriveHolder(activeAssignment);
+        setActiveHolderKind(holder ? holder.kind : null);
+        setActiveHolderUserId(activeAssignment.assignee_user_id ?? null);
+      } else {
+        setActiveHolderKind(null);
+        setActiveHolderUserId(null);
+      }
+
+      setDeviceHistory(items.map(toLegacyAssignment));
     } catch (error) {
       console.error('Error fetching device history:', error);
+      // On failure, default to showing Assign (don't dead-end the user)
+      setActiveHolderKind(null);
+      setActiveHolderUserId(null);
     } finally {
       setHistoryLoading(false);
     }
@@ -197,13 +221,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   // Handle assign device to current user
   const handleAssignToMe = async () => {
-    const available =
-      device?.is_available !== undefined ? device.is_available : device?.status === 'available';
-    if (!device || !available) {
-      Alert.alert('Error', 'This device is not available for assignment.');
-      return;
-    }
-
+    if (!device) return;
     setAssignLoading(true);
 
     try {
@@ -324,13 +342,15 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     );
   }
 
-  // Determine if the device is available for assignment.
-  // Use is_available when present (comes from ToolRead via toLegacyDevice);
-  // fall back to the legacy status string for any stale callers.
-  const canAssign =
-    device.is_available !== undefined
-      ? device.is_available === true
-      : device.status === 'available';
+  // Show "Assign to me" UNLESS the active holder is a USER who is not the
+  // current user. Available tools and site-held tools can always be grabbed.
+  // If the history fetch failed, activeHolderKind is null → show Assign.
+  const currentUserId = user?.id ?? userData?.userId ?? null;
+  const heldByOtherUser =
+    activeHolderKind === 'user' &&
+    activeHolderUserId != null &&
+    activeHolderUserId !== currentUserId;
+  const canAssign = !heldByOtherUser;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>

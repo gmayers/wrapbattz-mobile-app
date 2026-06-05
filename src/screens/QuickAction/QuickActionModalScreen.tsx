@@ -59,7 +59,7 @@ const QuickActionModalScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<QuickActionRouteProp>();
   const { colors } = useTheme();
-  const { isAdminOrOwner } = useAuth();
+  const { isAdminOrOwner, user } = useAuth();
 
   const rawTag = route.params?.tagUID;
   const tagUID = (rawTag || '').toUpperCase();
@@ -81,6 +81,9 @@ const QuickActionModalScreen: React.FC = () => {
   // Holder info derived from history
   const [holderLine, setHolderLine] = useState<string | null>(null);
   const [holderLoading, setHolderLoading] = useState(false);
+  // Active holder kind/userId for Assign-to-me gate
+  const [activeHolderKind, setActiveHolderKind] = useState<'user' | 'site' | null>(null);
+  const [activeHolderUserId, setActiveHolderUserId] = useState<number | null>(null);
 
   const loadDevice = useCallback(async (cancelled: { current: boolean }) => {
     if (!tagUID) {
@@ -92,6 +95,8 @@ const QuickActionModalScreen: React.FC = () => {
     setNotFound(false);
     setErrorMsg(null);
     setHolderLine(null);
+    setActiveHolderKind(null);
+    setActiveHolderUserId(null);
     try {
       const tool = await toolsApi.getToolByNfc(tagUID);
       if (cancelled.current) return;
@@ -131,8 +136,12 @@ const QuickActionModalScreen: React.FC = () => {
 
         if (tool.is_available || !current) {
           setHolderLine('Available');
+          setActiveHolderKind(null);
+          setActiveHolderUserId(null);
         } else if (current.assignee_user_id) {
           setHolderLine(`👤 ${current.assignee_user_email || 'Unknown user'}`);
+          setActiveHolderKind('user');
+          setActiveHolderUserId(current.assignee_user_id);
         } else if (current.assignee_site_id) {
           const siteName = current.assignee_site_name || 'Unknown location';
           // Also find last user holder
@@ -142,8 +151,12 @@ const QuickActionModalScreen: React.FC = () => {
           } else {
             setHolderLine(`📍 ${siteName}`);
           }
+          setActiveHolderKind('site');
+          setActiveHolderUserId(null);
         } else {
           setHolderLine('Available');
+          setActiveHolderKind(null);
+          setActiveHolderUserId(null);
         }
       }).catch(() => {
         if (cancelled.current) return;
@@ -424,8 +437,9 @@ const QuickActionModalScreen: React.FC = () => {
 
             {isAdminOrOwner ? (
               <>
-                {/* Only offer Assign when the tool is available; if held, Return/Transfer covers it */}
-                {device.is_available !== false ? (
+                {/* Show Assign unless tool is held by a different user. Available
+                    tools and site-held tools can always be grabbed. */}
+                {!(activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null)) ? (
                   <Button
                     title="Assign device"
                     onPress={handleAssign}
