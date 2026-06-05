@@ -20,7 +20,7 @@ import { organizations as organizationsApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
 
 const CreateOrganizationScreen = ({ navigation, route }) => {
-  const { updateOnboarding, refreshUser, isLoading } = useAuth();
+  const { updateOnboarding, refreshUser, isLoading, logout } = useAuth();
   const { colors } = useTheme();
 
   const isEditMode = route?.params?.mode === 'edit';
@@ -289,59 +289,61 @@ const CreateOrganizationScreen = ({ navigation, route }) => {
           />
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Registered Address</Text>
-          <Text style={styles.sectionDescription}>
-            Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
-          </Text>
+        {!isEditMode && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Registered Address</Text>
+            <Text style={styles.sectionDescription}>
+              Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
+            </Text>
 
-          <FormField
-            label="Address Line 1"
-            value={addressLine1}
-            onChangeText={setAddressLine1}
-            placeholder="Street address, P.O. box, etc."
-            error={errors.addressLine1}
-            required={true}
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="Address Line 1"
+              value={addressLine1}
+              onChangeText={setAddressLine1}
+              placeholder="Street address, P.O. box, etc."
+              error={errors.addressLine1}
+              required={true}
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="Address Line 2"
-            value={addressLine2}
-            onChangeText={setAddressLine2}
-            placeholder="Apartment, suite, unit, building, floor, etc."
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="Address Line 2"
+              value={addressLine2}
+              onChangeText={setAddressLine2}
+              placeholder="Apartment, suite, unit, building, floor, etc."
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="City/Town"
-            value={city}
-            onChangeText={setCity}
-            placeholder="City or town"
-            error={errors.city}
-            required={true}
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="City/Town"
+              value={city}
+              onChangeText={setCity}
+              placeholder="City or town"
+              error={errors.city}
+              required={true}
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="County"
-            value={county}
-            onChangeText={setCounty}
-            placeholder="County"
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="County"
+              value={county}
+              onChangeText={setCounty}
+              placeholder="County"
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="Postcode"
-            value={postcode}
-            onChangeText={setPostcode}
-            placeholder="Postcode"
-            error={errors.postcode}
-            required={true}
-            autoCapitalize="characters"
-            editable={!isFormLoading}
-          />
-        </View>
+            <FormField
+              label="Postcode"
+              value={postcode}
+              onChangeText={setPostcode}
+              placeholder="Postcode"
+              error={errors.postcode}
+              required={true}
+              autoCapitalize="characters"
+              editable={!isFormLoading}
+            />
+          </View>
+        )}
         
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: colors.primary }, isFormLoading && styles.disabledButton]}
