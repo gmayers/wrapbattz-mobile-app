@@ -4,6 +4,7 @@ import * as assignmentsApi from '../../../api/endpoints/assignments';
 import * as toolsApi from '../../../api/endpoints/tools';
 import { ApiError } from '../../../api/errors';
 import type { AssignmentRead, ToolRead } from '../../../api/types';
+import { enrichLastHeld } from './lastHeld';
 
 export interface ToolItem {
   id: string;
@@ -119,7 +120,32 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
           const mine = await assignmentsApi.listMyActiveAssignments();
           if (!cancelled) {
             setHasLoadedOnce(true);
-            setGroups(groupMine(mine));
+            const initialGroups = groupMine(mine);
+            setGroups(initialGroups);
+            // Fire-and-forget: enrich location-held tools with "last held by <user>".
+            const siteHeldIds = initialGroups
+              .flatMap((g) => g.tools)
+              .filter((t) => t.siteHeld)
+              .map((t) => Number(t.id));
+            if (siteHeldIds.length > 0) {
+              enrichLastHeld(
+                siteHeldIds,
+                (id) => toolsApi.getToolHistory(id),
+                (id, name) => {
+                  if (!name || cancelled) return;
+                  setGroups((prev) =>
+                    prev.map((g) => ({
+                      ...g,
+                      tools: g.tools.map((t) =>
+                        Number(t.id) === id && t.siteHeld && !/last held by/.test(t.holderLabel ?? '')
+                          ? { ...t, holderLabel: `${t.holderLabel} · last held by ${name}` }
+                          : t
+                      ),
+                    }))
+                  );
+                },
+              );
+            }
           }
         } else {
           const page = await toolsApi.listTools({ page_size: 200 });
