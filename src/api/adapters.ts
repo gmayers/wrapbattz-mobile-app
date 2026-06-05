@@ -9,6 +9,17 @@ import type {
   ToolRead,
 } from './types';
 
+export type Holder =
+  | { kind: 'user'; name: string }
+  | { kind: 'site'; name: string }
+  | null;
+
+export function deriveHolder(a: AssignmentRead): Holder {
+  if (a.assignee_user_id != null) return { kind: 'user', name: a.assignee_user_email ?? '' };
+  if (a.assignee_site_id != null) return { kind: 'site', name: a.assignee_site_name ?? '' };
+  return null;
+}
+
 export interface LegacyAssignment {
   id: number;
   uuid: string;
@@ -32,6 +43,7 @@ export interface LegacyAssignment {
   status: string;
   condition: string;
   notes: string;
+  holder: Holder;
 }
 
 export function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
@@ -61,6 +73,7 @@ export function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
     status: a.status ?? 'active',
     condition: a.condition ?? '',
     notes: a.notes ?? '',
+    holder: deriveHolder(a),
   };
 }
 
