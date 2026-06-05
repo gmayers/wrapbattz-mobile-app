@@ -82,7 +82,7 @@ const QuickActionModalScreen: React.FC = () => {
   const [holderLine, setHolderLine] = useState<string | null>(null);
   const [holderLoading, setHolderLoading] = useState(false);
 
-  const loadDevice = useCallback(async () => {
+  const loadDevice = useCallback(async (cancelled: { current: boolean }) => {
     if (!tagUID) {
       setErrorMsg('Missing tag ID.');
       setLoading(false);
@@ -94,15 +94,19 @@ const QuickActionModalScreen: React.FC = () => {
     setHolderLine(null);
     try {
       const tool = await toolsApi.getToolByNfc(tagUID);
+      if (cancelled.current) return;
       // Look up the active assignment so we can return it later.
       let currentAssignmentId: number | null = null;
       try {
         const active = await assignmentsApi.listMyActiveAssignments();
-        const match = active.find((a) => a.tool_id === tool.id);
-        if (match) currentAssignmentId = match.id;
+        if (!cancelled.current) {
+          const match = active.find((a) => a.tool_id === tool.id);
+          if (match) currentAssignmentId = match.id;
+        }
       } catch {
         // Non-critical.
       }
+      if (cancelled.current) return;
       setDevice({
         id: tool.id,
         identifier: tool.name,
@@ -117,6 +121,7 @@ const QuickActionModalScreen: React.FC = () => {
       // Load holder info from history (non-blocking — renders card first)
       setHolderLoading(true);
       toolsApi.getToolHistory(tool.id).then((history) => {
+        if (cancelled.current) return;
         const items = history.items ?? [];
         // Find the most recent active assignment to determine current holder
         const active = items
@@ -141,23 +146,30 @@ const QuickActionModalScreen: React.FC = () => {
           setHolderLine('Available');
         }
       }).catch(() => {
+        if (cancelled.current) return;
         // Non-critical — just don't show holder line
         setHolderLine(null);
       }).finally(() => {
+        if (cancelled.current) return;
         setHolderLoading(false);
       });
     } catch (err) {
+      if (cancelled.current) return;
       if (err instanceof ApiError && err.code === 'not_found') {
         setNotFound(true);
       } else if (!(err instanceof ApiError && err.code === 'unauthorized')) {
         setErrorMsg((err instanceof ApiError && err.message) || 'Could not load device.');
       }
     } finally {
-      setLoading(false);
+      if (!cancelled.current) setLoading(false);
     }
   }, [tagUID]);
 
-  useEffect(() => { loadDevice(); }, [loadDevice]);
+  useEffect(() => {
+    const cancelled = { current: false };
+    loadDevice(cancelled);
+    return () => { cancelled.current = true; };
+  }, [loadDevice]);
 
   const loadDestinations = useCallback(async () => {
     setDestinationsLoading(true);
@@ -331,7 +343,7 @@ const QuickActionModalScreen: React.FC = () => {
           <Text style={[styles.hintText, { color: colors.textSecondary }]}>
             {errorMsg}
           </Text>
-          <Button title="Try again" onPress={loadDevice} style={styles.primaryBtn} />
+          <Button title="Try again" onPress={() => loadDevice({ current: false })} style={styles.primaryBtn} />
         </View>
       ) : notFound ? (
         <View style={styles.centered} testID="quick-action-not-found">
@@ -357,20 +369,22 @@ const QuickActionModalScreen: React.FC = () => {
       ) : device ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Holder / location block — shown prominently above action buttons */}
-          <View style={[styles.holderBlock, { backgroundColor: colors.card, borderColor: colors.borderLight }]} testID="quick-action-holder-block">
-            {holderLoading ? (
-              <View style={styles.holderLoadingRow}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.holderLoadingText, { color: colors.textSecondary }]}>
-                  Checking holder…
+          {(holderLoading || holderLine) ? (
+            <View style={[styles.holderBlock, { backgroundColor: colors.card, borderColor: colors.borderLight }]} testID="quick-action-holder-block">
+              {holderLoading ? (
+                <View style={styles.holderLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.holderLoadingText, { color: colors.textSecondary }]}>
+                    Checking holder…
+                  </Text>
+                </View>
+              ) : (
+                <Text style={[styles.holderText, { color: colors.textPrimary }]} testID="quick-action-holder-line">
+                  {holderLine}
                 </Text>
-              </View>
-            ) : holderLine ? (
-              <Text style={[styles.holderText, { color: colors.textPrimary }]} testID="quick-action-holder-line">
-                {holderLine}
-              </Text>
-            ) : null}
-          </View>
+              )}
+            </View>
+          ) : null}
 
           <View style={[styles.deviceCard, { backgroundColor: colors.card, borderColor: colors.borderLight }]}>
             <Text style={[styles.deviceIdentifier, { color: colors.textPrimary }]} testID="quick-action-device-identifier">
