@@ -63,7 +63,7 @@ const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ visible, onDismiss }) => 
             accessibilityRole="button"
             accessibilityLabel="Dismiss What's New"
           >
-            <Text style={styles.btnText}>Got it</Text>
+            <Text style={[styles.btnText, { color: colors.onPrimary }]}>Got it</Text>
           </TouchableOpacity>
         </View>
       </View>
