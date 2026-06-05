@@ -223,8 +223,16 @@ jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
 
-// Mock expo-file-system
+// Mock expo-file-system (root export — v19 new API, kept for completeness)
 jest.mock('expo-file-system', () => ({
+  cacheDirectory: 'file:///cache/',
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+}));
+
+// Mock expo-file-system/legacy (the subpath used by exportCsv.ts after the
+// SDK-54 / expo-file-system v19 root-export breaking change)
+jest.mock('expo-file-system/legacy', () => ({
   cacheDirectory: 'file:///cache/',
   writeAsStringAsync: jest.fn(() => Promise.resolve()),
   EncodingType: { UTF8: 'utf8', Base64: 'base64' },
