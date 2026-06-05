@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -72,6 +72,7 @@ const [formData, setFormData] = useState({
   const [deviceIdentifier, setDeviceIdentifier] = useState('');
   const [isWritingNfc, setIsWritingNfc] = useState(false);
   const [nfcWriteSuccess, setNfcWriteSuccess] = useState(false);
+  const finishTimerRef = useRef(null);
   const [scannedNfcUuid, setScannedNfcUuid] = useState(null); // NFC tag hardware UUID for registration
   const [isScanningNfc, setIsScanningNfc] = useState(false);
   const [preScannedNfcTagId, setPreScannedNfcTagId] = useState(null); // NFC tag scanned before form submission
@@ -157,6 +158,11 @@ const [formData, setFormData] = useState({
       }
     }
   }, [locations]);
+
+  // Clear the auto-navigate timer if the component unmounts before it fires.
+  useEffect(() => () => {
+    if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
+  }, []);
 
   const fetchLocations = async () => {
     try {
@@ -393,11 +399,10 @@ const validateForm = () => {
 
     try {
       // STEP 1: Create the tool
-      const deviceData = prepareDeviceData();
       const finalMake = formData.make === 'Other' ? otherMake : formData.make;
       const matchedId = matchCategoryId(formData.category, backendCategories);
       const toolPayload = {
-        name: deviceData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
+        name: formData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
@@ -497,6 +502,11 @@ const formatDate = (date) => {
   };
 
   const resetForm = () => {
+    // Cancel any pending auto-navigate timer so it can't fire after a reset.
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
+    }
     // Calculate a new date 2 weeks from today for reset
     const twoWeeksFromNow = new Date();
     twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
@@ -546,12 +556,18 @@ const formatDate = (date) => {
   };
 
   // Keep backward-compatible alias used by modal buttons.
-  const handleFinish = () => finish();
+  const handleFinish = () => {
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
+    }
+    finish();
+  };
 
   const handleNFCSuccess = () => {
     setNfcWriteSuccess(true);
     // Auto-advance after a brief moment so the user sees the success badge.
-    setTimeout(() => finish(), 1500);
+    finishTimerRef.current = setTimeout(() => finish(), 1500);
   };
 
 /**
