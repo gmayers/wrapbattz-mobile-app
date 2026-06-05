@@ -35,7 +35,7 @@ describe('DashboardScreen', () => {
     currentRole = 'admin';
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Add device')).toBeTruthy();
-    expect(screen.getByLabelText('Print tags')).toBeTruthy();
+    expect(screen.getByLabelText('Browse Devices')).toBeTruthy();
     expect(screen.getByLabelText('Log maint.')).toBeTruthy();
     expect(screen.getByLabelText('Export')).toBeTruthy();
   });

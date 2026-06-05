@@ -36,10 +36,9 @@ const FleetStatusScreen: React.FC = () => {
         onPress: () => navigation.navigate('AddDevice'),
       },
       {
-        key: 'printTags',
-        label: 'Print tags',
-        icon: 'pricetag-outline',
-        // BACKEND_GAP: no print-tags flow yet — routes to AllDevices for picking.
+        key: 'browseDevices',
+        label: 'Browse Devices',
+        icon: 'list-outline',
         onPress: () => navigation.navigate('AllDevices'),
       },
       {
