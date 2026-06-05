@@ -128,7 +128,7 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
               .filter((t) => t.siteHeld)
               .map((t) => Number(t.id));
             if (siteHeldIds.length > 0) {
-              enrichLastHeld(
+              void enrichLastHeld(
                 siteHeldIds,
                 (id) => toolsApi.getToolHistory(id),
                 (id, name) => {
@@ -144,7 +144,7 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
                     }))
                   );
                 },
-              );
+              ).catch(() => {});
             }
           }
         } else {
