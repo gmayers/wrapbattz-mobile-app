@@ -45,6 +45,11 @@ export const DEVICE_STATUS_CHOICES = [
   { value: 'lost', label: 'Lost' }
 ];
 
+// Normalize a UK postcode: trim, uppercase, collapse internal whitespace.
+// The backend rejects lowercase postcodes so we fix it client-side before submit.
+export const normalizePostcode = (pc) =>
+  (pc || '').toString().trim().toUpperCase().replace(/\s+/g, ' ');
+
 // Common validation functions
 export const validation = {
   email: (email) => {
@@ -367,6 +372,7 @@ export default {
   REPORT_STATUS_CHOICES,
   REPORT_TYPE_CHOICES,
   DEVICE_STATUS_CHOICES,
+  normalizePostcode,
   validation,
   formatting,
   getStatusColor,

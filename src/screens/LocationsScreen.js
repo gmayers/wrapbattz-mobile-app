@@ -27,6 +27,7 @@ import { useTheme } from '../context/ThemeContext';
 import { sites as sitesApi } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { normalizePostcode } from '../utils/CommonUtils';
 
 // Map the screen's legacy address form shape to the new Site* payload.
 const toSitePayload = (formData) => {
@@ -44,8 +45,8 @@ const toSitePayload = (formData) => {
     city: formData.town_or_city || '',
     // Normalize to canonical uppercase UK postcode. The backend rejects
     // lowercase postcodes ("invalid postcode"), so a user typing "sw1a 1aa"
-    // would fail; uppercasing here makes case irrelevant to the user.
-    postcode: formData.postcode?.trim().toUpperCase() || ''
+    // would fail; normalizePostcode makes case and extra spaces irrelevant.
+    postcode: normalizePostcode(formData.postcode),
 };
 };
 

@@ -18,12 +18,13 @@ import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { sites as sitesApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
+import { normalizePostcode } from '../utils/CommonUtils';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
 
 const CreateLocationScreen = ({ navigation, route }) => {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, userData } = useAuth();
 
   const [formData, setFormData] = useState({
     building_name: '',
@@ -76,7 +77,7 @@ const CreateLocationScreen = ({ navigation, route }) => {
       errors.town_or_city = 'Town/City is required';
     }
     
-    if (!formData.postcode.trim()) {
+    if (!normalizePostcode(formData.postcode)) {
       errors.postcode = 'Postcode is required';
     }
     
@@ -108,7 +109,7 @@ const CreateLocationScreen = ({ navigation, route }) => {
         nickname: formData.building_name || '',
         address_line1: address1,
         city: formData.town_or_city || '',
-        postcode: formData.postcode || ''
+        postcode: normalizePostcode(formData.postcode),
 });
 
       Alert.alert(
