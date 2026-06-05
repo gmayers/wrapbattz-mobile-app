@@ -14,6 +14,7 @@ export type Holder =
   | { kind: 'site'; name: string }
   | null;
 
+// name may be an empty string if the server omitted the email/site name despite the id being present.
 export function deriveHolder(a: AssignmentRead): Holder {
   if (a.assignee_user_id != null) return { kind: 'user', name: a.assignee_user_email ?? '' };
   if (a.assignee_site_id != null) return { kind: 'site', name: a.assignee_site_name ?? '' };

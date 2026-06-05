@@ -23,4 +23,8 @@ describe('toLegacyAssignment holder', () => {
   it('unassigned → holder null', () => {
     expect(toLegacyAssignment(base).holder).toBeNull();
   });
+  it('user id present but email omitted → holder kind user with empty name', () => {
+    const a = toLegacyAssignment({ ...base, assignee_user_id: 5, assignee_user_email: '' });
+    expect(a.holder).toEqual({ kind: 'user', name: '' });
+  });
 });
