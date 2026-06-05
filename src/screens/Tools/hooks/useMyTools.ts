@@ -9,6 +9,8 @@ export interface ToolItem {
   id: string;
   identifier: string;
   toolType?: string;
+  holderLabel?: string;
+  siteHeld?: boolean;
   status: 'assigned' | 'available' | 'missing' | 'maintenance';
 }
 
@@ -21,6 +23,7 @@ export interface SiteGroup {
 
 export interface UseMyToolsResult {
   isLoading: boolean;
+  hasLoadedOnce: boolean;
   groups: SiteGroup[];
   filter: 'mine' | 'all';
   setFilter: (f: 'mine' | 'all') => void;
@@ -41,12 +44,22 @@ function mapToolStatus(raw: string | undefined): ToolItem['status'] {
 
 function groupMine(assignments: AssignmentRead[]): SiteGroup[] {
   if (assignments.length === 0) return [];
-  const tools: ToolItem[] = assignments.map((a) => ({
-    id: String(a.tool_id),
-    identifier: a.tool_name,
-    toolType: a.assignee_site_name || undefined,
-    status: 'assigned',
-  }));
+  const tools: ToolItem[] = assignments.map((a) => {
+    const holder =
+      a.assignee_user_id != null
+        ? `👤 ${a.assignee_user_email || 'Assigned'}`
+        : a.assignee_site_id != null
+          ? `📍 ${a.assignee_site_name || 'Location'}`
+          : 'Available';
+    return {
+      id: String(a.tool_id),
+      identifier: a.tool_name,
+      toolType: undefined,
+      holderLabel: holder,
+      siteHeld: a.assignee_user_id == null && a.assignee_site_id != null,
+      status: 'assigned',
+    };
+  });
   return [
     {
       siteId: MINE_GROUP_ID,
@@ -63,6 +76,7 @@ function groupAll(tools: ToolRead[]): SiteGroup[] {
     id: String(t.id),
     identifier: t.name,
     toolType: t.category_name || [t.make, t.model].filter(Boolean).join(' ') || undefined,
+    holderLabel: t.is_available ? 'Available' : 'In use',
     status: mapToolStatus(t.status),
   }));
   return [
@@ -89,6 +103,10 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
   // focus events don't stack extra requests.
   const inFlightRef = useRef(false);
 
+  // Track whether we've completed at least one successful load so the empty
+  // state is not shown while the first request is still in flight.
+  const hasLoadedOnce = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
     inFlightRef.current = true;
@@ -99,15 +117,22 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
       try {
         if (filter === 'mine') {
           const mine = await assignmentsApi.listMyActiveAssignments();
-          if (!cancelled) setGroups(groupMine(mine));
+          if (!cancelled) {
+            hasLoadedOnce.current = true;
+            setGroups(groupMine(mine));
+          }
         } else {
           const page = await toolsApi.listTools({ page_size: 200 });
-          if (!cancelled) setGroups(groupAll(page.items));
+          if (!cancelled) {
+            hasLoadedOnce.current = true;
+            setGroups(groupAll(page.items));
+          }
         }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.code === 'unauthorized') return;
-        setGroups([]);
+        // Do NOT clear groups on error — keep the previously-loaded list so
+        // a mid-flight focus refresh doesn't cause an empty-state flicker.
         setError(
           (err instanceof ApiError && err.message) ||
             'Could not load tools. Please try again.'
@@ -131,5 +156,5 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
     }, [refresh])
   );
 
-  return { isLoading, groups, filter, setFilter, error, refresh };
+  return { isLoading, hasLoadedOnce: hasLoadedOnce.current, groups, filter, setFilter, error, refresh };
 }

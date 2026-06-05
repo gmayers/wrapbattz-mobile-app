@@ -13,7 +13,7 @@ const ToolsScreen: React.FC = () => {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const isAdminOrOwner = userData?.role === 'admin' || userData?.role === 'owner';
-  const { isLoading, groups, filter, setFilter } = useMyTools(
+  const { isLoading, hasLoadedOnce, groups, filter, setFilter, error } = useMyTools(
     isAdminOrOwner ? 'all' : 'mine'
   );
 
@@ -43,11 +43,13 @@ const ToolsScreen: React.FC = () => {
         renderSectionHeader={({ section }) => <SiteGroupHeader group={(section as any).group} />}
         renderItem={({ item }) => <ToolsListItem item={item} onPress={handleToolPress} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No tools yet. Tap Scan to check a tag.
-            </Text>
-          </View>
+          hasLoadedOnce && !isLoading && !error ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No tools yet. Tap Scan to check a tag.
+              </Text>
+            </View>
+          ) : null
         }
         stickySectionHeadersEnabled
       />

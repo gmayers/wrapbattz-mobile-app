@@ -28,6 +28,7 @@ const ToolsListItem: React.FC<Props> = ({ item, onPress }) => {
       <View style={styles.info}>
         <Text style={[styles.identifier, { color: colors.textPrimary }]}>{item.identifier}</Text>
         {item.toolType ? <Text style={[styles.type, { color: colors.textSecondary }]}>{item.toolType}</Text> : null}
+        {item.holderLabel ? <Text style={[styles.holder, { color: colors.textPrimary }]}>{item.holderLabel}</Text> : null}
       </View>
       <View style={[styles.statusChip, { backgroundColor: chipColor + '22', borderColor: chipColor }]}>
         <Text style={[styles.statusText, { color: chipColor }]}>{item.status}</Text>
@@ -42,6 +43,7 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   identifier: { fontSize: 15, fontWeight: '600' },
   type: { fontSize: 12, marginTop: 2 },
+  holder: { fontSize: 12, marginTop: 3, fontWeight: '600' },
   statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, marginRight: 8 },
   statusText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
 });
