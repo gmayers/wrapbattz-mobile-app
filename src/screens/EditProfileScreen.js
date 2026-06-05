@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const EditProfileScreen = ({ navigation, route }) => {
-  const { updateUser, user, userData } = useAuth();
+  const { updateUser, user } = useAuth();
   const { colors } = useTheme();
   
   // Get profile data from route params; fall back to the current user so
@@ -48,12 +48,12 @@ const EditProfileScreen = ({ navigation, route }) => {
   const [errors, setErrors] = useState({});
 
   // If user loads asynchronously after mount, seed the form — but only when
-  // every field is still at its empty initial value (don't clobber edits).
+  // email is still empty (consistent with the lazy initializer's discriminator;
+  // don't clobber in-progress edits).
   useEffect(() => {
     if (!user) return;
     setFormData((prev) => {
-      const allEmpty = !prev.first_name && !prev.last_name && !prev.email && !prev.phone_number;
-      if (!allEmpty) return prev;
+      if (prev.email) return prev;
       return seedFromUser(user);
     });
   }, [user]);
