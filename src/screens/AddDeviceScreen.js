@@ -28,6 +28,7 @@ import {
 } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { DEVICE_CATEGORIES, matchCategoryId } from '../constants/deviceCategories';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
@@ -59,7 +60,7 @@ const [formData, setFormData] = useState({
     description: '',
     make: 'Makita',
     model: '',
-    category_id: null, // Tool category (make/model/type) — resolved from /tools/categories/
+    category: 'Tool', // Fixed category name from DEVICE_CATEGORIES
     serial_number: '',
     maintenance_interval: '',
     next_maintenance_date: twoWeeksFromNow,
@@ -94,6 +95,7 @@ const [formData, setFormData] = useState({
   const [locationOptions, setLocationOptions] = useState([]);
   const [userOptions, setUserOptions] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const [backendCategories, setBackendCategories] = useState([]);
   const [otherMake, setOtherMake] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [createdDeviceId, setCreatedDeviceId] = useState(null);
@@ -167,29 +169,26 @@ const [formData, setFormData] = useState({
     }
   };
 
-  // Categories (make/model/type) now live in their own table; the tool create
-  // payload references one by category_id, so load the options for the dropdown.
+  // Build fixed category options from DEVICE_CATEGORIES and fetch backend
+  // categories for id matching on create (no lookup endpoint — best-effort only).
   const fetchCategories = async () => {
+    // Fixed options are always available — no spinner, no disabled state.
+    const options = DEVICE_CATEGORIES.map((name) => ({
+      label: name,
+      value: name,
+      key: `category-${name}`
+    }));
+    setCategoryOptions(options);
+    logMessage(`Using ${options.length} fixed device categories`);
+
+    // Fetch backend categories for id resolution on create (optional, silent on failure).
     try {
       const categories = await toolsApi.listToolCategories();
-      const options = categories.map((c) => ({
-        label: c.name,
-        value: c.id,
-        key: `category-${c.id}`
-      }));
-      logMessage(`Loaded ${options.length} tool categories`);
-      setCategoryOptions(options);
-
-      // Default to the first category if the form doesn't have one yet.
-      setFormData(prev =>
-        prev.category_id == null && options.length > 0
-          ? { ...prev, category_id: options[0].value }
-          : prev
-      );
+      setBackendCategories(categories);
+      logMessage(`Fetched ${categories.length} backend categories for id matching`);
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      logMessage(`Error fetching categories: ${error.message}`);
-      Alert.alert('Error', 'Failed to load device categories. Please try again.');
+      logMessage(`Could not fetch backend categories (non-fatal): ${error.message}`);
+      // Not an error the user needs to see; fixed labels still work.
     }
   };
 
@@ -315,7 +314,7 @@ const handleInputChange = (name, value) => {
   };
 
   const handleCategoryChange = (value) => {
-    handleInputChange('category_id', value);
+    handleInputChange('category', value);
   };
 const validateForm = () => {
     // Collect all missing required fields
@@ -367,7 +366,7 @@ const validateForm = () => {
       description: formData.description,
       make: finalMake || '',
       model: formData.model,
-      category_id: formData.category_id,
+      category: formData.category,
       serial_number: formData.serial_number || '',
       maintenance_interval: formData.maintenance_interval || null,
       // Format date as DD/MM/YYYY as expected by the backend
@@ -396,14 +395,32 @@ const validateForm = () => {
       // STEP 1: Create the tool
       const deviceData = prepareDeviceData();
       const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-      const createdTool = await toolsApi.createTool({
+      const matchedId = matchCategoryId(formData.category, backendCategories);
+      const toolPayload = {
         name: deviceData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
-        category_id: formData.category_id != null ? Number(formData.category_id) : null,
-        ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {})
-});
+        ...(matchedId != null ? { category_id: matchedId } : { category: formData.category }),
+        nfc_tag_id: preScannedNfcTagId ?? null,
+      };
+      let createdTool;
+      try {
+        createdTool = await toolsApi.createTool(toolPayload);
+      } catch (createError) {
+        // If the backend 400s on the unknown `category` field, retry once without it.
+        if (
+          createError instanceof ApiError &&
+          createError.code === 'validation' &&
+          matchedId == null
+        ) {
+          logMessage('[BACKEND] category field rejected (400); retrying with category_id: null');
+          const { category: _dropped, ...payloadWithoutCategory } = toolPayload;
+          createdTool = await toolsApi.createTool({ ...payloadWithoutCategory, category_id: null });
+        } else {
+          throw createError;
+        }
+      }
 
       const createdDeviceId = createdTool.id;
       const identifier = createdTool.name;
@@ -433,8 +450,14 @@ const validateForm = () => {
       setApiResponse(createdTool);
       setCreatedDeviceId(createdDeviceId);
       setDeviceIdentifier(identifier);
-      
-      // Show the success modal
+
+      // If there is no pre-scanned NFC tag, skip the write step and auto-navigate.
+      if (!preScannedNfcTagId) {
+        navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+        return;
+      }
+
+      // NFC tag is registered — show the write-options modal.
       setNfcModalVisible(true);
       
     } catch (error) {
@@ -482,7 +505,7 @@ const formatDate = (date) => {
       description: '',
       make: 'Makita', // Reset to default
       model: '',
-      category_id: categoryOptions.length > 0 ? categoryOptions[0].value : null, // Reset to first category
+      category: 'Tool', // Reset to first fixed category
       serial_number: '',
       maintenance_interval: '',
       next_maintenance_date: twoWeeksFromNow, // Reset to 2 weeks from now
@@ -512,19 +535,23 @@ const formatDate = (date) => {
     setNfcModalVisible(false);
   };
 
-  const handleFinish = () => {
-    if (createdDeviceId) {
-      setNfcModalVisible(false);
-      navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+  const finish = (deviceId) => {
+    const id = deviceId ?? createdDeviceId;
+    setNfcModalVisible(false);
+    if (id) {
+      navigation.replace('DeviceDetails', { deviceId: id });
     } else {
       navigation.goBack();
     }
   };
 
+  // Keep backward-compatible alias used by modal buttons.
+  const handleFinish = () => finish();
+
   const handleNFCSuccess = () => {
-    // Just update the UI state to show success, but keep the modal open
-    // for the user to choose next steps
     setNfcWriteSuccess(true);
+    // Auto-advance after a brief moment so the user sees the success badge.
+    setTimeout(() => finish(), 1500);
   };
 
 /**
@@ -747,16 +774,15 @@ return (
               />
             </View>
 
-            {/* Category Dropdown (make/model/type lookup) — optional */}
+            {/* Category Dropdown — fixed list, always enabled */}
             <View style={styles.formField}>
               <Text style={[styles.label, { color: colors.textPrimary }]}>Category (optional)</Text>
               <Dropdown
-                value={formData.category_id}
+                value={formData.category}
                 onValueChange={handleCategoryChange}
                 items={categoryOptions}
-                placeholder={categoryOptions.length === 0 ? 'No categories available' : 'Select Category'}
+                placeholder="Select Category"
                 testID="device-type-dropdown"
-                disabled={categoryOptions.length === 0}
                 containerStyle={[
                   styles.dropdownContainer,
                   Platform.OS === 'ios' && styles.iosDropdownContainer
