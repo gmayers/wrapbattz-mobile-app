@@ -3,6 +3,7 @@ import { BOOTSTRAP_TIMEOUT_MS } from '../config';
 import type {
   NotificationMarkReadRequest,
   NotificationRead,
+  OnboardingState,
   OnboardingUpdate,
   PushTokenDelete,
   PushTokenRead,
@@ -28,6 +29,11 @@ export function getMeBootstrap(): Promise<UserMe> {
 
 export async function updateMe(payload: UserUpdate): Promise<UserMe> {
   const { data } = await apiClient.patch<UserMe>('/account/', payload);
+  return data;
+}
+
+export async function getOnboarding(): Promise<OnboardingState> {
+  const { data } = await apiClient.get<OnboardingState>('/account/onboarding/');
   return data;
 }
 

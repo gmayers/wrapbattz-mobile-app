@@ -25,6 +25,12 @@ Sentry.init({
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
 
+// Minimum time (ms) the splash stays up so the brand mark is readable rather
+// than flashing by the instant fonts finish loading. Timed from module load
+// (app launch). If fonts take longer than this, the longer wait wins.
+const SPLASH_MIN_DISPLAY_MS = 1500;
+const splashShownAt = Date.now();
+
 function App() {
   console.log('🚀 App.js - Starting App component render');
   console.log('🔧 App.js - Platform:', Platform.OS);
@@ -36,6 +42,10 @@ function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
+      const remaining = SPLASH_MIN_DISPLAY_MS - (Date.now() - splashShownAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);

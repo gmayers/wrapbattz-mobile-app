@@ -24,10 +24,12 @@ import Card from '../components/Card';
 import SearchBar from '../components/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import Dropdown from '../components/Dropdown';
 import { sites as sitesApi } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import { normalizePostcode } from '../utils/CommonUtils';
+import { LOCATION_TYPES, LOCATION_TYPE_OTHER, DEFAULT_LOCATION_TYPE } from '../constants/locationTypes';
 
 // Map the screen's legacy address form shape to the new Site* payload.
 const toSitePayload = (formData) => {
@@ -69,6 +71,7 @@ const LocationsScreen = ({ navigation }) => {
   const [editingLocationId, setEditingLocationId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    site_type: DEFAULT_LOCATION_TYPE,
     building_name: '',
     street_number: '',
     street_name: '',
@@ -185,7 +188,13 @@ const LocationsScreen = ({ navigation }) => {
     if (!formData.street_number.trim()) {
       errors.street_number = 'Street number is required';
     }
-    
+
+    // For the "Other" type, the building-name field doubles as the free-text
+    // type label (stored in nickname), so require it.
+    if (formData.site_type === LOCATION_TYPE_OTHER && !formData.building_name.trim()) {
+      errors.building_name = 'Please specify the location type';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formData]);
@@ -203,6 +212,7 @@ const LocationsScreen = ({ navigation }) => {
       setModalVisible(false);
       setFormData({
         name: '',
+        site_type: DEFAULT_LOCATION_TYPE,
         building_name: '',
         street_number: '',
         street_name: '',
@@ -261,6 +271,7 @@ const LocationsScreen = ({ navigation }) => {
     setEditingLocationId(location.id);
     setFormData({
       name: location.name || '',
+      site_type: location.site_type || DEFAULT_LOCATION_TYPE,
       building_name: location.building_name || '',
       street_number: location.street_number || '',
       street_name: location.street_name || '',
@@ -290,6 +301,7 @@ const LocationsScreen = ({ navigation }) => {
       setEditingLocationId(null);
       setFormData({
         name: '',
+        site_type: DEFAULT_LOCATION_TYPE,
         building_name: '',
         street_number: '',
         street_name: '',
@@ -477,13 +489,36 @@ const LocationsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.textPrimary }]}>Building Name (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Location Type</Text>
+              <Dropdown
+                value={formData.site_type}
+                onValueChange={(value) => handleInputChange('site_type', value)}
+                items={LOCATION_TYPES}
+                placeholder="Select location type"
+                testID="location-type-dropdown"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>
+                {formData.site_type === LOCATION_TYPE_OTHER ? 'Specify Type*' : 'Building Name (Optional)'}
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  formErrors.building_name ? styles.inputError : null,
+                ]}
                 value={formData.building_name}
                 onChangeText={(text) => handleInputChange('building_name', text)}
-                placeholder="Enter building name"
+                placeholder={
+                  formData.site_type === LOCATION_TYPE_OTHER
+                    ? 'e.g. Storage container, Lock-up'
+                    : 'Enter building name'
+                }
               />
+              {formErrors.building_name ? (
+                <Text style={styles.errorText}>{formErrors.building_name}</Text>
+              ) : null}
             </View>
             
             <View style={styles.formRow}>

@@ -15,15 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import * as authApi from '../api/endpoints/auth';
-import { tools as toolsApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, userData, logout, updateUser, refreshUser, isAdminOrOwner } = useAuth();
+  const { user, userData, logout, updateUser, refreshUser, deleteAccount } = useAuth();
   const { colors, themeMode, setThemeMode } = useTheme();
-  
+
   const [profileData, setProfileData] = useState(null);
-  const [billingData, setBillingData] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -36,38 +34,6 @@ const ProfileScreen = ({ navigation }) => {
     try {
       const me = await refreshUser();
       setProfileData(me);
-
-      // New API has no billing endpoint yet. For admin/owner, surface the
-      // tool count so the existing billing card renders something real.
-      if (isAdminOrOwner) {
-        try {
-          const page = await toolsApi.listTools({ page: 1, page_size: 1 });
-          const toolCount = page.total ?? 0;
-          setBillingData({
-            total_devices: toolCount,
-            free_devices_remaining: Math.max(0, 3 - toolCount),
-            billable_devices: Math.max(0, toolCount - 3),
-            billing: {
-              status: 'inactive',
-              plan_type: null,
-              max_devices: toolCount,
-              next_billing_date: null
-}
-});
-        } catch (usageError) {
-          setBillingData({
-            total_devices: 0,
-            free_devices_remaining: 3,
-            billable_devices: 0,
-            billing: {
-              status: 'inactive',
-              plan_type: null,
-              max_devices: 0,
-              next_billing_date: null
-}
-});
-        }
-      }
     } catch (err) {
       if (!(err instanceof ApiError && err.code === 'unauthorized')) {
         setError('Failed to load profile data');
@@ -75,7 +41,7 @@ const ProfileScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [refreshUser, isAdminOrOwner]);
+  }, [refreshUser]);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -141,6 +107,49 @@ const ProfileScreen = ({ navigation }) => {
     setEmailNotificationsEnabled(value);
   }, []);
   
+  // Permanent account deletion (App Store Guideline 5.1.1(v)). Two-step
+  // destructive confirmation, then DELETE /account/ via AuthContext. On success
+  // the auth state flips to unauthenticated and navigation returns to login.
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account and your personal data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirm Deletion',
+              'Are you absolutely sure? Your account will be permanently deleted.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete Permanently',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteAccount();
+                    } catch (e) {
+                      Alert.alert(
+                        'Error',
+                        (e instanceof ApiError && e.message) ||
+                          'Failed to delete account. Please try again.'
+                      );
+                    }
+                  },
+                },
+              ],
+              { cancelable: true }
+            );
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [deleteAccount]);
+
   const handleLogout = useCallback(() => {
     Alert.alert(
       'Logout',
@@ -179,23 +188,6 @@ const ProfileScreen = ({ navigation }) => {
     return (firstInitial + lastInitial).toUpperCase();
   };
   
-  // Create a billing status label and color
-  const getBillingStatus = () => {
-    const status = billingData?.billing?.status || 'inactive';
-
-    switch (status) {
-      case 'active':
-        return { label: 'Active', color: colors.success };
-      case 'past_due':
-        return { label: 'Past Due', color: colors.warning };
-      case 'canceled':
-        return { label: 'Canceled', color: colors.error };
-      case 'inactive':
-      default:
-        return { label: 'Inactive', color: colors.disabled };
-    }
-  };
-  
   // Handle error screen
   if (error) {
     return (
@@ -226,8 +218,6 @@ const ProfileScreen = ({ navigation }) => {
     );
   }
   
-  // Get billing status
-  const billingStatus = getBillingStatus();
 
   const appearanceOptions = [
     { label: 'System', value: 'system', icon: 'phone-portrait-outline' },
@@ -250,65 +240,9 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={[styles.emailText, { color: colors.textSecondary }]}>{profileData?.email}</Text>
         </View>
 
-        {/* Device Management Fee Section - Only for Admin/Owner */}
-        {isAdminOrOwner && (
-          <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Device Management</Text>
-              <View style={[styles.billingBadge, { backgroundColor: billingStatus.color }]}>
-                <Text style={styles.billingBadgeText}>{billingStatus.label}</Text>
-              </View>
-            </View>
-
-            {billingData?.billing?.status === 'active' ? (
-              <>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Plan:</Text>
-                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                    {billingData.billing.plan_type === 'monthly' ? 'Monthly' : 'Annual'}
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Devices:</Text>
-                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                    {billingData.total_devices} ({billingData.billable_devices} billable)
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Next Billing:</Text>
-                  <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
-                    {formatDate(billingData.billing.next_billing_date)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.actionButton, { borderTopColor: colors.borderLight }]}
-                  onPress={() => navigation.navigate('ManageBilling')}
-                >
-                  <Text style={[styles.actionButtonText, { color: colors.primary }]}>Manage Billing</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <View style={styles.noBillingContainer}>
-                <Text style={[styles.noBillingText, { color: colors.textSecondary }]}>
-                  {billingData?.total_devices <= 3
-                    ? "You're using the free tier (up to 3 devices at no cost)."
-                    : "You need to set up billing for your devices."}
-                </Text>
-                <TouchableOpacity
-                  style={[styles.setupButton, { backgroundColor: colors.primary }]}
-                  onPress={() => navigation.navigate('DataHandlingFee')}
-                >
-                  <Text style={styles.setupButtonText}>
-                    {billingData?.total_devices <= 3
-                      ? "Manage Devices"
-                      : "Set Up Billing"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
+        {/* Billing / subscription management is intentionally NOT shown in-app.
+            TOOLTRAQ is a free B2B access client; organizations subscribe on the
+            web. Apple Guideline 3.1.3(c) — no in-app purchase or billing UI. */}
 
         {/* Personal Information Section */}
         <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
@@ -418,6 +352,16 @@ const ProfileScreen = ({ navigation }) => {
         >
           <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
           <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account (App Store Guideline 5.1.1(v)) */}
+        <TouchableOpacity
+          style={[styles.deleteAccountButton, { borderColor: colors.error }]}
+          onPress={handleDeleteAccount}
+          testID="delete-account-button"
+        >
+          <Ionicons name="trash-outline" size={18} color={colors.error} />
+          <Text style={[styles.deleteAccountButtonText, { color: colors.error }]}>Delete Account</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -571,6 +515,22 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8
+},
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 13,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'transparent'
+},
+  deleteAccountButtonText: {
+    fontSize: 16,
     fontWeight: '600',
     marginLeft: 8
 },

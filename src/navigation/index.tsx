@@ -20,21 +20,27 @@ import DeviceDetailsScreen from '../screens/DeviceDetailsScreen';
 import AddDeviceScreen from '../screens/AddDeviceScreen';
 import CreateReportScreen from '../screens/CreateReportScreen';
 import LocationDetailsScreen from '../screens/LocationDetailsScreen';
-import PricingScreen from '../screens/PricingScreen';
 import SuggestFeatureScreen from '../screens/SuggestFeatureScreen';
 import CreateOrganizationScreen from '../screens/CreateOrganizationScreen';
+import OnboardingWizardScreen from '../screens/Onboarding/OnboardingWizardScreen';
 // Import new screens
-import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
-import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
-import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
-import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
-import SubscribeScreen from '../screens/Subscribe/SubscribeScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
+// Billing screens are registered on ANDROID ONLY (see the Platform-gated group
+// in MainStack). TOOLTRAQ is a free B2B access client and the iOS build sells no
+// subscriptions in-app (App Store Guideline 3.1.3(c) enterprise) — so on iOS
+// these stay off the nav graph entirely, unreachable via navigation AND deep
+// links. Android keeps them for in-app billing / IAP. The matching Settings
+// "Billing" section is likewise gated to Android in screens/Settings/sections.ts.
+import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
+import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
+import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
+import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
+import SubscribeScreen from '../screens/Subscribe/SubscribeScreen';
 
 const Stack = createStackNavigator();
 
@@ -72,17 +78,6 @@ const AuthStack = () => {
         options={{
           headerShown: true,
           headerTitle: 'Create Account',
-          headerStyle: themedHeaderStyle,
-          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
-          headerTintColor: colors.primary,
-        }}
-      />
-      <Stack.Screen
-        name="Pricing"
-        component={PricingScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Pricing',
           headerStyle: themedHeaderStyle,
           headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
           headerTintColor: colors.primary,
@@ -216,28 +211,6 @@ const MainStack = () => {
       }}
     />
     <Stack.Screen
-      name="DataHandlingFee"
-      component={DataHandlingFeeScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Device Management Fee',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle,
-        headerTintColor: colors.primary,
-      }}
-    />
-    <Stack.Screen
-      name="ManageBilling"
-      component={ManageBillingScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Manage Billing',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle,
-        headerTintColor: colors.primary,
-      }}
-    />
-    <Stack.Screen
       name="EditProfile"
       component={EditProfileScreen}
       options={{
@@ -274,38 +247,11 @@ const MainStack = () => {
       options={{ headerShown: false }}
     />
     <Stack.Screen
-      name="Subscribe"
-      component={SubscribeScreen}
-      options={{ headerShown: false }}
-    />
-    <Stack.Screen
       name="NotificationPreferences"
       component={NotificationPreferencesScreen}
       options={{
         headerShown: true,
         headerTitle: 'Notifications',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle,
-        headerTintColor: colors.primary,
-      }}
-    />
-    <Stack.Screen
-      name="PaymentHistory"
-      component={PaymentHistoryScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Payment History',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle,
-        headerTintColor: colors.primary,
-      }}
-    />
-    <Stack.Screen
-      name="BillingAnalytics"
-      component={BillingAnalyticsScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Billing Analytics',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,
@@ -334,6 +280,62 @@ const MainStack = () => {
         headerTintColor: colors.primary,
       }}
     />
+
+    {/* Billing — ANDROID ONLY. Not registered on iOS (App Store 3.1.3(c)); the
+        Settings "Billing" section is gated to Android to match. */}
+    {Platform.OS === 'android' && (
+      <Stack.Group>
+        <Stack.Screen
+          name="ManageBilling"
+          component={ManageBillingScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Manage Billing',
+            headerStyle: getHeaderStyle(),
+            headerTitleStyle,
+            headerTintColor: colors.primary,
+          }}
+        />
+        <Stack.Screen
+          name="PaymentHistory"
+          component={PaymentHistoryScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Payment History',
+            headerStyle: getHeaderStyle(),
+            headerTitleStyle,
+            headerTintColor: colors.primary,
+          }}
+        />
+        <Stack.Screen
+          name="DataHandlingFee"
+          component={DataHandlingFeeScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Device Management Fee',
+            headerStyle: getHeaderStyle(),
+            headerTitleStyle,
+            headerTintColor: colors.primary,
+          }}
+        />
+        <Stack.Screen
+          name="BillingAnalytics"
+          component={BillingAnalyticsScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Billing Analytics',
+            headerStyle: getHeaderStyle(),
+            headerTitleStyle,
+            headerTintColor: colors.primary,
+          }}
+        />
+        <Stack.Screen
+          name="Subscribe"
+          component={SubscribeScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Group>
+    )}
   </Stack.Navigator>
   );
 };
@@ -347,37 +349,18 @@ const LoadingScreen = () => {
   );
 };
 
-// FIXED: Simplified OnboardingStack that uses the correct field
+// Onboarding gate. `has_completed_onboarding` (exposed as onboardingComplete) is
+// the backend's source of truth for whether a user still needs setup. When it's
+// false we render the multi-step OnboardingWizard, which itself fetches
+// GET /account/onboarding/ to decide the owner vs invited flow. Completing the
+// wizard flips the flag (via refreshUser) and this re-renders into MainStack.
 const OnboardingStack = () => {
-  const { onboardingComplete, userData } = useAuth();
-  const { colors } = useTheme();
+  const { onboardingComplete } = useAuth();
 
-  // User needs onboarding only if they don't have an org AND haven't completed onboarding
-  // This fixes the issue where admins (who have an orgId) were incorrectly routed to Create Organization
-  const needsOnboarding = !userData?.orgId && !onboardingComplete && !(userData?.has_completed_onboarding);
-
-  if (needsOnboarding) {
+  if (!onboardingComplete) {
     return (
-      <Stack.Navigator>
-        <Stack.Screen
-          name="CreateOrganization"
-          component={CreateOrganizationScreen}
-          options={{
-            headerTitle: 'Create Organization',
-            headerStyle: {
-              backgroundColor: colors.background,
-              elevation: 0,
-              shadowOpacity: 0,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.borderLight,
-            },
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              color: colors.textPrimary,
-            },
-            headerTintColor: colors.primary,
-          }}
-        />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="OnboardingWizard" component={OnboardingWizardScreen} />
       </Stack.Navigator>
     );
   }

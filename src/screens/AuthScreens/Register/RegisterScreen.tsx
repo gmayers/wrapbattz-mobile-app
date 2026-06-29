@@ -23,23 +23,11 @@ import { FormValidation } from '../../../utils/FormValidation';
 
 interface RegisterScreenProps {
   navigation: NavigationProp;
-  route?: {
-    params?: {
-      selectedPlan?: {
-        type: string;
-        billing: string;
-        price: string;
-      };
-    };
-  };
 }
 
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
+const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const { register } = useAuth();
   const { colors } = useTheme();
-
-  // Get selected plan from navigation params
-  const selectedPlan = route?.params?.selectedPlan;
 
   const [formData, setFormData] = useState<RegisterForm>({
     email: '',
@@ -50,14 +38,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     organization_invite_code: '',
     phone_number: ''
 });
-
-  // State for plan selection when not coming from pricing page
-  const [selectedPlanType, setSelectedPlanType] = useState<string>(
-    selectedPlan?.type || 'starter'
-  );
-  const [billingCycle, setBillingCycle] = useState<string>(
-    selectedPlan?.billing || 'annual'
-  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -133,28 +113,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
     navigation.navigate('Login');
   };
 
-  const navigateToPricing = (): void => {
-    navigation.navigate('Pricing');
-  };
-
-  const toggleBillingCycle = (): void => {
-    setBillingCycle(billingCycle === 'annual' ? 'monthly' : 'annual');
-  };
-
-  const getPlanPrice = (): string => {
-    if (selectedPlanType === 'starter') return 'FREE';
-    return billingCycle === 'annual' ? '25p' : '30p';
-  };
-
-  const getPlanDescription = (): string => {
-    if (selectedPlanType === 'starter') {
-      return 'First 3 assets free forever';
-    }
-    return billingCycle === 'annual'
-      ? 'per asset/month, billed annually'
-      : 'per asset/month, billed monthly';
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
@@ -186,84 +144,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) =>
               Register your personal account to get started with TOOLTRAQ. After this, you'll set up your organization where you can manage devices, locations, and team members.
             </Text>
 
-            {/* Subscription Plan Selection */}
-            <View style={{ marginBottom: 20, backgroundColor: colors.surface, borderRadius: 12, padding: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>Choose Your Plan</Text>
-                <TouchableOpacity onPress={navigateToPricing}>
-                  <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '500' }}>View all plans →</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Billing Toggle */}
-              {selectedPlanType !== 'starter' && (
-                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, color: billingCycle === 'monthly' ? colors.textPrimary : colors.textMuted, paddingHorizontal: 10, fontWeight: billingCycle === 'monthly' ? '600' : 'normal' }}>
-                    Monthly
-                  </Text>
-                  <TouchableOpacity style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: colors.primary, position: 'relative', marginHorizontal: 8 }} onPress={toggleBillingCycle}>
-                    <View style={{ position: 'absolute', width: 18, height: 18, backgroundColor: colors.background, borderRadius: 9, top: 3, ...(billingCycle === 'monthly' ? { left: 3 } : { right: 3 }) }} />
-                  </TouchableOpacity>
-                  <Text style={{ fontSize: 14, color: billingCycle === 'annual' ? colors.textPrimary : colors.textMuted, paddingHorizontal: 10, fontWeight: billingCycle === 'annual' ? '600' : 'normal' }}>
-                    Annually {billingCycle === 'annual' && '(Save 16%)'}
-                  </Text>
-                </View>
-              )}
-
-              {/* Plan Cards */}
-              <View style={{ gap: 12 }}>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: selectedPlanType === 'starter' ? colors.primaryLight : colors.card,
-                    borderRadius: 10,
-                    padding: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    borderWidth: 1.5,
-                    borderColor: selectedPlanType === 'starter' ? colors.primary : colors.border,
-                    position: 'relative'
-}}
-                  onPress={() => setSelectedPlanType('starter')}
-                >
-                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderInput, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                    {selectedPlanType === 'starter' && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 }}>Starter</Text>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 2 }}>FREE</Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>First 3 assets free</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: selectedPlanType === 'professional' ? colors.primaryLight : colors.card,
-                    borderRadius: 10,
-                    padding: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    borderWidth: 1.5,
-                    borderColor: selectedPlanType === 'professional' ? colors.primary : colors.border,
-                    position: 'relative'
-}}
-                  onPress={() => setSelectedPlanType('professional')}
-                >
-                  {selectedPlanType === 'professional' && (
-                    <View style={{ position: 'absolute', top: -8, right: 12, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                      <Text style={{ color: colors.background, fontSize: 10, fontWeight: '600' }}>Popular</Text>
-                    </View>
-                  )}
-                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderInput, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                    {selectedPlanType === 'professional' && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 2 }}>Professional</Text>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 2 }}>{getPlanPrice()}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>{getPlanDescription()}</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* Plan selection removed: TOOLTRAQ is a free B2B access client.
+                Organizations subscribe on the web; no plans are chosen or sold
+                in-app (App Store Guideline 3.1.3(c)). */}
 
             <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary, marginBottom: 6 }}>Your Details</Text>
             <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 16, lineHeight: 20 }}>

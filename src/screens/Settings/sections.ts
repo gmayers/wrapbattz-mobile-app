@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type { Role } from '../../navigation/mainTabs';
 
 export type RoleGate = 'all' | 'admin';
@@ -92,5 +93,11 @@ const ALL_SECTIONS: SettingsSection[] = [
 
 export function getSectionsForRole(role: Role | undefined): SettingsSection[] {
   const isAdminOrOwner = role === 'admin' || role === 'owner';
-  return ALL_SECTIONS.filter(s => s.requiredRole === 'all' || isAdminOrOwner);
+  return ALL_SECTIONS.filter(s => {
+    // Billing is Android-only: the billing screens are not registered in the
+    // iOS nav graph (App Store 3.1.3(c)), so hide the whole section there to
+    // avoid dead links. Android keeps it for in-app billing / IAP.
+    if (s.key === 'billing' && Platform.OS !== 'android') return false;
+    return s.requiredRole === 'all' || isAdminOrOwner;
+  });
 }
