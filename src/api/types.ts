@@ -67,29 +67,8 @@ export type ToolUpdate = S['ToolUpdate'];
 export type PagedTools = S['PagedTools'];
 export type ToolPhotoRead = S['ToolPhotoRead'];
 
-// Lifecycle fields the backend exposes on ToolRead per the QA round-4
-// contract. Optional/absent until docs/api/openapi.json is regenerated
-// after the backend ships — every consumer must tolerate undefined.
-export interface ToolLifecycleFields {
-  maintenance_interval_days?: number | null;
-  next_maintenance_date?: string | null;
-  warranty_expiry?: string | null;
-  purchase_date?: string | null;
-  purchase_cost?: string | number | null;
-  condition_score?: string | number | null;
-}
-
-// OAuth (hand-written until docs/api/openapi.json includes the /auth/oauth/*
-// paths — same precedent as ToolLifecycleFields; replace with generated types
-// after the backend branch deploys and types are regenerated).
-export interface OAuthAuthorizeRequest {
-  provider: 'GoogleOAuth';
-  state: string;
-  screen_hint: 'sign-up' | 'sign-in';
-}
-export interface OAuthAuthorizeResponse {
-  authorization_url: string;
-}
+export type OAuthAuthorizeRequest = S['OAuthAuthorizeRequest'];
+export type OAuthAuthorizeResponse = S['OAuthAuthorizeResponse'];
 
 // Tool make/model/type were extracted into a dedicated table on the backend;
 // tools now reference a row by `category_id`. Hand-written because the committed

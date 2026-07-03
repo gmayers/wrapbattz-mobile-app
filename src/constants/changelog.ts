@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.1';
+export const CHANGELOG_VERSION = '1.4.2';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,13 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.2',
+    date: '2026-07-03',
+    highlights: [
+      'Sign in or create your account with Google — one tap on the login and registration screens.',
+    ],
+  },
   {
     version: '1.4.1',
     date: '2026-07-03',

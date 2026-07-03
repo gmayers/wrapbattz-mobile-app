@@ -14,30 +14,41 @@ export interface paths {
         get?: never;
         put?: never;
         /** Login */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["LoginRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TokenResponse"];
-                    };
-                };
-            };
+        post: operations["api_routers_auth_auth_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/authorize/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Oauth Authorize */
+        post: operations["api_routers_auth_auth_oauth_authorize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oauth/callback/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Oauth Callback */
+        post: operations["api_routers_auth_auth_oauth_callback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -54,30 +65,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Register */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RegisterRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VerifyPendingResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_register"];
         delete?: never;
         options?: never;
         head?: never;
@@ -94,30 +82,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Verify Email */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["VerifyEmailRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TokenResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_verify_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -134,30 +99,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Refresh */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["RefreshRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TokenResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -174,30 +116,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Forgot Password */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ForgotPasswordRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SentResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_forgot_password"];
         delete?: never;
         options?: never;
         head?: never;
@@ -214,30 +133,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Reset Password */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ResetPasswordRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SuccessResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_reset_password"];
         delete?: never;
         options?: never;
         head?: never;
@@ -254,30 +150,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Change Password */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ChangePasswordRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SuccessResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_change_password"];
         delete?: never;
         options?: never;
         head?: never;
@@ -294,24 +167,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Logout */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        post: operations["api_routers_auth_auth_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -326,56 +182,14 @@ export interface paths {
             cookie?: never;
         };
         /** Get Me */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserMe"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_account_profile_get_me"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Update Me */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UserUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserMe"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_account_profile_update_me"];
         trace?: never;
     };
     "/api/v1/account/onboarding/": {
@@ -385,37 +199,65 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Onboarding
+         * @description The onboarding wizard shape for this user (flow + ordered steps).
+         *
+         *     Same source of truth as the web wizard, so native renders the
+         *     identical 5-step (owner) or 3-step (invited) sequence.
+         */
+        get: operations["api_routers_account_profile_get_onboarding"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Update Onboarding */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OnboardingUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserMe"];
-                    };
-                };
-            };
+        patch: operations["api_routers_account_profile_update_onboarding"];
+        trace?: never;
+    };
+    "/api/v1/account/email/change/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /**
+         * Request Email Change Endpoint
+         * @description Step 1: send a 6-digit code to the new mailbox.
+         *
+         *     The actual email mutation happens in /email/confirm/ once the code
+         *     is presented. Hard rate-limit (3/min/user) on top of the per-user
+         *     hour quota inside ``request_email_change`` itself.
+         */
+        post: operations["api_routers_account_profile_request_email_change_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/email/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Email Change Endpoint
+         * @description Step 2: present the code, finalise the change in WorkOS + Django.
+         */
+        post: operations["api_routers_account_profile_confirm_email_change_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/account/push-tokens/": {
@@ -428,53 +270,9 @@ export interface paths {
         get?: never;
         put?: never;
         /** Register Push Token */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PushTokenRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PushTokenRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_account_push_tokens_register_push_token"];
         /** Unregister Push Token */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PushTokenDelete"];
-                };
-            };
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_account_push_tokens_unregister_push_token"];
         options?: never;
         head?: never;
         patch?: never;
@@ -488,28 +286,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Notifications */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_account_notifications_list_notifications"];
         put?: never;
         post?: never;
         delete?: never;
@@ -532,32 +309,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Mark Notification */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    notification_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["NotificationMarkReadRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["NotificationRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_account_notifications_mark_notification"];
         trace?: never;
     };
     "/api/v1/organizations/": {
@@ -570,30 +322,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create Organization */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OrganizationCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OrganizationRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_organizations_create_organization"];
         delete?: never;
         options?: never;
         head?: never;
@@ -608,56 +337,14 @@ export interface paths {
             cookie?: never;
         };
         /** Get My Organization */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OrganizationRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_organizations_get_my_organization"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Update My Organization */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OrganizationUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OrganizationRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_organization_organizations_update_my_organization"];
         trace?: never;
     };
     "/api/v1/members/": {
@@ -668,26 +355,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Members */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedMembers"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_members_list_members"];
         put?: never;
         post?: never;
         delete?: never;
@@ -704,80 +372,15 @@ export interface paths {
             cookie?: never;
         };
         /** Get Member */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MemberRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_members_get_member"];
         put?: never;
         post?: never;
         /** Remove Member */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_organization_members_remove_member"];
         options?: never;
         head?: never;
         /** Update Member Role */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    user_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["MemberUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MemberRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_organization_members_update_member_role"];
         trace?: never;
     };
     "/api/v1/invitations/accept/": {
@@ -790,30 +393,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Accept Invitation */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["InvitationAccept"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TokenResponse"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_invitations_accept_invitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -828,28 +408,7 @@ export interface paths {
             cookie?: never;
         };
         /** Invitation By Token */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    token: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvitationByTokenRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_invitations_invitation_by_token"];
         put?: never;
         post?: never;
         delete?: never;
@@ -866,52 +425,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Invitations */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedInvitations"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_invitations_list_invitations"];
         put?: never;
         /** Create Invitation */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["InvitationCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvitationRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_invitations_create_invitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -929,26 +446,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Revoke Invitation */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invitation_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_organization_invitations_revoke_invitation"];
         options?: never;
         head?: never;
         patch?: never;
@@ -964,28 +462,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Resend Invitation */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    invitation_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvitationRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_invitations_resend_invitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1000,52 +477,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Join Requests */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedJoinRequests"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_join_requests_list_join_requests"];
         put?: never;
         /** Create Join Request */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["JoinRequestCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["JoinRequestRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_join_requests_create_join_request"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1060,47 +495,11 @@ export interface paths {
             cookie?: never;
         };
         /** Get My Join Request */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["JoinRequestRead"] | null;
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_organization_join_requests_get_my_join_request"];
         put?: never;
         post?: never;
         /** Cancel My Join Request */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_organization_join_requests_cancel_my_join_request"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1116,32 +515,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Approve Join Request */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    join_request_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["JoinRequestApprove"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["JoinRequestRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_join_requests_approve_join_request"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1158,32 +532,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Deny Join Request */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    join_request_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["JoinRequestDeny"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["JoinRequestRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_organization_join_requests_deny_join_request"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1198,55 +547,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Tools */
-        get: {
-            parameters: {
-                query?: {
-                    page?: number;
-                    page_size?: number;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedTools"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_tools_tools_list_tools"];
         put?: never;
         /** Create Tool */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ToolCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_tools_tools_create_tool"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1260,29 +564,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Tool By NFC */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tag_uid: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolRead"];
-                    };
-                };
-            };
-        };
+        /** Get Tool By Nfc */
+        get: operations["api_routers_tools_tools_get_tool_by_nfc"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1299,80 +582,15 @@ export interface paths {
             cookie?: never;
         };
         /** Get Tool */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_tools_tools_get_tool"];
         put?: never;
         post?: never;
         /** Delete Tool */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_tools_tools_delete_tool"];
         options?: never;
         head?: never;
         /** Update Tool */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ToolUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_tools_tools_update_tool"];
         trace?: never;
     };
     "/api/v1/tools/{tool_id}/photos/": {
@@ -1383,63 +601,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Photos */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolPhotoRead"][];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_tools_photos_list_photos"];
         put?: never;
         /** Upload Photo */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "multipart/form-data": {
-                        /** Format: binary */
-                        file: string;
-                        /** @default false */
-                        is_signature?: boolean;
-                        /** @default  */
-                        description?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ToolPhotoRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_tools_photos_upload_photo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1457,26 +622,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete Photo */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    photo_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_tools_photos_delete_photo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1490,57 +636,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Assignments */
-        get: {
-            parameters: {
-                query?: {
-                    status?: string | null;
-                    tool?: number | null;
-                    user?: number | null;
-                    site?: number | null;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedAssignments"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_list_assignments"];
         put?: never;
         /** Create Assignment */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["AssignmentCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_assignments_assignments_create_assignment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1555,26 +654,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Mine Active */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"][];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_list_mine_active"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1591,28 +671,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Mine */
-        get: {
-            parameters: {
-                query?: {
-                    status?: string | null;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedAssignments"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_list_mine"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1629,28 +688,7 @@ export interface paths {
             cookie?: never;
         };
         /** List By Site */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    site_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedAssignments"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_list_by_site"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1667,26 +705,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Available Tools */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedTools"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_list_available_tools"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1709,32 +728,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Update Assignment */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["AssignmentUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_assignments_assignments_update_assignment"];
         trace?: never;
     };
     "/api/v1/assignments/{id}/return/": {
@@ -1747,32 +741,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Return Assignment */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["AssignmentReturn"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_assignments_assignments_return_assignment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1787,28 +756,7 @@ export interface paths {
             cookie?: never;
         };
         /** Tool Assignment History */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedAssignments"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_assignments_assignments_tool_assignment_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1827,28 +775,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Assign To Me */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_assignments_assignments_assign_to_me"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1865,28 +792,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Assign By Identifier */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    identifier: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignmentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_assignments_assignments_assign_by_identifier"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1901,55 +807,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Sites */
-        get: {
-            parameters: {
-                query?: {
-                    site_type?: string | null;
-                    status?: string | null;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedSites"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_sites_sites_list_sites"];
         put?: never;
         /** Create Site */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SiteCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SiteRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_sites_sites_create_site"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1964,80 +825,15 @@ export interface paths {
             cookie?: never;
         };
         /** Get Site */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SiteRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_sites_sites_get_site"];
         put?: never;
         post?: never;
         /** Delete Site */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_sites_sites_delete_site"];
         options?: never;
         head?: never;
         /** Update Site */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SiteUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SiteRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_sites_sites_update_site"];
         trace?: never;
     };
     "/api/v1/sites/for-tool/{tool_id}/": {
@@ -2047,29 +843,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sites For Tool */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tool_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedSites"];
-                    };
-                };
-            };
-        };
+        /**
+         * Sites For Tool
+         * @description Return active sites in the org (all, since Device has no current_site FK).
+         */
+        get: operations["api_routers_sites_sites_sites_for_tool"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2086,55 +864,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Site Assignments */
-        get: {
-            parameters: {
-                query?: {
-                    site?: number | null;
-                    user?: number | null;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedSiteAssignments"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_sites_site_assignments_list_site_assignments"];
         put?: never;
         /** Create Site Assignment */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SiteAssignmentCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SiteAssignmentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_sites_site_assignments_create_site_assignment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2152,55 +885,11 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete Site Assignment */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_sites_site_assignments_delete_site_assignment"];
         options?: never;
         head?: never;
         /** Update Site Assignment */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SiteAssignmentUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SiteAssignmentRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_sites_site_assignments_update_site_assignment"];
         trace?: never;
     };
     "/api/v1/vans/": {
@@ -2211,52 +900,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Vans */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedVans"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_sites_vans_list_vans"];
         put?: never;
         /** Create Van */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["VanCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VanRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_sites_vans_create_van"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2271,80 +918,15 @@ export interface paths {
             cookie?: never;
         };
         /** Get Van */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VanRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_sites_vans_get_van"];
         put?: never;
         post?: never;
         /** Delete Van */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_sites_vans_delete_van"];
         options?: never;
         head?: never;
         /** Update Van */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["VanUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VanRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_sites_vans_update_van"];
         trace?: never;
     };
     "/api/v1/incidents/": {
@@ -2355,52 +937,10 @@ export interface paths {
             cookie?: never;
         };
         /** List Incidents */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedIncidents"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_incidents_incidents_list_incidents"];
         put?: never;
         /** Create Incident */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["IncidentCreate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IncidentRead"];
-                    };
-                };
-            };
-        };
+        post: operations["api_routers_incidents_incidents_create_incident"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2415,26 +955,7 @@ export interface paths {
             cookie?: never;
         };
         /** List My Incidents */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PagedIncidents"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_incidents_incidents_list_my_incidents"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2451,80 +972,15 @@ export interface paths {
             cookie?: never;
         };
         /** Get Incident */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    incident_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IncidentRead"];
-                    };
-                };
-            };
-        };
+        get: operations["api_routers_incidents_incidents_get_incident"];
         put?: never;
         post?: never;
         /** Delete Incident */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    incident_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description No Content */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
+        delete: operations["api_routers_incidents_incidents_delete_incident"];
         options?: never;
         head?: never;
         /** Update Incident */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    incident_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["IncidentUpdate"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IncidentRead"];
-                    };
-                };
-            };
-        };
+        patch: operations["api_routers_incidents_incidents_update_incident"];
         trace?: never;
     };
     "/api/v1/feedback/feature-suggestions/": {
@@ -2537,30 +993,76 @@ export interface paths {
         get?: never;
         put?: never;
         /** Submit Feature Suggestion */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["FeedbackSuggestion"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["FeedbackRead"];
-                    };
-                };
-            };
+        post: operations["api_routers_feedback_feedback_submit_feature_suggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /**
+         * List Exports
+         * @description Sections this org/user can export, plus the premium PDF entry.
+         *
+         *     Each section's ``download_url`` accepts the same filter / search /
+         *     date-range query params as the matching web list page, so the API
+         *     file is byte-for-byte the filtered data.
+         */
+        get: operations["api_routers_exports_exports_list_exports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/compliance.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compliance Pdf
+         * @description Branded multi-section PDF across every domain the user may see.
+         *
+         *     Premium — gated by the billing feature flag with a 402 upsell (soft
+         *     model) rather than a hard 403. 503 if WeasyPrint isn't installed.
+         */
+        get: operations["api_routers_exports_exports_compliance_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exports/{slug}/csv/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Csv
+         * @description Stream the CSV for one registered section, org- and permission-scoped.
+         *
+         *     Inherits filters from the query string exactly like the web export.
+         */
+        get: operations["api_routers_exports_exports_export_csv"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2571,545 +1073,1250 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** OrganizationSummary */
         OrganizationSummary: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Trading Name
+             * @default
+             */
             trading_name: string;
+            /** Is Active */
             is_active: boolean;
         };
+        /** TokenResponse */
         TokenResponse: {
+            /** Access Token */
             access_token: string;
+            /** Refresh Token */
             refresh_token: string;
+            /** Expires In */
             expires_in: number;
             user: components["schemas"]["UserMe"];
         };
+        /** UserMe */
         UserMe: {
+            /** Id */
             id: number;
+            /** Email */
             email: string;
+            /** First Name */
             first_name: string;
+            /** Last Name */
             last_name: string;
-            /** @default  */
+            /**
+             * Phone Number
+             * @default
+             */
             phone_number: string;
+            /** Has Completed Onboarding */
             has_completed_onboarding: boolean;
+            /** Onboarding Step */
             onboarding_step: string;
+            /** Onboarding Flow */
+            onboarding_flow?: string | null;
+            /** Has Seen Onboarding Outro */
             has_seen_onboarding_outro: boolean;
             organization?: components["schemas"]["OrganizationSummary"] | null;
+            /** Role */
             role?: string | null;
         };
+        /** LoginRequest */
         LoginRequest: {
-            /** Format: email */
+            /**
+             * Email
+             * Format: email
+             */
             email: string;
+            /** Password */
             password: string;
         };
+        /** OAuthAuthorizeResponse */
+        OAuthAuthorizeResponse: {
+            /** Authorization Url */
+            authorization_url: string;
+        };
+        /** OAuthAuthorizeRequest */
+        OAuthAuthorizeRequest: {
+            /**
+             * Provider
+             * @default GoogleOAuth
+             * @constant
+             */
+            provider: "GoogleOAuth";
+            /** State */
+            state: string;
+            /**
+             * Screen Hint
+             * @default sign-up
+             * @enum {string}
+             */
+            screen_hint: "sign-up" | "sign-in";
+        };
+        /** OAuthCallbackRequest */
+        OAuthCallbackRequest: {
+            /** Code */
+            code: string;
+        };
+        /** VerifyPendingResponse */
         VerifyPendingResponse: {
+            /** Email Verification Id */
             email_verification_id: string;
             /**
+             * Next
              * @default verify_email
              * @constant
              */
             next: "verify_email";
         };
+        /** RegisterRequest */
         RegisterRequest: {
-            /** Format: email */
+            /**
+             * Email
+             * Format: email
+             */
             email: string;
+            /** Password */
             password: string;
+            /** First Name */
             first_name: string;
+            /** Last Name */
             last_name: string;
         };
+        /** VerifyEmailRequest */
         VerifyEmailRequest: {
+            /** Email Verification Id */
             email_verification_id: string;
+            /** Code */
             code: string;
         };
+        /** RefreshRequest */
         RefreshRequest: {
+            /** Refresh Token */
             refresh_token: string;
+            /** Organization Id */
+            organization_id?: string | null;
         };
+        /** SentResponse */
         SentResponse: {
-            /** @default true */
+            /**
+             * Sent
+             * @default true
+             */
             sent: boolean;
         };
+        /** ForgotPasswordRequest */
         ForgotPasswordRequest: {
-            /** Format: email */
+            /**
+             * Email
+             * Format: email
+             */
             email: string;
         };
+        /** SuccessResponse */
         SuccessResponse: {
-            /** @default true */
+            /**
+             * Success
+             * @default true
+             */
             success: boolean;
         };
+        /** ResetPasswordRequest */
         ResetPasswordRequest: {
+            /** Password Reset Token */
             password_reset_token: string;
+            /** New Password */
             new_password: string;
         };
+        /** ChangePasswordRequest */
         ChangePasswordRequest: {
+            /** Current Password */
             current_password: string;
+            /** New Password */
             new_password: string;
         };
+        /** UserUpdate */
         UserUpdate: {
+            /** First Name */
             first_name?: string | null;
+            /** Last Name */
             last_name?: string | null;
-            email?: string | null;
+            /** Phone Number */
             phone_number?: string | null;
         };
+        /**
+         * OnboardingState
+         * @description The shape of the onboarding wizard for the current user.
+         *
+         *     Mirrors the web progress bar exactly (same step ordering/labels) so a
+         *     native client renders the identical sequence. See
+         *     ``accounts.onboarding_flow``.
+         */
+        OnboardingState: {
+            /** Flow */
+            flow: string;
+            /** Current Step */
+            current_step: string;
+            /** Completed */
+            completed: boolean;
+            /** Steps */
+            steps: components["schemas"]["OnboardingStepInfo"][];
+            /** Role */
+            role?: string | null;
+        };
+        /** OnboardingStepInfo */
+        OnboardingStepInfo: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Number */
+            number: number;
+            /** Done */
+            done: boolean;
+            /** Active */
+            active: boolean;
+        };
+        /** OnboardingUpdate */
         OnboardingUpdate: {
+            /** Has Completed Onboarding */
             has_completed_onboarding?: boolean | null;
+            /** Onboarding Step */
             onboarding_step?: string | null;
+            /** Has Seen Onboarding Outro */
             has_seen_onboarding_outro?: boolean | null;
         };
+        /** EmailChangeRequested */
+        EmailChangeRequested: {
+            /**
+             * Requested
+             * @default true
+             */
+            requested: boolean;
+        };
+        /** EmailChangeRequestPayload */
+        EmailChangeRequestPayload: {
+            /**
+             * New Email
+             * Format: email
+             */
+            new_email: string;
+        };
+        /** EmailChangeConfirmed */
+        EmailChangeConfirmed: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /** EmailChangeConfirmPayload */
+        EmailChangeConfirmPayload: {
+            /** Code */
+            code: string;
+        };
+        /** PushTokenRead */
         PushTokenRead: {
+            /** Id */
             id: number;
+            /** Token */
             token: string;
+            /** Platform */
             platform: string;
+            /** Device Id */
             device_id: string;
         };
+        /** PushTokenRequest */
         PushTokenRequest: {
+            /** Token */
             token: string;
-            /** @enum {string} */
+            /**
+             * Platform
+             * @enum {string}
+             */
             platform: "ios" | "android";
-            /** @default  */
+            /**
+             * Device Id
+             * @default
+             */
             device_id: string;
         };
+        /** PushTokenDelete */
         PushTokenDelete: {
+            /** Token */
             token: string;
         };
+        /** NotificationRead */
         NotificationRead: {
+            /** Id */
             id: number;
+            /** Notification Type */
             notification_type: string;
+            /** Title */
             title: string;
+            /** Message */
             message: string;
+            /** Is Read */
             is_read: boolean;
+            /** Read At */
             read_at?: string | null;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** NotificationMarkReadRequest */
         NotificationMarkReadRequest: {
-            /** @default true */
+            /**
+             * Read
+             * @default true
+             */
             read: boolean;
         };
+        /** OrganizationRead */
         OrganizationRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /**
+             * Workos Org Id
+             * @default
+             */
+            workos_org_id: string;
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Trading Name
+             * @default
+             */
             trading_name: string;
-            /** @default  */
+            /**
+             * Description
+             * @default
+             */
             description: string;
-            /** @default  */
+            /**
+             * Email
+             * @default
+             */
             email: string;
-            /** @default  */
+            /**
+             * Phone
+             * @default
+             */
             phone: string;
-            /** @default  */
+            /**
+             * Website
+             * @default
+             */
             website: string;
+            /** Is Active */
             is_active: boolean;
-            /** @default  */
+            /**
+             * Invite Code
+             * @default
+             */
             invite_code: string;
-            /** @default free */
+            /**
+             * Plan
+             * @default free
+             */
             plan: string;
-            /** @default 0 */
+            /**
+             * Member Count
+             * @default 0
+             */
             member_count: number;
-            /** @default 0 */
+            /**
+             * Tool Count
+             * @default 0
+             */
             tool_count: number;
-            /** @default 0 */
+            /**
+             * Site Count
+             * @default 0
+             */
             site_count: number;
         };
+        /** OrganizationCreate */
         OrganizationCreate: {
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Trading Name
+             * @default
+             */
             trading_name: string;
-            /** @default  */
+            /**
+             * Description
+             * @default
+             */
             description: string;
+            /** Email */
             email?: string | null;
-            /** @default  */
+            /**
+             * Phone
+             * @default
+             */
             phone: string;
-            /** @default  */
+            /**
+             * Website
+             * @default
+             */
             website: string;
         };
+        /** OrganizationUpdate */
         OrganizationUpdate: {
+            /** Name */
             name?: string | null;
+            /** Trading Name */
             trading_name?: string | null;
+            /** Description */
             description?: string | null;
+            /** Email */
             email?: string | null;
+            /** Phone */
             phone?: string | null;
+            /** Website */
             website?: string | null;
         };
+        /** MemberRead */
         MemberRead: {
+            /** Id */
             id: number;
+            /** User Id */
             user_id: number;
+            /** Email */
             email: string;
+            /** First Name */
             first_name: string;
+            /** Last Name */
             last_name: string;
+            /** Role */
             role: string;
+            /** Is Active */
             is_active: boolean;
+            /** Is Primary */
             is_primary: boolean;
-            /** Format: date-time */
+            /**
+             * Joined At
+             * Format: date-time
+             */
             joined_at: string;
         };
+        /** PagedMembers */
         PagedMembers: {
+            /** Items */
             items: components["schemas"]["MemberRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** MemberUpdate */
         MemberUpdate: {
+            /** Role */
             role: string;
         };
+        /** InvitationAccept */
         InvitationAccept: {
+            /** Token */
             token: string;
+            /** Password */
             password?: string | null;
+            /** First Name */
             first_name?: string | null;
+            /** Last Name */
             last_name?: string | null;
         };
+        /** InvitationByTokenRead */
         InvitationByTokenRead: {
+            /** Email */
             email: string;
+            /** Organization Name */
             organization_name: string;
+            /** Role */
             role: string;
-            /** @default  */
+            /**
+             * Inviter Name
+             * @default
+             */
             inviter_name: string;
+            /** Expires At */
             expires_at?: string | null;
+            /** Requires Signup */
             requires_signup: boolean;
         };
+        /** InvitationRead */
         InvitationRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Email */
             email: string;
+            /**
+             * Invited Name
+             * @default
+             */
+            invited_name: string;
+            /** Role */
             role: string;
+            /** Status */
             status: string;
+            /** Invited By Email */
             invited_by_email?: string | null;
+            /** Expires At */
             expires_at?: string | null;
+            /** Accepted At */
             accepted_at?: string | null;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** PagedInvitations */
         PagedInvitations: {
+            /** Items */
             items: components["schemas"]["InvitationRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** InvitationCreate */
         InvitationCreate: {
-            /** Format: email */
+            /**
+             * Email
+             * Format: email
+             */
             email: string;
+            /** Role */
             role: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
         };
+        /** JoinRequestRead */
         JoinRequestRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Requester Id */
             requester_id: number;
+            /** Requester Email */
             requester_email: string;
+            /** Organization Id */
             organization_id: number;
+            /** Organization Name */
             organization_name: string;
+            /** Matched Via */
             matched_via: string;
+            /** Status */
             status: string;
-            /** @default  */
+            /**
+             * Assigned Role
+             * @default
+             */
             assigned_role: string;
-            /** @default  */
+            /**
+             * Deny Reason
+             * @default
+             */
             deny_reason: string;
+            /** Decided At */
             decided_at?: string | null;
+            /** Expires At */
             expires_at?: string | null;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** JoinRequestCreate */
         JoinRequestCreate: {
+            /** Invite Code */
             invite_code?: string | null;
+            /** Admin Email */
             admin_email?: string | null;
         };
+        /** PagedJoinRequests */
         PagedJoinRequests: {
+            /** Items */
             items: components["schemas"]["JoinRequestRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** JoinRequestApprove */
         JoinRequestApprove: {
+            /** Role */
             role: string;
         };
+        /** JoinRequestDeny */
         JoinRequestDeny: {
-            /** @default  */
+            /**
+             * Reason
+             * @default
+             */
             reason: string;
         };
+        /** PagedTools */
         PagedTools: {
+            /** Items */
             items: components["schemas"]["ToolRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** ToolRead */
         ToolRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Make
+             * @default
+             */
             make: string;
-            /** @default  */
+            /**
+             * Model
+             * @default
+             */
             model: string;
-            /** @default  */
+            /**
+             * Serial Number
+             * @default
+             */
             serial_number: string;
+            /** Category Id */
             category_id?: number | null;
-            /** @default  */
+            /**
+             * Category Name
+             * @default
+             */
             category_name: string;
+            /** Nfc Tag Id */
             nfc_tag_id?: string | null;
-            /** @default  */
+            /**
+             * Status
+             * @default
+             */
             status: string;
-            /** @default  */
+            /**
+             * Status Label
+             * @default
+             */
             status_label: string;
-            /** @default true */
+            /**
+             * Is Available
+             * @default true
+             */
             is_available: boolean;
+            /** Maintenance Interval Days */
+            maintenance_interval_days?: number | null;
+            /** Next Maintenance Date */
+            next_maintenance_date?: string | null;
+            /** Warranty Expiry */
+            warranty_expiry?: string | null;
+            /** Purchase Date */
+            purchase_date?: string | null;
+            /** Purchase Cost */
+            purchase_cost?: number | string | null;
+            /** Condition Score */
+            condition_score?: number | string | null;
         };
+        /** ToolCreate */
         ToolCreate: {
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Make
+             * @default
+             */
             make: string;
-            /** @default  */
+            /**
+             * Model
+             * @default
+             */
             model: string;
-            /** @default  */
+            /**
+             * Serial Number
+             * @default
+             */
             serial_number: string;
+            /** Category Id */
             category_id?: number | null;
+            /** Nfc Tag Id */
             nfc_tag_id?: string | null;
+            /** Maintenance Interval Days */
+            maintenance_interval_days?: number | null;
+            /** Next Maintenance Date */
+            next_maintenance_date?: string | null;
         };
+        /** ToolUpdate */
         ToolUpdate: {
+            /** Name */
             name?: string | null;
+            /** Make */
             make?: string | null;
+            /** Model */
             model?: string | null;
+            /** Serial Number */
             serial_number?: string | null;
+            /** Category Id */
             category_id?: number | null;
+            /** Nfc Tag Id */
             nfc_tag_id?: string | null;
+            /** Maintenance Interval Days */
+            maintenance_interval_days?: number | null;
+            /** Next Maintenance Date */
+            next_maintenance_date?: string | null;
         };
+        /** ToolPhotoRead */
         ToolPhotoRead: {
+            /** Id */
             id: number;
+            /** Url */
             url: string;
+            /** Is Signature */
             is_signature: boolean;
-            /** @default  */
+            /**
+             * Description
+             * @default
+             */
             description: string;
+            /** Uploaded By Id */
             uploaded_by_id?: number | null;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** AssignmentRead */
         AssignmentRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Tool Id */
             tool_id: number;
+            /** Tool Name */
             tool_name: string;
+            /** Assignee User Id */
             assignee_user_id?: number | null;
-            /** @default  */
+            /**
+             * Assignee User Email
+             * @default
+             */
             assignee_user_email: string;
+            /** Assignee Site Id */
             assignee_site_id?: number | null;
-            /** @default  */
+            /**
+             * Assignee Site Name
+             * @default
+             */
             assignee_site_name: string;
+            /** Assigned By Id */
             assigned_by_id?: number | null;
-            /** @default active */
+            /**
+             * Status
+             * @default active
+             */
             status: string;
-            /** @default  */
+            /**
+             * Condition
+             * @default
+             */
             condition: string;
-            /** @default  */
+            /**
+             * Notes
+             * @default
+             */
             notes: string;
+            /** Assigned At */
             assigned_at?: string | null;
+            /** Returned At */
             returned_at?: string | null;
+            /** Expected Return At */
+            expected_return_at?: string | null;
+            /** Return Site Id */
             return_site_id?: number | null;
         };
+        /** PagedAssignments */
         PagedAssignments: {
+            /** Items */
             items: components["schemas"]["AssignmentRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** AssignmentCreate */
         AssignmentCreate: {
+            /** Tool Id */
             tool_id: number;
+            /** Assignee User Id */
             assignee_user_id?: number | null;
+            /** Assignee Site Id */
             assignee_site_id?: number | null;
-            /** @default  */
+            /**
+             * Condition
+             * @default
+             */
             condition: string;
-            /** @default  */
+            /**
+             * Notes
+             * @default
+             */
             notes: string;
         };
+        /** AssignmentUpdate */
         AssignmentUpdate: {
+            /** Condition */
             condition?: string | null;
+            /** Notes */
             notes?: string | null;
         };
+        /** AssignmentReturn */
         AssignmentReturn: {
+            /** Target Site Id */
             target_site_id?: number | null;
-            /** @default  */
+            /**
+             * Condition
+             * @default
+             */
             condition: string;
-            /** @default  */
+            /**
+             * Notes
+             * @default
+             */
             notes: string;
         };
+        /** PagedSites */
         PagedSites: {
+            /** Items */
             items: components["schemas"]["SiteRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** SiteRead */
         SiteRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Name */
             name: string;
+            /** Site Type */
             site_type: string;
+            /** Status */
             status: string;
-            /** @default  */
+            /**
+             * Description
+             * @default
+             */
             description: string;
-            /** @default  */
+            /**
+             * Nickname
+             * @default
+             */
             nickname: string;
-            /** @default  */
+            /**
+             * Prefix Code
+             * @default
+             */
             prefix_code: string;
-            /** @default  */
+            /**
+             * Address Line1
+             * @default
+             */
             address_line1: string;
-            /** @default  */
+            /**
+             * City
+             * @default
+             */
             city: string;
-            /** @default  */
+            /**
+             * Postcode
+             * @default
+             */
             postcode: string;
         };
+        /** SiteCreate */
         SiteCreate: {
+            /** Name */
             name: string;
+            /** Site Type */
             site_type: string;
-            /** @default  */
+            /**
+             * Description
+             * @default
+             */
             description: string;
-            /** @default  */
+            /**
+             * Nickname
+             * @default
+             */
             nickname: string;
-            /** @default  */
+            /**
+             * Prefix Code
+             * @default
+             */
             prefix_code: string;
-            /** @default  */
+            /**
+             * Address Line1
+             * @default
+             */
             address_line1: string;
-            /** @default  */
+            /**
+             * City
+             * @default
+             */
             city: string;
-            /** @default  */
+            /**
+             * Postcode
+             * @default
+             */
             postcode: string;
         };
+        /** SiteUpdate */
         SiteUpdate: {
+            /** Name */
             name?: string | null;
+            /** Site Type */
             site_type?: string | null;
+            /** Status */
             status?: string | null;
+            /** Description */
             description?: string | null;
+            /** Nickname */
             nickname?: string | null;
+            /** Prefix Code */
             prefix_code?: string | null;
+            /** Address Line1 */
             address_line1?: string | null;
+            /** City */
             city?: string | null;
+            /** Postcode */
             postcode?: string | null;
         };
+        /** PagedSiteAssignments */
         PagedSiteAssignments: {
+            /** Items */
             items: components["schemas"]["SiteAssignmentRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** SiteAssignmentRead */
         SiteAssignmentRead: {
+            /** Id */
             id: number;
+            /** User Id */
             user_id: number;
+            /** User Email */
             user_email: string;
+            /** Site Id */
             site_id: number;
+            /** Site Name */
             site_name: string;
-            /** @default  */
+            /**
+             * Role
+             * @default
+             */
             role: string;
+            /** Start Date */
             start_date?: string | null;
+            /** End Date */
             end_date?: string | null;
-            /** @default true */
+            /**
+             * Is Active
+             * @default true
+             */
             is_active: boolean;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** SiteAssignmentCreate */
         SiteAssignmentCreate: {
+            /** User Id */
             user_id: number;
+            /** Site Id */
             site_id: number;
-            /** @default  */
+            /**
+             * Role
+             * @default
+             */
             role: string;
+            /** Start Date */
             start_date?: string | null;
         };
+        /** SiteAssignmentUpdate */
         SiteAssignmentUpdate: {
+            /** Role */
             role?: string | null;
+            /** End Date */
             end_date?: string | null;
+            /** Is Active */
             is_active?: boolean | null;
         };
+        /** PagedVans */
         PagedVans: {
+            /** Items */
             items: components["schemas"]["VanRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /**
+         * VanRead
+         * @description Site with site_type=vehicle. site_type field omitted — implied.
+         */
         VanRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Name */
             name: string;
+            /** Status */
             status: string;
-            /** @default  */
+            /**
+             * Nickname
+             * @default
+             */
             nickname: string;
-            /** @default  */
+            /**
+             * Prefix Code
+             * @default
+             */
             prefix_code: string;
         };
+        /** VanCreate */
         VanCreate: {
+            /** Name */
             name: string;
-            /** @default  */
+            /**
+             * Nickname
+             * @default
+             */
             nickname: string;
-            /** @default  */
+            /**
+             * Prefix Code
+             * @default
+             */
             prefix_code: string;
         };
+        /** VanUpdate */
         VanUpdate: {
+            /** Name */
             name?: string | null;
+            /** Status */
             status?: string | null;
+            /** Nickname */
             nickname?: string | null;
+            /** Prefix Code */
             prefix_code?: string | null;
         };
+        /** IncidentRead */
         IncidentRead: {
+            /** Id */
             id: number;
+            /** Uuid */
             uuid: string;
+            /** Tool Id */
             tool_id: number;
+            /** Tool Name */
             tool_name: string;
+            /** Site Id */
             site_id?: number | null;
-            /** @default  */
+            /**
+             * Site Name
+             * @default
+             */
             site_name: string;
+            /** Type */
             type: string;
+            /** Severity */
             severity: string;
+            /** Status */
             status: string;
+            /** Description */
             description: string;
+            /** Reported By Id */
             reported_by_id?: number | null;
-            /** @default  */
+            /**
+             * Reported By Email
+             * @default
+             */
             reported_by_email: string;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** PagedIncidents */
         PagedIncidents: {
+            /** Items */
             items: components["schemas"]["IncidentRead"][];
+            /** Page */
             page: number;
+            /** Page Size */
             page_size: number;
+            /** Total */
             total: number;
+            /** Total Pages */
             total_pages: number;
         };
+        /** IncidentCreate */
         IncidentCreate: {
+            /** Tool Id */
             tool_id: number;
+            /** Site Id */
             site_id?: number | null;
+            /** Type */
             type: string;
+            /** Severity */
             severity: string;
+            /** Description */
             description: string;
         };
+        /** IncidentUpdate */
         IncidentUpdate: {
+            /** Status */
             status?: string | null;
+            /** Severity */
             severity?: string | null;
+            /** Description */
             description?: string | null;
         };
+        /** FeedbackRead */
         FeedbackRead: {
+            /** Id */
             id: number;
+            /** Subject */
             subject: string;
+            /** Description */
             description: string;
-            /** @default  */
+            /**
+             * Screen
+             * @default
+             */
             screen: string;
-            /** @default  */
+            /**
+             * Platform
+             * @default
+             */
             platform: string;
-            /** Format: date-time */
+            /**
+             * Created At
+             * Format: date-time
+             */
             created_at: string;
         };
+        /** FeedbackSuggestion */
         FeedbackSuggestion: {
+            /** Subject */
             subject: string;
+            /** Description */
             description: string;
-            /** @default  */
+            /**
+             * Screen
+             * @default
+             */
             screen: string;
-            /** @default  */
+            /**
+             * Platform
+             * @default
+             */
             platform: string;
+            /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /** CompliancePdfEntry */
+        CompliancePdfEntry: {
+            /** Available */
+            available: boolean;
+            /** Download Url */
+            download_url: string;
+        };
+        /** ExportIndex */
+        ExportIndex: {
+            /** Sections */
+            sections: components["schemas"]["ExportSection"][];
+            compliance_pdf: components["schemas"]["CompliancePdfEntry"];
+        };
+        /** ExportSection */
+        ExportSection: {
+            /** Slug */
+            slug: string;
+            /** Label */
+            label: string;
+            /** Format */
+            format: string;
+            /** Download Url */
+            download_url: string;
         };
     };
     responses: never;
@@ -3119,4 +2326,1919 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    api_routers_auth_auth_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_oauth_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthAuthorizeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthAuthorizeResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_oauth_callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthCallbackRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyPendingResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_verify_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_forgot_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_reset_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_change_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+        };
+    };
+    api_routers_auth_auth_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_account_profile_get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMe"];
+                };
+            };
+        };
+    };
+    api_routers_account_profile_update_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMe"];
+                };
+            };
+        };
+    };
+    api_routers_account_profile_get_onboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingState"];
+                };
+            };
+        };
+    };
+    api_routers_account_profile_update_onboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMe"];
+                };
+            };
+        };
+    };
+    api_routers_account_profile_request_email_change_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeRequestPayload"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeRequested"];
+                };
+            };
+        };
+    };
+    api_routers_account_profile_confirm_email_change_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeConfirmPayload"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeConfirmed"];
+                };
+            };
+        };
+    };
+    api_routers_account_push_tokens_register_push_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushTokenRead"];
+                };
+            };
+        };
+    };
+    api_routers_account_push_tokens_unregister_push_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenDelete"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_account_notifications_list_notifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    api_routers_account_notifications_mark_notification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationMarkReadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_create_organization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_get_my_organization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_update_my_organization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_members_list_members: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedMembers"];
+                };
+            };
+        };
+    };
+    api_routers_organization_members_get_member: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_members_remove_member: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_organization_members_update_member_role: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_invitations_accept_invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationAccept"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+        };
+    };
+    api_routers_organization_invitations_invitation_by_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationByTokenRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_invitations_list_invitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedInvitations"];
+                };
+            };
+        };
+    };
+    api_routers_organization_invitations_create_invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_invitations_revoke_invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_organization_invitations_resend_invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_join_requests_list_join_requests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedJoinRequests"];
+                };
+            };
+        };
+    };
+    api_routers_organization_join_requests_create_join_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_join_requests_get_my_join_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestRead"] | null;
+                };
+            };
+        };
+    };
+    api_routers_organization_join_requests_cancel_my_join_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_organization_join_requests_approve_join_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                join_request_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestApprove"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_join_requests_deny_join_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                join_request_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestDeny"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequestRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_list_tools: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedTools"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_create_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_get_tool_by_nfc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tag_uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_get_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_delete_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_tools_tools_update_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_photos_list_photos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolPhotoRead"][];
+                };
+            };
+        };
+    };
+    api_routers_tools_photos_upload_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * File
+                     * Format: binary
+                     */
+                    file: string;
+                    /**
+                     * Is Signature
+                     * @default false
+                     */
+                    is_signature?: boolean;
+                    /**
+                     * Description
+                     * @default
+                     */
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolPhotoRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_photos_delete_photo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_assignments_assignments_list_assignments: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                tool?: number | null;
+                user?: number | null;
+                site?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedAssignments"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_create_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_list_mine_active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"][];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_list_mine: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedAssignments"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_list_by_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedAssignments"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_list_available_tools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedTools"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_update_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_return_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentReturn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_tool_assignment_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedAssignments"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_assign_to_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_assignments_assign_by_identifier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_sites_list_sites: {
+        parameters: {
+            query?: {
+                site_type?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedSites"];
+                };
+            };
+        };
+    };
+    api_routers_sites_sites_create_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_sites_get_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_sites_delete_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_sites_sites_update_site: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_sites_sites_for_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedSites"];
+                };
+            };
+        };
+    };
+    api_routers_sites_site_assignments_list_site_assignments: {
+        parameters: {
+            query?: {
+                site?: number | null;
+                user?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedSiteAssignments"];
+                };
+            };
+        };
+    };
+    api_routers_sites_site_assignments_create_site_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteAssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteAssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_site_assignments_delete_site_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_sites_site_assignments_update_site_assignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteAssignmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteAssignmentRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_vans_list_vans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedVans"];
+                };
+            };
+        };
+    };
+    api_routers_sites_vans_create_van: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VanCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VanRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_vans_get_van: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VanRead"];
+                };
+            };
+        };
+    };
+    api_routers_sites_vans_delete_van: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_sites_vans_update_van: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VanUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VanRead"];
+                };
+            };
+        };
+    };
+    api_routers_incidents_incidents_list_incidents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedIncidents"];
+                };
+            };
+        };
+    };
+    api_routers_incidents_incidents_create_incident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentRead"];
+                };
+            };
+        };
+    };
+    api_routers_incidents_incidents_list_my_incidents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedIncidents"];
+                };
+            };
+        };
+    };
+    api_routers_incidents_incidents_get_incident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentRead"];
+                };
+            };
+        };
+    };
+    api_routers_incidents_incidents_delete_incident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_incidents_incidents_update_incident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IncidentUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentRead"];
+                };
+            };
+        };
+    };
+    api_routers_feedback_feedback_submit_feature_suggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackSuggestion"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackRead"];
+                };
+            };
+        };
+    };
+    api_routers_exports_exports_list_exports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportIndex"];
+                };
+            };
+        };
+    };
+    api_routers_exports_exports_compliance_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_exports_exports_export_csv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+}
