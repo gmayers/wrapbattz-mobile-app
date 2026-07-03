@@ -28,7 +28,7 @@ import {
 } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
-import { DEVICE_CATEGORIES, matchCategoryId } from '../constants/deviceCategories';
+import { DEVICE_CATEGORIES, matchCategoryId, ADD_NEW_CATEGORY, resolveCategoryLabel } from '../constants/deviceCategories';
 import { computeNextMaintenanceDate, toYMD } from '../utils/toolMaintenance';
 
 // Define the orange color to match other screens
@@ -101,6 +101,7 @@ const [formData, setFormData] = useState({
   const [userOptions, setUserOptions] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [backendCategories, setBackendCategories] = useState([]);
+  const [customCategory, setCustomCategory] = useState('');
   const [otherMake, setOtherMake] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [createdDeviceId, setCreatedDeviceId] = useState(null);
@@ -188,6 +189,7 @@ const [formData, setFormData] = useState({
       value: name,
       key: `category-${name}`
     }));
+    options.push({ label: '+ Add new…', value: ADD_NEW_CATEGORY, key: 'category-add-new' });
     setCategoryOptions(options);
     logMessage(`Using ${options.length} fixed device categories`);
 
@@ -341,6 +343,8 @@ const validateForm = () => {
       missingFields.push('Model');
 
     // Category (category_id) is nullable — not required.
+    if (formData.category === ADD_NEW_CATEGORY && !customCategory.trim())
+      missingFields.push('New category name');
 
     // Check location or user based on assignment toggle
     if (isUserAssignment) {
@@ -376,13 +380,18 @@ const validateForm = () => {
     try {
       // STEP 1: Create the tool
       const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-      const matchedId = matchCategoryId(formData.category, backendCategories);
+      const categoryLabel = resolveCategoryLabel(formData.category, customCategory);
+      const matchedId = matchCategoryId(categoryLabel, backendCategories);
       const toolPayload = {
         name: formData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
-        ...(matchedId != null ? { category_id: matchedId } : { category: formData.category }),
+        ...(matchedId != null
+          ? { category_id: matchedId }
+          : categoryLabel
+            ? { category: categoryLabel }
+            : {}),
         nfc_tag_id: preScannedNfcTagId ?? null,
         // QA round-4 contract — ignored by the backend until it ships the
         // ToolCreate fields, then persisted. Only sent when an interval is set.
@@ -507,6 +516,7 @@ const formatDate = (date) => {
       user: userOptions.length > 0 ? userOptions[0].value : '', // Reset to first user
     });
     setOtherMake('');
+    setCustomCategory('');
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
@@ -789,6 +799,15 @@ return (
                   Platform.OS === 'ios' && styles.iosDropdownContainer
                 ]}
               />
+              {formData.category === ADD_NEW_CATEGORY && (
+                <BaseTextInput
+                  value={customCategory}
+                  onChangeText={setCustomCategory}
+                  placeholder="New category name (e.g. PPE, Machinery)"
+                  style={{ marginTop: 8 }}
+                  testID="custom-category-input"
+                />
+              )}
             </View>
 
             {/* Serial Number Input */}
