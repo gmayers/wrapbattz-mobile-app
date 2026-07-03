@@ -230,7 +230,7 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device?.current_assignment?.id) {
       Alert.alert(
         'Not currently assigned',
-        'This device has no active assignment to return.'
+        'This tool has no active assignment to return.'
       );
       return;
     }
@@ -255,7 +255,7 @@ const QuickActionModalScreen: React.FC = () => {
         notes: '',
       });
       setReturnOpen(false);
-      Alert.alert('Returned', 'Device has been returned successfully.', [
+      Alert.alert('Returned', 'Tool has been returned successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
@@ -424,7 +424,7 @@ const QuickActionModalScreen: React.FC = () => {
 
           <View style={[styles.deviceCard, { backgroundColor: colors.card, borderColor: colors.borderLight }]}>
             <Text style={[styles.deviceIdentifier, { color: colors.textPrimary }]} testID="quick-action-device-identifier">
-              {device.identifier || device.make || 'Device'}
+              {device.identifier || device.make || 'Tool'}
             </Text>
             {device.device_type ? (
               <Text style={[styles.deviceMeta, { color: colors.textSecondary }]}>
@@ -443,7 +443,7 @@ const QuickActionModalScreen: React.FC = () => {
 
             {device.current_assignment?.id ? (
               <Button
-                title="Return device"
+                title="Return tool"
                 onPress={handleOpenReturn}
                 style={styles.actionBtn}
                 testID="quick-action-return"
@@ -464,7 +464,7 @@ const QuickActionModalScreen: React.FC = () => {
                     tools and site-held tools can always be grabbed. */}
                 {!(activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null)) ? (
                   <Button
-                    title="Assign device"
+                    title="Assign tool"
                     onPress={handleAssign}
                     variant="outlined"
                     style={styles.actionBtn}
@@ -493,7 +493,7 @@ const QuickActionModalScreen: React.FC = () => {
               testID="quick-action-return-panel"
             >
               <Text style={[styles.returnTitle, { color: colors.textPrimary }]}>
-                Return device
+                Return tool
               </Text>
               {destinationsLoading ? (
                 <ActivityIndicator color={colors.primary} />

@@ -193,7 +193,7 @@ const MainStack = () => {
       component={AddDeviceScreen}
       options={{
         headerShown: true,
-        headerTitle: 'Add New Device',
+        headerTitle: 'Add New Tool',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,

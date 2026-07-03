@@ -379,7 +379,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Available Devices</Text>
             {isAdminOrOwner && (
               <Button
-                title="Add New Device"
+                title="Add New Tool"
                 onPress={handleAddDevice}
                 size="small"
               />
@@ -403,7 +403,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
               <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>All devices are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
                 <Button
-                  title="Add New Device"
+                  title="Add New Tool"
                   onPress={handleAddDevice}
                   size="small"
                   style={{ marginTop: 15 }}

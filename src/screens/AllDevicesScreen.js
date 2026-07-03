@@ -179,7 +179,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
         notes: '',
       });
 
-      Alert.alert('Success', 'Device has been returned successfully');
+      Alert.alert('Success', 'Tool has been returned successfully');
       setReturnDeviceModalVisible(false);
       setSelectedReturnLocation(null);
       fetchMyAssignments(); // Refresh my assignments list
@@ -407,7 +407,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
             {selectedReturnDevice && selectedReturnDevice.device && (
               <View style={styles.modalContent}>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Return Device</Text>
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Return Tool</Text>
                   <TouchableOpacity onPress={handleReturnDeviceModalClose}>
                     <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
