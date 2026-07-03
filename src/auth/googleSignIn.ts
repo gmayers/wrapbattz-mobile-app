@@ -1,8 +1,8 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
-import { oauthAuthorize, oauthCallback } from '../api/endpoints/auth';
-import { ApiError } from '../api/errors';
-import type { TokenResponse } from '../api/types';
+import { oauthAuthorize, oauthCallback } from '@/api/endpoints/auth';
+import { ApiError } from '@/api/errors';
+import type { TokenResponse } from '@/api/types';
 
 export const REDIRECT_URI = 'tooltraq://auth/callback';
 
@@ -10,10 +10,13 @@ export type OAuthRedirectFailure = 'state_mismatch' | 'missing_code' | 'provider
 
 export class OAuthRedirectError extends Error {
   reason: OAuthRedirectFailure;
-  constructor(reason: OAuthRedirectFailure) {
+  /** Raw `error` param from the provider redirect (e.g. 'access_denied'). */
+  providerError?: string;
+  constructor(reason: OAuthRedirectFailure, providerError?: string) {
     super(`oauth_redirect_${reason}`);
     this.name = 'OAuthRedirectError';
     this.reason = reason;
+    this.providerError = providerError;
   }
 }
 
@@ -39,7 +42,7 @@ export function parseOAuthRedirect(
   expectedState: string
 ): { code: string } {
   const params = queryParams(url);
-  if (params.error) throw new OAuthRedirectError('provider_error');
+  if (params.error) throw new OAuthRedirectError('provider_error', params.error);
   // Check code before state: a URL with no query string at all (no code,
   // no state) must report missing_code, not state_mismatch — only a URL
   // that carries a code but the wrong (or absent) state is a mismatch.
@@ -75,9 +78,15 @@ export async function signInWithGoogle(
   try {
     ({ code } = parseOAuthRedirect(result.url, state));
   } catch (err) {
-    if (err instanceof OAuthRedirectError && err.reason === 'provider_error') {
+    if (
+      err instanceof OAuthRedirectError &&
+      err.reason === 'provider_error' &&
+      err.providerError === 'access_denied'
+    ) {
       return null; // user denied consent at Google — treat like cancel
     }
+    // Any other provider error (invalid_scope, server_error, …) is a real
+    // configuration/backend failure — surface it, don't mask it as a cancel.
     throw err;
   }
   return oauthCallback(code);

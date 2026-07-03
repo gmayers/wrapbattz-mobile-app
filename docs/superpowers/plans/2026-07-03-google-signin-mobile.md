@@ -17,7 +17,7 @@
 - **The working tree has uncommitted user-owned changes to `docs/api/openapi.json` and `src/api/generated/schema.ts` — do NOT touch, stage, or commit these files. Never use `git add -A` / `git add .`; always stage explicit paths.**
 - **RN gotcha:** `new URL(x).searchParams` THROWS at runtime in React Native (Node's URL in Jest hides this). Redirect parsing must use manual string parsing — no `URL`/`URLSearchParams` in `src/` code for this feature.
 - Jest baseline: exactly 7 pre-existing failing suites (Button, FormField, PasswordField, AuthFlow, BillingService, NFCService, NFCUtils) with `npx jest --testPathIgnorePatterns "/node_modules/" "\.worktrees" "/e2e/" "\.e2e\."` — no new failures.
-- Relative imports (no `@/` alias). User-facing copy says "Google sign-in", tools-not-devices vocabulary elsewhere.
+- Imports: NEW modules and tests use the `@/` alias (maps to `src/`; resolved by tsconfig, Jest `moduleNameMapper`, and Expo Metro tsconfig-paths). Same-directory siblings stay `./`; single imports added to existing legacy files match that file's relative style. User-facing copy says "Google sign-in", tools-not-devices vocabulary elsewhere.
 
 ---
 

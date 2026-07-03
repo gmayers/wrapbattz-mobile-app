@@ -2,21 +2,21 @@ jest.mock('expo-web-browser', () => ({ openAuthSessionAsync: jest.fn() }));
 jest.mock('expo-crypto', () => ({
   getRandomBytesAsync: jest.fn().mockResolvedValue(new Uint8Array(16).fill(0xab)),
 }));
-jest.mock('../../api/endpoints/auth', () => ({
+jest.mock('@/api/endpoints/auth', () => ({
   oauthAuthorize: jest.fn(),
   oauthCallback: jest.fn(),
 }));
 
 import * as WebBrowser from 'expo-web-browser';
-import { oauthAuthorize, oauthCallback } from '../../api/endpoints/auth';
+import { oauthAuthorize, oauthCallback } from '@/api/endpoints/auth';
 import {
   parseOAuthRedirect,
   signInWithGoogle,
   googleSignInAlert,
   OAuthRedirectError,
   REDIRECT_URI,
-} from '../../auth/googleSignIn';
-import { ApiError } from '../../api/errors';
+} from '@/auth/googleSignIn';
+import { ApiError } from '@/api/errors';
 
 const mockedOpen = WebBrowser.openAuthSessionAsync as jest.Mock;
 const mockedAuthorize = oauthAuthorize as jest.Mock;
@@ -85,13 +85,26 @@ describe('signInWithGoogle', () => {
     expect(mockedCallback).not.toHaveBeenCalled();
   });
 
-  it('returns null when the provider redirect carries an error param (user denied)', async () => {
+  it('returns null when the user denies consent (error=access_denied)', async () => {
     mockedAuthorize.mockResolvedValueOnce({ authorization_url: 'https://x' });
     mockedOpen.mockResolvedValueOnce({
       type: 'success',
       url: 'tooltraq://auth/callback?error=access_denied&state=' + 'ab'.repeat(16),
     });
     expect(await signInWithGoogle('sign-in')).toBeNull();
+    expect(mockedCallback).not.toHaveBeenCalled();
+  });
+
+  it('surfaces non-denial provider errors instead of masking them as cancel', async () => {
+    mockedAuthorize.mockResolvedValueOnce({ authorization_url: 'https://x' });
+    mockedOpen.mockResolvedValueOnce({
+      type: 'success',
+      url: 'tooltraq://auth/callback?error=server_error&state=' + 'ab'.repeat(16),
+    });
+    await expect(signInWithGoogle('sign-in')).rejects.toMatchObject({
+      reason: 'provider_error',
+      providerError: 'server_error',
+    });
     expect(mockedCallback).not.toHaveBeenCalled();
   });
 

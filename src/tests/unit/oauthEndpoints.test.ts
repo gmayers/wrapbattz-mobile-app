@@ -1,10 +1,10 @@
-import { apiClient } from '../../api/client';
-import { oauthAuthorize, oauthCallback } from '../../api/endpoints/auth';
+import { apiClient } from '@/api/client';
+import { oauthAuthorize, oauthCallback } from '@/api/endpoints/auth';
 
-jest.mock('../../api/client', () => ({
+jest.mock('@/api/client', () => ({
   apiClient: { post: jest.fn() },
 }));
-jest.mock('../../api/tokenStore', () => ({
+jest.mock('@/api/tokenStore', () => ({
   save: jest.fn().mockResolvedValue(undefined),
   clear: jest.fn().mockResolvedValue(undefined),
 }));
@@ -35,7 +35,7 @@ describe('oauthCallback', () => {
     mockedPost.mockResolvedValueOnce({ data: tokens });
     const res = await oauthCallback('the-code');
     expect(mockedPost).toHaveBeenCalledWith('/auth/oauth/callback/', { code: 'the-code' });
-    const { save } = require('../../api/tokenStore');
+    const { save } = require('@/api/tokenStore');
     expect(save).toHaveBeenCalledWith({
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
