@@ -24,10 +24,15 @@ const ToolsScreen: React.FC = () => {
   const searchRef = useRef<TextInput>(null);
 
   // "Find Tool" quick action lands here with focusSearch — focus once per visit.
+  // Clear the param inside the timeout: clearing it synchronously re-runs this
+  // effect (the param is a dependency) and its cleanup would cancel the timer
+  // before the focus ever fires.
   useEffect(() => {
     if (route.params?.focusSearch) {
-      const t = setTimeout(() => searchRef.current?.focus(), 300);
-      navigation.setParams({ focusSearch: undefined });
+      const t = setTimeout(() => {
+        searchRef.current?.focus();
+        navigation.setParams({ focusSearch: undefined });
+      }, 300);
       return () => clearTimeout(t);
     }
   }, [route.params?.focusSearch, navigation]);
