@@ -20,15 +20,7 @@ import * as invitationsApi from '../../api/endpoints/invitations';
 import type { MemberRead, InvitationRead } from '../../api/types';
 import { ApiError } from '../../api/errors';
 import InviteMemberSheet from './InviteMemberSheet';
-
-type Role = 'owner' | 'admin' | 'office_worker' | 'site_worker';
-
-const ROLE_LABEL: Record<Role, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  office_worker: 'Office worker',
-  site_worker: 'Site worker',
-};
+import { Role, ROLE_LABEL } from './roles';
 
 const ROLE_ORDER: Role[] = ['owner', 'admin', 'office_worker', 'site_worker'];
 
@@ -88,6 +80,11 @@ const MembersScreen: React.FC = () => {
   const load = useCallback(async () => {
     try {
       setError(null);
+      // Fetch members and invitations in parallel; invitations are
+      // supplementary, so their failures resolve to null and are ignored.
+      const invitesPromise = invitationsApi
+        .listInvitations({ page_size: 200 })
+        .catch(() => null);
       const page = await membersApi.listMembers();
       page.items.sort((a, b) => {
         const ra = ROLE_ORDER.indexOf(a.role as Role);
@@ -96,11 +93,9 @@ const MembersScreen: React.FC = () => {
         return (a.last_name || a.email).localeCompare(b.last_name || b.email);
       });
       setMembers(page.items);
-      try {
-        const invPage = await invitationsApi.listInvitations({ page_size: 200 });
+      const invPage = await invitesPromise;
+      if (invPage) {
         setInvites(invPage.items.filter((i) => String(i.status).toLowerCase() === 'pending'));
-      } catch {
-        // Pending invites are supplementary — ignore load failures.
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === 'unauthorized') return;

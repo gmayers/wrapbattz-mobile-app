@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from './Card';
 import Button from './Button';
 import { useTheme } from '../context/ThemeContext';
+import { formatting } from '../utils/CommonUtils';
 
 const getStatusColor = (status) => {
   const statusColors = {
@@ -36,11 +37,12 @@ const StandardDeviceCard = ({
   const isActive = !returned_date;
 
   const renderMaintenanceInfo = () => {
+    // next_maintenance fallback covers stale NFC-tag payloads written with the old key.
     const nextDue = device.next_maintenance_date || device.next_maintenance;
     if (nextDue) {
       return (
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Next Maintenance: {nextDue}
+          Next Maintenance: {formatting.date(nextDue)}
         </Text>
       );
     }

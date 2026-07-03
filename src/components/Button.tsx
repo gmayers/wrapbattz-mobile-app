@@ -41,6 +41,10 @@ interface ButtonProps {
   loadingText?: string;
   activeOpacity?: number;
   testID?: string;
+
+  // Accessibility
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -73,6 +77,10 @@ const Button: React.FC<ButtonProps> = ({
   loadingText = 'Loading...',
   activeOpacity = 0.7,
   testID,
+
+  // Accessibility
+  accessibilityLabel,
+  accessibilityHint,
 }) => {
   const { colors } = useTheme();
 
@@ -156,6 +164,9 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       activeOpacity={activeOpacity}
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
     >
       {loading ? (
         <>
