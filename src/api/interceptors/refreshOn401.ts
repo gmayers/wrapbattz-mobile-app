@@ -13,6 +13,7 @@ const NON_REFRESHABLE_PATHS = [
   '/auth/password/forgot/',
   '/auth/password/reset/',
   '/auth/token/refresh/',
+  '/auth/oauth/', // authorize + callback are auth=None; a 401 here is oauth_failed, not an expired session
 ];
 
 let inFlight: Promise<string | null> | null = null;

@@ -5,6 +5,8 @@ import type {
   ChangePasswordRequest,
   ForgotPasswordRequest,
   LoginRequest,
+  OAuthAuthorizeRequest,
+  OAuthAuthorizeResponse,
   RegisterRequest,
   ResetPasswordRequest,
   TokenResponse,
@@ -35,6 +37,18 @@ async function persistTokenResponse(response: TokenResponse): Promise<TokenRespo
 
 export async function login(payload: LoginRequest): Promise<TokenResponse> {
   const { data } = await apiClient.post<TokenResponse>('/auth/login/', payload);
+  return persistTokenResponse(data);
+}
+
+export async function oauthAuthorize(
+  payload: OAuthAuthorizeRequest
+): Promise<OAuthAuthorizeResponse> {
+  const { data } = await apiClient.post<OAuthAuthorizeResponse>('/auth/oauth/authorize/', payload);
+  return data;
+}
+
+export async function oauthCallback(code: string): Promise<TokenResponse> {
+  const { data } = await apiClient.post<TokenResponse>('/auth/oauth/callback/', { code });
   return persistTokenResponse(data);
 }
 
