@@ -413,8 +413,16 @@ const validateForm = () => {
           matchedId == null
         ) {
           logMessage('[BACKEND] category field rejected (400); retrying with category_id: null');
-          const { category: _dropped, ...payloadWithoutCategory } = toolPayload;
+          const { category: droppedCategory, ...payloadWithoutCategory } = toolPayload;
           createdTool = await toolsApi.createTool({ ...payloadWithoutCategory, category_id: null });
+          // Don't silently uncategorize: there is no category-create endpoint
+          // yet, so tell the user their custom category wasn't saved.
+          if (droppedCategory) {
+            Alert.alert(
+              'Category not saved',
+              `The tool was created, but the category "${droppedCategory}" isn't supported by the server yet. You can set it once category support ships.`
+            );
+          }
         } else {
           throw createError;
         }
@@ -828,7 +836,9 @@ return (
                 onChangeText={(text) => {
                   const clean = text.replace(/[^0-9]/g, '');
                   handleInputChange('maintenance_interval', clean);
-                  if (!dateManuallySet && clean) {
+                  // Match the submit gate: only positive intervals are sent,
+                  // so only positive intervals auto-fill the date.
+                  if (!dateManuallySet && Number(clean) > 0) {
                     handleInputChange(
                       'next_maintenance_date',
                       computeNextMaintenanceDate(Number(clean)),

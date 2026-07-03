@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { SectionList, View, Text, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import { SectionList, View, Text, TextInput, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -71,13 +71,14 @@ const ToolsScreen: React.FC = () => {
           testID="tools-search-input"
         />
         {query ? (
-          <Ionicons
-            name="close-circle"
-            size={18}
-            color={colors.textSecondary}
+          <Pressable
             onPress={() => setQuery('')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
             accessibilityLabel="Clear search"
-          />
+          >
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          </Pressable>
         ) : null}
       </View>
       {isAdminOrOwner ? (

@@ -7,20 +7,11 @@ import { useTheme } from '../../context/ThemeContext';
 import * as invitationsApi from '../../api/endpoints/invitations';
 import type { InvitationRead } from '../../api/types';
 import { ApiError } from '../../api/errors';
-
-type Role = 'owner' | 'admin' | 'office_worker' | 'site_worker';
-
-const ROLE_LABEL: Record<Role, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  office_worker: 'Office worker',
-  site_worker: 'Site worker',
-};
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { validation } from '../../utils/CommonUtils';
+import { Role, ROLE_LABEL } from './roles';
 
 export function canSubmitInvite(email: string, role: string): boolean {
-  return EMAIL_RE.test(email.trim()) && !!role;
+  return validation.email(email.trim()) && !!role;
 }
 
 interface Props {
@@ -39,6 +30,13 @@ const InviteMemberSheet: React.FC<Props> = ({ visible, onClose, onSent, roles })
   const reset = () => {
     setEmail('');
     setRole('site_worker');
+  };
+
+  // Clear the draft on every close path (backdrop, Cancel, hardware back),
+  // not just after a successful send.
+  const handleClose = () => {
+    reset();
+    onClose();
   };
 
   const handleSend = async () => {
@@ -61,12 +59,12 @@ const InviteMemberSheet: React.FC<Props> = ({ visible, onClose, onSent, roles })
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.backdrop}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={handleClose} />
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Invite a team member</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -124,7 +122,12 @@ const InviteMemberSheet: React.FC<Props> = ({ visible, onClose, onSent, roles })
               <Text style={styles.sendBtnText}>Send Invitation</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel invitation"
+          >
             <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
