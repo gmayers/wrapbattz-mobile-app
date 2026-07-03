@@ -8,6 +8,7 @@ const ANONYMOUS_PATHS = [
   '/auth/password/forgot/',
   '/auth/password/reset/',
   '/auth/token/refresh/',
+  '/auth/oauth/', // authorize + callback are anonymous; a stale bearer here could 401 the flow
   '/invitations/accept/',
   '/invitations/by-token/',
 ];

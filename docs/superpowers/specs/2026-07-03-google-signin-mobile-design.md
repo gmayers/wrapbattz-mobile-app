@@ -90,7 +90,11 @@ on an unmerged branch; the mobile side must be ready to ship the moment it deplo
 | `503 oauth_unavailable` | Alert "Google sign-in isn't available yet. Please use email and password." (covers the pre-deploy window). |
 | `401 oauth_failed` | Alert with the server message ("Google sign-in could not be completed."). |
 | Network/timeout `ApiError` | Existing message pattern: alert with `error.message`. |
-| `unauthorized` code | Skipped (handled globally), consistent with the rest of the app. |
+
+Unlike the rest of the app, a 401 (`unauthorized` code) from the OAuth endpoints
+is **shown, not skipped**: these endpoints are unauthenticated (excluded from the
+refresh and attach-token interceptors), so a 401 means `oauth_failed`, never an
+expired session.
 
 ### Testing
 
