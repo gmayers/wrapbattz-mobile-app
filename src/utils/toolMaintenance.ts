@@ -26,3 +26,16 @@ export function toYMD(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
+// Single source for the next-maintenance value: prefers the canonical
+// next_maintenance_date, falling back to the old next_maintenance key still
+// found in stale NFC-tag payloads.
+export function resolveNextMaintenanceDate(
+  device:
+    | { next_maintenance_date?: string | null; next_maintenance?: string | null }
+    | null
+    | undefined,
+): string | null {
+  if (!device) return null;
+  return device.next_maintenance_date || device.next_maintenance || null;
+}

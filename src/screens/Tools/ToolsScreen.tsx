@@ -74,6 +74,7 @@ const ToolsScreen: React.FC = () => {
           <Pressable
             onPress={() => setQuery('')}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={({ pressed }) => (pressed ? { opacity: 0.5 } : null)}
             accessibilityRole="button"
             accessibilityLabel="Clear search"
           >

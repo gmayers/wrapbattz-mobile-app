@@ -16,7 +16,7 @@
   `npx jest --testPathIgnorePatterns "/node_modules/" "\.worktrees" "/e2e/" "\.e2e\." <path>` — no NEW failures allowed.
 - Backend field contract (fields may be ABSENT until backend ships): `ToolRead` gains `maintenance_interval_days?: number|null`, `next_maintenance_date?: string|null` (YYYY-MM-DD), `warranty_expiry?: string|null`, `purchase_date?: string|null`, `purchase_cost?: string|number|null`, `condition_score?: string|number|null` (1.0–10.0); `ToolCreate`/`ToolUpdate` accept `maintenance_interval_days`, `next_maintenance_date`. Unknown request fields are ignored by django-ninja, so sending them early is safe.
 - User-facing copy says "tool", not "device". Do not rename files, routes, components, or identifiers — strings only.
-- `@/` path alias is NOT used in existing `src/` imports — use relative imports to match surrounding code.
+- Imports: NEW modules and tests use the `@/` alias (maps to `src/`; resolved by tsconfig, Jest `moduleNameMapper`, and Expo Metro tsconfig-paths). Same-directory siblings stay `./`. When adding single imports to existing legacy files, match that file's existing relative style rather than mixing conventions within one file.
 
 ---
 

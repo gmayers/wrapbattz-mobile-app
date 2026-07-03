@@ -1,8 +1,9 @@
 import {
   conditionLabelFromScore,
   computeNextMaintenanceDate,
+  resolveNextMaintenanceDate,
   toYMD,
-} from '../../utils/toolMaintenance';
+} from '@/utils/toolMaintenance';
 
 describe('conditionLabelFromScore', () => {
   it('returns OK when no score recorded', () => {
@@ -40,5 +41,26 @@ describe('computeNextMaintenanceDate', () => {
 describe('toYMD', () => {
   it('zero-pads month and day', () => {
     expect(toYMD(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('resolveNextMaintenanceDate', () => {
+  it('prefers the canonical next_maintenance_date', () => {
+    expect(
+      resolveNextMaintenanceDate({
+        next_maintenance_date: '2026-10-01',
+        next_maintenance: '2026-01-01',
+      }),
+    ).toBe('2026-10-01');
+  });
+
+  it('falls back to the stale NFC-payload key', () => {
+    expect(resolveNextMaintenanceDate({ next_maintenance: '2026-01-01' })).toBe('2026-01-01');
+  });
+
+  it('returns null when neither key is set or device is missing', () => {
+    expect(resolveNextMaintenanceDate({})).toBeNull();
+    expect(resolveNextMaintenanceDate(null)).toBeNull();
+    expect(resolveNextMaintenanceDate(undefined)).toBeNull();
   });
 });
