@@ -242,7 +242,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             <Button
               title="Register"
               onPress={handleRegister}
-              disabled={isSubmitting}
+              disabled={isSubmitting || googleLoading}
               loading={isSubmitting}
               style={{ marginTop: 20, backgroundColor: colors.primary }}
               textColorProp="black"

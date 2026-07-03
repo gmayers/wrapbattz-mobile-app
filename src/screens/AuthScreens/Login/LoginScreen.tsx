@@ -435,6 +435,7 @@ const LoginScreen: React.FC = () => {
                 title="Sign In"
                 onPress={handleLogin}
                 loading={isLoading}
+                disabled={isLoading || googleLoading}
                 textColorProp="black"
                 style={{ marginTop: 12, backgroundColor: colors.primary }}
                 testID="login-button"
