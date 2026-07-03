@@ -29,6 +29,7 @@ import {
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import { DEVICE_CATEGORIES, matchCategoryId } from '../constants/deviceCategories';
+import { computeNextMaintenanceDate, toYMD } from '../utils/toolMaintenance';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
@@ -92,6 +93,9 @@ const [formData, setFormData] = useState({
     deviceIdentifier: ''
 });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // True once the user has explicitly picked a next-maintenance date; stops
+  // the interval field from overwriting their choice.
+  const [dateManuallySet, setDateManuallySet] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [userOptions, setUserOptions] = useState([]);
@@ -380,6 +384,14 @@ const validateForm = () => {
         serial_number: formData.serial_number || '',
         ...(matchedId != null ? { category_id: matchedId } : { category: formData.category }),
         nfc_tag_id: preScannedNfcTagId ?? null,
+        // QA round-4 contract — ignored by the backend until it ships the
+        // ToolCreate fields, then persisted. Only sent when an interval is set.
+        ...(formData.maintenance_interval
+          ? {
+              maintenance_interval_days: Number(formData.maintenance_interval),
+              next_maintenance_date: toYMD(formData.next_maintenance_date),
+            }
+          : {}),
       };
       let createdTool;
       try {
@@ -502,6 +514,7 @@ const formatDate = (date) => {
     setScannedNfcUuid(null); // Clear NFC UUID when resetting
     setPreScannedNfcTagId(null); // Clear pre-scanned NFC tag when resetting
     setIsScanningNfc(false);
+    setDateManuallySet(false);
     // Reset NFC write options to defaults
     setNfcWriteOptions({
       description: false,
@@ -793,7 +806,16 @@ return (
               <Text style={styles.label}>Maintenance Interval (optional) - number of days</Text>
               <BaseTextInput
                 value={formData.maintenance_interval}
-                onChangeText={(text) => handleInputChange('maintenance_interval', text.replace(/[^0-9]/g, ''))}
+                onChangeText={(text) => {
+                  const clean = text.replace(/[^0-9]/g, '');
+                  handleInputChange('maintenance_interval', clean);
+                  if (!dateManuallySet && clean) {
+                    handleInputChange(
+                      'next_maintenance_date',
+                      computeNextMaintenanceDate(Number(clean)),
+                    );
+                  }
+                }}
                 placeholder="Enter maintenance interval"
                 keyboardType="numeric"
               />
@@ -818,6 +840,7 @@ return (
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
+                      setDateManuallySet(true);
                       handleInputChange('next_maintenance_date', selectedDate);
                     }
                   }}
