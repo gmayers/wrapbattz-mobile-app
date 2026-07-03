@@ -1,5 +1,5 @@
-import { filterGroupsByQuery } from '../../screens/Tools/hooks/filterGroups';
-import type { SiteGroup } from '../../screens/Tools/hooks/useMyTools';
+import { filterGroupsByQuery } from '@/screens/Tools/hooks/filterGroups';
+import type { SiteGroup } from '@/screens/Tools/hooks/useMyTools';
 
 const groups: SiteGroup[] = [
   {

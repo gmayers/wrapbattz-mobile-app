@@ -3,11 +3,11 @@ import {
   View, Text, TextInput, TouchableOpacity, Modal, StyleSheet,
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useTheme } from '../../context/ThemeContext';
-import * as invitationsApi from '../../api/endpoints/invitations';
-import type { InvitationRead } from '../../api/types';
-import { ApiError } from '../../api/errors';
-import { validation } from '../../utils/CommonUtils';
+import { useTheme } from '@/context/ThemeContext';
+import * as invitationsApi from '@/api/endpoints/invitations';
+import type { InvitationRead } from '@/api/types';
+import { ApiError } from '@/api/errors';
+import { validation } from '@/utils/CommonUtils';
 import { Role, ROLE_LABEL } from './roles';
 
 export function canSubmitInvite(email: string, role: string): boolean {
