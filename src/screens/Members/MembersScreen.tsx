@@ -16,8 +16,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { members as membersApi } from '../../api/endpoints';
-import type { MemberRead } from '../../api/types';
+import * as invitationsApi from '../../api/endpoints/invitations';
+import type { MemberRead, InvitationRead } from '../../api/types';
 import { ApiError } from '../../api/errors';
+import InviteMemberSheet from './InviteMemberSheet';
 
 type Role = 'owner' | 'admin' | 'office_worker' | 'site_worker';
 
@@ -63,6 +65,9 @@ const MembersScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [roleSheetFor, setRoleSheetFor] = useState<MemberRead | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [invites, setInvites] = useState<InvitationRead[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteBusyId, setInviteBusyId] = useState<number | null>(null);
 
   const currentUserId: number | undefined = userData?.user_id ?? userData?.id;
 
@@ -77,6 +82,12 @@ const MembersScreen: React.FC = () => {
         return (a.last_name || a.email).localeCompare(b.last_name || b.email);
       });
       setMembers(page.items);
+      try {
+        const invPage = await invitationsApi.listInvitations();
+        setInvites(invPage.items.filter((i) => i.status === 'pending'));
+      } catch {
+        // Pending invites are supplementary — ignore load failures.
+      }
     } catch (err) {
       if (err instanceof ApiError && err.code === 'unauthorized') return;
       const msg =
@@ -149,6 +160,47 @@ const MembersScreen: React.FC = () => {
     },
     [],
   );
+
+  const handleResend = useCallback(async (inv: InvitationRead) => {
+    setInviteBusyId(inv.id);
+    try {
+      await invitationsApi.resendInvitation(inv.id);
+      Alert.alert('Invitation resent', `A new invitation email was sent to ${inv.email}.`);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'unauthorized') return;
+      Alert.alert(
+        'Resend failed',
+        err instanceof ApiError ? err.message : 'Could not resend the invitation. Please try again.',
+      );
+    } finally {
+      setInviteBusyId(null);
+    }
+  }, []);
+
+  const handleRevoke = useCallback((inv: InvitationRead) => {
+    Alert.alert('Revoke invitation', `Revoke the invitation to ${inv.email}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Revoke',
+        style: 'destructive',
+        onPress: async () => {
+          setInviteBusyId(inv.id);
+          try {
+            await invitationsApi.revokeInvitation(inv.id);
+            setInvites((prev) => prev.filter((i) => i.id !== inv.id));
+          } catch (err) {
+            if (err instanceof ApiError && err.code === 'unauthorized') return;
+            Alert.alert(
+              'Revoke failed',
+              err instanceof ApiError ? err.message : 'Could not revoke the invitation. Please try again.',
+            );
+          } finally {
+            setInviteBusyId(null);
+          }
+        },
+      },
+    ]);
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -249,7 +301,15 @@ const MembersScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={26} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Members</Text>
-        <View style={styles.backBtn} />
+        <TouchableOpacity
+          onPress={() => setInviteOpen(true)}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Invite a member"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="person-add-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -290,6 +350,54 @@ const MembersScreen: React.FC = () => {
                 No members yet.
               </Text>
             </View>
+          }
+          ListHeaderComponent={
+            invites.length > 0 ? (
+              <View style={styles.invitesBlock}>
+                <Text style={[styles.invitesTitle, { color: colors.textSecondary }]}>
+                  PENDING INVITATIONS
+                </Text>
+                {invites.map((inv) => (
+                  <View
+                    key={inv.id}
+                    style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  >
+                    <View style={styles.row}>
+                      <View style={styles.info}>
+                        <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {inv.email}
+                        </Text>
+                        <Text style={[styles.email, { color: colors.textSecondary }]}>
+                          {ROLE_LABEL[inv.role as Role] ?? inv.role} · invited
+                        </Text>
+                      </View>
+                      {inviteBusyId === inv.id ? (
+                        <ActivityIndicator color={colors.primary} />
+                      ) : (
+                        <View style={styles.actions}>
+                          <TouchableOpacity
+                            style={[styles.iconBtn, { borderColor: colors.border }]}
+                            onPress={() => handleResend(inv)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Resend invitation to ${inv.email}`}
+                          >
+                            <Ionicons name="refresh-outline" size={18} color={colors.textPrimary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.iconBtn, { borderColor: colors.border }]}
+                            onPress={() => handleRevoke(inv)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Revoke invitation to ${inv.email}`}
+                          >
+                            <Ionicons name="trash-outline" size={18} color="#F85149" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null
           }
         />
       )}
@@ -340,6 +448,17 @@ const MembersScreen: React.FC = () => {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      <InviteMemberSheet
+        visible={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onSent={(inv) => {
+          setInviteOpen(false);
+          setInvites((prev) => [inv, ...prev.filter((i) => i.id !== inv.id)]);
+          Alert.alert('Invitation sent', `${inv.email} has been invited.`);
+        }}
+        roles={availableRoles}
+      />
     </SafeAreaView>
   );
 };
@@ -367,6 +486,8 @@ const styles = StyleSheet.create({
   retryText: { color: '#000', fontWeight: '600' },
   emptyText: { fontSize: 15, marginTop: 10, textAlign: 'center' },
   listContent: { padding: 16, paddingBottom: 32 },
+  invitesBlock: { marginBottom: 14 },
+  invitesTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8 },
   card: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
