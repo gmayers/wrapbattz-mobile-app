@@ -97,8 +97,8 @@ const MembersScreen: React.FC = () => {
       });
       setMembers(page.items);
       try {
-        const invPage = await invitationsApi.listInvitations();
-        setInvites(invPage.items.filter((i) => i.status === 'pending'));
+        const invPage = await invitationsApi.listInvitations({ page_size: 200 });
+        setInvites(invPage.items.filter((i) => String(i.status).toLowerCase() === 'pending'));
       } catch {
         // Pending invites are supplementary — ignore load failures.
       }

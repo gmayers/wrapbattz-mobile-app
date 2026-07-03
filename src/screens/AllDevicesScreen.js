@@ -110,7 +110,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
       const items = await assignmentsApi.listMyActiveAssignments();
       setMyAssignments(sortAssignments(items.map(toLegacyAssignment)));
     } catch (error) {
-      handleApiError(error, 'Failed to fetch your device assignments');
+      handleApiError(error, 'Failed to fetch your tool assignments');
     } finally {
       setLoadingMyAssignments(false);
     }
@@ -134,7 +134,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
     event.stopPropagation();
     
     if (!deviceAssignment || !deviceAssignment.device) {
-      Alert.alert('Error', 'Invalid device assignment data');
+      Alert.alert('Error', 'Invalid tool assignment data');
       return;
     }
 
@@ -166,7 +166,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
       selectedReturnDevice?.id;
 
     if (!assignmentId) {
-      Alert.alert('Error', 'No device assignment selected for return.');
+      Alert.alert('Error', 'No tool assignment selected for return.');
       return;
     }
 
@@ -187,7 +187,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
         fetchOrganizationAssignments(); // Refresh organisation assignments list
       }
     } catch (error) {
-      handleApiError(error, 'Failed to return device.');
+      handleApiError(error, 'Failed to return tool.');
     } finally {
       setReturningAssignment(false);
     }
@@ -291,11 +291,11 @@ const AllDevicesScreen = ({ navigation, route }) => {
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary }]}>Devices</Text>
+          <Text style={[styles.backText, { color: colors.primary }]}>Tools</Text>
         </TouchableOpacity>
         {isAdminOrOwner && (
           <Button
-            title="Add Device"
+            title="Add Tool"
             onPress={() => navigation.navigate('AddDevice')}
             size="small"
           />
@@ -306,7 +306,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
       <SearchBar
         value={searchQuery}
         onChangeText={setSearchQuery}
-        placeholder="Search devices..."
+        placeholder="Search tools..."
       />
 
       {/* Tab Navigation */}
@@ -338,7 +338,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
               styles.tabText, { color: colors.textSecondary },
               activeTab === 'all' && [styles.activeTabText, { color: colors.primary }]
             ]}>
-              Organization Devices
+              Organization Tools
             </Text>
           </TouchableOpacity>
         )}
@@ -360,7 +360,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
               </View>
             ) : (
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {searchQuery.trim() ? 'No matching assignments found' : 'No active device assignments found'}
+                {searchQuery.trim() ? 'No matching assignments found' : 'No active tool assignments found'}
               </Text>
             )}
           </View>

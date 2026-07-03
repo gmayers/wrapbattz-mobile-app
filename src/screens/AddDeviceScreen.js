@@ -395,7 +395,7 @@ const validateForm = () => {
         nfc_tag_id: preScannedNfcTagId ?? null,
         // QA round-4 contract — ignored by the backend until it ships the
         // ToolCreate fields, then persisted. Only sent when an interval is set.
-        ...(formData.maintenance_interval
+        ...(Number(formData.maintenance_interval) > 0
           ? {
               maintenance_interval_days: Number(formData.maintenance_interval),
               next_maintenance_date: toYMD(formData.next_maintenance_date),

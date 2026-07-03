@@ -26,16 +26,19 @@ const ToolsScreen: React.FC = () => {
   // "Find Tool" quick action lands here with focusSearch — focus once per visit.
   // Clear the param inside the timeout: clearing it synchronously re-runs this
   // effect (the param is a dependency) and its cleanup would cancel the timer
-  // before the focus ever fires.
+  // before the focus ever fires. Gate on hasLoadedOnce: during first load the
+  // component renders the loader below (no search input to focus), so wait
+  // until that flips true — the param is still set (only cleared inside the
+  // timer), so this effect re-runs and focus fires then.
   useEffect(() => {
-    if (route.params?.focusSearch) {
+    if (route.params?.focusSearch && hasLoadedOnce) {
       const t = setTimeout(() => {
         searchRef.current?.focus();
         navigation.setParams({ focusSearch: undefined });
       }, 300);
       return () => clearTimeout(t);
     }
-  }, [route.params?.focusSearch, navigation]);
+  }, [route.params?.focusSearch, navigation, hasLoadedOnce]);
 
   const visibleGroups = useMemo(() => filterGroupsByQuery(groups, query), [groups, query]);
   const sections = visibleGroups.map(g => ({ title: g.siteName, data: g.tools, group: g }));
