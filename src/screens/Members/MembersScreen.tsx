@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -67,7 +67,21 @@ const MembersScreen: React.FC = () => {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [invites, setInvites] = useState<InvitationRead[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteBusyId, setInviteBusyId] = useState<number | null>(null);
+  const [busyInviteIds, setBusyInviteIds] = useState<Set<number>>(new Set());
+  // Ref mirror so deferred callbacks (e.g. the revoke confirm Alert's onPress)
+  // read the current busy set rather than a stale closure snapshot.
+  const busyInviteIdsRef = useRef<Set<number>>(busyInviteIds);
+
+  const markInviteBusy = useCallback((id: number, busy: boolean) => {
+    const next = new Set(busyInviteIdsRef.current);
+    if (busy) {
+      next.add(id);
+    } else {
+      next.delete(id);
+    }
+    busyInviteIdsRef.current = next;
+    setBusyInviteIds(next);
+  }, []);
 
   const currentUserId: number | undefined = userData?.user_id ?? userData?.id;
 
@@ -162,7 +176,8 @@ const MembersScreen: React.FC = () => {
   );
 
   const handleResend = useCallback(async (inv: InvitationRead) => {
-    setInviteBusyId(inv.id);
+    if (busyInviteIdsRef.current.has(inv.id)) return;
+    markInviteBusy(inv.id, true);
     try {
       await invitationsApi.resendInvitation(inv.id);
       Alert.alert('Invitation resent', `A new invitation email was sent to ${inv.email}.`);
@@ -173,18 +188,21 @@ const MembersScreen: React.FC = () => {
         err instanceof ApiError ? err.message : 'Could not resend the invitation. Please try again.',
       );
     } finally {
-      setInviteBusyId(null);
+      markInviteBusy(inv.id, false);
     }
-  }, []);
+  }, [markInviteBusy]);
 
   const handleRevoke = useCallback((inv: InvitationRead) => {
+    if (busyInviteIdsRef.current.has(inv.id)) return;
     Alert.alert('Revoke invitation', `Revoke the invitation to ${inv.email}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Revoke',
         style: 'destructive',
         onPress: async () => {
-          setInviteBusyId(inv.id);
+          // Re-check: an operation may have started while the Alert was open.
+          if (busyInviteIdsRef.current.has(inv.id)) return;
+          markInviteBusy(inv.id, true);
           try {
             await invitationsApi.revokeInvitation(inv.id);
             setInvites((prev) => prev.filter((i) => i.id !== inv.id));
@@ -195,12 +213,12 @@ const MembersScreen: React.FC = () => {
               err instanceof ApiError ? err.message : 'Could not revoke the invitation. Please try again.',
             );
           } finally {
-            setInviteBusyId(null);
+            markInviteBusy(inv.id, false);
           }
         },
       },
     ]);
-  }, []);
+  }, [markInviteBusy]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -371,7 +389,7 @@ const MembersScreen: React.FC = () => {
                           {ROLE_LABEL[inv.role as Role] ?? inv.role} · invited
                         </Text>
                       </View>
-                      {inviteBusyId === inv.id ? (
+                      {busyInviteIds.has(inv.id) ? (
                         <ActivityIndicator color={colors.primary} />
                       ) : (
                         <View style={styles.actions}>
