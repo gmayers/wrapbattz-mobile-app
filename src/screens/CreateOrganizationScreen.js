@@ -1,5 +1,5 @@
 // screens/OnboardingScreens/CreateOrganizationScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,9 +19,11 @@ import FormField from '../components/Form/FormField';
 import { organizations as organizationsApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
 
-const CreateOrganizationScreen = ({ navigation }) => {
-  const { updateOnboarding, refreshUser, isLoading } = useAuth();
+const CreateOrganizationScreen = ({ navigation, route }) => {
+  const { updateOnboarding, refreshUser, isLoading, logout } = useAuth();
   const { colors } = useTheme();
+
+  const isEditMode = route?.params?.mode === 'edit';
 
   // Form state
   const [name, setName] = useState('');
@@ -34,10 +36,37 @@ const CreateOrganizationScreen = ({ navigation }) => {
   const [city, setCity] = useState('');
   const [county, setCounty] = useState('');
   const [postcode, setPostcode] = useState('');
-  
+
   // Validation state
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [loadingOrg, setLoadingOrg] = useState(false);
+
+  // In edit mode, prefill the form with the existing organization data
+  useEffect(() => {
+    if (!isEditMode) return;
+    let cancelled = false;
+    const fetchOrg = async () => {
+      setLoadingOrg(true);
+      try {
+        const org = await organizationsApi.getMyOrganization();
+        if (cancelled) return;
+        setName(org.name ?? '');
+        setTradingName(org.trading_name ?? '');
+        setEmail(org.email ?? '');
+        setPhone(org.phone ?? '');
+        setWebsite(org.website ?? '');
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof ApiError ? err.message : 'Failed to load organization details.';
+        Alert.alert('Error', msg);
+      } finally {
+        if (!cancelled) setLoadingOrg(false);
+      }
+    };
+    fetchOrg();
+    return () => { cancelled = true; };
+  }, [isEditMode]);
   
   // Form validation
   const validateForm = () => {
@@ -49,26 +78,30 @@ const CreateOrganizationScreen = ({ navigation }) => {
       formErrors.name = 'Organization name is required';
       isValid = false;
     }
-    
-    if (!addressLine1.trim()) {
-      formErrors.addressLine1 = 'Address line 1 is required';
-      isValid = false;
-    }
-    
-    if (!city.trim()) {
-      formErrors.city = 'City/Town is required';
-      isValid = false;
-    }
-    
-    if (!postcode.trim()) {
-      formErrors.postcode = 'Postcode is required';
-      isValid = false;
-    } else {
-      // Simple UK postcode validation
-      const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/i;
-      if (!postcodeRegex.test(postcode)) {
-        formErrors.postcode = 'Please enter a valid UK postcode';
+
+    // Address fields are only collected (and required) during the create/onboarding flow.
+    // In edit mode they are not stored on the org and not validated.
+    if (!isEditMode) {
+      if (!addressLine1.trim()) {
+        formErrors.addressLine1 = 'Address line 1 is required';
         isValid = false;
+      }
+
+      if (!city.trim()) {
+        formErrors.city = 'City/Town is required';
+        isValid = false;
+      }
+
+      if (!postcode.trim()) {
+        formErrors.postcode = 'Postcode is required';
+        isValid = false;
+      } else {
+        // Simple UK postcode validation
+        const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$/i;
+        if (!postcodeRegex.test(postcode)) {
+          formErrors.postcode = 'Please enter a valid UK postcode';
+          isValid = false;
+        }
       }
     }
     
@@ -96,50 +129,57 @@ const CreateOrganizationScreen = ({ navigation }) => {
   
   // Handle form submission
   const handleSubmit = async () => {
-    console.log('=== CREATE ORGANIZATION SUBMIT ===');
+    console.log(isEditMode ? '=== UPDATE ORGANIZATION SUBMIT ===' : '=== CREATE ORGANIZATION SUBMIT ===');
     console.log('Starting form submission...');
-    
+
     if (!validateForm()) {
       console.log('Form validation failed');
       return;
     }
-    
+
     setSubmitting(true);
-    
+
     try {
-      // The new /organizations/ schema only accepts the basic org fields;
-      // address fields are now stored on sites, not the organization.
-      await organizationsApi.createOrganization({
+      const payload = {
         name: name.trim(),
         trading_name: tradingName.trim() || '',
         email: email.trim() || null,
         phone: phone.trim() || '',
-        website: website.trim() || ''
-});
+        website: website.trim() || '',
+      };
 
-      await updateOnboarding({ has_completed_onboarding: true });
-      await refreshUser();
-      
-      // Success message and navigation
-      Alert.alert(
-        "Success",
-        "Your organization has been created successfully!",
-        [{ 
-          text: "Continue", 
-          onPress: () => {
-            console.log('Navigating to Dashboard...');
-            // Navigate to Dashboard which should now show the main app
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              navigation.replace('Dashboard');
-            }
-          }
-        }]
-      );
-      
+      if (isEditMode) {
+        // PATCH existing organization
+        await organizationsApi.updateMyOrganization(payload);
+        Alert.alert('Saved', 'Your organization details have been updated.', [
+          { text: 'OK', onPress: () => { if (navigation.canGoBack()) navigation.goBack(); } },
+        ]);
+      } else {
+        // POST new organization (onboarding flow)
+        await organizationsApi.createOrganization(payload);
+        await updateOnboarding({ has_completed_onboarding: true });
+        await refreshUser();
+        Alert.alert(
+          'Success',
+          'Your organization has been created successfully!',
+          [{
+            text: 'Continue',
+            onPress: () => {
+              console.log('Navigating to Dashboard...');
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.replace('Dashboard');
+              }
+            },
+          }]
+        );
+      }
     } catch (error) {
-      let errorMessage = 'Failed to create organization. Please try again.';
+      const defaultMsg = isEditMode
+        ? 'Failed to update organization. Please try again.'
+        : 'Failed to create organization. Please try again.';
+      let errorMessage = defaultMsg;
 
       if (error instanceof ApiError) {
         const detail = error.detail;
@@ -163,7 +203,7 @@ const CreateOrganizationScreen = ({ navigation }) => {
     }
   };
   
-  const isFormLoading = isLoading || submitting;
+  const isFormLoading = isLoading || submitting || loadingOrg;
   
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -179,10 +219,16 @@ const CreateOrganizationScreen = ({ navigation }) => {
           bounces={false}
         >
         <View style={styles.header}>
-          <Text style={[styles.stepIndicator, { color: colors.primary }]}>Step 2 of 2</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Create Your Organization</Text>
+          {!isEditMode && (
+            <Text style={[styles.stepIndicator, { color: colors.primary }]}>Step 2 of 2</Text>
+          )}
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            {isEditMode ? 'Organization Details' : 'Create Your Organization'}
+          </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Your organization is your workspace in TOOLTRAQ. All your devices, locations, and team members will be managed under this organization.
+            {isEditMode
+              ? 'Update your organization information below.'
+              : 'Your organization is your workspace in TOOLTRAQ. All your devices, locations, and team members will be managed under this organization.'}
           </Text>
         </View>
 
@@ -243,59 +289,61 @@ const CreateOrganizationScreen = ({ navigation }) => {
           />
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Registered Address</Text>
-          <Text style={styles.sectionDescription}>
-            Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
-          </Text>
+        {!isEditMode && (
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Registered Address</Text>
+            <Text style={styles.sectionDescription}>
+              Your business address is used for billing and compliance purposes. This can be updated later from your organization settings.
+            </Text>
 
-          <FormField
-            label="Address Line 1"
-            value={addressLine1}
-            onChangeText={setAddressLine1}
-            placeholder="Street address, P.O. box, etc."
-            error={errors.addressLine1}
-            required={true}
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="Address Line 1"
+              value={addressLine1}
+              onChangeText={setAddressLine1}
+              placeholder="Street address, P.O. box, etc."
+              error={errors.addressLine1}
+              required={true}
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="Address Line 2"
-            value={addressLine2}
-            onChangeText={setAddressLine2}
-            placeholder="Apartment, suite, unit, building, floor, etc."
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="Address Line 2"
+              value={addressLine2}
+              onChangeText={setAddressLine2}
+              placeholder="Apartment, suite, unit, building, floor, etc."
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="City/Town"
-            value={city}
-            onChangeText={setCity}
-            placeholder="City or town"
-            error={errors.city}
-            required={true}
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="City/Town"
+              value={city}
+              onChangeText={setCity}
+              placeholder="City or town"
+              error={errors.city}
+              required={true}
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="County"
-            value={county}
-            onChangeText={setCounty}
-            placeholder="County"
-            editable={!isFormLoading}
-          />
+            <FormField
+              label="County"
+              value={county}
+              onChangeText={setCounty}
+              placeholder="County"
+              editable={!isFormLoading}
+            />
 
-          <FormField
-            label="Postcode"
-            value={postcode}
-            onChangeText={setPostcode}
-            placeholder="Postcode"
-            error={errors.postcode}
-            required={true}
-            autoCapitalize="characters"
-            editable={!isFormLoading}
-          />
-        </View>
+            <FormField
+              label="Postcode"
+              value={postcode}
+              onChangeText={setPostcode}
+              placeholder="Postcode"
+              error={errors.postcode}
+              required={true}
+              autoCapitalize="characters"
+              editable={!isFormLoading}
+            />
+          </View>
+        )}
         
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: colors.primary }, isFormLoading && styles.disabledButton]}
@@ -306,8 +354,8 @@ const CreateOrganizationScreen = ({ navigation }) => {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Text style={styles.submitButtonText}>Create Organization</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Text style={styles.submitButtonText}>{isEditMode ? 'Save' : 'Create Organization'}</Text>
+              <Ionicons name={isEditMode ? 'checkmark' : 'arrow-forward'} size={20} color="#fff" />
             </>
           )}
         </TouchableOpacity>
@@ -316,23 +364,25 @@ const CreateOrganizationScreen = ({ navigation }) => {
           * Required fields
         </Text>
 
-        <TouchableOpacity
-          style={styles.logoutLink}
-          onPress={() => {
-            Alert.alert(
-              "Log Out",
-              "Are you sure you want to log out?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Log Out", style: "destructive", onPress: logout }
-              ]
-            );
-          }}
-          disabled={isFormLoading}
-        >
-          <Ionicons name="log-out-outline" size={16} color="#666" />
-          <Text style={styles.logoutLinkText}>Log out and try a different account</Text>
-        </TouchableOpacity>
+        {!isEditMode && (
+          <TouchableOpacity
+            style={styles.logoutLink}
+            onPress={() => {
+              Alert.alert(
+                "Log Out",
+                "Are you sure you want to log out?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Log Out", style: "destructive", onPress: logout }
+                ]
+              );
+            }}
+            disabled={isFormLoading}
+          >
+            <Ionicons name="log-out-outline" size={16} color="#666" />
+            <Text style={styles.logoutLinkText}>Log out and try a different account</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Debug info - remove in production */}
         {__DEV__ && (

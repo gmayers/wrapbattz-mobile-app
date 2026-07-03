@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { BaseTextInput } from '../components/TextInput';
 import { incidents as incidentsApi } from '../api/endpoints';
 import { toLegacyReport } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { shareCsv } from '../utils/exportCsv';
 
 const { width } = Dimensions.get('window');
 
@@ -68,9 +69,22 @@ const AllReportsScreen = ({ navigation, route }) => {
   const [description, setDescription] = useState('');
   const [isMyReportUpdate, setIsMyReportUpdate] = useState(false);
 
-  const refreshAll = useCallback(() => {
-    fetchMyReports();
-    if (isAdminOrOwner) fetchAllReports();
+  // In-flight guard: the focus listener fires on every tab return; skip if a
+  // refresh is already running so the two report fetches don't pile up under
+  // rapid navigation.
+  const isRefreshingRef = useRef(false);
+
+  const refreshAll = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      await Promise.allSettled([
+        fetchMyReports(),
+        isAdminOrOwner ? fetchAllReports() : Promise.resolve(),
+      ]);
+    } finally {
+      isRefreshingRef.current = false;
+    }
   }, [isAdminOrOwner]);
 
   useEffect(() => {
@@ -88,6 +102,34 @@ const AllReportsScreen = ({ navigation, route }) => {
     const message =
       (error instanceof ApiError && error.message) || error?.message || defaultMessage;
     Alert.alert('Error', message);
+  };
+
+  const EXPORT_COLUMNS = [
+    { key: 'id', label: 'ID' },
+    { key: 'device_identifier', label: 'Device' },
+    { key: 'type', label: 'Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'description', label: 'Description' },
+    { key: 'report_date', label: 'Report Date' },
+    { key: 'resolved', label: 'Resolved' },
+  ];
+
+  const handleExportCsv = async () => {
+    const reports = activeTab === 'all' ? allReports : myReports;
+    const rows = reports.map((r) => ({
+      id: r.id,
+      device_identifier: r.device?.identifier || r.device_name || '',
+      type: r.type || '',
+      status: r.status || '',
+      description: r.description || '',
+      report_date: r.report_date || '',
+      resolved: r.resolved ? 'Yes' : 'No',
+    }));
+    try {
+      await shareCsv('reports.csv', rows, EXPORT_COLUMNS);
+    } catch (err) {
+      Alert.alert('Export Failed', err?.message || 'Could not export reports.');
+    }
   };
 
   // Fetch current user's reports
@@ -258,13 +300,22 @@ const renderReportCard = (report, isMyReport = false) => (
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
           <Text style={styles.backText}>Reports</Text>
         </TouchableOpacity>
-        <Button
-          title="Create Report"
-          onPress={() => navigation.navigate('CreateReport')}
-          size="small"
-          textColor="black"
-          style={[styles.createReportButton, { backgroundColor: colors.primary }]}
-        />
+        <View style={styles.headerActions}>
+          <Button
+            title="Export CSV"
+            onPress={handleExportCsv}
+            size="small"
+            variant="outlined"
+            style={[styles.exportButton, { borderColor: colors.primary }]}
+          />
+          <Button
+            title="Create Report"
+            onPress={() => navigation.navigate('CreateReport')}
+            size="small"
+            textColor="black"
+            style={[styles.createReportButton, { backgroundColor: colors.primary }]}
+          />
+        </View>
       </View>
 
       {/* Tab Navigation */}
@@ -486,6 +537,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: ORANGE_COLOR,
     marginLeft: 4
+},
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+},
+  exportButton: {
+    paddingHorizontal: 10,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
 },
   createReportButton: {
     paddingHorizontal: 12,

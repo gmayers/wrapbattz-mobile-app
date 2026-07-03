@@ -28,7 +28,11 @@ const StandardDeviceCard = ({
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
   const { device, assigned_date, user, location, returned_date, user_name, location_name } = assignment;
-  const assignedTo = user_name || location_name || (typeof user === 'object' ? user?.full_name : null) || (typeof location === 'object' ? location?.name : null) || 'Unknown';
+  const userLabel =
+    user_name || (typeof user === 'object' ? user?.full_name : typeof user === 'string' ? user : null) || null;
+  const locationLabel =
+    location_name || (typeof location === 'object' ? location?.name : typeof location === 'string' ? location : null) || null;
+  const assignedTo = userLabel || locationLabel || 'Unknown';
   const isActive = !returned_date;
 
   const renderMaintenanceInfo = () => {
@@ -81,7 +85,15 @@ const StandardDeviceCard = ({
           {device.serial_number && (
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>SN: {device.serial_number}</Text>
           )}
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned to: {assignedTo}</Text>
+          {userLabel ? (
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned to: {userLabel}</Text>
+          ) : null}
+          {locationLabel ? (
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Location: {locationLabel}</Text>
+          ) : null}
+          {!userLabel && !locationLabel ? (
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned to: {assignedTo}</Text>
+          ) : null}
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>Assigned: {assigned_date}</Text>
           {returned_date && (
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>Returned: {returned_date}</Text>

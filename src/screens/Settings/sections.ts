@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import type { Role } from '../../navigation/mainTabs';
 
 export type RoleGate = 'all' | 'admin';
@@ -8,7 +9,8 @@ export interface SettingsRow {
   icon: string;
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
-  onPressType?: 'logout';
+  params?: Record<string, unknown>;
+  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew';
   destructive?: boolean;
 }
 
@@ -28,6 +30,8 @@ const ALL_SECTIONS: SettingsSection[] = [
       { key: 'profile',        label: 'Profile',              icon: 'person-circle-outline', kind: 'nav', destination: 'EditProfile' },
       { key: 'changePassword', label: 'Change Password',      icon: 'key-outline',           kind: 'nav', destination: 'ChangePassword' },
       // 'SecurityPreferences' (biometric/PIN) screen not built yet.
+      // App Store guideline 5.1.1(v): account creation requires in-app deletion.
+      { key: 'deleteAccount',  label: 'Delete Account',       icon: 'trash-outline',         kind: 'action', onPressType: 'deleteAccount', destructive: true },
     ],
   },
   {
@@ -44,7 +48,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Organization',
     requiredRole: 'admin',
     rows: [
-      { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization' },
+      { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization', params: { mode: 'edit' } },
       { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
       // 'InviteCode' screen not built yet.
     ],
@@ -72,6 +76,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Support',
     requiredRole: 'all',
     rows: [
+      { key: 'whatsNew',       label: "What's New",         icon: 'sparkles-outline',           kind: 'action', onPressType: 'whatsNew' },
       { key: 'suggestFeature', label: 'Suggest a Feature', icon: 'bulb-outline',               kind: 'nav', destination: 'SuggestFeature' },
       // 'About' screen not built yet.
     ],
@@ -88,5 +93,11 @@ const ALL_SECTIONS: SettingsSection[] = [
 
 export function getSectionsForRole(role: Role | undefined): SettingsSection[] {
   const isAdminOrOwner = role === 'admin' || role === 'owner';
-  return ALL_SECTIONS.filter(s => s.requiredRole === 'all' || isAdminOrOwner);
+  return ALL_SECTIONS.filter(s => {
+    // Billing is Android-only: the billing screens are not registered in the
+    // iOS nav graph (App Store 3.1.3(c)), so hide the whole section there to
+    // avoid dead links. Android keeps it for in-app billing / IAP.
+    if (s.key === 'billing' && Platform.OS !== 'android') return false;
+    return s.requiredRole === 'all' || isAdminOrOwner;
+  });
 }

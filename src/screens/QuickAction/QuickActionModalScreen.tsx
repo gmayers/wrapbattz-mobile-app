@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Dropdown from '../../components/Dropdown';
+import NfcManager from 'react-native-nfc-manager';
 import { nfcService } from '../../services/NFCService';
 import {
   assignments as assignmentsApi,
@@ -24,6 +25,7 @@ import {
   vans as vansApi,
 } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
+import { pickLastUserHolder } from '../Tools/hooks/lastHeld';
 
 type QuickActionParamList = {
   QuickActionModal: { tagUID?: string };
@@ -46,6 +48,7 @@ interface DeviceLike {
   serial_number?: string;
   maintenance_interval?: number;
   description?: string;
+  is_available?: boolean;
   current_assignment?: {
     id: string;
     user_name?: string;
@@ -57,7 +60,7 @@ const QuickActionModalScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<QuickActionRouteProp>();
   const { colors } = useTheme();
-  const { isAdminOrOwner } = useAuth();
+  const { isAdminOrOwner, user } = useAuth();
 
   const rawTag = route.params?.tagUID;
   const tagUID = (rawTag || '').toUpperCase();
@@ -76,7 +79,14 @@ const QuickActionModalScreen: React.FC = () => {
 
   const [upgrading, setUpgrading] = useState(false);
 
-  const loadDevice = useCallback(async () => {
+  // Holder info derived from history
+  const [holderLine, setHolderLine] = useState<string | null>(null);
+  const [holderLoading, setHolderLoading] = useState(false);
+  // Active holder kind/userId for Assign-to-me gate
+  const [activeHolderKind, setActiveHolderKind] = useState<'user' | 'site' | null>(null);
+  const [activeHolderUserId, setActiveHolderUserId] = useState<number | null>(null);
+
+  const loadDevice = useCallback(async (cancelled: { current: boolean }) => {
     if (!tagUID) {
       setErrorMsg('Missing tag ID.');
       setLoading(false);
@@ -85,17 +95,24 @@ const QuickActionModalScreen: React.FC = () => {
     setLoading(true);
     setNotFound(false);
     setErrorMsg(null);
+    setHolderLine(null);
+    setActiveHolderKind(null);
+    setActiveHolderUserId(null);
     try {
       const tool = await toolsApi.getToolByNfc(tagUID);
+      if (cancelled.current) return;
       // Look up the active assignment so we can return it later.
       let currentAssignmentId: number | null = null;
       try {
         const active = await assignmentsApi.listMyActiveAssignments();
-        const match = active.find((a) => a.tool_id === tool.id);
-        if (match) currentAssignmentId = match.id;
+        if (!cancelled.current) {
+          const match = active.find((a) => a.tool_id === tool.id);
+          if (match) currentAssignmentId = match.id;
+        }
       } catch {
         // Non-critical.
       }
+      if (cancelled.current) return;
       setDevice({
         id: tool.id,
         identifier: tool.name,
@@ -103,20 +120,79 @@ const QuickActionModalScreen: React.FC = () => {
         model: tool.model,
         device_type: tool.category_name,
         serial_number: tool.serial_number,
+        is_available: tool.is_available,
         current_assignment: currentAssignmentId ? { id: String(currentAssignmentId) } : null,
       });
+
+      // Load holder info from history (non-blocking — renders card first)
+      setHolderLoading(true);
+      toolsApi.getToolHistory(tool.id).then((history) => {
+        if (cancelled.current) return;
+        const items = history.items ?? [];
+        // Find the most recent active assignment to determine current holder
+        const active = items
+          .filter((h) => h.status === 'active' || h.returned_at == null)
+          .sort((a, b) => String(b.assigned_at ?? '').localeCompare(String(a.assigned_at ?? '')));
+        const current = active[0] ?? null;
+
+        if (tool.is_available || !current) {
+          setHolderLine('Available');
+          setActiveHolderKind(null);
+          setActiveHolderUserId(null);
+        } else if (current.assignee_user_id) {
+          setHolderLine(`👤 ${current.assignee_user_email || 'Unknown user'}`);
+          setActiveHolderKind('user');
+          setActiveHolderUserId(current.assignee_user_id);
+        } else if (current.assignee_site_id) {
+          const siteName = current.assignee_site_name || 'Unknown location';
+          // Also find last user holder
+          const lastUser = pickLastUserHolder(items.filter((h) => h.status !== 'active'));
+          if (lastUser) {
+            setHolderLine(`📍 ${siteName} · last held by ${lastUser}`);
+          } else {
+            setHolderLine(`📍 ${siteName}`);
+          }
+          setActiveHolderKind('site');
+          setActiveHolderUserId(null);
+        } else {
+          setHolderLine('Available');
+          setActiveHolderKind(null);
+          setActiveHolderUserId(null);
+        }
+      }).catch(() => {
+        if (cancelled.current) return;
+        // Non-critical — just don't show holder line
+        setHolderLine(null);
+      }).finally(() => {
+        if (cancelled.current) return;
+        setHolderLoading(false);
+      });
     } catch (err) {
+      if (cancelled.current) return;
       if (err instanceof ApiError && err.code === 'not_found') {
         setNotFound(true);
       } else if (!(err instanceof ApiError && err.code === 'unauthorized')) {
         setErrorMsg((err instanceof ApiError && err.message) || 'Could not load device.');
       }
     } finally {
-      setLoading(false);
+      if (!cancelled.current) setLoading(false);
     }
   }, [tagUID]);
 
-  useEffect(() => { loadDevice(); }, [loadDevice]);
+  useEffect(() => {
+    const cancelled = { current: false };
+    loadDevice(cancelled);
+    return () => { cancelled.current = true; };
+  }, [loadDevice]);
+
+  // Cancel any pending NFC technology request when this modal unmounts so the
+  // OS doesn't fire a dangling "NFC read failed / operation cancelled" alert
+  // after the user navigates away (e.g. pressing back after an assign error).
+  useEffect(() => {
+    return () => {
+      NfcManager.cancelTechnologyRequest().catch(() => {});
+    };
+  }, []);
 
   const loadDestinations = useCallback(async () => {
     setDestinationsLoading(true);
@@ -219,30 +295,43 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device) return;
     setUpgrading(true);
     try {
-      const result = await nfcService.writeDeviceToNFC(
-        {
-          deviceId: device.identifier || String(device.id),
-          make: device.make || '',
-          model: device.model || '',
-          serialNumber: device.serial_number || '',
-          maintenanceInterval: device.maintenance_interval || 0,
-          description: device.description || '',
-        },
-        { includeUniversalLink: true }
-      );
+      const result = await Promise.race([
+        nfcService.writeDeviceToNFC(
+          {
+            deviceId: device.identifier || String(device.id),
+            make: device.make || '',
+            model: device.model || '',
+            serialNumber: device.serial_number || '',
+            maintenanceInterval: device.maintenance_interval || 0,
+            description: device.description || '',
+          },
+          { includeUniversalLink: true }
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'NFC timed out — hold the tag steady against the device and try again.'
+                )
+              ),
+            20000
+          )
+        ),
+      ]);
       if (result.success) {
         const urlOnly = result.data?.writtenJson === false;
         Alert.alert(
-          'Tag upgraded',
+          'Tag updated',
           urlOnly
-            ? 'Tag has been upgraded with the launch URL only. Tag capacity was too small for the full JSON payload; device details will be fetched via network when the tag is tapped.'
-            : 'Tag has been upgraded successfully. The next tap will launch the app directly.'
+            ? 'Tag has been updated with the launch URL only. Tag capacity was too small for the full JSON payload; device details will be fetched via network when the tag is tapped.'
+            : 'Tag has been updated successfully. The next tap will launch the app directly.'
         );
       } else {
-        Alert.alert('Upgrade failed', result.error || 'Could not write to tag.');
+        Alert.alert('Re-write failed', result.error || 'Could not write to tag.');
       }
     } catch (err: any) {
-      Alert.alert('Upgrade failed', err?.message || 'Unknown error.');
+      Alert.alert('Re-write failed', err?.message || 'Unknown error.');
     } finally {
       setUpgrading(false);
     }
@@ -290,7 +379,7 @@ const QuickActionModalScreen: React.FC = () => {
           <Text style={[styles.hintText, { color: colors.textSecondary }]}>
             {errorMsg}
           </Text>
-          <Button title="Try again" onPress={loadDevice} style={styles.primaryBtn} />
+          <Button title="Try again" onPress={() => loadDevice({ current: false })} style={styles.primaryBtn} />
         </View>
       ) : notFound ? (
         <View style={styles.centered} testID="quick-action-not-found">
@@ -315,6 +404,24 @@ const QuickActionModalScreen: React.FC = () => {
         </View>
       ) : device ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Holder / location block — shown prominently above action buttons */}
+          {(holderLoading || holderLine) ? (
+            <View style={[styles.holderBlock, { backgroundColor: colors.card, borderColor: colors.borderLight }]} testID="quick-action-holder-block">
+              {holderLoading ? (
+                <View style={styles.holderLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.holderLoadingText, { color: colors.textSecondary }]}>
+                    Checking holder…
+                  </Text>
+                </View>
+              ) : (
+                <Text style={[styles.holderText, { color: colors.textPrimary }]} testID="quick-action-holder-line">
+                  {holderLine}
+                </Text>
+              )}
+            </View>
+          ) : null}
+
           <View style={[styles.deviceCard, { backgroundColor: colors.card, borderColor: colors.borderLight }]}>
             <Text style={[styles.deviceIdentifier, { color: colors.textPrimary }]} testID="quick-action-device-identifier">
               {device.identifier || device.make || 'Device'}
@@ -324,19 +431,6 @@ const QuickActionModalScreen: React.FC = () => {
                 Type: {device.device_type}
               </Text>
             ) : null}
-            {device.current_assignment?.user_name ? (
-              <Text style={[styles.deviceMeta, { color: colors.textSecondary }]}>
-                Assigned to: {device.current_assignment.user_name}
-              </Text>
-            ) : device.current_assignment?.location_name ? (
-              <Text style={[styles.deviceMeta, { color: colors.textSecondary }]}>
-                At: {device.current_assignment.location_name}
-              </Text>
-            ) : (
-              <Text style={[styles.deviceMeta, { color: colors.textMuted }]}>
-                No active assignment
-              </Text>
-            )}
           </View>
 
           <View style={styles.actionsGroup} testID="quick-action-buttons">
@@ -366,15 +460,19 @@ const QuickActionModalScreen: React.FC = () => {
 
             {isAdminOrOwner ? (
               <>
+                {/* Show Assign unless tool is held by a different user. Available
+                    tools and site-held tools can always be grabbed. */}
+                {!(activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null)) ? (
+                  <Button
+                    title="Assign device"
+                    onPress={handleAssign}
+                    variant="outlined"
+                    style={styles.actionBtn}
+                    testID="quick-action-assign"
+                  />
+                ) : null}
                 <Button
-                  title="Assign device"
-                  onPress={handleAssign}
-                  variant="outlined"
-                  style={styles.actionBtn}
-                  testID="quick-action-assign"
-                />
-                <Button
-                  title={upgrading ? 'Hold tag to device…' : 'Upgrade NFC tag'}
+                  title={upgrading ? 'Hold tag steady…' : 'Re-write tag data'}
                   onPress={handleUpgradeTag}
                   variant="outlined"
                   loading={upgrading}
@@ -382,6 +480,9 @@ const QuickActionModalScreen: React.FC = () => {
                   style={styles.actionBtn}
                   testID="quick-action-upgrade"
                 />
+                <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
+                  Refreshes the device data stored on this NFC tag.
+                </Text>
               </>
             ) : null}
           </View>
@@ -473,6 +574,27 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+  },
+  holderBlock: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  holderLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  holderLoadingText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  holderText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   deviceCard: {
     borderRadius: 12,

@@ -49,35 +49,54 @@ export function useDashboardStats(role: Role | undefined): DashboardStats {
     setError(undefined);
 
     try {
+      // allSettled, not all: a single slow/failed endpoint must not blank the
+      // whole stats row. Each stat falls back to 0; surface an error only when
+      // every call failed.
       if (isAdminOrOwner) {
-        const [toolsPage, activeAssignments, incidentsPage] = await Promise.all([
+        const [toolsR, activeR, incidentsR] = await Promise.allSettled([
           toolsApi.listTools({ page: 1, page_size: 1 }),
           assignmentsApi.listAssignments({ status: 'active' }),
           incidentsApi.listIncidents(),
         ]);
-        const openIncidents = incidentsPage.items.filter(
+        const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
+        const activeAssignments = activeR.status === 'fulfilled' ? activeR.value : null;
+        const incidentsPage = incidentsR.status === 'fulfilled' ? incidentsR.value : null;
+        const openIncidents = (incidentsPage?.items ?? []).filter(
           (i) => !CLOSED_STATUSES.has(i.status)
         );
+        const inUseCount = activeAssignments?.total ?? 0;
         setAdmin({
-          activeTools: toolsPage.total ?? 0,
-          inUse: activeAssignments.total ?? 0,
+          // Total can't be less than what's in use — guards against a "0 tools /
+          // N in use" display when listTools is empty/failed under backend
+          // flakiness (the empty-tools symptom itself is a backend issue).
+          activeTools: Math.max(toolsPage?.total ?? 0, inUseCount),
+          inUse: inUseCount,
           missing: openIncidents.filter((i) => MISSING_TYPES.has(i.type)).length,
           maintenanceDue: openIncidents.filter((i) => MAINTENANCE_TYPES.has(i.type)).length,
         });
         setWorker(undefined);
+        if (!toolsPage && !activeAssignments && !incidentsPage) {
+          setError('Failed to load stats');
+        }
       } else {
-        const [mineActive, myIncidents, sitesPage] = await Promise.all([
+        const [mineR, myIncR, sitesR] = await Promise.allSettled([
           assignmentsApi.listMyActiveAssignments(),
           incidentsApi.listMyIncidents(),
           sitesApi.listSites(),
         ]);
-        const open = myIncidents.items.filter((i) => !CLOSED_STATUSES.has(i.status));
+        const mineActive = mineR.status === 'fulfilled' ? mineR.value : null;
+        const myIncidents = myIncR.status === 'fulfilled' ? myIncR.value : null;
+        const sitesPage = sitesR.status === 'fulfilled' ? sitesR.value : null;
+        const open = (myIncidents?.items ?? []).filter((i) => !CLOSED_STATUSES.has(i.status));
         setWorker({
-          toolsAssigned: mineActive.length,
+          toolsAssigned: mineActive?.length ?? 0,
           openIncidents: open.length,
-          sites: sitesPage.total ?? sitesPage.items.length,
+          sites: sitesPage?.total ?? sitesPage?.items.length ?? 0,
         });
         setAdmin(undefined);
+        if (!mineActive && !myIncidents && !sitesPage) {
+          setError('Failed to load stats');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stats');

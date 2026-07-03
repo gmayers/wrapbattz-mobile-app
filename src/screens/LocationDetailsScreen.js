@@ -34,7 +34,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const { locationId } = route.params;
   
   const { isAdminOrOwner, userData, isLoading: authLoading } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [location, setLocation] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -215,52 +215,54 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   }, [fetchLocationDetails, fetchLocationDevices]);
 
   const renderDeviceCard = useCallback((device) => {
-    // Since we're only showing unassigned devices, all should be available for assignment
+    // Devices listed here come from listAssignmentsBySite — they are held by
+    // this location (site-assignment). "Assign to me" means grabbing the tool
+    // from the location, which is a core intended action — always show it.
     const isAssigning = assigningDevice === device.id;
-    
+
     return (
       <Card
-        style={styles.deviceCard}
+        style={[styles.deviceCard, { backgroundColor: colors.card }]}
       >
         <View style={styles.deviceContent}>
           {/* Device Header */}
           <View style={styles.deviceHeader}>
             <View style={styles.deviceTitleContainer}>
-              <Text style={styles.deviceTitle}>{device.identifier}</Text>
-              <Text style={styles.deviceType}>{device.device_type}</Text>
+              <Text style={[styles.deviceTitle, { color: colors.textPrimary }]}>{device.identifier}</Text>
+              <Text style={[styles.deviceType, { color: colors.textSecondary }]}>{device.device_type}</Text>
             </View>
             <View style={styles.statusContainer}>
-              <View style={[styles.statusBadge, { backgroundColor: '#10B981' }]}>
-                <Text style={styles.statusText}>Available</Text>
+              <View style={[styles.statusBadge, { backgroundColor: '#3B82F6' }]}>
+                <Text style={styles.statusText}>At Location</Text>
               </View>
             </View>
           </View>
-          
+
           {/* Device Details */}
           <View style={styles.deviceDetails}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Make:</Text>
-              <Text style={styles.detailValue}>{device.make || 'N/A'}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Make:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.make || 'N/A'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Model:</Text>
-              <Text style={styles.detailValue}>{device.model || 'N/A'}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Model:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.model || 'N/A'}</Text>
             </View>
             {device.serial_number && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Serial:</Text>
-                <Text style={styles.detailValue}>{device.serial_number}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Serial:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.serial_number}</Text>
               </View>
             )}
             {device.description && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Description:</Text>
-                <Text style={styles.detailValue}>{device.description}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Description:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.description}</Text>
               </View>
             )}
           </View>
-          
-          {/* Action Buttons */}
+
+          {/* Action Buttons — Assign to Me is always available for tools at a location */}
           <View style={styles.deviceActions}>
             <TouchableOpacity
               style={styles.viewButton}
@@ -286,7 +288,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Transfer Button - Admin/Owner only */}
+          {/* Transfer Button — shown for held tools (admin/owner) or always for admin/owner */}
           {isAdminOrOwner && otherLocations.length > 0 && (
             <TouchableOpacity
               style={styles.transferButton}
@@ -305,25 +307,25 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     if (!location) return null;
     
     return (
-      <Card title="Location Details" style={styles.addressCard}>
+      <Card title="Location Details" style={[styles.addressCard, { backgroundColor: colors.card }]}>
         <View style={styles.addressContent}>
           {location.name && (
-            <Text style={styles.addressText}>{location.name}</Text>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.name}</Text>
           )}
-          <Text style={styles.addressText}>
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>
             {location.street_number} {location.street_name}
           </Text>
           {location.address_2 && (
-            <Text style={styles.addressText}>{location.address_2}</Text>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.address_2}</Text>
           )}
-          <Text style={styles.addressText}>
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>
             {location.town_or_city}{location.county ? `, ${location.county}` : ''}
           </Text>
-          <Text style={styles.addressText}>{location.postcode}</Text>
-          
+          <Text style={[styles.addressText, { color: colors.textSecondary }]}>{location.postcode}</Text>
+
           {userData?.name && (
             <View style={styles.organizationInfo}>
-              <Text style={styles.organizationText}>
+              <Text style={[styles.organizationText, { color: colors.textSecondary }]}>
                 Organization: {userData.name}'s Organization
               </Text>
             </View>
@@ -336,11 +338,11 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   // Show loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading location details...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading location details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -349,7 +351,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   // Show error state if location fetch failed
   if (error && !location) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
+      <SafeAreaView style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorMessage}>{error}</Text>
         <Button
@@ -364,7 +366,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <ScrollView 
         style={styles.scrollView}
@@ -374,7 +376,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available Devices</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Available Devices</Text>
             {isAdminOrOwner && (
               <Button
                 title="Add New Device"
@@ -397,8 +399,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="cube-outline" size={48} color={colors.disabled} />
-              <Text style={styles.emptyText}>No available devices at this location</Text>
-              <Text style={styles.emptySubtext}>All devices are either assigned to users or located elsewhere</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No available devices at this location</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>All devices are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
                 <Button
                   title="Add New Device"
@@ -438,12 +440,12 @@ const LocationDetailsScreen = ({ navigation, route }) => {
             </View>
 
             {selectedDeviceForTransfer && (
-              <Text style={styles.modalSubtitle}>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
                 Transfer {selectedDeviceForTransfer.identifier} to another location
               </Text>
             )}
 
-            <Text style={styles.selectLabel}>Select Destination Location:</Text>
+            <Text style={[styles.selectLabel, { color: colors.textPrimary }]}>Select Destination Location:</Text>
 
             <FlatList
               data={otherLocations}
@@ -463,10 +465,10 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                     <View style={styles.locationItemContent}>
                       <Ionicons name="location-outline" size={20} color={colors.primary} />
                       <View style={styles.locationItemText}>
-                        <Text style={styles.locationItemName}>
+                        <Text style={[styles.locationItemName, { color: colors.textPrimary }]}>
                           {item.name || `${item.street_number} ${item.street_name}`}
                         </Text>
-                        <Text style={styles.locationItemAddress}>
+                        <Text style={[styles.locationItemAddress, { color: colors.textSecondary }]}>
                           {item.town_or_city}, {item.postcode}
                         </Text>
                       </View>
@@ -480,18 +482,18 @@ const LocationDetailsScreen = ({ navigation, route }) => {
                 );
               }}
               ListEmptyComponent={
-                <Text style={styles.noLocationsText}>No other locations available</Text>
+                <Text style={[styles.noLocationsText, { color: colors.textMuted }]}>No other locations available</Text>
               }
             />
 
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, { backgroundColor: colors.surfaceAlt }]}
               onPress={() => {
                 setTransferModalVisible(false);
                 setSelectedDeviceForTransfer(null);
               }}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -8,8 +8,6 @@ import { AuthProvider } from './src/auth/AuthContext';
 import { SessionExpiryAlert } from './src/auth/SessionExpiryAlert';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/index';
-import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
 import NfcManager from 'react-native-nfc-manager';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import * as Sentry from '@sentry/react-native';
@@ -27,6 +25,12 @@ Sentry.init({
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
 
+// Minimum time (ms) the splash stays up so the brand mark is readable rather
+// than flashing by the instant fonts finish loading. Timed from module load
+// (app launch). If fonts take longer than this, the longer wait wins.
+const SPLASH_MIN_DISPLAY_MS = 1500;
+const splashShownAt = Date.now();
+
 function App() {
   console.log('🚀 App.js - Starting App component render');
   console.log('🔧 App.js - Platform:', Platform.OS);
@@ -38,6 +42,10 @@ function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
+      const remaining = SPLASH_MIN_DISPLAY_MS - (Date.now() - splashShownAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
@@ -48,12 +56,11 @@ function App() {
   }
 
   useEffect(() => {
-    const requestPermissions = async () => {
+    // Camera/photo access is requested in-context at the point of use (when the
+    // user taps "Take Photo"); gallery selection uses the permission-free system
+    // photo picker. Only NFC needs initialising up front.
+    const initNfc = async () => {
       try {
-        await MediaLibrary.requestPermissionsAsync();
-        await ImagePicker.requestCameraPermissionsAsync();
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-
         if (Platform.OS === 'ios' || Platform.OS === 'android') {
           const isNfcSupported = await NfcManager.isSupported();
           if (isNfcSupported) {
@@ -61,12 +68,12 @@ function App() {
           }
         }
       } catch (error) {
-        console.error('App.js - Error requesting permissions:', error);
+        console.error('App.js - Error initialising NFC:', error);
       }
     };
 
-    requestPermissions().catch(error => {
-      console.error('❌ App.js - Error in requestPermissions:', error);
+    initNfc().catch(error => {
+      console.error('❌ App.js - Error in initNfc:', error);
     });
 
     const checkForUpdates = async () => {

@@ -39,6 +39,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
   // State for "My Assignments" tab
   const [myAssignments, setMyAssignments] = useState([]);
   const [loadingMyAssignments, setLoadingMyAssignments] = useState(true);
+  const [returningAssignment, setReturningAssignment] = useState(false);
 
   // State for "Organization Devices" (now Organization Assignments) tab
   const [organizationAssignments, setOrganizationAssignments] = useState([]);
@@ -99,12 +100,15 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
-  // Fetches current user's assignments.
+  // Fetches only active assignments for the current user.
+  // Using listMyActiveAssignments (not listMyAssignments) so every item in the
+  // "My Assignments" tab is genuinely active — returnAssignment() on an already-
+  // returned record causes a server 500.
   const fetchMyAssignments = async () => {
     try {
       setLoadingMyAssignments(true);
-      const page = await assignmentsApi.listMyAssignments();
-      setMyAssignments(sortAssignments(page.items.map(toLegacyAssignment)));
+      const items = await assignmentsApi.listMyActiveAssignments();
+      setMyAssignments(sortAssignments(items.map(toLegacyAssignment)));
     } catch (error) {
       handleApiError(error, 'Failed to fetch your device assignments');
     } finally {
@@ -154,27 +158,38 @@ const AllDevicesScreen = ({ navigation, route }) => {
       return;
     }
 
-    if (!selectedReturnDevice || !selectedReturnDevice.id) {
+    // Prefer the assignment id stored in device.current_assignment.id (set by
+    // toLegacyAssignment to AssignmentRead.id). Fall back to the top-level id
+    // field (same value). Never use device.id — that is the tool id.
+    const assignmentId =
+      selectedReturnDevice?.device?.current_assignment?.id ??
+      selectedReturnDevice?.id;
+
+    if (!assignmentId) {
       Alert.alert('Error', 'No device assignment selected for return.');
       return;
     }
 
+    if (returningAssignment) return; // guard against double-tap
+    setReturningAssignment(true);
     try {
-      await assignmentsApi.returnAssignment(Number(selectedReturnDevice.id), {
+      await assignmentsApi.returnAssignment(Number(assignmentId), {
         target_site_id: Number(selectedReturnLocation.id),
         condition: '',
-        notes: ''
-});
+        notes: '',
+      });
 
       Alert.alert('Success', 'Device has been returned successfully');
       setReturnDeviceModalVisible(false);
       setSelectedReturnLocation(null);
       fetchMyAssignments(); // Refresh my assignments list
       if (isAdminOrOwner) {
-        fetchOrganizationAssignments(); // Refresh organization assignments list
+        fetchOrganizationAssignments(); // Refresh organisation assignments list
       }
     } catch (error) {
       handleApiError(error, 'Failed to return device.');
+    } finally {
+      setReturningAssignment(false);
     }
   };
 
@@ -218,10 +233,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
       >
         <View style={styles.cardContent}>
           <View style={styles.cardInfo}>
-            <Text style={styles.infoText}>Make: {device.make}</Text>
-            <Text style={styles.infoText}>Model: {device.model}</Text>
-            <Text style={styles.infoText}>Serial: {device.serial_number}</Text>
-            <Text style={styles.infoText}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Make: {device.make}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Model: {device.model}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Serial: {device.serial_number}</Text>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>Status: {device.active ? 'Active' : 'Inactive'}</Text>
           </View>
           <View style={styles.cardActions}>
             <Button
@@ -456,10 +471,10 @@ const AllDevicesScreen = ({ navigation, route }) => {
                     style={styles.cancelButton}
                   />
                   <Button
-                    title="Confirm Return"
+                    title={returningAssignment ? 'Returning…' : 'Confirm Return'}
                     onPress={handleConfirmReturn}
                     style={styles.confirmButton}
-                    disabled={!selectedReturnLocation}
+                    disabled={!selectedReturnLocation || returningAssignment}
                   />
                 </View>
               </View>

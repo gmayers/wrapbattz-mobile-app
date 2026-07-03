@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as assignmentsApi from '../../../api/endpoints/assignments';
 import * as toolsApi from '../../../api/endpoints/tools';
 import { ApiError } from '../../../api/errors';
 import type { AssignmentRead, ToolRead } from '../../../api/types';
+import { enrichLastHeld } from './lastHeld';
 
 export interface ToolItem {
   id: string;
   identifier: string;
   toolType?: string;
+  holderLabel?: string;
+  siteHeld?: boolean;
   status: 'assigned' | 'available' | 'missing' | 'maintenance';
 }
 
@@ -21,6 +24,7 @@ export interface SiteGroup {
 
 export interface UseMyToolsResult {
   isLoading: boolean;
+  hasLoadedOnce: boolean;
   groups: SiteGroup[];
   filter: 'mine' | 'all';
   setFilter: (f: 'mine' | 'all') => void;
@@ -41,12 +45,22 @@ function mapToolStatus(raw: string | undefined): ToolItem['status'] {
 
 function groupMine(assignments: AssignmentRead[]): SiteGroup[] {
   if (assignments.length === 0) return [];
-  const tools: ToolItem[] = assignments.map((a) => ({
-    id: String(a.tool_id),
-    identifier: a.tool_name,
-    toolType: a.assignee_site_name || undefined,
-    status: 'assigned',
-  }));
+  const tools: ToolItem[] = assignments.map((a) => {
+    const holder =
+      a.assignee_user_id != null
+        ? `👤 ${a.assignee_user_email || 'Assigned'}`
+        : a.assignee_site_id != null
+          ? `📍 ${a.assignee_site_name || 'Location'}`
+          : 'Available';
+    return {
+      id: String(a.tool_id),
+      identifier: a.tool_name,
+      toolType: undefined,
+      holderLabel: holder,
+      siteHeld: a.assignee_user_id == null && a.assignee_site_id != null,
+      status: 'assigned',
+    };
+  });
   return [
     {
       siteId: MINE_GROUP_ID,
@@ -63,6 +77,7 @@ function groupAll(tools: ToolRead[]): SiteGroup[] {
     id: String(t.id),
     identifier: t.name,
     toolType: t.category_name || [t.make, t.model].filter(Boolean).join(' ') || undefined,
+    holderLabel: t.is_available ? 'Available' : 'In use',
     status: mapToolStatus(t.status),
   }));
   return [
@@ -84,8 +99,18 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
 
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // In-flight guard: useFocusEffect fires refresh() on every tab return (and on
+  // mount, alongside the initial load). Skip while a load is already running so
+  // focus events don't stack extra requests.
+  const inFlightRef = useRef(false);
+
+  // Track whether we've completed at least one successful load so the empty
+  // state is not shown while the first request is still in flight.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
+    inFlightRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -93,20 +118,53 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
       try {
         if (filter === 'mine') {
           const mine = await assignmentsApi.listMyActiveAssignments();
-          if (!cancelled) setGroups(groupMine(mine));
+          if (!cancelled) {
+            setHasLoadedOnce(true);
+            const initialGroups = groupMine(mine);
+            setGroups(initialGroups);
+            // Fire-and-forget: enrich location-held tools with "last held by <user>".
+            const siteHeldIds = initialGroups
+              .flatMap((g) => g.tools)
+              .filter((t) => t.siteHeld)
+              .map((t) => Number(t.id));
+            if (siteHeldIds.length > 0) {
+              void enrichLastHeld(
+                siteHeldIds,
+                (id) => toolsApi.getToolHistory(id),
+                (id, name) => {
+                  if (!name || cancelled) return;
+                  setGroups((prev) =>
+                    prev.map((g) => ({
+                      ...g,
+                      tools: g.tools.map((t) =>
+                        Number(t.id) === id && t.siteHeld && !/last held by/.test(t.holderLabel ?? '')
+                          ? { ...t, holderLabel: `${t.holderLabel} · last held by ${name}` }
+                          : t
+                      ),
+                    }))
+                  );
+                },
+              ).catch(() => {});
+            }
+          }
         } else {
           const page = await toolsApi.listTools({ page_size: 200 });
-          if (!cancelled) setGroups(groupAll(page.items));
+          if (!cancelled) {
+            setHasLoadedOnce(true);
+            setGroups(groupAll(page.items));
+          }
         }
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.code === 'unauthorized') return;
-        setGroups([]);
+        // Do NOT clear groups on error — keep the previously-loaded list so
+        // a mid-flight focus refresh doesn't cause an empty-state flicker.
         setError(
           (err instanceof ApiError && err.message) ||
             'Could not load tools. Please try again.'
         );
       } finally {
+        inFlightRef.current = false;
         if (!cancelled) setIsLoading(false);
       }
     };
@@ -119,9 +177,10 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
 
   useFocusEffect(
     useCallback(() => {
+      if (inFlightRef.current) return;
       refresh();
     }, [refresh])
   );
 
-  return { isLoading, groups, filter, setFilter, error, refresh };
+  return { isLoading, hasLoadedOnce, groups, filter, setFilter, error, refresh };
 }

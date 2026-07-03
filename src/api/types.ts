@@ -20,6 +20,25 @@ export type ChangePasswordRequest = S['ChangePasswordRequest'];
 
 export type UserUpdate = S['UserUpdate'];
 export type OnboardingUpdate = S['OnboardingUpdate'];
+
+// GET /account/onboarding/ — the wizard shape (flow + ordered steps). Mirrors
+// the backend OnboardingState/OnboardingStepInfo schemas. Hand-written because
+// this read endpoint is not yet in the committed OpenAPI spec; regenerate types
+// (npm run api:types) once the spec includes it and switch to S['OnboardingState'].
+export interface OnboardingStepInfo {
+  key: string;
+  label: string;
+  number: number;
+  done: boolean;
+  active: boolean;
+}
+export interface OnboardingState {
+  flow: string;
+  current_step: string;
+  completed: boolean;
+  steps: OnboardingStepInfo[];
+  role: string | null;
+}
 export type PushTokenRead = S['PushTokenRead'];
 export type PushTokenRequest = S['PushTokenRequest'];
 export type PushTokenDelete = S['PushTokenDelete'];
@@ -47,6 +66,15 @@ export type ToolCreate = S['ToolCreate'];
 export type ToolUpdate = S['ToolUpdate'];
 export type PagedTools = S['PagedTools'];
 export type ToolPhotoRead = S['ToolPhotoRead'];
+
+// Tool make/model/type were extracted into a dedicated table on the backend;
+// tools now reference a row by `category_id`. Hand-written because the committed
+// OpenAPI spec predates the `/tools/categories/` endpoint — replace with the
+// generated type once docs/api/openapi.json is regenerated (`npm run api:types`).
+export interface ToolCategory {
+  id: number;
+  name: string;
+}
 
 export type AssignmentRead = S['AssignmentRead'];
 export type AssignmentCreate = S['AssignmentCreate'];

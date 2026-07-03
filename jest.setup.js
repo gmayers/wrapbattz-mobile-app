@@ -98,6 +98,11 @@ jest.mock('react-native-nfc-manager', () => {
       StateChanged: 'StateChanged',
     },
     Ndef: mockNdef,
+    NfcError: {
+      // Mirror the real library: cancellations are a typed error with an
+      // EMPTY message (the cancel signal is the type, not the text).
+      UserCancel: class UserCancel extends Error {},
+    },
     default: mockNfcManager,
   };
 });
@@ -114,17 +119,24 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
-jest.mock('react-native-iap', () => ({
+jest.mock('expo-iap', () => ({
   initConnection: jest.fn(() => Promise.resolve(true)),
-  endConnection: jest.fn(() => Promise.resolve(true)),
-  getSubscriptions: jest.fn(() => Promise.resolve([])),
-  requestSubscription: jest.fn(() => Promise.resolve(null)),
+  endConnection: jest.fn(() => Promise.resolve()),
+  fetchProducts: jest.fn(() => Promise.resolve([])),
+  requestPurchase: jest.fn(() => Promise.resolve()),
   finishTransaction: jest.fn(() => Promise.resolve()),
   getAvailablePurchases: jest.fn(() => Promise.resolve([])),
   purchaseUpdatedListener: jest.fn(() => ({ remove: jest.fn() })),
   purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
-  flushFailedPurchasesCachedAsPendingAndroid: jest.fn(() => Promise.resolve()),
-  acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve()),
+  ErrorCode: {
+    UserCancelled: 'user-cancelled',
+    NetworkError: 'network-error',
+    ItemUnavailable: 'item-unavailable',
+    AlreadyOwned: 'already-owned',
+    NotPrepared: 'not-prepared',
+    ServiceError: 'service-error',
+    BillingUnavailable: 'billing-unavailable',
+  },
 }));
 
 jest.mock('expo-local-authentication', () => ({
@@ -209,6 +221,27 @@ jest.mock('expo-updates', () => ({
 // Mock Expo Linear Gradient
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
+}));
+
+// Mock expo-file-system (root export — v19 new API, kept for completeness)
+jest.mock('expo-file-system', () => ({
+  cacheDirectory: 'file:///cache/',
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+}));
+
+// Mock expo-file-system/legacy (the subpath used by exportCsv.ts after the
+// SDK-54 / expo-file-system v19 root-export breaking change)
+jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: 'file:///cache/',
+  writeAsStringAsync: jest.fn(() => Promise.resolve()),
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+}));
+
+// Mock expo-sharing
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  shareAsync: jest.fn(() => Promise.resolve()),
 }));
 
 // Global test helpers

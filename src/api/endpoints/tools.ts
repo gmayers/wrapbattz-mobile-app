@@ -3,6 +3,7 @@ import type {
   AssignmentRead,
   PagedAssignments,
   PagedTools,
+  ToolCategory,
   ToolCreate,
   ToolRead,
   ToolUpdate,
@@ -16,6 +17,27 @@ export interface ListToolsParams {
 export async function listTools(params: ListToolsParams = {}): Promise<PagedTools> {
   const { data } = await apiClient.get<PagedTools>('/tools/', { params });
   return data;
+}
+
+// Categories (the make/model/type values extracted into their own table) have
+// no dedicated lookup route on the API — they're only surfaced via the
+// category_id/category_name fields on tools. Until the backend exposes a
+// categories endpoint, derive the selectable options from the distinct
+// categories present on existing tools.
+export async function listToolCategories(): Promise<ToolCategory[]> {
+  const { data } = await apiClient.get<PagedTools>('/tools/', { params: { page_size: 200 } });
+  const items: any[] = data?.items ?? [];
+  const seen = new Map<number, string>();
+  for (const tool of items) {
+    const id = tool?.category_id;
+    if (id === undefined || id === null) continue;
+    if (!seen.has(Number(id))) {
+      seen.set(Number(id), String(tool?.category_name || id));
+    }
+  }
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createTool(payload: ToolCreate): Promise<ToolRead> {
@@ -59,4 +81,12 @@ export async function assignToolByIdentifier(identifier: string): Promise<Assign
     `/tools/by-identifier/${encodeURIComponent(identifier)}/assign/`
   );
   return data;
+}
+
+export async function requestTool(
+  toolId: number,
+  body: { message?: string } = {},
+): Promise<{ id: number; status: string }> {
+  const { data } = await apiClient.post(`/tools/${toolId}/request/`, body);
+  return data as { id: number; status: string };
 }

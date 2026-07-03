@@ -26,9 +26,21 @@ import {
   toolPhotos as toolPhotosApi
 } from '../api/endpoints';
 import { ApiError } from '../api/errors';
+import { API_BASE_URL } from '../api/config';
 
 const ORANGE_COLOR = '#FFC72C';
 const { width } = Dimensions.get('window');
+
+// Tool-photo URLs can come back as relative Django media paths (e.g.
+// "/media/tool_photos/x.jpg"). React Native's <Image> cannot load a relative
+// URI, so resolve it against the API origin (host without the /api/v1 path).
+// No-op for URLs that are already absolute.
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+\/?$/, '');
+const resolvePhotoUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  return url.startsWith('/') ? `${API_ORIGIN}${url}` : `${API_ORIGIN}/${url}`;
+};
 
 // Define the report type choices
 const TYPE_CHOICES = [
@@ -100,7 +112,7 @@ const ReportDetailsScreen = ({ navigation, route }) => {
       const photos = await toolPhotosApi.listToolPhotos(toolId);
       const mapped = photos.map((p) => ({
         id: p.id,
-        image: p.url,
+        image: resolvePhotoUrl(p.url),
         is_signature: p.is_signature,
         description: p.description,
         created_at: p.created_at

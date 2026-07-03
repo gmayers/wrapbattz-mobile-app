@@ -1,5 +1,6 @@
 // src/utils/NFCLogger.ts - Enhanced logging utility for NFC operations
 import * as Sentry from '@sentry/react-native';
+import { NfcError } from 'react-native-nfc-manager';
 
 /**
  * NFC Operation Types for categorizing different NFC actions
@@ -291,7 +292,13 @@ class NFCLogger {
   public categorizeError(error: Error): NFCErrorCategory {
     const message = error.message.toLowerCase();
 
-    if (message.includes('cancelled') || message.includes('canceled')) {
+    // react-native-nfc-manager surfaces user cancellations as a typed
+    // `NfcError.UserCancel` whose message is empty (the signal is the type,
+    // not the text). Detect by type first so cancels aren't miscategorized as
+    // UNKNOWN — which would log them as errors and report them to Sentry.
+    const UserCancel = (NfcError as { UserCancel?: new () => Error } | undefined)?.UserCancel;
+    if ((UserCancel && error instanceof UserCancel) ||
+        message.includes('cancelled') || message.includes('canceled')) {
       return NFCErrorCategory.CANCELLED;
     }
     if (message.includes('hardware') || message.includes('not available') || message.includes('not supported')) {

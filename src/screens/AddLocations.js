@@ -16,14 +16,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { sites as sitesApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
+import { normalizePostcode } from '../utils/CommonUtils';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
 
 const CreateLocationScreen = ({ navigation, route }) => {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, userData } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const [formData, setFormData] = useState({
     building_name: '',
@@ -76,7 +79,7 @@ const CreateLocationScreen = ({ navigation, route }) => {
       errors.town_or_city = 'Town/City is required';
     }
     
-    if (!formData.postcode.trim()) {
+    if (!normalizePostcode(formData.postcode)) {
       errors.postcode = 'Postcode is required';
     }
     
@@ -108,7 +111,7 @@ const CreateLocationScreen = ({ navigation, route }) => {
         nickname: formData.building_name || '',
         address_line1: address1,
         city: formData.town_or_city || '',
-        postcode: formData.postcode || ''
+        postcode: normalizePostcode(formData.postcode),
 });
 
       Alert.alert(
@@ -148,8 +151,8 @@ const CreateLocationScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -163,35 +166,36 @@ const CreateLocationScreen = ({ navigation, route }) => {
           {renderErrorBanner()}
           
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Create New Location</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Create New Location</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Please fill in the details of the new location
             </Text>
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Building Name (Optional)</Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Building Name (Optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={formData.building_name}
               onChangeText={(text) => handleInputChange('building_name', text)}
               placeholder="Enter building name"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Street Number*</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Street Number*</Text>
               <TextInput
                 style={[
                   styles.input,
+                  { backgroundColor: colors.surface, color: colors.textPrimary },
                   formErrors.street_number ? styles.inputError : null,
                 ]}
                 value={formData.street_number}
                 onChangeText={(text) => handleInputChange('street_number', text)}
                 placeholder="Enter number"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textMuted}
               />
               {formErrors.street_number ? (
                 <Text style={styles.errorText}>{formErrors.street_number}</Text>
@@ -199,16 +203,17 @@ const CreateLocationScreen = ({ navigation, route }) => {
             </View>
             
             <View style={[styles.formGroup, { flex: 2 }]}>
-              <Text style={styles.label}>Street Name*</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Street Name*</Text>
               <TextInput
                 style={[
                   styles.input,
+                  { backgroundColor: colors.surface, color: colors.textPrimary },
                   formErrors.street_name ? styles.inputError : null,
                 ]}
                 value={formData.street_name}
                 onChangeText={(text) => handleInputChange('street_name', text)}
                 placeholder="Enter street name"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textMuted}
               />
               {formErrors.street_name ? (
                 <Text style={styles.errorText}>{formErrors.street_name}</Text>
@@ -217,27 +222,28 @@ const CreateLocationScreen = ({ navigation, route }) => {
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Address Line 2 (Optional)</Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Address Line 2 (Optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={formData.address_2}
               onChangeText={(text) => handleInputChange('address_2', text)}
               placeholder="Enter additional address information"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Town/City*</Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Town/City*</Text>
             <TextInput
               style={[
                 styles.input,
+                { backgroundColor: colors.surface, color: colors.textPrimary },
                 formErrors.town_or_city ? styles.inputError : null,
               ]}
               value={formData.town_or_city}
               onChangeText={(text) => handleInputChange('town_or_city', text)}
               placeholder="Enter town or city"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
             {formErrors.town_or_city ? (
               <Text style={styles.errorText}>{formErrors.town_or_city}</Text>
@@ -246,27 +252,28 @@ const CreateLocationScreen = ({ navigation, route }) => {
           
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>County (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>County (Optional)</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
                 value={formData.county}
                 onChangeText={(text) => handleInputChange('county', text)}
                 placeholder="Enter county"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textMuted}
               />
             </View>
             
             <View style={[styles.formGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Postcode*</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Postcode*</Text>
               <TextInput
                 style={[
                   styles.input,
+                  { backgroundColor: colors.surface, color: colors.textPrimary },
                   formErrors.postcode ? styles.inputError : null,
                 ]}
                 value={formData.postcode}
                 onChangeText={(text) => handleInputChange('postcode', text)}
                 placeholder="Enter postcode"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textMuted}
               />
               {formErrors.postcode ? (
                 <Text style={styles.errorText}>{formErrors.postcode}</Text>
@@ -276,7 +283,7 @@ const CreateLocationScreen = ({ navigation, route }) => {
           
           <View style={styles.formGroup}>
             {userData?.orgId ? (
-              <Text style={styles.organizationText}>
+              <Text style={[styles.organizationText, { color: colors.textSecondary }]}>
                 This location will be associated with {userData.name ? userData.name + "'s" : "your"} organization.
               </Text>
             ) : (

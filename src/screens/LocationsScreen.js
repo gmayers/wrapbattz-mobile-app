@@ -1,5 +1,5 @@
 // LocationsScreen.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,9 +24,12 @@ import Card from '../components/Card';
 import SearchBar from '../components/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import Dropdown from '../components/Dropdown';
 import { sites as sitesApi } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { normalizePostcode } from '../utils/CommonUtils';
+import { LOCATION_TYPES, LOCATION_TYPE_OTHER, DEFAULT_LOCATION_TYPE } from '../constants/locationTypes';
 
 // Map the screen's legacy address form shape to the new Site* payload.
 const toSitePayload = (formData) => {
@@ -42,7 +45,10 @@ const toSitePayload = (formData) => {
     prefix_code: formData.prefix_code || '',
     address_line1: address1,
     city: formData.town_or_city || '',
-    postcode: formData.postcode || ''
+    // Normalize to canonical uppercase UK postcode. The backend rejects
+    // lowercase postcodes ("invalid postcode"), so a user typing "sw1a 1aa"
+    // would fail; normalizePostcode makes case and extra spaces irrelevant.
+    postcode: normalizePostcode(formData.postcode),
 };
 };
 
@@ -54,7 +60,7 @@ const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext
   const { isAdminOrOwner, userData, user, refreshUser } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [locations, setLocations] = useState([]);
   const [filteredLocations, setFilteredLocations] = useState([]);
@@ -65,6 +71,7 @@ const LocationsScreen = ({ navigation }) => {
   const [editingLocationId, setEditingLocationId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    site_type: DEFAULT_LOCATION_TYPE,
     building_name: '',
     street_number: '',
     street_name: '',
@@ -90,7 +97,13 @@ const LocationsScreen = ({ navigation }) => {
     if (refreshUser) refreshUser();
   }, [navigation, refreshUser]);
 
+  // In-flight guard: rapid tab navigation fires the focus listener repeatedly;
+  // skip a refetch while one is already running so requests don't pile up.
+  const isFetchingLocationsRef = useRef(false);
+
   const fetchLocations = useCallback(async () => {
+    if (isFetchingLocationsRef.current) return;
+    isFetchingLocationsRef.current = true;
     setIsLoading(true);
     try {
       const page = await sitesApi.listSites();
@@ -105,6 +118,7 @@ const LocationsScreen = ({ navigation }) => {
       setFilteredLocations([]);
     } finally {
       setIsLoading(false);
+      isFetchingLocationsRef.current = false;
     }
   }, []);
 
@@ -174,7 +188,13 @@ const LocationsScreen = ({ navigation }) => {
     if (!formData.street_number.trim()) {
       errors.street_number = 'Street number is required';
     }
-    
+
+    // For the "Other" type, the building-name field doubles as the free-text
+    // type label (stored in nickname), so require it.
+    if (formData.site_type === LOCATION_TYPE_OTHER && !formData.building_name.trim()) {
+      errors.building_name = 'Please specify the location type';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formData]);
@@ -192,6 +212,7 @@ const LocationsScreen = ({ navigation }) => {
       setModalVisible(false);
       setFormData({
         name: '',
+        site_type: DEFAULT_LOCATION_TYPE,
         building_name: '',
         street_number: '',
         street_name: '',
@@ -250,6 +271,7 @@ const LocationsScreen = ({ navigation }) => {
     setEditingLocationId(location.id);
     setFormData({
       name: location.name || '',
+      site_type: location.site_type || DEFAULT_LOCATION_TYPE,
       building_name: location.building_name || '',
       street_number: location.street_number || '',
       street_name: location.street_name || '',
@@ -279,6 +301,7 @@ const LocationsScreen = ({ navigation }) => {
       setEditingLocationId(null);
       setFormData({
         name: '',
+        site_type: DEFAULT_LOCATION_TYPE,
         building_name: '',
         street_number: '',
         street_name: '',
@@ -456,7 +479,7 @@ const LocationsScreen = ({ navigation }) => {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Location Name (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Location Name (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={formData.name}
@@ -466,18 +489,41 @@ const LocationsScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Building Name (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Location Type</Text>
+              <Dropdown
+                value={formData.site_type}
+                onValueChange={(value) => handleInputChange('site_type', value)}
+                items={LOCATION_TYPES}
+                placeholder="Select location type"
+                testID="location-type-dropdown"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>
+                {formData.site_type === LOCATION_TYPE_OTHER ? 'Specify Type*' : 'Building Name (Optional)'}
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  formErrors.building_name ? styles.inputError : null,
+                ]}
                 value={formData.building_name}
                 onChangeText={(text) => handleInputChange('building_name', text)}
-                placeholder="Enter building name"
+                placeholder={
+                  formData.site_type === LOCATION_TYPE_OTHER
+                    ? 'e.g. Storage container, Lock-up'
+                    : 'Enter building name'
+                }
               />
+              {formErrors.building_name ? (
+                <Text style={styles.errorText}>{formErrors.building_name}</Text>
+              ) : null}
             </View>
             
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>Street Number*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Street Number*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -493,7 +539,7 @@ const LocationsScreen = ({ navigation }) => {
               </View>
               
               <View style={[styles.formGroup, { flex: 2 }]}>
-                <Text style={styles.label}>Street Name*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Street Name*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -510,7 +556,7 @@ const LocationsScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Address Line 2 (Optional)</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Address Line 2 (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={formData.address_2}
@@ -520,7 +566,7 @@ const LocationsScreen = ({ navigation }) => {
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Town/City*</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Town/City*</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -537,7 +583,7 @@ const LocationsScreen = ({ navigation }) => {
             
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>County (Optional)</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>County (Optional)</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.county}
@@ -547,7 +593,7 @@ const LocationsScreen = ({ navigation }) => {
               </View>
               
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.label}>Postcode*</Text>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>Postcode*</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -566,14 +612,14 @@ const LocationsScreen = ({ navigation }) => {
             {/* Edit Mode: Show Created By Signature */}
             {editMode && editingLocationId && (
               <View style={styles.signatureSection}>
-                <Text style={styles.sectionLabel}>Created By:</Text>
-                <View style={styles.signatureBox}>
+                <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Created By:</Text>
+                <View style={[styles.signatureBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
-                  <Text style={styles.signatureText}>
+                  <Text style={[styles.signatureText, { color: colors.textPrimary }]}>
                     {locations.find(l => l.id === editingLocationId)?.created_by?.first_name || 'N/A'} {locations.find(l => l.id === editingLocationId)?.created_by?.last_name || ''}
                   </Text>
                 </View>
-                <Text style={styles.createdAtText}>
+                <Text style={[styles.createdAtText, { color: colors.textSecondary }]}>
                   Created: {locations.find(l => l.id === editingLocationId)?.created_at ? new Date(locations.find(l => l.id === editingLocationId).created_at).toLocaleString() : 'N/A'}
                 </Text>
               </View>
@@ -608,7 +654,7 @@ const LocationsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Updated Header Section */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -625,7 +671,7 @@ const LocationsScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Profile')}
           >
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarText}>
+              <Text style={[styles.avatarText, { color: colors.onPrimary }]}>
                 {userName.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -657,10 +703,10 @@ const LocationsScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollViewContent}
         >
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Organization Locations</Text>
-            <Text style={styles.sectionSubtitle}>
-              {userData?.orgId 
-                ? `Manage ${userData.name ? userData.name + "'s" : "your"} organization's locations` 
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Organization Locations</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              {userData?.orgId
+                ? `Manage ${userData.name ? userData.name + "'s" : "your"} organization's locations`
                 : "Manage your organization's locations"}
             </Text>
             
@@ -673,7 +719,7 @@ const LocationsScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="location-outline" size={48} color={colors.disabled} />
-                <Text style={styles.emptyText}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                   {searchQuery.trim() ? `No locations found matching "${searchQuery}"` : "No locations found"}
                 </Text>
                 {!searchQuery.trim() && isAdminOrOwner && (
@@ -916,7 +962,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
-    backgroundColor: '#FAFAFA'
+    backgroundColor: '#FAFAFA',
+    // Explicit dark text: without it, OS dark mode renders typed text white
+    // on this light (#FAFAFA) input box, making it unreadable.
+    color: '#1A1A1A'
 },
   inputError: {
     borderColor: '#EF4444'

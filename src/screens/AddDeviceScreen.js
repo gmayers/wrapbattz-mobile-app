@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -28,6 +28,7 @@ import {
 } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { DEVICE_CATEGORIES, matchCategoryId } from '../constants/deviceCategories';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
@@ -43,16 +44,6 @@ const AddDevicePage = ({ navigation }) => {
   const twoWeeksFromNow = new Date();
   twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
   
-  const ITEM_CHOICES = [
-    { label: 'Battery', value: 'Battery', key: 'device-battery' },
-    { label: 'Charger', value: 'Charger', key: 'device-charger' },
-    { label: 'Adapter', value: 'Adapter', key: 'device-adapter' },
-    { label: 'Cable', value: 'Cable', key: 'device-cable' },
-    { label: 'Drill', value: 'Drill', key: 'device-drill' },
-    { label: 'Saw', value: 'Saw', key: 'device-saw' },
-    { label: 'Other', value: 'Other', key: 'device-other' }
-  ];
-
   const MAKES = [
     { label: 'Makita', value: 'Makita', key: 'make-makita' },
     { label: 'Milwaukee', value: 'Milwaukee', key: 'make-milwaukee' },
@@ -69,7 +60,7 @@ const [formData, setFormData] = useState({
     description: '',
     make: 'Makita',
     model: '',
-    device_type: 'Battery',
+    category: 'Tool', // Fixed category name from DEVICE_CATEGORIES
     serial_number: '',
     maintenance_interval: '',
     next_maintenance_date: twoWeeksFromNow,
@@ -81,6 +72,7 @@ const [formData, setFormData] = useState({
   const [deviceIdentifier, setDeviceIdentifier] = useState('');
   const [isWritingNfc, setIsWritingNfc] = useState(false);
   const [nfcWriteSuccess, setNfcWriteSuccess] = useState(false);
+  const finishTimerRef = useRef(null);
   const [scannedNfcUuid, setScannedNfcUuid] = useState(null); // NFC tag hardware UUID for registration
   const [isScanningNfc, setIsScanningNfc] = useState(false);
   const [preScannedNfcTagId, setPreScannedNfcTagId] = useState(null); // NFC tag scanned before form submission
@@ -103,8 +95,9 @@ const [formData, setFormData] = useState({
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [userOptions, setUserOptions] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [backendCategories, setBackendCategories] = useState([]);
   const [otherMake, setOtherMake] = useState('');
-  const [otherDeviceType, setOtherDeviceType] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [createdDeviceId, setCreatedDeviceId] = useState(null);
   // Toggle for user/location assignment
@@ -138,10 +131,11 @@ const [formData, setFormData] = useState({
     };
   }, []);
 
-  // Fetch locations and users on component mount
+  // Fetch locations, users and categories on component mount
   useEffect(() => {
     fetchLocations();
     fetchUsers();
+    fetchCategories();
   }, []);
 
 
@@ -165,6 +159,11 @@ const [formData, setFormData] = useState({
     }
   }, [locations]);
 
+  // Clear the auto-navigate timer if the component unmounts before it fires.
+  useEffect(() => () => {
+    if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
+  }, []);
+
   const fetchLocations = async () => {
     try {
       const page = await sitesApi.listSites();
@@ -173,6 +172,29 @@ const [formData, setFormData] = useState({
     } catch (error) {
       console.error('Error fetching sites:', error);
       Alert.alert('Error', 'Failed to load locations. Please try again.');
+    }
+  };
+
+  // Build fixed category options from DEVICE_CATEGORIES and fetch backend
+  // categories for id matching on create (no lookup endpoint — best-effort only).
+  const fetchCategories = async () => {
+    // Fixed options are always available — no spinner, no disabled state.
+    const options = DEVICE_CATEGORIES.map((name) => ({
+      label: name,
+      value: name,
+      key: `category-${name}`
+    }));
+    setCategoryOptions(options);
+    logMessage(`Using ${options.length} fixed device categories`);
+
+    // Fetch backend categories for id resolution on create (optional, silent on failure).
+    try {
+      const categories = await toolsApi.listToolCategories();
+      setBackendCategories(categories);
+      logMessage(`Fetched ${categories.length} backend categories for id matching`);
+    } catch (error) {
+      logMessage(`Could not fetch backend categories (non-fatal): ${error.message}`);
+      // Not an error the user needs to see; fixed labels still work.
     }
   };
 
@@ -297,16 +319,8 @@ const handleInputChange = (name, value) => {
     }
   };
 
-  const handleDeviceTypeChange = (value) => {
-    if (value === 'Other') {
-      // Just set dropdown to "Other" but don't clear the custom value yet
-      handleInputChange('device_type', 'Other');
-    } else {
-      // For standard options, update normally
-      handleInputChange('device_type', value);
-      // Clear otherDeviceType when selecting a standard option
-      setOtherDeviceType('');
-    }
+  const handleCategoryChange = (value) => {
+    handleInputChange('category', value);
   };
 const validateForm = () => {
     // Collect all missing required fields
@@ -319,9 +333,11 @@ const validateForm = () => {
     if (formData.make === null || formData.make === undefined || formData.make === '') 
       missingFields.push('Make');
     
-    if (!formData.model || formData.model.trim() === '') 
+    if (!formData.model || formData.model.trim() === '')
       missingFields.push('Model');
-    
+
+    // Category (category_id) is nullable — not required.
+
     // Check location or user based on assignment toggle
     if (isUserAssignment) {
       if (!formData.user || formData.user === '' || formData.user === 0)
@@ -345,36 +361,7 @@ const validateForm = () => {
     return true;
   };
 
-// Prepare device data without user/location assignment
-  const prepareDeviceData = () => {
-    logMessage('Preparing device data for submission');
 
-    // Determine the make value based on selection
-    const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-    // Create the request data object - WITHOUT user or location
-    const requestData = {
-      description: formData.description,
-      make: finalMake || '',
-      model: formData.model,
-      device_type: formData.device_type || '',
-      ...(formData.device_type === 'Other' && otherDeviceType ? { custom_type: otherDeviceType } : {}),
-      serial_number: formData.serial_number || '',
-      maintenance_interval: formData.maintenance_interval || null,
-      // Format date as DD/MM/YYYY as expected by the backend
-      next_maintenance_date: formatDate(formData.next_maintenance_date)
-};
-
-    // Include NFC tag ID if scanned before submission
-    if (preScannedNfcTagId) {
-      requestData.nfc_tag_id = preScannedNfcTagId;
-      logMessage(`Including pre-scanned NFC tag ID: ${preScannedNfcTagId}`);
-    }
-
-    logMessage(`Prepared device data: ${JSON.stringify(requestData)}`);
-    return requestData;
-  };
-
-  
 // Handle device creation and assignment as separate steps
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -384,15 +371,33 @@ const validateForm = () => {
 
     try {
       // STEP 1: Create the tool
-      const deviceData = prepareDeviceData();
       const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-      const createdTool = await toolsApi.createTool({
-        name: deviceData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
+      const matchedId = matchCategoryId(formData.category, backendCategories);
+      const toolPayload = {
+        name: formData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
-        ...(preScannedNfcTagId ? { nfc_tag_id: preScannedNfcTagId } : {})
-});
+        ...(matchedId != null ? { category_id: matchedId } : { category: formData.category }),
+        nfc_tag_id: preScannedNfcTagId ?? null,
+      };
+      let createdTool;
+      try {
+        createdTool = await toolsApi.createTool(toolPayload);
+      } catch (createError) {
+        // If the backend 400s on the unknown `category` field, retry once without it.
+        if (
+          createError instanceof ApiError &&
+          createError.code === 'validation' &&
+          matchedId == null
+        ) {
+          logMessage('[BACKEND] category field rejected (400); retrying with category_id: null');
+          const { category: _dropped, ...payloadWithoutCategory } = toolPayload;
+          createdTool = await toolsApi.createTool({ ...payloadWithoutCategory, category_id: null });
+        } else {
+          throw createError;
+        }
+      }
 
       const createdDeviceId = createdTool.id;
       const identifier = createdTool.name;
@@ -422,59 +427,38 @@ const validateForm = () => {
       setApiResponse(createdTool);
       setCreatedDeviceId(createdDeviceId);
       setDeviceIdentifier(identifier);
-      
-      // Show the success modal
+
+      // If there is no pre-scanned NFC tag, skip the write step and auto-navigate.
+      if (!preScannedNfcTagId) {
+        navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+        return;
+      }
+
+      // NFC tag is registered — show the write-options modal.
       setNfcModalVisible(true);
       
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      logMessage(`Error in device creation/assignment: ${error.message}`);
-      
-      // Enhanced error handling to provide better feedback
+      logMessage(`Error in device creation/assignment: ${error?.message}`);
+
+      // The api client throws a typed ApiError (not a raw axios error), so read
+      // its fields instead of error.response/error.request.
       let errorMessage = 'Failed to create device. Please try again.';
-      
-      if (error.response) {
-        logMessage(`Server error status: ${error.response.status}`);
-        logMessage(`Server error data: ${JSON.stringify(error.response.data, null, 2)}`);
-        
-        if (error.response.data) {
-          if (error.response.data.errors) {
-            // Handle structured error responses
-            const errorMessages = [];
-            
-            // Handle general errors
-            if (error.response.data.errors.general) {
-              errorMessages.push(...error.response.data.errors.general);
-            }
-            
-            // Handle field-specific errors
-            Object.entries(error.response.data.errors).forEach(([field, errors]) => {
-              if (field !== 'general') {
-                errors.forEach(err => {
-                  errorMessages.push(`${field}: ${err}`);
-                });
-              }
-            });
-            
-            if (errorMessages.length > 0) {
-              errorMessage = errorMessages.join('\n');
-            }
-          } else if (error.response.data.message) {
-            errorMessage = error.response.data.message;
-          } else if (error.response.data.detail) {
-            errorMessage = error.response.data.detail;
-          } else if (typeof error.response.data === 'string') {
-            errorMessage = error.response.data;
-          }
+      if (error instanceof ApiError) {
+        if (error.code === 'unauthorized') return; // handled globally by auth
+        if (error.code === 'timeout' || error.code === 'network') {
+          // The tool may already have been created before the assignment step
+          // failed — warn so the user doesn't create a duplicate on retry.
+          errorMessage =
+            `${error.message} The device may already have been created — ` +
+            'check the device list before trying again.';
+        } else {
+          errorMessage = error.message || errorMessage;
         }
-      } else if (error.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response received from server. Please check your connection.';
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        errorMessage = `An error occurred: ${error.message}`;
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
-      
+
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
@@ -490,6 +474,11 @@ const formatDate = (date) => {
   };
 
   const resetForm = () => {
+    // Cancel any pending auto-navigate timer so it can't fire after a reset.
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
+    }
     // Calculate a new date 2 weeks from today for reset
     const twoWeeksFromNow = new Date();
     twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
@@ -498,7 +487,7 @@ const formatDate = (date) => {
       description: '',
       make: 'Makita', // Reset to default
       model: '',
-      device_type: 'Battery', // Reset to default
+      category: 'Tool', // Reset to first fixed category
       serial_number: '',
       maintenance_interval: '',
       next_maintenance_date: twoWeeksFromNow, // Reset to 2 weeks from now
@@ -506,7 +495,6 @@ const formatDate = (date) => {
       user: userOptions.length > 0 ? userOptions[0].value : '', // Reset to first user
     });
     setOtherMake('');
-    setOtherDeviceType('');
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
@@ -529,19 +517,29 @@ const formatDate = (date) => {
     setNfcModalVisible(false);
   };
 
-  const handleFinish = () => {
-    if (createdDeviceId) {
-      setNfcModalVisible(false);
-      navigation.replace('DeviceDetails', { deviceId: createdDeviceId });
+  const finish = (deviceId) => {
+    const id = deviceId ?? createdDeviceId;
+    setNfcModalVisible(false);
+    if (id) {
+      navigation.replace('DeviceDetails', { deviceId: id });
     } else {
       navigation.goBack();
     }
   };
 
+  // Keep backward-compatible alias used by modal buttons.
+  const handleFinish = () => {
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+      finishTimerRef.current = null;
+    }
+    finish();
+  };
+
   const handleNFCSuccess = () => {
-    // Just update the UI state to show success, but keep the modal open
-    // for the user to choose next steps
     setNfcWriteSuccess(true);
+    // Auto-advance after a brief moment so the user sees the success badge.
+    finishTimerRef.current = setTimeout(() => finish(), 1500);
   };
 
 /**
@@ -764,14 +762,14 @@ return (
               />
             </View>
 
-            {/* Device Type Dropdown */}
+            {/* Category Dropdown — fixed list, always enabled */}
             <View style={styles.formField}>
-              <Text style={[styles.label, { color: colors.textPrimary }]}>Device Type</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Category (optional)</Text>
               <Dropdown
-                value={formData.device_type}
-                onValueChange={handleDeviceTypeChange}
-                items={ITEM_CHOICES}
-                placeholder="Select Device Type"
+                value={formData.category}
+                onValueChange={handleCategoryChange}
+                items={categoryOptions}
+                placeholder="Select Category"
                 testID="device-type-dropdown"
                 containerStyle={[
                   styles.dropdownContainer,
@@ -779,19 +777,6 @@ return (
                 ]}
               />
             </View>
-
-            {/* Other Device Type Input */}
-            {formData.device_type === 'Other' && (
-              <View style={styles.formField}>
-                <Text style={styles.label}>Specify Device Type *</Text>
-                <BaseTextInput
-                  value={otherDeviceType}
-                  onChangeText={(text) => setOtherDeviceType(text)}
-                  placeholder="Enter other device type"
-                  style={otherDeviceType ? {} : styles.requiredInput}
-                />
-              </View>
-            )}
 
             {/* Serial Number Input */}
             <View style={styles.formField}>

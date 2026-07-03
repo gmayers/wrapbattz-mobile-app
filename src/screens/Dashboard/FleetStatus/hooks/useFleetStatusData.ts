@@ -13,6 +13,7 @@ import type {
 } from '../../../../api/types';
 import { useAuth } from '../../../../context/AuthContext';
 import type { FleetException, FleetStatusData } from '../types';
+import { computeInventory } from './donutTotals';
 
 const TOOLS_PAGE_SIZE = 200;
 
@@ -60,19 +61,29 @@ export function useFleetStatusData(): FleetStatusData {
     setIsLoading(true);
     setError(undefined);
     try {
-      const [org, toolsPage, activePage, incidentsPage] = await Promise.all([
-        organizationsApi.getMyOrganization().catch(() => null),
+      // allSettled, not all: a single slow/failed endpoint must not blank the
+      // entire dashboard. Each card falls back to empty; we only surface an
+      // error if every data call failed.
+      const [orgR, toolsR, activeR, incidentsR] = await Promise.allSettled([
+        organizationsApi.getMyOrganization(),
         toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
         assignmentsApi.listAssignments({ status: 'active' }),
         incidentsApi.listIncidents(),
       ]);
+      const org = orgR.status === 'fulfilled' ? orgR.value : null;
+      const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
+      const activePage = activeR.status === 'fulfilled' ? activeR.value : null;
+      const incidentsPage = incidentsR.status === 'fulfilled' ? incidentsR.value : null;
       setRaw({
         org,
-        tools: toolsPage.items,
-        toolsTotal: toolsPage.total ?? toolsPage.items.length,
-        activeAssignments: activePage.items,
-        incidents: incidentsPage.items,
+        tools: toolsPage?.items ?? [],
+        toolsTotal: toolsPage?.total ?? toolsPage?.items.length ?? 0,
+        activeAssignments: activePage?.items ?? [],
+        incidents: incidentsPage?.items ?? [],
       });
+      if (!toolsPage && !activePage && !incidentsPage) {
+        setError('Failed to load fleet status');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load fleet status');
     } finally {
@@ -87,13 +98,18 @@ export function useFleetStatusData(): FleetStatusData {
   const data = useMemo<Omit<FleetStatusData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
-    const total = raw.org?.tool_count ?? raw.toolsTotal;
     const inUse = raw.activeAssignments.length;
     const open = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
     const maintenance = open.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
     // BACKEND_GAP: missing-status not directly tracked on tools — derived from incidents.
     const missingFromIncidents = open.filter((i) => MISSING_TYPES.has(i.type)).length;
-    const available = Math.max(0, total - inUse - maintenance - missingFromIncidents);
+    const { total, available } = computeInventory({
+      toolCount: raw.org?.tool_count ?? null,
+      toolsTotal: raw.toolsTotal,
+      inUse,
+      maintenance,
+      missing: missingFromIncidents,
+    });
 
     const tagsUsed = raw.tools.filter((t) => !!t.nfc_tag_id && t.nfc_tag_id.length > 0).length;
     // BACKEND_GAP: total NFC-tag inventory (issued tag pool) not exposed.

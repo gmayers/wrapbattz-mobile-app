@@ -3,6 +3,7 @@ import { BOOTSTRAP_TIMEOUT_MS } from '../config';
 import type {
   NotificationMarkReadRequest,
   NotificationRead,
+  OnboardingState,
   OnboardingUpdate,
   PushTokenDelete,
   PushTokenRead,
@@ -31,9 +32,21 @@ export async function updateMe(payload: UserUpdate): Promise<UserMe> {
   return data;
 }
 
+export async function getOnboarding(): Promise<OnboardingState> {
+  const { data } = await apiClient.get<OnboardingState>('/account/onboarding/');
+  return data;
+}
+
 export async function updateOnboarding(payload: OnboardingUpdate): Promise<UserMe> {
   const { data } = await apiClient.patch<UserMe>('/account/onboarding/', payload);
   return data;
+}
+
+// Permanently delete the authenticated user's account (App Store guideline
+// 5.1.1(v) requires in-app account deletion). Backend must implement
+// DELETE /account/ — see the backend handoff note.
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete('/account/');
 }
 
 export async function registerPushToken(payload: PushTokenRequest): Promise<PushTokenRead> {

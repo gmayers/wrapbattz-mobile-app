@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { BaseTextInput } from '../components/TextInput';
@@ -119,23 +118,15 @@ const CreateReportScreen = ({ navigation, route }) => {
     }
   }, []);
 
-  const checkAndRequestPermissions = useCallback(async () => {
-    const cameraPermission = await ImagePicker.getCameraPermissionsAsync();
-    const mediaLibraryPermission = await MediaLibrary.getPermissionsAsync();
-
-    if (
-      cameraPermission.status !== 'granted' ||
-      mediaLibraryPermission.status !== 'granted'
-    ) {
-      const newCameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      const newMediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
-
-      return (
-        newCameraPermission.status === 'granted' &&
-        newMediaLibraryPermission.status === 'granted'
-      );
+  // Gallery selection uses the system photo picker (no permission needed), so we
+  // only request the camera permission for the "Take Photo" flows.
+  const ensureCameraPermission = useCallback(async () => {
+    const current = await ImagePicker.getCameraPermissionsAsync();
+    if (current.status === 'granted') {
+      return true;
     }
-    return true;
+    const requested = await ImagePicker.requestCameraPermissionsAsync();
+    return requested.status === 'granted';
   }, []);
 
   const pickImage = useCallback(() => {
@@ -149,7 +140,7 @@ const CreateReportScreen = ({ navigation, route }) => {
   const takeMainPhoto = useCallback(async () => {
     try {
       console.log('📷 [CreateReport] Taking main photo...');
-      if (await checkAndRequestPermissions()) {
+      if (await ensureCameraPermission()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           quality: 0.5
@@ -179,42 +170,41 @@ const CreateReportScreen = ({ navigation, route }) => {
       console.error('❌ [CreateReport] Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo and save.');
     }
-  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
+  }, [ensureCameraPermission, copyFileToPermanentStorage]);
 
   const chooseMainPhotoFromGallery = useCallback(async () => {
     try {
       console.log('🖼️ [CreateReport] Opening gallery for main photo...');
-      if (await checkAndRequestPermissions()) {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 0.5
+      // Uses the system photo picker — no permission required.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.5
 });
 
-        console.log('🖼️ [CreateReport] Gallery result:', {
-          canceled: result.canceled,
-          assetCount: result.assets?.length || 0
+      console.log('🖼️ [CreateReport] Gallery result:', {
+        canceled: result.canceled,
+        assetCount: result.assets?.length || 0
 });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const imageAsset = result.assets[0];
-          console.log('🖼️ [CreateReport] Main photo selected:', {
-            uri: imageAsset.uri,
-            width: imageAsset.width,
-            height: imageAsset.height,
-            mimeType: imageAsset.mimeType,
-            fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown'
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageAsset = result.assets[0];
+        console.log('🖼️ [CreateReport] Main photo selected:', {
+          uri: imageAsset.uri,
+          width: imageAsset.width,
+          height: imageAsset.height,
+          mimeType: imageAsset.mimeType,
+          fileSize: imageAsset.fileSize ? `${(imageAsset.fileSize / 1024).toFixed(2)} KB` : 'unknown'
 });
 
-          const permURI = await copyFileToPermanentStorage(imageAsset.uri);
-          console.log('🖼️ [CreateReport] Main photo stored at:', permURI);
-          setPhotoUri(permURI);
-        }
+        const permURI = await copyFileToPermanentStorage(imageAsset.uri);
+        console.log('🖼️ [CreateReport] Main photo stored at:', permURI);
+        setPhotoUri(permURI);
       }
     } catch (error) {
       console.error('❌ [CreateReport] Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
-  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
+  }, [copyFileToPermanentStorage]);
 
   const handleAddPhoto = useCallback(() => {
     Alert.alert('Choose Image', 'How would you like to choose the image?', [
@@ -226,7 +216,7 @@ const CreateReportScreen = ({ navigation, route }) => {
 
   const takeAdditionalPhoto = useCallback(async () => {
     try {
-      if (await checkAndRequestPermissions()) {
+      if (await ensureCameraPermission()) {
         let result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           quality: 0.5
@@ -245,30 +235,29 @@ const CreateReportScreen = ({ navigation, route }) => {
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo and save.');
     }
-  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
+  }, [ensureCameraPermission, copyFileToPermanentStorage]);
 
   const chooseAdditionalPhotoFromGallery = useCallback(async () => {
     try {
-      if (await checkAndRequestPermissions()) {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 0.5
+      // Uses the system photo picker — no permission required.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.5
 });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
-          setAdditionalPhotos(prev => {
-            const updatedPhotos = [...prev, { uri: permURI }];
-            setActiveSections([updatedPhotos.length - 1]);
-            return updatedPhotos;
-          });
-        }
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const permURI = await copyFileToPermanentStorage(result.assets[0].uri);
+        setAdditionalPhotos(prev => {
+          const updatedPhotos = [...prev, { uri: permURI }];
+          setActiveSections([updatedPhotos.length - 1]);
+          return updatedPhotos;
+        });
       }
     } catch (error) {
       console.error('Error selecting image from gallery:', error);
       Alert.alert('Error', 'Failed to select image from gallery.');
     }
-  }, [checkAndRequestPermissions, copyFileToPermanentStorage]);
+  }, [copyFileToPermanentStorage]);
 
   const handleRemovePhoto = useCallback((index) => {
     setAdditionalPhotos(prev => prev.filter((_, i) => i !== index));
@@ -862,8 +851,7 @@ const styles = StyleSheet.create({
 },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333'
+    fontWeight: 'bold'
 },
   modalInnerContainer: {
     width: '90%',
@@ -940,7 +928,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
 },
   loadingText: {
-    color: '#666',
     fontSize: 14
 }
 });

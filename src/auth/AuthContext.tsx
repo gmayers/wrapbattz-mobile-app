@@ -53,6 +53,7 @@ export interface AuthContextValue {
   refreshUser: () => Promise<UserMe | null>;
   updateUser: (payload: UserUpdate) => Promise<UserMe>;
   updateOnboarding: (payload: OnboardingUpdate) => Promise<UserMe>;
+  deleteAccount: () => Promise<void>;
 
   loginWithStoredCredentials: () => Promise<UserMe>;
   enableBiometricUnlock: () => Promise<void>;
@@ -157,7 +158,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback(
     async (payload: UserUpdate) => {
-      const me = await account.updateMe(payload);
+      await account.updateMe(payload);
+      // Re-fetch the full UserMe after the PATCH so that applyUser always
+      // receives a complete object regardless of what the server echoes back
+      // in the PATCH response (e.g. partial/missing fields).
+      const me = await account.getMe();
       applyUser(me);
       return me;
     },
@@ -172,6 +177,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [applyUser]
   );
+
+  const deleteAccount = useCallback(async () => {
+    await account.deleteAccount();
+    // Account is gone server-side — drop local tokens and return to the
+    // unauthenticated state so the app routes back to the auth stack.
+    await tokenStore.clear();
+    applyUser(null);
+  }, [applyUser]);
 
   const loginWithStoredCredentials = useCallback(async () => {
     const response = await qaLoginWithStoredCredentials();
@@ -227,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       updateUser,
       updateOnboarding,
+      deleteAccount,
 
       loginWithStoredCredentials,
       enableBiometricUnlock,
@@ -246,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser,
     updateUser,
     updateOnboarding,
+    deleteAccount,
     loginWithStoredCredentials,
     enableBiometricUnlock,
     disableBiometricUnlock,

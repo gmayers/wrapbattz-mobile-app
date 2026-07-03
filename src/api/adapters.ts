@@ -9,6 +9,18 @@ import type {
   ToolRead,
 } from './types';
 
+export type Holder =
+  | { kind: 'user'; name: string }
+  | { kind: 'site'; name: string }
+  | null;
+
+// name may be an empty string if the server omitted the email/site name despite the id being present.
+export function deriveHolder(a: AssignmentRead): Holder {
+  if (a.assignee_user_id != null) return { kind: 'user', name: a.assignee_user_email ?? '' };
+  if (a.assignee_site_id != null) return { kind: 'site', name: a.assignee_site_name ?? '' };
+  return null;
+}
+
 export interface LegacyAssignment {
   id: number;
   uuid: string;
@@ -32,6 +44,7 @@ export interface LegacyAssignment {
   status: string;
   condition: string;
   notes: string;
+  holder: Holder;
 }
 
 export function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
@@ -61,6 +74,7 @@ export function toLegacyAssignment(a: AssignmentRead): LegacyAssignment {
     status: a.status ?? 'active',
     condition: a.condition ?? '',
     notes: a.notes ?? '',
+    holder: deriveHolder(a),
   };
 }
 
@@ -73,6 +87,8 @@ export interface LegacyDevice {
   serial_number: string;
   status: string;
   nfc_tag_id: string | null;
+  /** Mirrors ToolRead.is_available; undefined when derived from an AssignmentRead. */
+  is_available?: boolean;
 }
 
 export function toLegacyDevice(t: ToolRead): LegacyDevice {
@@ -85,6 +101,7 @@ export function toLegacyDevice(t: ToolRead): LegacyDevice {
     serial_number: t.serial_number ?? '',
     status: t.status ?? '',
     nfc_tag_id: t.nfc_tag_id ?? null,
+    is_available: t.is_available,
   };
 }
 

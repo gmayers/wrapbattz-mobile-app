@@ -20,20 +20,22 @@ jest.mock('../../../hooks/useScanTag', () => ({
 describe('DashboardScreen', () => {
   beforeEach(() => { mockNavigate.mockClear(); });
 
-  it('renders 4 QuickAction tiles for worker role', () => {
+  it('renders worker QuickAction tiles without the admin-only Notifications tile', () => {
     currentRole = 'site_worker';
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Scan')).toBeTruthy();
     expect(screen.getByLabelText('Report Issue')).toBeTruthy();
     expect(screen.getByLabelText('My Tools')).toBeTruthy();
-    expect(screen.getByLabelText('Notifications')).toBeTruthy();
+    // Notifications (preferences) is admin/owner-only — it produced an
+    // "access denied" popup for site workers, so it must not render here.
+    expect(screen.queryByLabelText('Notifications')).toBeNull();
   });
 
   it('renders Fleet status quick actions for admin role', () => {
     currentRole = 'admin';
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Add device')).toBeTruthy();
-    expect(screen.getByLabelText('Print tags')).toBeTruthy();
+    expect(screen.getByLabelText('Browse Devices')).toBeTruthy();
     expect(screen.getByLabelText('Log maint.')).toBeTruthy();
     expect(screen.getByLabelText('Export')).toBeTruthy();
   });
