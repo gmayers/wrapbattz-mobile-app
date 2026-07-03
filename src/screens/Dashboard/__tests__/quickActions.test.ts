@@ -1,17 +1,17 @@
 import { quickActionsForRole } from '../quickActions';
 
 describe('quickActionsForRole', () => {
-  it('returns 4 tiles for site_worker', () => {
-    expect(quickActionsForRole('site_worker')).toHaveLength(4);
+  it('returns 5 tiles for site_worker', () => {
+    expect(quickActionsForRole('site_worker')).toHaveLength(5);
   });
-  it('returns 4 tiles for office_worker', () => {
-    expect(quickActionsForRole('office_worker')).toHaveLength(4);
+  it('returns 5 tiles for office_worker', () => {
+    expect(quickActionsForRole('office_worker')).toHaveLength(5);
   });
-  it('returns 9 tiles for admin', () => {
-    expect(quickActionsForRole('admin')).toHaveLength(9);
+  it('returns 10 tiles for admin', () => {
+    expect(quickActionsForRole('admin')).toHaveLength(10);
   });
-  it('returns 9 tiles for owner', () => {
-    expect(quickActionsForRole('owner')).toHaveLength(9);
+  it('returns 10 tiles for owner', () => {
+    expect(quickActionsForRole('owner')).toHaveLength(10);
   });
   it('admin tiles contain Billing and Invite User', () => {
     const keys = quickActionsForRole('admin').map(a => a.key);
@@ -36,5 +36,10 @@ describe('quickActionsForRole', () => {
     const whoHasIt = quickActionsForRole('site_worker').find(a => a.key === 'whoHasIt');
     expect(whoHasIt).toBeDefined();
     expect(whoHasIt?.onPressType).toBe('scan');
+  });
+  it('Find Tool targets the Tools tab inside MainTabs with focusSearch', () => {
+    const findTool = quickActionsForRole('site_worker').find(a => a.key === 'findTool');
+    expect(findTool?.destination).toBe('MainTabs');
+    expect(findTool?.params).toEqual({ screen: 'tools', params: { focusSearch: true } });
   });
 });

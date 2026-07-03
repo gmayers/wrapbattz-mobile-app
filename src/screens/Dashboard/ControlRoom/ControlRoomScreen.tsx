@@ -29,6 +29,12 @@ const ControlRoomScreen: React.FC = () => {
         onPress: () => navigation.navigate('AddDevice'),
       },
       {
+        key: 'findTool',
+        label: 'Find',
+        icon: 'search-outline',
+        onPress: () => navigation.navigate('tools', { focusSearch: true }),
+      },
+      {
         key: 'audit',
         label: 'Audit',
         icon: 'document-text-outline',

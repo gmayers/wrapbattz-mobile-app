@@ -10,6 +10,7 @@ export interface ToolItem {
   id: string;
   identifier: string;
   toolType?: string;
+  serial?: string;
   holderLabel?: string;
   siteHeld?: boolean;
   status: 'assigned' | 'available' | 'missing' | 'maintenance';
@@ -77,6 +78,7 @@ function groupAll(tools: ToolRead[]): SiteGroup[] {
     id: String(t.id),
     identifier: t.name,
     toolType: t.category_name || [t.make, t.model].filter(Boolean).join(' ') || undefined,
+    serial: t.serial_number || undefined,
     holderLabel: t.is_available ? 'Available' : 'In use',
     status: mapToolStatus(t.status),
   }));
