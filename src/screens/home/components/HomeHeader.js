@@ -55,12 +55,12 @@ const HomeHeader = ({
             accessibilityHint="Opens the NFC tag management interface"
           />
           <Button
-            title="Assign Device"
+            title="Assign Tool"
             onPress={onAssignPress}
             size="small"
             style={styles.headerButton}
-            accessibilityLabel="Assign Device"
-            accessibilityHint="Opens the device assignment interface"
+            accessibilityLabel="Assign Tool"
+            accessibilityHint="Opens the tool assignment interface"
           />
         </View>
       </View>

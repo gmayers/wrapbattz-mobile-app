@@ -87,7 +87,7 @@ const AssignDeviceModal = ({
           <View style={styles.modalContainer}>
             {/* Header with improved close button */}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Assign Device</Text>
+              <Text style={styles.modalTitle}>Assign Tool</Text>
               <TouchableOpacity 
                 onPress={onClose}
                 hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}

@@ -36,6 +36,12 @@ const FleetStatusScreen: React.FC = () => {
         onPress: () => navigation.navigate('AddDevice'),
       },
       {
+        key: 'findTool',
+        label: 'Find',
+        icon: 'search-outline',
+        onPress: () => navigation.navigate('tools', { focusSearch: true }),
+      },
+      {
         key: 'browseDevices',
         label: 'Browse Devices',
         icon: 'list-outline',

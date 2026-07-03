@@ -20,8 +20,10 @@ export async function getInvitationByToken(token: string): Promise<InvitationByT
   return data;
 }
 
-export async function listInvitations(): Promise<PagedInvitations> {
-  const { data } = await apiClient.get<PagedInvitations>('/invitations/');
+export async function listInvitations(
+  params?: { page?: number; page_size?: number }
+): Promise<PagedInvitations> {
+  const { data } = await apiClient.get<PagedInvitations>('/invitations/', { params });
   return data;
 }
 

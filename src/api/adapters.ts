@@ -6,6 +6,7 @@ import type {
   AssignmentRead,
   IncidentRead,
   SiteRead,
+  ToolLifecycleFields,
   ToolRead,
 } from './types';
 
@@ -89,9 +90,15 @@ export interface LegacyDevice {
   nfc_tag_id: string | null;
   /** Mirrors ToolRead.is_available; undefined when derived from an AssignmentRead. */
   is_available?: boolean;
+  maintenance_interval?: number | null;
+  next_maintenance_date?: string | null;
+  condition_score?: string | number | null;
+  warranty_expiry?: string | null;
+  purchase_date?: string | null;
+  purchase_cost?: string | number | null;
 }
 
-export function toLegacyDevice(t: ToolRead): LegacyDevice {
+export function toLegacyDevice(t: ToolRead & ToolLifecycleFields): LegacyDevice {
   return {
     id: t.id,
     identifier: t.name,
@@ -102,6 +109,12 @@ export function toLegacyDevice(t: ToolRead): LegacyDevice {
     status: t.status ?? '',
     nfc_tag_id: t.nfc_tag_id ?? null,
     is_available: t.is_available,
+    maintenance_interval: t.maintenance_interval_days ?? null,
+    next_maintenance_date: t.next_maintenance_date ?? null,
+    condition_score: t.condition_score ?? null,
+    warranty_expiry: t.warranty_expiry ?? null,
+    purchase_date: t.purchase_date ?? null,
+    purchase_cost: t.purchase_cost ?? null,
   };
 }
 

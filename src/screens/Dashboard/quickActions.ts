@@ -17,6 +17,7 @@ const WORKER_ACTIONS: QuickAction[] = [
   // Open the Tools tab inside MainTabs — navigating to bare 'MainTabs' lands on
   // Dashboard, so the button appeared unlinked.
   { key: 'myTools',       label: 'My Tools',      icon: 'construct-outline',    destination: 'MainTabs', params: { screen: 'tools' } },
+  { key: 'findTool',      label: 'Find Tool',     icon: 'search-circle-outline', destination: 'MainTabs', params: { screen: 'tools', params: { focusSearch: true } } },
 ];
 
 const ADMIN_EXTRAS: QuickAction[] = [

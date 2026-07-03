@@ -209,10 +209,10 @@ export const DeviceDetailsView = ({ device, onClose }) => {
           } 
         />
         
-        {device.next_maintenance && (
-          <DetailRow 
-            label="Next Maintenance" 
-            value={new Date(device.next_maintenance).toLocaleDateString()} 
+        {(device.next_maintenance_date || device.next_maintenance) && (
+          <DetailRow
+            label="Next Maintenance"
+            value={new Date(device.next_maintenance_date || device.next_maintenance).toLocaleDateString()}
           />
         )}
 

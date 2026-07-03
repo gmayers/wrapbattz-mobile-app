@@ -33,6 +33,7 @@ import {
   toLegacyReport
 } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { conditionLabelFromScore } from '../utils/toolMaintenance';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -439,21 +440,37 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Status:</Text>
               <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{getStatusLabel(device.status)}</Text>
             </View>
-            
+
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Condition:</Text>
+              <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
+                {conditionLabelFromScore(device.condition_score)}
+              </Text>
+            </View>
+
+            {device.warranty_expiry && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Warranty Until:</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.warranty_expiry)}</Text>
+              </View>
+            )}
+
             {device.maintenance_interval && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Maintenance Interval:</Text>
                 <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.maintenance_interval} days</Text>
               </View>
             )}
-            
-            {device.next_maintenance && (
+
+            {(device.next_maintenance_date || device.next_maintenance) && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Next Maintenance:</Text>
-                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.next_maintenance)}</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
+                  {formatDate(device.next_maintenance_date || device.next_maintenance)}
+                </Text>
               </View>
             )}
-            
+
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Created At:</Text>
               <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{formatDate(device.created_at)}</Text>

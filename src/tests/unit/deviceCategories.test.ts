@@ -1,4 +1,4 @@
-import { matchCategoryId } from '../../constants/deviceCategories';
+import { matchCategoryId, ADD_NEW_CATEGORY, resolveCategoryLabel } from '../../constants/deviceCategories';
 
 const backend = [
   { id: 1, name: 'Tool' },
@@ -21,5 +21,17 @@ describe('matchCategoryId', () => {
 
   it('returns null for an empty backend list', () => {
     expect(matchCategoryId('Tool', [])).toBeNull();
+  });
+});
+
+describe('resolveCategoryLabel', () => {
+  it('returns the picked fixed category as-is', () => {
+    expect(resolveCategoryLabel('Tool', 'ignored')).toBe('Tool');
+  });
+  it('returns the trimmed custom name when Add new is selected', () => {
+    expect(resolveCategoryLabel(ADD_NEW_CATEGORY, '  PPE  ')).toBe('PPE');
+  });
+  it('returns empty string when Add new is selected but no name typed', () => {
+    expect(resolveCategoryLabel(ADD_NEW_CATEGORY, '   ')).toBe('');
   });
 });

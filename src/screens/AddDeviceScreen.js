@@ -28,7 +28,8 @@ import {
 } from '../api/endpoints';
 import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
-import { DEVICE_CATEGORIES, matchCategoryId } from '../constants/deviceCategories';
+import { DEVICE_CATEGORIES, matchCategoryId, ADD_NEW_CATEGORY, resolveCategoryLabel } from '../constants/deviceCategories';
+import { computeNextMaintenanceDate, toYMD } from '../utils/toolMaintenance';
 
 // Define the orange color to match other screens
 const ORANGE_COLOR = '#FFC72C';
@@ -92,11 +93,15 @@ const [formData, setFormData] = useState({
     deviceIdentifier: ''
 });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // True once the user has explicitly picked a next-maintenance date; stops
+  // the interval field from overwriting their choice.
+  const [dateManuallySet, setDateManuallySet] = useState(false);
   const [locations, setLocations] = useState([]);
   const [locationOptions, setLocationOptions] = useState([]);
   const [userOptions, setUserOptions] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [backendCategories, setBackendCategories] = useState([]);
+  const [customCategory, setCustomCategory] = useState('');
   const [otherMake, setOtherMake] = useState('');
   const [apiResponse, setApiResponse] = useState(null);
   const [createdDeviceId, setCreatedDeviceId] = useState(null);
@@ -184,6 +189,7 @@ const [formData, setFormData] = useState({
       value: name,
       key: `category-${name}`
     }));
+    options.push({ label: '+ Add new…', value: ADD_NEW_CATEGORY, key: 'category-add-new' });
     setCategoryOptions(options);
     logMessage(`Using ${options.length} fixed device categories`);
 
@@ -337,6 +343,8 @@ const validateForm = () => {
       missingFields.push('Model');
 
     // Category (category_id) is nullable — not required.
+    if (formData.category === ADD_NEW_CATEGORY && !customCategory.trim())
+      missingFields.push('New category name');
 
     // Check location or user based on assignment toggle
     if (isUserAssignment) {
@@ -372,14 +380,27 @@ const validateForm = () => {
     try {
       // STEP 1: Create the tool
       const finalMake = formData.make === 'Other' ? otherMake : formData.make;
-      const matchedId = matchCategoryId(formData.category, backendCategories);
+      const categoryLabel = resolveCategoryLabel(formData.category, customCategory);
+      const matchedId = matchCategoryId(categoryLabel, backendCategories);
       const toolPayload = {
         name: formData.description || `${finalMake || ''} ${formData.model}`.trim() || 'New Tool',
         make: finalMake || '',
         model: formData.model || '',
         serial_number: formData.serial_number || '',
-        ...(matchedId != null ? { category_id: matchedId } : { category: formData.category }),
+        ...(matchedId != null
+          ? { category_id: matchedId }
+          : categoryLabel
+            ? { category: categoryLabel }
+            : {}),
         nfc_tag_id: preScannedNfcTagId ?? null,
+        // QA round-4 contract — ignored by the backend until it ships the
+        // ToolCreate fields, then persisted. Only sent when an interval is set.
+        ...(Number(formData.maintenance_interval) > 0
+          ? {
+              maintenance_interval_days: Number(formData.maintenance_interval),
+              next_maintenance_date: toYMD(formData.next_maintenance_date),
+            }
+          : {}),
       };
       let createdTool;
       try {
@@ -392,8 +413,16 @@ const validateForm = () => {
           matchedId == null
         ) {
           logMessage('[BACKEND] category field rejected (400); retrying with category_id: null');
-          const { category: _dropped, ...payloadWithoutCategory } = toolPayload;
+          const { category: droppedCategory, ...payloadWithoutCategory } = toolPayload;
           createdTool = await toolsApi.createTool({ ...payloadWithoutCategory, category_id: null });
+          // Don't silently uncategorize: there is no category-create endpoint
+          // yet, so tell the user their custom category wasn't saved.
+          if (droppedCategory) {
+            Alert.alert(
+              'Category not saved',
+              `The tool was created, but the category "${droppedCategory}" isn't supported by the server yet. You can set it once category support ships.`
+            );
+          }
         } else {
           throw createError;
         }
@@ -495,6 +524,7 @@ const formatDate = (date) => {
       user: userOptions.length > 0 ? userOptions[0].value : '', // Reset to first user
     });
     setOtherMake('');
+    setCustomCategory('');
     setDeviceIdentifier('');
     setNfcWriteSuccess(false);
     setApiResponse(null); // Clear API response when resetting
@@ -502,6 +532,7 @@ const formatDate = (date) => {
     setScannedNfcUuid(null); // Clear NFC UUID when resetting
     setPreScannedNfcTagId(null); // Clear pre-scanned NFC tag when resetting
     setIsScanningNfc(false);
+    setDateManuallySet(false);
     // Reset NFC write options to defaults
     setNfcWriteOptions({
       description: false,
@@ -776,6 +807,15 @@ return (
                   Platform.OS === 'ios' && styles.iosDropdownContainer
                 ]}
               />
+              {formData.category === ADD_NEW_CATEGORY && (
+                <BaseTextInput
+                  value={customCategory}
+                  onChangeText={setCustomCategory}
+                  placeholder="New category name (e.g. PPE, Machinery)"
+                  style={{ marginTop: 8 }}
+                  testID="custom-category-input"
+                />
+              )}
             </View>
 
             {/* Serial Number Input */}
@@ -793,7 +833,18 @@ return (
               <Text style={styles.label}>Maintenance Interval (optional) - number of days</Text>
               <BaseTextInput
                 value={formData.maintenance_interval}
-                onChangeText={(text) => handleInputChange('maintenance_interval', text.replace(/[^0-9]/g, ''))}
+                onChangeText={(text) => {
+                  const clean = text.replace(/[^0-9]/g, '');
+                  handleInputChange('maintenance_interval', clean);
+                  // Match the submit gate: only positive intervals are sent,
+                  // so only positive intervals auto-fill the date.
+                  if (!dateManuallySet && Number(clean) > 0) {
+                    handleInputChange(
+                      'next_maintenance_date',
+                      computeNextMaintenanceDate(Number(clean)),
+                    );
+                  }
+                }}
                 placeholder="Enter maintenance interval"
                 keyboardType="numeric"
               />
@@ -818,6 +869,7 @@ return (
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
+                      setDateManuallySet(true);
                       handleInputChange('next_maintenance_date', selectedDate);
                     }
                   }}

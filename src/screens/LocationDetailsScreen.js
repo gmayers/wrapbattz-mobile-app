@@ -92,7 +92,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       if (!(error instanceof ApiError && error.code === 'unauthorized')) {
         const errorMsg =
           (error instanceof ApiError && error.message) ||
-          'Failed to fetch location devices. Please try again later.';
+          'Failed to fetch location tools. Please try again later.';
         setError(errorMsg);
         Alert.alert('Error', errorMsg);
       }
@@ -147,13 +147,13 @@ const LocationDetailsScreen = ({ navigation, route }) => {
       await toolsApi.assignToolToMe(Number(deviceId));
       Alert.alert(
         'Success',
-        'Device assigned successfully to your account.',
+        'Tool assigned successfully to your account.',
         [{ text: 'OK', onPress: () => { fetchLocationDevices(); } }]
       );
     } catch (error) {
       const errorMessage =
         (error instanceof ApiError && error.message) ||
-        'Failed to assign device. Please try again.';
+        'Failed to assign tool. Please try again.';
       Alert.alert('Assignment Error', errorMessage);
     } finally {
       setAssigningDevice(null);
@@ -182,7 +182,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
 
       Alert.alert(
         'Success',
-        'Device transferred successfully.',
+        'Tool transferred successfully.',
         [{
           text: 'OK',
           onPress: () => {
@@ -195,7 +195,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
     } catch (error) {
       const errorMessage =
         (error instanceof ApiError && error.message) ||
-        'Failed to transfer device. Please try again.';
+        'Failed to transfer tool. Please try again.';
       Alert.alert('Transfer Error', errorMessage);
     } finally {
       setTransferringDevice(null);
@@ -376,10 +376,10 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Available Devices</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Available Tools</Text>
             {isAdminOrOwner && (
               <Button
-                title="Add New Device"
+                title="Add New Tool"
                 onPress={handleAddDevice}
                 size="small"
               />
@@ -399,11 +399,11 @@ const LocationDetailsScreen = ({ navigation, route }) => {
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="cube-outline" size={48} color={colors.disabled} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No available devices at this location</Text>
-              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>All devices are either assigned to users or located elsewhere</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No available tools at this location</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>All tools are either assigned to users or located elsewhere</Text>
               {isAdminOrOwner && (
                 <Button
-                  title="Add New Device"
+                  title="Add New Tool"
                   onPress={handleAddDevice}
                   size="small"
                   style={{ marginTop: 15 }}
@@ -427,7 +427,7 @@ const LocationDetailsScreen = ({ navigation, route }) => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Transfer Device</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Transfer Tool</Text>
               <TouchableOpacity
                 onPress={() => {
                   setTransferModalVisible(false);

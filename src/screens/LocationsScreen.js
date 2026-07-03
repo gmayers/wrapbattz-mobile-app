@@ -415,7 +415,7 @@ const LocationsScreen = ({ navigation }) => {
             >
               <Ionicons name="cube-outline" size={18} color={colors.onPrimary} />
               <Text style={[styles.viewDevicesText, { color: colors.onPrimary }]}>
-                View Available Devices
+                View Available Tools
               </Text>
             </View>
           </View>

@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.0';
+export const CHANGELOG_VERSION = '1.4.1';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.1',
+    date: '2026-07-03',
+    highlights: [
+      'Search your tools by name, serial, make, or model — plus a new "Find Tool" quick action.',
+      'Invite teammates right from the Members screen, and resend or revoke pending invitations.',
+      'Tools now show their next service due date and condition.',
+      'Add your own tool categories with the new "+ Add new" option.',
+      'Clearer wording: "devices" are now "tools" throughout.',
+    ],
+  },
   {
     version: '1.4.0',
     date: '2026-06-05',
