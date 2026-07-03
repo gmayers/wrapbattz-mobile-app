@@ -33,7 +33,7 @@ import {
   toLegacyReport
 } from '../api/adapters';
 import { ApiError } from '../api/errors';
-import { conditionLabelFromScore } from '../utils/toolMaintenance';
+import { conditionLabelFromScore, resolveNextMaintenanceDate } from '../utils/toolMaintenance';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -462,11 +462,11 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               </View>
             )}
 
-            {(device.next_maintenance_date || device.next_maintenance) && (
+            {resolveNextMaintenanceDate(device) && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Next Maintenance:</Text>
                 <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
-                  {formatDate(device.next_maintenance_date || device.next_maintenance)}
+                  {formatDate(resolveNextMaintenanceDate(device))}
                 </Text>
               </View>
             )}

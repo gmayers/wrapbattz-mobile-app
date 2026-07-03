@@ -82,9 +82,19 @@ const MembersScreen: React.FC = () => {
       setError(null);
       // Fetch members and invitations in parallel; invitations are
       // supplementary, so their failures resolve to null and are ignored.
-      const invitesPromise = invitationsApi
-        .listInvitations({ page_size: 200 })
-        .catch(() => null);
+      // Walk every page so pending invites are never silently truncated
+      // (capped at 20 pages / 4000 invitations as a runaway guard).
+      const invitesPromise = (async () => {
+        const items: InvitationRead[] = [];
+        let page = 1;
+        for (;;) {
+          const res = await invitationsApi.listInvitations({ page, page_size: 200 });
+          items.push(...res.items);
+          if (page >= (res.total_pages ?? 1) || page >= 20) break;
+          page += 1;
+        }
+        return items;
+      })().catch(() => null);
       const page = await membersApi.listMembers();
       page.items.sort((a, b) => {
         const ra = ROLE_ORDER.indexOf(a.role as Role);
@@ -93,9 +103,9 @@ const MembersScreen: React.FC = () => {
         return (a.last_name || a.email).localeCompare(b.last_name || b.email);
       });
       setMembers(page.items);
-      const invPage = await invitesPromise;
-      if (invPage) {
-        setInvites(invPage.items.filter((i) => String(i.status).toLowerCase() === 'pending'));
+      const invItems = await invitesPromise;
+      if (invItems) {
+        setInvites(invItems.filter((i) => String(i.status).toLowerCase() === 'pending'));
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === 'unauthorized') return;

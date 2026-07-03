@@ -5,6 +5,7 @@ import Card from './Card';
 import Button from './Button';
 import { useTheme } from '../context/ThemeContext';
 import { formatting } from '../utils/CommonUtils';
+import { resolveNextMaintenanceDate } from '../utils/toolMaintenance';
 
 const getStatusColor = (status) => {
   const statusColors = {
@@ -37,8 +38,7 @@ const StandardDeviceCard = ({
   const isActive = !returned_date;
 
   const renderMaintenanceInfo = () => {
-    // next_maintenance fallback covers stale NFC-tag payloads written with the old key.
-    const nextDue = device.next_maintenance_date || device.next_maintenance;
+    const nextDue = resolveNextMaintenanceDate(device);
     if (nextDue) {
       return (
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>

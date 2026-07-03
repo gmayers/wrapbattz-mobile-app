@@ -4,6 +4,8 @@ import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
 import { BaseTextInput } from '../../components/TextInput';
 import Button from '../../components/Button';
 import Dropdown from '../../components/Dropdown';
+import { formatting } from '../../utils/CommonUtils';
+import { resolveNextMaintenanceDate } from '../../utils/toolMaintenance';
 
 const ITEM_CHOICES = [
   { label: 'Battery', value: 'Battery' },
@@ -209,10 +211,10 @@ export const DeviceDetailsView = ({ device, onClose }) => {
           } 
         />
         
-        {(device.next_maintenance_date || device.next_maintenance) && (
+        {resolveNextMaintenanceDate(device) && (
           <DetailRow
             label="Next Maintenance"
-            value={new Date(device.next_maintenance_date || device.next_maintenance).toLocaleDateString()}
+            value={formatting.date(resolveNextMaintenanceDate(device))}
           />
         )}
 
