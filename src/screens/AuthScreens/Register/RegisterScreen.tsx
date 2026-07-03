@@ -20,13 +20,15 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { RegisterForm, ValidationResult, NavigationProp } from '../../../types';
 import { FormValidation } from '../../../utils/FormValidation';
+import GoogleSignInButton from '../../../components/GoogleSignInButton';
+import { googleSignInAlert } from '../../../auth/googleSignIn';
 
 interface RegisterScreenProps {
   navigation: NavigationProp;
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const { colors } = useTheme();
 
   const [formData, setFormData] = useState<RegisterForm>({
@@ -41,6 +43,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const passwordInputRef = useRef<RNTextInput>(null);
   const confirmPasswordInputRef = useRef<RNTextInput>(null);
 
@@ -111,6 +114,19 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   const navigateToLogin = (): void => {
     navigation.navigate('Login');
+  };
+
+  const handleGoogleSignIn = async (): Promise<void> => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle('sign-up');
+      // Success or cancel: navigation falls out of auth state; nothing to do.
+    } catch (err) {
+      const alert = googleSignInAlert(err);
+      Alert.alert(alert.title, alert.message);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -232,6 +248,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               textColorProp="black"
             />
 
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.borderLight }]} />
+              <Text style={{ color: colors.textSecondary, marginHorizontal: 10, fontSize: 13 }}>or</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.borderLight }]} />
+            </View>
+            <GoogleSignInButton onPress={handleGoogleSignIn} loading={googleLoading} disabled={isSubmitting} />
+
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 20, marginBottom: 30 }}>
               <Text style={{ fontSize: 16, color: colors.textSecondary }}>Already have an account?</Text>
               <TouchableOpacity onPress={navigateToLogin}>
@@ -244,5 +267,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
+});
 
 export default RegisterScreen;
