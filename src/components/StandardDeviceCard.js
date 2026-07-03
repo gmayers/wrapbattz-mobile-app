@@ -36,10 +36,11 @@ const StandardDeviceCard = ({
   const isActive = !returned_date;
 
   const renderMaintenanceInfo = () => {
-    if (device.maintenance_interval && device.next_maintenance) {
+    const nextDue = device.next_maintenance_date || device.next_maintenance;
+    if (nextDue) {
       return (
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Next Maintenance: {device.next_maintenance}
+          Next Maintenance: {nextDue}
         </Text>
       );
     }
