@@ -63,7 +63,14 @@ export function installRefreshOn401(client: AxiosInstance): void {
     async (error: AxiosError) => {
       const original = error.config as RetryConfig | undefined;
       const status = error.response?.status;
-      if (status !== 401 || !original || original._retried) {
+      // 403 organization_required means the access token is user-scoped but the
+      // endpoint needs org scope (e.g. right after onboarding creates the org).
+      // The refresh endpoint upgrades single-membership users to an org-scoped
+      // token, so refresh-and-retry heals this the same way it heals a 401.
+      const needsOrgScope =
+        status === 403 &&
+        (error.response?.data as { code?: string } | null)?.code === 'organization_required';
+      if ((status !== 401 && !needsOrgScope) || !original || original._retried) {
         return Promise.reject(error);
       }
       if (NON_REFRESHABLE_PATHS.some((p) => original.url?.includes(p))) {

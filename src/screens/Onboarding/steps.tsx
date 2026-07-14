@@ -2,7 +2,7 @@
 // existing API endpoints, then calls `advance()` to let the container move the
 // server-side step machine forward. Steps are intentionally self-contained:
 // they read auth/theme via hooks and own their local form state.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Button from '../../components/Button';
 import FormField from '../../components/Form/FormField';
@@ -10,12 +10,14 @@ import Dropdown from '../../components/Dropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
+  auth as authApi,
   organizations as organizationsApi,
   sites as sitesApi,
   tools as toolsApi,
   assignments as assignmentsApi,
   invitations as invitationsApi,
 } from '../../api/endpoints';
+import { getCached as getCachedTokens } from '../../api/tokenStore';
 import { ApiError } from '../../api/errors';
 import { normalizePostcode } from '../../utils/CommonUtils';
 import {
@@ -144,13 +146,39 @@ const ProfileStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
 
 // ── Owner: company ───────────────────────────────────────────────────────────
 const CompanyStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
-  const { refreshUser } = useAuth();
-  const [name, setName] = useState('');
-  const [tradingName, setTradingName] = useState('');
+  const { user, refreshUser } = useAuth();
+  // Revisiting via Back after the org was created: prefill and PATCH instead
+  // of attempting a duplicate create (which the backend rejects with a 409).
+  const hasOrg = user?.organization != null;
+  const [name, setName] = useState(user?.organization?.name ?? '');
+  const [tradingName, setTradingName] = useState(user?.organization?.trading_name ?? '');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [website, setWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // The org summary on UserMe has no contact fields — pull the full record to
+  // prefill them. Best-effort: on failure the name fields are already seeded.
+  useEffect(() => {
+    if (!hasOrg) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const org = await organizationsApi.getMyOrganization();
+        if (cancelled) return;
+        setName(org.name ?? '');
+        setTradingName(org.trading_name ?? '');
+        setEmail(org.email ?? '');
+        setPhone(org.phone ?? '');
+        setWebsite(org.website ?? '');
+      } catch {
+        // Prefill only — never block the step on this.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasOrg]);
 
   const onPrimary = async () => {
     if (!name.trim()) {
@@ -161,20 +189,42 @@ const CompanyStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
       Alert.alert('Invalid website', 'Website must start with http:// or https://');
       return;
     }
+    const payload = {
+      name: name.trim(),
+      trading_name: tradingName.trim() || '',
+      email: email.trim() || null,
+      phone: phone.trim() || '',
+      website: website.trim() || '',
+    };
     setSubmitting(true);
     try {
-      await organizationsApi.createOrganization({
-        name: name.trim(),
-        trading_name: tradingName.trim() || '',
-        email: email.trim() || null,
-        phone: phone.trim() || '',
-        website: website.trim() || '',
-      });
+      if (hasOrg) {
+        await organizationsApi.updateMyOrganization(payload);
+      } else {
+        try {
+          await organizationsApi.createOrganization(payload);
+        } catch (e) {
+          // 409: the org already exists (local user state was stale). Treat it
+          // as created and continue rather than trapping the user here.
+          if (!(e instanceof ApiError && e.code === 'conflict')) throw e;
+        }
+        // The access token in hand is still user-scoped (no org claim), but the
+        // steps that follow (location/tool/invite) hit org-scoped endpoints.
+        // Refreshing swaps it for an org-scoped token server-side. Best-effort:
+        // the API client also refresh-retries on 403 organization_required, so a
+        // failure here must not fail the step — the org was already created.
+        try {
+          const tokens = getCachedTokens();
+          if (tokens?.refreshToken) await authApi.refresh(tokens.refreshToken);
+        } catch {
+          // Non-fatal — see comment above.
+        }
+      }
       // Refresh so the new owner role/organization is reflected before later steps.
       await refreshUser();
       advance();
     } catch (e) {
-      Alert.alert('Error', errMsg(e, 'Could not create your organization. Please try again.'));
+      Alert.alert('Error', errMsg(e, 'Could not save your organization. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +233,7 @@ const CompanyStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
   return (
     <StepScaffold
       subtitle="Your organization is your workspace — devices, locations, and team members live under it."
-      primaryLabel="Create Organization"
+      primaryLabel={hasOrg ? 'Save & Continue' : 'Create Organization'}
       onPrimary={onPrimary}
       primaryLoading={submitting || busyAdvancing}
     >

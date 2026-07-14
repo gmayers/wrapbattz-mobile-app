@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.2';
+export const CHANGELOG_VERSION = '1.4.3';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.3',
+    date: '2026-07-14',
+    highlights: [
+      'Fixed "Authentication failed" when adding your first location during setup.',
+      'Setup steps now have a Back button, and your organization details can be edited if you return to that step.',
+    ],
+  },
   {
     version: '1.4.2',
     date: '2026-07-03',
