@@ -19,6 +19,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -201,6 +203,12 @@ const OnboardingWizardScreen: React.FC = () => {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+        enabled
+      >
       <ScrollView
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
@@ -234,12 +242,14 @@ const OnboardingWizardScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flex: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   errorText: { fontSize: 15, textAlign: 'center', marginTop: 12, marginBottom: 20, lineHeight: 21 },
   retryButton: {
