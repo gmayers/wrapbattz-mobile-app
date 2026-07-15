@@ -8,6 +8,7 @@ export type OrganizationSummary = S['OrganizationSummary'];
 export type OrganizationRead = S['OrganizationRead'];
 export type OrganizationCreate = S['OrganizationCreate'];
 export type OrganizationUpdate = S['OrganizationUpdate'];
+export type DemoDataStatus = S['DemoDataStatus'];
 
 export type LoginRequest = S['LoginRequest'];
 export type RegisterRequest = S['RegisterRequest'];

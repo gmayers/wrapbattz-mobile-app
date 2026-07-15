@@ -341,7 +341,7 @@
         ],
         "security": [
           {
-            "AuthBearer": []
+            "UserScopedBearer": []
           }
         ]
       },
@@ -376,7 +376,7 @@
         },
         "security": [
           {
-            "AuthBearer": []
+            "UserScopedBearer": []
           }
         ]
       }
@@ -404,7 +404,7 @@
         ],
         "security": [
           {
-            "AuthBearer": []
+            "UserScopedBearer": []
           }
         ]
       },
@@ -439,7 +439,7 @@
         },
         "security": [
           {
-            "AuthBearer": []
+            "UserScopedBearer": []
           }
         ]
       }
@@ -753,6 +753,83 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizations/demo-data/": {
+      "get": {
+        "operationId": "api_routers_organization_organizations_get_demo_data_status",
+        "summary": "Get Demo Data Status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoDataStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "api_routers_organization_organizations_create_demo_data",
+        "summary": "Create Demo Data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoDataStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "api_routers_organization_organizations_delete_demo_data",
+        "summary": "Delete Demo Data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoDataStatus"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
         "security": [
           {
             "AuthBearer": []
@@ -3964,6 +4041,19 @@
           }
         },
         "title": "OrganizationUpdate",
+        "type": "object"
+      },
+      "DemoDataStatus": {
+        "properties": {
+          "has_demo_data": {
+            "title": "Has Demo Data",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "has_demo_data"
+        ],
+        "title": "DemoDataStatus",
         "type": "object"
       },
       "MemberRead": {

@@ -32,6 +32,7 @@ export interface WizardData {
   siteName?: string;
   toolId?: number;
   toolName?: string;
+  demoAdded?: boolean;
 }
 
 export interface StepProps {
@@ -383,10 +384,25 @@ export const LocationTypeField: React.FC<{
 
 // ── Owner: add_tool ──────────────────────────────────────────────────────────
 const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardData }) => {
+  const { colors } = useTheme();
   const [description, setDescription] = useState('');
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+
+  const onDemoData = async () => {
+    setDemoBusy(true);
+    try {
+      await organizationsApi.createDemoData();
+      setWizardData({ demoAdded: true });
+      advance();
+    } catch (e) {
+      Alert.alert('Error', errMsg(e, 'Could not add the demo tools. Please try again.'));
+    } finally {
+      setDemoBusy(false);
+    }
+  };
 
   const onPrimary = async () => {
     if (!description.trim()) {
@@ -418,11 +434,25 @@ const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardDat
       primaryLabel="Add Tool"
       onPrimary={onPrimary}
       primaryLoading={submitting || busyAdvancing}
-      onSkip={advance}
+      primaryDisabled={demoBusy}
+      onSkip={demoBusy ? undefined : advance}
     >
-      <FormField label="Name / Description" value={description} onChangeText={setDescription} placeholder="e.g. Makita Drill" required editable={!submitting} />
-      <FormField label="Make" value={make} onChangeText={setMake} placeholder="e.g. Makita" editable={!submitting} />
-      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Enter model" editable={!submitting} />
+      <FormField label="Name / Description" value={description} onChangeText={setDescription} placeholder="e.g. Makita Drill" required editable={!submitting && !demoBusy} />
+      <FormField label="Make" value={make} onChangeText={setMake} placeholder="e.g. Makita" editable={!submitting && !demoBusy} />
+      <FormField label="Model" value={model} onChangeText={setModel} placeholder="Enter model" editable={!submitting && !demoBusy} />
+      <TouchableOpacity
+        style={[styles.demoButton, { borderColor: colors.primary }]}
+        onPress={onDemoData}
+        disabled={demoBusy || submitting || busyAdvancing}
+        testID="onboarding-demo-data"
+      >
+        <Text style={[styles.demoButtonText, { color: colors.primary }]}>
+          {demoBusy ? 'Adding demo tools…' : 'Not ready? Add demo tools instead'}
+        </Text>
+        <Text style={[styles.demoButtonHint, { color: colors.textMuted }]}>
+          Creates a demo site and 5 sample tools you can delete later.
+        </Text>
+      </TouchableOpacity>
     </StepScaffold>
   );
 };
@@ -438,7 +468,11 @@ const AssignToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, wizardDat
   if (wizardData.toolId == null) {
     return (
       <StepScaffold
-        subtitle="No tool was added, so there's nothing to assign yet. You can assign tools any time from the dashboard."
+        subtitle={
+          wizardData.demoAdded
+            ? 'Your demo tools are ready at the Demo Warehouse site. You can assign them any time from the dashboard.'
+            : "No tool was added, so there's nothing to assign yet. You can assign tools any time from the dashboard."
+        }
         primaryLabel="Continue"
         onPrimary={advance}
         primaryLoading={busyAdvancing}
@@ -663,4 +697,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   roleBadgeText: { fontSize: 16, fontWeight: '700' },
+  demoButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  demoButtonText: { fontSize: 15, fontWeight: '600' },
+  demoButtonHint: { fontSize: 12, marginTop: 4, textAlign: 'center' },
 });

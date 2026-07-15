@@ -347,6 +347,25 @@ export interface paths {
         patch: operations["api_routers_organization_organizations_update_my_organization"];
         trace?: never;
     };
+    "/api/v1/organizations/demo-data/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Demo Data Status */
+        get: operations["api_routers_organization_organizations_get_demo_data_status"];
+        put?: never;
+        /** Create Demo Data */
+        post: operations["api_routers_organization_organizations_create_demo_data"];
+        /** Delete Demo Data */
+        delete: operations["api_routers_organization_organizations_delete_demo_data"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/members/": {
         parameters: {
             query?: never;
@@ -1486,6 +1505,11 @@ export interface components {
             phone?: string | null;
             /** Website */
             website?: string | null;
+        };
+        /** DemoDataStatus */
+        DemoDataStatus: {
+            /** Has Demo Data */
+            has_demo_data: boolean;
         };
         /** MemberRead */
         MemberRead: {
@@ -2855,6 +2879,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_get_demo_data_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoDataStatus"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_create_demo_data: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoDataStatus"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_delete_demo_data: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoDataStatus"];
                 };
             };
         };
