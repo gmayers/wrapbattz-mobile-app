@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, REQUEST_TIMEOUT_MS } from '../config';
 import { emit } from '../events';
 import { clear, getCached, save } from '../tokenStore';
 import type { TokenResponse } from '../types';
@@ -29,7 +29,7 @@ async function runRefresh(): Promise<string | null> {
     const { data } = await axios.post<TokenResponse>(
       `${API_BASE_URL}/auth/token/refresh/`,
       { refresh_token: tokens.refreshToken },
-      { timeout: 15_000 }
+      { timeout: REQUEST_TIMEOUT_MS }
     );
     await save({
       accessToken: data.access_token,
