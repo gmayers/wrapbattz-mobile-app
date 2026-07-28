@@ -186,7 +186,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   const fetchDeviceReports = useCallback(async () => {
     try {
       setReportsLoading(true);
-      const page = await incidentsApi.listIncidents();
+      // Server-side filter; the client-side one stays as a display guarantee.
+      const page = await incidentsApi.listIncidents({ tool: toolId });
       const filtered = page.items
         .filter((i) => i.tool_id === toolId)
         .map(toLegacyReport);

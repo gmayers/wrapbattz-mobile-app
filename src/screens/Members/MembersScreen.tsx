@@ -82,13 +82,18 @@ const MembersScreen: React.FC = () => {
       setError(null);
       // Fetch members and invitations in parallel; invitations are
       // supplementary, so their failures resolve to null and are ignored.
-      // Walk every page so pending invites are never silently truncated
-      // (capped at 20 pages / 4000 invitations as a runaway guard).
+      // The server filters to pending and clamps page_size at 100; walk every
+      // page so pending invites are never silently truncated (capped at 20
+      // pages / 2000 invitations as a runaway guard).
       const invitesPromise = (async () => {
         const items: InvitationRead[] = [];
         let page = 1;
         for (;;) {
-          const res = await invitationsApi.listInvitations({ page, page_size: 200 });
+          const res = await invitationsApi.listInvitations({
+            status: 'pending',
+            page,
+            page_size: 100,
+          });
           items.push(...res.items);
           if (page >= (res.total_pages ?? 1) || page >= 20) break;
           page += 1;

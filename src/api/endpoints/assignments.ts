@@ -13,6 +13,8 @@ export interface ListAssignmentsFilter {
   tool?: number;
   user?: number;
   site?: number;
+  page?: number;
+  page_size?: number; // server clamps to 100
 }
 
 export async function listAssignments(
