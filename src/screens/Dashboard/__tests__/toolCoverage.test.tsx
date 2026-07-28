@@ -1,6 +1,5 @@
-// The server clamps page_size to 100, so a single listTools({page_size:200})
-// silently covers only the first 100 tools — NFC-tag counts and "all tools"
-// views must walk every page via listAllTools.
+// Dashboards get their counts from GET /organizations/me/stats/ instead of
+// downloading full tool/incident/member lists and counting client-side.
 import React from 'react';
 import { render, act } from '@testing-library/react-native';
 import { Text } from 'react-native';
@@ -17,7 +16,7 @@ import { useFleetStatusData } from '../FleetStatus/hooks/useFleetStatusData';
 
 jest.mock('../../../api/endpoints', () => ({
   tools: { listTools: jest.fn(), listAllTools: jest.fn() },
-  organizations: { getMyOrganization: jest.fn() },
+  organizations: { getMyOrganization: jest.fn(), getOrgStats: jest.fn() },
   assignments: { listAssignments: jest.fn(), listMyActiveAssignments: jest.fn() },
   incidents: { listIncidents: jest.fn() },
   sites: { listSites: jest.fn() },
@@ -27,50 +26,78 @@ jest.mock('../../../api/endpoints', () => ({
 const mockAuth = { user: { id: 1 }, userData: { role: 'owner' }, isAdminOrOwner: true };
 jest.mock('../../../context/AuthContext', () => ({ useAuth: () => mockAuth }));
 
+const STATS = {
+  tools: { total: 5, with_nfc_tag: 3, available: 4 },
+  assignments: { active: 1 },
+  incidents: { open: 2, missing: 0, maintenance_due: 1, critical: 1 },
+  members: { total: 4, admins: 1, workers: 3 },
+  sites: { total: 2, active: 2 },
+};
+
 function probe(useHook: () => any, pick: (d: any) => unknown) {
   const out: { value?: unknown } = {};
   function Probe() {
-    const hook = useHook();
-    out.value = pick(hook);
+    out.value = pick(useHook());
     return <Text>probe</Text>;
   }
   return { Probe, out };
 }
 
-describe('dashboard tool coverage', () => {
+const flush = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+describe('dashboard stats adoption', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (toolsApi.listAllTools as jest.Mock).mockResolvedValue([
-      { id: 1, nfc_tag_id: 'A' },
-      { id: 2, nfc_tag_id: null },
-    ]);
-    (orgsApi.getMyOrganization as jest.Mock).mockResolvedValue({ tool_count: 2 });
+    (orgsApi.getMyOrganization as jest.Mock).mockResolvedValue({
+      name: 'Org',
+      tool_count: 5,
+      member_count: 4,
+      site_count: 2,
+    });
+    (orgsApi.getOrgStats as jest.Mock).mockResolvedValue(STATS);
     (assignmentsApi.listAssignments as jest.Mock).mockResolvedValue({ items: [] });
-    (assignmentsApi.listMyActiveAssignments as jest.Mock).mockResolvedValue([]);
     (incidentsApi.listIncidents as jest.Mock).mockResolvedValue({ items: [] });
     (sitesApi.listSites as jest.Mock).mockResolvedValue({ items: [] });
-    (membersApi.listMembers as jest.Mock).mockResolvedValue({ items: [] });
   });
 
-  it('useControlRoomData walks all tool pages and counts NFC tags from them', async () => {
-    const { Probe, out } = probe(useControlRoomData, (h) => h.inventory);
+  it('useControlRoomData reads counts from org stats, not full lists', async () => {
+    const { Probe, out } = probe(useControlRoomData, (h) => ({
+      inventory: h.inventory,
+      members: h.members,
+    }));
     render(<Probe />);
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(toolsApi.listAllTools).toHaveBeenCalled();
+    await flush();
+
+    expect(orgsApi.getOrgStats).toHaveBeenCalled();
+    // No count-only list downloads.
+    expect(toolsApi.listAllTools).not.toHaveBeenCalled();
     expect(toolsApi.listTools).not.toHaveBeenCalled();
-    expect((out.value as any)?.tags).toBe(1);
-    expect((out.value as any)?.devices).toBe(2);
+    expect(membersApi.listMembers).not.toHaveBeenCalled();
+    expect(incidentsApi.listIncidents).not.toHaveBeenCalled();
+
+    const value = out.value as any;
+    expect(value.inventory.tags).toBe(3);
+    expect(value.inventory.devices).toBe(5);
+    expect(value.inventory.maintenance).toBe(1);
+    expect(value.members.admins).toBe(1);
+    expect(value.members.workers).toBe(3);
   });
 
-  it('useFleetStatusData walks all tool pages', async () => {
-    const { Probe } = probe(useFleetStatusData, (h) => h);
+  it('useFleetStatusData reads tag counts from org stats but keeps the incident list for exceptions', async () => {
+    const { Probe, out } = probe(useFleetStatusData, (h) => h.inventory);
     render(<Probe />);
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(toolsApi.listAllTools).toHaveBeenCalled();
+    await flush();
+
+    expect(orgsApi.getOrgStats).toHaveBeenCalled();
+    expect(toolsApi.listAllTools).not.toHaveBeenCalled();
     expect(toolsApi.listTools).not.toHaveBeenCalled();
+    // Exceptions rows still need real incident rows.
+    expect(incidentsApi.listIncidents).toHaveBeenCalled();
+
+    expect((out.value as any).tagsUsed).toBe(3);
+    expect((out.value as any).total).toBe(5);
   });
 });

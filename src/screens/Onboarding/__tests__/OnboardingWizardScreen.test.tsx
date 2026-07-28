@@ -53,14 +53,11 @@ const STATE = {
 describe('OnboardingWizardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUpdateOnboarding.mockResolvedValue({ has_completed_onboarding: false });
+    mockUpdateOnboarding.mockResolvedValue({ ...STATE, current_step: 'stepB' });
   });
 
-  it('advances to the next step without blocking on a refetch', async () => {
-    (account.getOnboarding as jest.Mock)
-      .mockResolvedValueOnce(STATE)
-      // Any background revalidation hangs: the UI must not depend on it.
-      .mockReturnValue(new Promise(() => {}));
+  it('advances using the PATCH response, with no follow-up GET', async () => {
+    (account.getOnboarding as jest.Mock).mockResolvedValue(STATE);
 
     const screen = render(<OnboardingWizardScreen />);
     await act(async () => {});
@@ -71,6 +68,8 @@ describe('OnboardingWizardScreen', () => {
 
     expect(mockUpdateOnboarding).toHaveBeenCalledWith({ onboarding_step: 'stepB' });
     expect(screen.getByText('on:stepB')).toBeTruthy();
+    // PATCH /account/onboarding/ returns OnboardingState — one GET at mount only.
+    expect(account.getOnboarding).toHaveBeenCalledTimes(1);
   });
 
   it('completes without an extra account refetch (PATCH response already applied)', async () => {

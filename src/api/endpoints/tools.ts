@@ -33,24 +33,11 @@ export async function listAllTools(maxPages = 10): Promise<ToolRead[]> {
   return items;
 }
 
-// Categories (the make/model/type values extracted into their own table) have
-// no dedicated lookup route on the API — they're only surfaced via the
-// category_id/category_name fields on tools. Until the backend exposes a
-// categories endpoint, derive the selectable options from the distinct
-// categories present on existing tools.
+// The org's category catalog, served directly by the backend (replaces the
+// old client-side derivation from pages of full tool objects).
 export async function listToolCategories(): Promise<ToolCategory[]> {
-  const items: any[] = await listAllTools();
-  const seen = new Map<number, string>();
-  for (const tool of items) {
-    const id = tool?.category_id;
-    if (id === undefined || id === null) continue;
-    if (!seen.has(Number(id))) {
-      seen.set(Number(id), String(tool?.category_name || id));
-    }
-  }
-  return [...seen.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const { data } = await apiClient.get<ToolCategory[]>('/tools/categories/');
+  return data;
 }
 
 export async function createTool(payload: ToolCreate): Promise<ToolRead> {

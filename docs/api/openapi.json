@@ -398,7 +398,6 @@
             }
           }
         },
-        "description": "The onboarding wizard shape for this user (flow + ordered steps).\n\nSame source of truth as the web wizard, so native renders the\nidentical 5-step (owner) or 3-step (invited) sequence.",
         "tags": [
           "account"
         ],
@@ -418,7 +417,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserMe"
+                  "$ref": "#/components/schemas/OnboardingState"
                 }
               }
             }
@@ -753,6 +752,34 @@
           },
           "required": true
         },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/organizations/me/stats/": {
+      "get": {
+        "operationId": "api_routers_organization_organizations_org_stats",
+        "summary": "Org Stats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgStats"
+                }
+              }
+            }
+          }
+        },
+        "description": "Dashboard counts in one call.\n\ntools.available mirrors ToolRead.is_available (no assignment row with\nreturned_date IS NULL). incidents.open = status in\n(pending, in_progress, escalated); missing = open lost/stolen;\nmaintenance_due = open maintenance; critical = open critical-severity.",
+        "tags": [
+          "organizations"
+        ],
         "security": [
           {
             "AuthBearer": []
@@ -1485,6 +1512,38 @@
             }
           }
         },
+        "tags": [
+          "tools"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tools/categories/": {
+      "get": {
+        "operationId": "api_routers_tools_tools_list_categories",
+        "summary": "List Categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryRead"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "The org's category catalog — for pickers; replaces deriving\ncategories client-side from a full /tools/ page.",
         "tags": [
           "tools"
         ],
@@ -3072,7 +3131,7 @@
             "description": "OK"
           }
         },
-        "description": "Branded multi-section PDF across every domain the user may see.\n\nPremium \u2014 gated by the billing feature flag with a 402 upsell (soft\nmodel) rather than a hard 403. 503 if WeasyPrint isn't installed.",
+        "description": "Branded multi-section PDF across every domain the user may see.\n\nPremium — gated by the billing feature flag with a 402 upsell (soft\nmodel) rather than a hard 403. 503 if WeasyPrint isn't installed.",
         "tags": [
           "exports"
         ],
@@ -4043,6 +4102,139 @@
         "title": "OrganizationUpdate",
         "type": "object"
       },
+      "AssignmentStats": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active"
+        ],
+        "title": "AssignmentStats",
+        "type": "object"
+      },
+      "IncidentStats": {
+        "properties": {
+          "open": {
+            "title": "Open",
+            "type": "integer"
+          },
+          "missing": {
+            "title": "Missing",
+            "type": "integer"
+          },
+          "maintenance_due": {
+            "title": "Maintenance Due",
+            "type": "integer"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open",
+          "missing",
+          "maintenance_due",
+          "critical"
+        ],
+        "title": "IncidentStats",
+        "type": "object"
+      },
+      "MemberStats": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "admins": {
+            "title": "Admins",
+            "type": "integer"
+          },
+          "workers": {
+            "title": "Workers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "admins",
+          "workers"
+        ],
+        "title": "MemberStats",
+        "type": "object"
+      },
+      "OrgStats": {
+        "properties": {
+          "tools": {
+            "$ref": "#/components/schemas/ToolStats"
+          },
+          "assignments": {
+            "$ref": "#/components/schemas/AssignmentStats"
+          },
+          "incidents": {
+            "$ref": "#/components/schemas/IncidentStats"
+          },
+          "members": {
+            "$ref": "#/components/schemas/MemberStats"
+          },
+          "sites": {
+            "$ref": "#/components/schemas/SiteStats"
+          }
+        },
+        "required": [
+          "tools",
+          "assignments",
+          "incidents",
+          "members",
+          "sites"
+        ],
+        "title": "OrgStats",
+        "type": "object"
+      },
+      "SiteStats": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "active": {
+            "title": "Active",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "active"
+        ],
+        "title": "SiteStats",
+        "type": "object"
+      },
+      "ToolStats": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "with_nfc_tag": {
+            "title": "With Nfc Tag",
+            "type": "integer"
+          },
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "with_nfc_tag",
+          "available"
+        ],
+        "title": "ToolStats",
+        "type": "object"
+      },
       "DemoDataStatus": {
         "properties": {
           "has_demo_data": {
@@ -4568,6 +4760,40 @@
         "title": "JoinRequestDeny",
         "type": "object"
       },
+      "LastAssignment": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "user_name": {
+            "default": "",
+            "title": "User Name",
+            "type": "string"
+          },
+          "returned_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Returned At"
+          }
+        },
+        "title": "LastAssignment",
+        "type": "object"
+      },
       "PagedTools": {
         "properties": {
           "items": {
@@ -4751,6 +4977,16 @@
               }
             ],
             "title": "Condition Score"
+          },
+          "last_assignment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastAssignment"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -4835,6 +5071,24 @@
           "name"
         ],
         "title": "ToolCreate",
+        "type": "object"
+      },
+      "CategoryRead": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CategoryRead",
         "type": "object"
       },
       "ToolUpdate": {
@@ -5722,7 +5976,7 @@
         "type": "object"
       },
       "VanRead": {
-        "description": "Site with site_type=vehicle. site_type field omitted \u2014 implied.",
+        "description": "Site with site_type=vehicle. site_type field omitted — implied.",
         "properties": {
           "id": {
             "title": "Id",
@@ -5905,6 +6159,14 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "photos": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ToolPhotoRead"
+            },
+            "title": "Photos",
+            "type": "array"
           }
         },
         "required": [

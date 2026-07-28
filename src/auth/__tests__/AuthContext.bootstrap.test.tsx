@@ -39,9 +39,15 @@ jest.mock('../userCache', () => ({
   clearCachedUser: jest.fn(() => Promise.resolve()),
 }));
 
-function Probe() {
-  const { status, user } = useAuth();
-  return <Text testID="probe">{`${status}|${user?.email ?? 'none'}`}</Text>;
+function Probe({ onAuth }: { onAuth?: (auth: ReturnType<typeof useAuth>) => void }) {
+  const auth = useAuth();
+  onAuth?.(auth);
+  const { status, user } = auth;
+  return (
+    <Text testID="probe">
+      {`${status}|${user?.email ?? 'none'}|${user?.has_completed_onboarding ?? '-'}`}
+    </Text>
+  );
 }
 
 const TOKENS = { accessToken: 'a', refreshToken: 'r', expiresAt: null };
@@ -66,10 +72,46 @@ describe('AuthContext bootstrap', () => {
     await act(async () => {});
 
     expect(screen.getByTestId('probe').props.children).toBe(
-      'authenticated|cached@example.com'
+      'authenticated|cached@example.com|-'
     );
     // A network failure is NOT an auth rejection — the tokens must survive.
     expect(tokenStore.clear).not.toHaveBeenCalled();
+  });
+
+  it('updateOnboarding merges completion into the user (PATCH returns OnboardingState)', async () => {
+    (account.getMeBootstrap as jest.Mock).mockResolvedValue({
+      email: 'me@example.com',
+      has_completed_onboarding: false,
+      onboarding_step: 'stepA',
+    });
+    (account.updateOnboarding as jest.Mock).mockResolvedValue({
+      flow: 'owner',
+      current_step: 'completed',
+      completed: true,
+      steps: [],
+      role: 'owner',
+    });
+
+    let captured: ReturnType<typeof useAuth> | undefined;
+    const screen = render(
+      <AuthProvider>
+        <Probe onAuth={(a) => (captured = a)} />
+      </AuthProvider>
+    );
+    await act(async () => {});
+    expect(screen.getByTestId('probe').props.children).toBe(
+      'authenticated|me@example.com|false'
+    );
+
+    await act(async () => {
+      await captured!.updateOnboarding({ has_completed_onboarding: true });
+    });
+
+    // The user object must survive intact with the completion flag flipped —
+    // NOT be replaced by the OnboardingState payload.
+    expect(screen.getByTestId('probe').props.children).toBe(
+      'authenticated|me@example.com|true'
+    );
   });
 
   it('signs out (and clears tokens) only when the server rejects the session', async () => {
@@ -84,7 +126,7 @@ describe('AuthContext bootstrap', () => {
     );
     await act(async () => {});
 
-    expect(screen.getByTestId('probe').props.children).toBe('unauthenticated|none');
+    expect(screen.getByTestId('probe').props.children).toBe('unauthenticated|none|-');
     expect(tokenStore.clear).toHaveBeenCalled();
     expect(clearCachedUser).toHaveBeenCalled();
   });
