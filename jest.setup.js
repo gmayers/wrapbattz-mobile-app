@@ -158,6 +158,15 @@ jest.mock('expo-crypto', () => ({
   CryptoEncoding: { HEX: 'hex' },
 }));
 
+jest.mock('expo-sqlite/kv-store', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(() => Promise.resolve(null)),
+    setItem: jest.fn(() => Promise.resolve()),
+    removeItem: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => ({
     execSync: jest.fn(),
