@@ -48,7 +48,7 @@ const TYPE_CHOICES = [
 ];
 
 const AllReportsScreen = ({ navigation, route }) => {
-  const { userData, isAdminOrOwner } = useAuth();
+  const { userData, user, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState('my');
@@ -78,14 +78,18 @@ const AllReportsScreen = ({ navigation, route }) => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     try {
-      await Promise.allSettled([
-        fetchMyReports(),
-        isAdminOrOwner ? fetchAllReports() : Promise.resolve(),
-      ]);
+      if (isAdminOrOwner && user?.id != null) {
+        // The org list is a superset of "mine" — one request feeds both tabs.
+        await fetchAllReports();
+      } else if (isAdminOrOwner) {
+        await Promise.allSettled([fetchMyReports(), fetchAllReports()]);
+      } else {
+        await fetchMyReports();
+      }
     } finally {
       isRefreshingRef.current = false;
     }
-  }, [isAdminOrOwner]);
+  }, [isAdminOrOwner, user?.id]);
 
   useEffect(() => {
     refreshAll();
@@ -147,18 +151,26 @@ const AllReportsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Fetch all organization reports (admin/owner only)
+  // Fetch all organization reports (admin/owner only). "My reports" is a
+  // subset, so it's derived from the same response instead of a second request
+  // (reported_by_id only exists on the raw items, not the legacy shape).
   const fetchAllReports = async () => {
     try {
       setLoadingAllReports(true);
+      if (user?.id != null) setLoadingMyReports(true);
       const page = await incidentsApi.listIncidents();
-      const reports = page.items.map(toLegacyReport);
-      reports.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setAllReports(reports);
+      const items = [...page.items].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+      setAllReports(items.map(toLegacyReport));
+      if (user?.id != null) {
+        setMyReports(items.filter((i) => i.reported_by_id === user.id).map(toLegacyReport));
+      }
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization reports.');
     } finally {
       setLoadingAllReports(false);
+      if (user?.id != null) setLoadingMyReports(false);
     }
   };
 

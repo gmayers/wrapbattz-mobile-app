@@ -18,7 +18,7 @@ import * as authApi from '../api/endpoints/auth';
 import { ApiError } from '../api/errors';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, userData, logout, updateUser, refreshUser, deleteAccount } = useAuth();
+  const { user, userData, logout, refreshUser, deleteAccount } = useAuth();
   const { colors, themeMode, setThemeMode } = useTheme();
 
   const [profileData, setProfileData] = useState(null);
@@ -43,10 +43,17 @@ const ProfileScreen = ({ navigation }) => {
     }
   }, [refreshUser]);
 
-  // Load profile data on component mount
+  // Bootstrap already fetched the account; only hit the network if the
+  // context somehow has no user (fetchProfileData stays as the retry handler).
   useEffect(() => {
-    fetchProfileData();
-  }, [fetchProfileData]);
+    if (user) {
+      setProfileData((prev) => ({ ...prev, ...user }));
+      setLoading(false);
+    } else {
+      fetchProfileData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep the displayed profile in sync with the auth context. EditProfile saves
   // via updateUser(), which refreshes the context `user`; without this, returning
@@ -56,19 +63,6 @@ const ProfileScreen = ({ navigation }) => {
     if (user) setProfileData((prev) => ({ ...prev, ...user }));
   }, [user]);
   
-  const handleUpdateProfile = useCallback(async (updatedData) => {
-    try {
-      setLoading(true);
-      await updateUser(updatedData);
-      await fetchProfileData();
-      Alert.alert('Success', 'Profile updated successfully');
-    } catch (err) {
-      Alert.alert('Error', (err instanceof ApiError && err.message) || 'Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
-  }, [updateUser, fetchProfileData]);
-
   const handleChangePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       setLoading(true);
