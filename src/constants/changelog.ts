@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.4';
+export const CHANGELOG_VERSION = '1.4.5';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.5',
+    date: '2026-07-28',
+    highlights: [
+      'Much faster all round — the app now remembers what it loaded, so your tools, locations, and reports appear instantly and quietly update in the background.',
+      'Coming back to a tab no longer wipes the screen while it reloads.',
+      'Scanning a tag brings up the tool card noticeably faster.',
+      'Setup moves straight to the next step instead of pausing between steps.',
+      'Works better with a weak or missing connection — you stay signed in and see your saved information, and anything that can’t connect says so quickly instead of leaving you waiting.',
+    ],
+  },
   {
     version: '1.4.4',
     date: '2026-07-15',
