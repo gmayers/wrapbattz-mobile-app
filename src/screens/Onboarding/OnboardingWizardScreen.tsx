@@ -33,7 +33,7 @@ import { STEP_COMPONENTS, type WizardData } from './steps';
 
 const OnboardingWizardScreen: React.FC = () => {
   const { colors } = useTheme();
-  const { updateOnboarding, refreshUser, logout } = useAuth();
+  const { updateOnboarding, logout } = useAuth();
 
   const [state, setState] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,17 @@ const OnboardingWizardScreen: React.FC = () => {
     load();
   }, [load]);
 
+  // Background refresh that never touches `loading` — used after an optimistic
+  // step advance to pick up server-side flow changes (e.g. org creation can
+  // switch the invited flow to the owner flow) without blocking the UI.
+  const revalidate = useCallback(async () => {
+    try {
+      setState(await account.getOnboarding());
+    } catch {
+      // Keep the optimistic state; the next load()/advance will resync.
+    }
+  }, []);
+
   const steps = state?.steps ?? [];
   const currentKey = state?.current_step ?? null;
   const currentIndex = steps.findIndex((s) => s.key === currentKey);
@@ -74,10 +85,10 @@ const OnboardingWizardScreen: React.FC = () => {
   const complete = useCallback(async () => {
     setBusyAdvancing(true);
     try {
+      // updateOnboarding applies the UserMe from the PATCH response, so
+      // onboardingComplete flips and navigation swaps to the main app without
+      // another /account/ fetch. The screen unmounts on success.
       await updateOnboarding({ has_completed_onboarding: true, onboarding_step: 'completed' });
-      // Pull fresh UserMe so onboardingComplete flips and navigation swaps to
-      // the main app. The screen unmounts on success, so no need to clear busy.
-      await refreshUser();
     } catch (e) {
       Alert.alert(
         'Error',
@@ -85,14 +96,17 @@ const OnboardingWizardScreen: React.FC = () => {
       );
       setBusyAdvancing(false);
     }
-  }, [updateOnboarding, refreshUser]);
+  }, [updateOnboarding]);
 
   const goToStep = useCallback(
     async (stepKey: string) => {
       setBusyAdvancing(true);
       try {
         await updateOnboarding({ onboarding_step: stepKey });
-        await load();
+        // The target key came from the loaded steps[], so advance immediately
+        // and revalidate in the background rather than blocking on a refetch.
+        setState((prev) => (prev ? { ...prev, current_step: stepKey } : prev));
+        void revalidate();
       } catch (e) {
         Alert.alert(
           'Error',
@@ -102,7 +116,7 @@ const OnboardingWizardScreen: React.FC = () => {
         setBusyAdvancing(false);
       }
     },
-    [updateOnboarding, load]
+    [updateOnboarding, revalidate]
   );
 
   const advance = useCallback(() => {

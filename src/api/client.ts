@@ -23,9 +23,11 @@ function create(): AxiosInstance {
   });
 
   instance.interceptors.request.use((config) => {
-    const method = (config.method ?? 'get').toUpperCase();
-    const url = fullUrl(config.baseURL, config.url);
-    console.log(`[api] → ${method} ${url}`);
+    if (__DEV__) {
+      const method = (config.method ?? 'get').toUpperCase();
+      const url = fullUrl(config.baseURL, config.url);
+      console.log(`[api] → ${method} ${url}`);
+    }
     return config;
   });
   instance.interceptors.request.use(attachToken);

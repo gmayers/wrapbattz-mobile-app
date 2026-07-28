@@ -19,6 +19,9 @@ import {
   loginWithStoredCredentials as qaLoginWithStoredCredentials,
 } from './quickAuth';
 import { apiEvents, tokenStore } from '../api';
+import { ApiError } from '../api/errors';
+import { clearQueryCache } from '../query/queryClient';
+import { clearCachedUser, loadCachedUser, saveCachedUser } from './userCache';
 import type {
   ForgotPasswordRequest,
   OnboardingUpdate,
@@ -82,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!mounted.current) return;
     setUser(next);
     setStatus(next ? 'authenticated' : 'unauthenticated');
+    // Keep the offline-boot profile fresh (clearing is handled by the
+    // explicit sign-out paths, not by transient nulls).
+    if (next) void saveCachedUser(next);
   }, []);
 
   const bootstrap = useCallback(async () => {
@@ -93,8 +99,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await account.getMeBootstrap();
       applyUser(me);
-    } catch {
-      await tokenStore.clear();
+    } catch (e) {
+      // Only an actual auth rejection ends the session. A 401 here means the
+      // refresh interceptor already tried the refresh token and failed.
+      if (e instanceof ApiError && e.code === 'unauthorized') {
+        await tokenStore.clear();
+        await clearCachedUser();
+        applyUser(null);
+        return;
+      }
+      // Network/timeout/server failure with tokens on the device: boot from
+      // the last-known profile instead of kicking the user to login (queries
+      // revalidate when connectivity returns).
+      const cached = await loadCachedUser();
+      if (cached) {
+        applyUser(cached);
+        return;
+      }
+      // No cached profile to render the app with — show login, but KEEP the
+      // tokens so a later launch (or logging in again) restores cleanly.
       applyUser(null);
     }
   }, [applyUser]);
@@ -105,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const off = apiEvents.on('session-expired', () => {
+      void clearCachedUser();
       applyUser(null);
     });
     return off;
@@ -131,6 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await auth.logout();
+    await clearQueryCache();
+    await clearCachedUser();
     applyUser(null);
   }, [applyUser]);
 

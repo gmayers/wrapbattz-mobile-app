@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import * as billingApi from '../../../../api/endpoints/billing';
 import { useSubscription } from '../useSubscription';
@@ -14,23 +14,12 @@ function Probe() {
 describe('useSubscription', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('reports loading then ready', async () => {
-    (billingApi.getSubscription as jest.Mock).mockResolvedValueOnce({
-      source: 'apple_iap',
-      status: 'active',
-    });
+  // The backend /billing endpoints were removed; the subscription fetch is
+  // disabled until the billing rework lands.
+  it('does not call the removed subscription endpoint', async () => {
     const { getByTestId } = render(<Probe />);
-    expect(getByTestId('probe').props.children).toContain('loading');
-    await waitFor(() =>
-      expect(getByTestId('probe').props.children).toContain('ready|active|'),
-    );
-  });
-
-  it('reports error message on failure', async () => {
-    (billingApi.getSubscription as jest.Mock).mockRejectedValueOnce(new Error('boom'));
-    const { getByTestId } = render(<Probe />);
-    await waitFor(() =>
-      expect(getByTestId('probe').props.children).toContain('boom'),
-    );
+    await act(async () => {});
+    expect(billingApi.getSubscription).not.toHaveBeenCalled();
+    expect(getByTestId('probe').props.children).toBe('ready|none|');
   });
 });

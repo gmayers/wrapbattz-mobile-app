@@ -1,5 +1,6 @@
 // LocationsScreen.js
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -30,6 +31,11 @@ import { toLegacyLocation } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import { normalizePostcode } from '../utils/CommonUtils';
 import { LOCATION_TYPES, LOCATION_TYPE_OTHER, DEFAULT_LOCATION_TYPE } from '../constants/locationTypes';
+import { useRefetchOnFocus } from '../query/useRefetchOnFocus';
+
+// Shared cache key for the org's site list (legacy Location shape). Other
+// screens that need sites can read/patch the same entry.
+export const SITES_QUERY_KEY = ['sites', 'legacy-list'];
 
 // Map the screen's legacy address form shape to the new Site* payload.
 const toSitePayload = (formData) => {
@@ -59,13 +65,10 @@ const ORANGE_COLOR = '#FFC72C'; // TOOLTRAQ yellow
 
 const LocationsScreen = ({ navigation }) => {
   // Enhanced usage of AuthContext
-  const { isAdminOrOwner, userData, user, refreshUser } = useAuth();
+  const { isAdminOrOwner, userData, user } = useAuth();
   const { colors, isDark } = useTheme();
 
-  const [locations, setLocations] = useState([]);
-  const [filteredLocations, setFilteredLocations] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingLocationId, setEditingLocationId] = useState(null);
@@ -94,63 +97,49 @@ const LocationsScreen = ({ navigation }) => {
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
-    if (refreshUser) refreshUser();
-  }, [navigation, refreshUser]);
+  }, [navigation]);
 
-  // In-flight guard: rapid tab navigation fires the focus listener repeatedly;
-  // skip a refetch while one is already running so requests don't pile up.
-  const isFetchingLocationsRef = useRef(false);
+  // Cached + persisted site list. Cached data stays on screen during focus
+  // refetches (isLoading is only true on a genuinely empty cache), and the
+  // request is deduped if several screens ask for the same key at once.
+  const queryClient = useQueryClient();
+  const sitesQuery = useQuery({
+    queryKey: SITES_QUERY_KEY,
+    queryFn: async () => (await sitesApi.listSites()).items.map(toLegacyLocation),
+  });
+  const locations = sitesQuery.data ?? [];
+  const isLoading = sitesQuery.isLoading;
 
-  const fetchLocations = useCallback(async () => {
-    if (isFetchingLocationsRef.current) return;
-    isFetchingLocationsRef.current = true;
-    setIsLoading(true);
-    try {
-      const page = await sitesApi.listSites();
-      const allLocations = page.items.map(toLegacyLocation);
-      setLocations(allLocations);
-      setFilteredLocations(allLocations);
-    } catch (error) {
-      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
-        Alert.alert('Error', 'Failed to fetch locations. Please try again later.');
-      }
-      setLocations([]);
-      setFilteredLocations([]);
-    } finally {
-      setIsLoading(false);
-      isFetchingLocationsRef.current = false;
-    }
-  }, []);
+  useRefetchOnFocus(navigation, sitesQuery);
 
-  // Use useCallback for event handlers to prevent unnecessary re-renders
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchLocations();
-    });
-    return unsubscribe;
-  }, [navigation, fetchLocations]);
+    const error = sitesQuery.error;
+    if (error && !(error instanceof ApiError && error.code === 'unauthorized')) {
+      Alert.alert('Error', 'Failed to fetch locations. Please try again later.');
+    }
+  }, [sitesQuery.error]);
+
+  const patchSitesCache = useCallback(
+    (updater) => queryClient.setQueryData(SITES_QUERY_KEY, (prev) => updater(prev ?? [])),
+    [queryClient]
+  );
 
   // Search functionality
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
-    
-    if (!query.trim()) {
-      setFilteredLocations(locations);
-      return;
-    }
-    
-    const filtered = locations.filter((location) => {
-      const searchText = query.toLowerCase();
-      return (
-        (location.building_name?.toLowerCase().includes(searchText)) ||
-        (location.street_name?.toLowerCase().includes(searchText)) ||
-        (location.town_or_city?.toLowerCase().includes(searchText)) ||
-        (location.postcode?.toLowerCase().includes(searchText))
-      );
-    });
-    
-    setFilteredLocations(filtered);
-  }, [locations]);
+  }, []);
+
+  const filteredLocations = useMemo(() => {
+    const searchText = searchQuery.trim().toLowerCase();
+    if (!searchText) return locations;
+    return locations.filter(
+      (location) =>
+        location.building_name?.toLowerCase().includes(searchText) ||
+        location.street_name?.toLowerCase().includes(searchText) ||
+        location.town_or_city?.toLowerCase().includes(searchText) ||
+        location.postcode?.toLowerCase().includes(searchText)
+    );
+  }, [locations, searchQuery]);
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prevData => ({
@@ -207,7 +196,10 @@ const LocationsScreen = ({ navigation }) => {
     setIsSubmitting(true);
     
     try {
-      await sitesApi.createSite(toSitePayload(formData));
+      const created = await sitesApi.createSite(toSitePayload(formData));
+      // The POST already returns the created site — append it instead of
+      // refetching the whole list.
+      patchSitesCache((prev) => [...prev, toLegacyLocation(created)]);
 
       setModalVisible(false);
       setFormData({
@@ -222,7 +214,6 @@ const LocationsScreen = ({ navigation }) => {
         postcode: ''
 });
 
-      fetchLocations();
       Alert.alert('Success', 'Location created successfully');
     } catch (error) {
       if (error instanceof ApiError && error.code === 'unauthorized') return;
@@ -238,7 +229,7 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, fetchLocations]);
+  }, [formData, validateForm, patchSitesCache]);
 
   const handleToggleActive = useCallback(async (locationId, currentStatus) => {
     setTogglingLocation(locationId);
@@ -248,10 +239,7 @@ const LocationsScreen = ({ navigation }) => {
       await sitesApi.updateSite(Number(locationId), {
         status: nextActive ? 'active' : 'inactive'
 });
-      setLocations((prev) =>
-        prev.map((loc) => (loc.id === locationId ? { ...loc, is_active: nextActive } : loc))
-      );
-      setFilteredLocations((prev) =>
+      patchSitesCache((prev) =>
         prev.map((loc) => (loc.id === locationId ? { ...loc, is_active: nextActive } : loc))
       );
     } catch (error) {
@@ -264,7 +252,7 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setTogglingLocation(null);
     }
-  }, []);
+  }, [patchSitesCache]);
 
   const handleEditLocation = useCallback((location) => {
     setEditMode(true);
@@ -293,7 +281,11 @@ const LocationsScreen = ({ navigation }) => {
     setIsSubmitting(true);
 
     try {
-      await sitesApi.updateSite(Number(editingLocationId), toSitePayload(formData));
+      const updated = await sitesApi.updateSite(Number(editingLocationId), toSitePayload(formData));
+      // Patch the cache from the PATCH response instead of refetching.
+      patchSitesCache((prev) =>
+        prev.map((loc) => (loc.id === updated.id ? toLegacyLocation(updated) : loc))
+      );
 
       // Close modal and reset form
       setModalVisible(false);
@@ -313,9 +305,6 @@ const LocationsScreen = ({ navigation }) => {
         signature: null
 });
 
-      // Refresh locations list
-      fetchLocations();
-
       Alert.alert('Success', 'Location updated successfully');
     } catch (error) {
       if (error instanceof ApiError && error.code === 'unauthorized') return;
@@ -331,7 +320,7 @@ const LocationsScreen = ({ navigation }) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, editingLocationId, validateForm, fetchLocations]);
+  }, [formData, editingLocationId, validateForm, patchSitesCache]);
 
   const renderLocationCard = useCallback((location) => {
     const isActive = location.is_active !== undefined ? location.is_active : true;

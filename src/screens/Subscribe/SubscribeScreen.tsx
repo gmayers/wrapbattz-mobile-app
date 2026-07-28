@@ -61,9 +61,8 @@ const SubscribeScreen: React.FC = () => {
     loadCatalog();
   }, [loadCatalog]);
 
-  useEffect(() => {
-    if (flow.status === 'active') sub.refresh();
-  }, [flow.status, sub]);
+  // No explicit refresh on flow.status === 'active': usePurchaseFlow emits
+  // 'subscription.changed' at that moment and useSubscription refreshes on it.
 
   const productById = useMemo(() => {
     const m = new Map<string, IapProduct>();

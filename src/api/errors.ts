@@ -33,7 +33,7 @@ export class ApiError extends Error implements ApiErrorShape {
 }
 
 export function fromAxiosError(error: AxiosError): ApiError {
-  if (error.code === 'ECONNABORTED') {
+  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
     return new ApiError({ code: 'timeout', message: 'Request timed out.' });
   }
 

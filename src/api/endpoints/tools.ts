@@ -19,14 +19,27 @@ export async function listTools(params: ListToolsParams = {}): Promise<PagedTool
   return data;
 }
 
+// Every tool in the org. The server clamps page_size to 100, so callers that
+// assume full coverage must walk total_pages; maxPages is a runaway guard.
+export async function listAllTools(maxPages = 10): Promise<ToolRead[]> {
+  const items: ToolRead[] = [];
+  let page = 1;
+  for (;;) {
+    const data = await listTools({ page, page_size: 100 });
+    items.push(...(data.items ?? []));
+    if (page >= (data.total_pages ?? 1) || page >= maxPages) break;
+    page += 1;
+  }
+  return items;
+}
+
 // Categories (the make/model/type values extracted into their own table) have
 // no dedicated lookup route on the API — they're only surfaced via the
 // category_id/category_name fields on tools. Until the backend exposes a
 // categories endpoint, derive the selectable options from the distinct
 // categories present on existing tools.
 export async function listToolCategories(): Promise<ToolCategory[]> {
-  const { data } = await apiClient.get<PagedTools>('/tools/', { params: { page_size: 200 } });
-  const items: any[] = data?.items ?? [];
+  const items: any[] = await listAllTools();
   const seen = new Map<number, string>();
   for (const tool of items) {
     const id = tool?.category_id;

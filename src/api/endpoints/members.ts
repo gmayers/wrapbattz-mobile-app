@@ -1,8 +1,10 @@
 import { apiClient } from '../client';
 import type { MemberRead, MemberUpdate, PagedMembers } from '../types';
 
-export async function listMembers(): Promise<PagedMembers> {
-  const { data } = await apiClient.get<PagedMembers>('/members/');
+export async function listMembers(
+  params?: { page?: number; page_size?: number }
+): Promise<PagedMembers> {
+  const { data } = await apiClient.get<PagedMembers>('/members/', { params });
   return data;
 }
 
