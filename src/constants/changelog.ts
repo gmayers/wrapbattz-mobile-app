@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.1';
+export const CHANGELOG_VERSION = '1.4.4';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,30 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.4',
+    date: '2026-07-15',
+    highlights: [
+      'Try the app with demo data — setup now offers a demo site and sample tools, just like the web portal.',
+      'Fixed "No device status configured" when adding a tool in organizations created from the app.',
+      'Adding a tool without picking a category now works — it lands in "Other".',
+    ],
+  },
+  {
+    version: '1.4.3',
+    date: '2026-07-14',
+    highlights: [
+      'Fixed "Authentication failed" when adding your first location during setup.',
+      'Setup steps now have a Back button, and your organization details can be edited if you return to that step.',
+    ],
+  },
+  {
+    version: '1.4.2',
+    date: '2026-07-03',
+    highlights: [
+      'Sign in or create your account with Google — one tap on the login and registration screens.',
+    ],
+  },
   {
     version: '1.4.1',
     date: '2026-07-03',

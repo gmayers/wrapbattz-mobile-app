@@ -19,6 +19,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -158,9 +160,23 @@ const OnboardingWizardScreen: React.FC = () => {
       {/* Progress header */}
       <View style={[styles.header, { borderBottomColor: colors.borderLight }]}>
         <View style={styles.headerTopRow}>
-          <Text style={[styles.stepCounter, { color: colors.primary }]}>
-            Step {Math.max(currentIndex + 1, 1)} of {steps.length}
-          </Text>
+          <View style={styles.headerLeft}>
+            {canGoBack ? (
+              <TouchableOpacity
+                onPress={goBack}
+                disabled={busyAdvancing}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.backButton}
+                testID="onboarding-back"
+              >
+                <Ionicons name="chevron-back" size={18} color={colors.primary} />
+                <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+              </TouchableOpacity>
+            ) : null}
+            <Text style={[styles.stepCounter, { color: colors.primary }]}>
+              Step {Math.max(currentIndex + 1, 1)} of {steps.length}
+            </Text>
+          </View>
           <TouchableOpacity onPress={confirmLogout} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={[styles.logoutLink, { color: colors.textMuted }]}>Log out</Text>
           </TouchableOpacity>
@@ -187,6 +203,12 @@ const OnboardingWizardScreen: React.FC = () => {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+        enabled
+      >
       <ScrollView
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
@@ -220,12 +242,14 @@ const OnboardingWizardScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flex: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   errorText: { fontSize: 15, textAlign: 'center', marginTop: 12, marginBottom: 20, lineHeight: 21 },
   retryButton: {
@@ -247,6 +271,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backButton: { flexDirection: 'row', alignItems: 'center' },
+  backText: { fontSize: 13, fontWeight: '600' },
   stepCounter: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   logoutLink: { fontSize: 13, fontWeight: '600' },
   progressTrack: { flexDirection: 'row', marginBottom: 12 },

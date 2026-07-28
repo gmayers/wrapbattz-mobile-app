@@ -6,7 +6,6 @@ import type {
   AssignmentRead,
   IncidentRead,
   SiteRead,
-  ToolLifecycleFields,
   ToolRead,
 } from './types';
 
@@ -98,7 +97,7 @@ export interface LegacyDevice {
   purchase_cost?: string | number | null;
 }
 
-export function toLegacyDevice(t: ToolRead & ToolLifecycleFields): LegacyDevice {
+export function toLegacyDevice(t: ToolRead): LegacyDevice {
   return {
     id: t.id,
     identifier: t.name,
