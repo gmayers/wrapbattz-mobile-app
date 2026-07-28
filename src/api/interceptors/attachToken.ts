@@ -1,5 +1,10 @@
 import type { InternalAxiosRequestConfig } from 'axios';
 import { getCached, hydrate } from '../tokenStore';
+import { refreshOnce } from './refreshOn401';
+
+// Refresh ahead of expiry so a request never has to pay the
+// fail-401 → refresh → retry triple round trip.
+const EXPIRY_SKEW_MS = 60_000;
 
 const ANONYMOUS_PATHS = [
   '/auth/login/',
@@ -33,9 +38,17 @@ export async function attachToken(
   }
   const tokens = getCached() ?? (await hydrate());
   if (tokens?.accessToken) {
-    config.headers.set('Authorization', `Bearer ${tokens.accessToken}`);
+    let accessToken = tokens.accessToken;
+    const expiresAt = tokens.expiresAt;
+    if (expiresAt !== null && expiresAt - Date.now() < EXPIRY_SKEW_MS) {
+      console.log(`[api.auth] token near/at expiry — refreshing before ${config.url ?? ''}`);
+      // null = transient refresh failure; send the cached token anyway and
+      // let the refresh-on-401 interceptor handle it if the server rejects.
+      accessToken = (await refreshOnce()) ?? accessToken;
+    }
+    config.headers.set('Authorization', `Bearer ${accessToken}`);
     console.log(
-      `[api.auth] bearer attached to ${config.url ?? ''} (${tokenFingerprint(tokens.accessToken)})`
+      `[api.auth] bearer attached to ${config.url ?? ''} (${tokenFingerprint(accessToken)})`
     );
   } else {
     console.log(`[api.auth] no token available for ${config.url ?? ''}`);
