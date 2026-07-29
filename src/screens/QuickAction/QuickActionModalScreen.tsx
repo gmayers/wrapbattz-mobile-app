@@ -76,6 +76,7 @@ const QuickActionModalScreen: React.FC = () => {
   const [vehicleOptions, setVehicleOptions] = useState<LocationOption[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<string>('');
   const [destinationsLoading, setDestinationsLoading] = useState(false);
+  const [destinationsError, setDestinationsError] = useState<string | null>(null);
 
   const [upgrading, setUpgrading] = useState(false);
 
@@ -120,6 +121,7 @@ const QuickActionModalScreen: React.FC = () => {
         model: tool.model,
         device_type: tool.category_name,
         serial_number: tool.serial_number,
+        maintenance_interval: tool.maintenance_interval_days ?? 0,
         is_available: tool.is_available,
         current_assignment: currentAssignmentId ? { id: String(currentAssignmentId) } : null,
       });
@@ -196,12 +198,13 @@ const QuickActionModalScreen: React.FC = () => {
 
   const loadDestinations = useCallback(async () => {
     setDestinationsLoading(true);
+    setDestinationsError(null);
     try {
-      const [sitePage, vanPage] = await Promise.all([
-        sitesApi.listSites(),
+      const [siteItems, vanPage] = await Promise.all([
+        sitesApi.listAllSites(),
         vansApi.listVans().catch(() => ({ items: [], page: 1, page_size: 0, total: 0, total_pages: 0 })),
       ]);
-      const locOpts: LocationOption[] = sitePage.items.map((l) => ({
+      const locOpts: LocationOption[] = siteItems.map((l) => ({
         label: `📍 ${l.name}`,
         value: String(l.id),
       }));
@@ -219,7 +222,9 @@ const QuickActionModalScreen: React.FC = () => {
       }
     } catch (err) {
       if (!(err instanceof ApiError && err.code === 'unauthorized')) {
-        Alert.alert('Error', 'Could not load locations.');
+        setDestinationsError(
+          (err instanceof ApiError && err.message) || 'Could not load locations.'
+        );
       }
     } finally {
       setDestinationsLoading(false);
@@ -305,7 +310,9 @@ const QuickActionModalScreen: React.FC = () => {
             maintenanceInterval: device.maintenance_interval || 0,
             description: device.description || '',
           },
-          { includeUniversalLink: true }
+          // Leading URI record so a tap deep-links straight into the app
+          // (linking path d/:tagUID); JSON payload rides behind it.
+          { uri: `https://app.tooltraq.com/d/${tagUID}` }
         ),
         new Promise<never>((_, reject) =>
           setTimeout(
@@ -324,8 +331,8 @@ const QuickActionModalScreen: React.FC = () => {
         Alert.alert(
           'Tag updated',
           urlOnly
-            ? 'Tag has been updated with the launch URL only. Tag capacity was too small for the full JSON payload; device details will be fetched via network when the tag is tapped.'
-            : 'Tag has been updated successfully. The next tap will launch the app directly.'
+            ? 'Tag updated with the launch link only — it was too small for the full device data. Tapping it will still open this tool in the app.'
+            : 'Tag updated with the latest device data. Tapping it will open this tool in the app.'
         );
       } else {
         Alert.alert('Re-write failed', result.error || 'Could not write to tag.');
@@ -497,6 +504,19 @@ const QuickActionModalScreen: React.FC = () => {
               </Text>
               {destinationsLoading ? (
                 <ActivityIndicator color={colors.primary} />
+              ) : destinationsError ? (
+                <>
+                  <Text style={[styles.hintText, { color: colors.error, textAlign: 'left' }]}>
+                    {destinationsError}
+                  </Text>
+                  <Button
+                    title="Retry"
+                    onPress={loadDestinations}
+                    variant="outlined"
+                    style={styles.actionBtn}
+                    testID="quick-action-destinations-retry"
+                  />
+                </>
               ) : combinedDestinations.length === 0 ? (
                 <Text style={[styles.hintText, { color: colors.textSecondary }]}>
                   No locations or vehicles available.

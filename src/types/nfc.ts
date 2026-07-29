@@ -32,6 +32,10 @@ export interface DeviceNFCData {
 export interface NFCWriteOptions {
   merge?: boolean;
   timeout?: number;
+  // When set, a URI record is written ahead of the JSON text record so a tap
+  // deep-links into the app. If the tag is too small for both records, the
+  // URI is written alone and the result carries `writtenJson: false`.
+  uri?: string;
 }
 
 export interface NFCReadOptions {

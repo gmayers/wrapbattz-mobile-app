@@ -75,6 +75,7 @@ jest.mock('react-native-nfc-manager', () => {
   const mockNdef = {
     encodeMessage: jest.fn(() => [0x00, 0x01, 0x02]),
     textRecord: jest.fn((text) => ({ payload: text, type: 'T' })),
+    uriRecord: jest.fn((uri) => ({ payload: uri, type: 'U' })),
     text: {
       decodePayload: jest.fn((payload) => 'decoded text'),
     },
