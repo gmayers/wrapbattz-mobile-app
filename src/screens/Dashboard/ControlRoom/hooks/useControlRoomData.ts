@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   assignments as assignmentsApi,
   organizations as organizationsApi,
@@ -33,8 +34,13 @@ export function useControlRoomData(): ControlRoomData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setIsLoading(true);
     setError(undefined);
     const results = await Promise.allSettled([
       organizationsApi.getMyOrganization(),
@@ -67,11 +73,24 @@ export function useControlRoomData(): ControlRoomData {
       sites: sitesPage?.items ?? [],
     });
     setIsLoading(false);
+    hasLoadedRef.current = true;
+    inFlightRef.current = false;
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Dashboard tabs stay mounted for the app's lifetime, so without this the
+  // numbers freeze at first load until a manual pull-to-refresh. Refresh
+  // silently whenever the tab regains focus (e.g. after creating a report or
+  // assigning a tool elsewhere in the app).
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current || inFlightRef.current) return;
+      load({ silent: true });
+    }, [load])
+  );
 
   const data = useMemo<Omit<ControlRoomData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
@@ -102,7 +121,10 @@ export function useControlRoomData(): ControlRoomData {
     const adminCount = stats?.members.admins ?? 0;
     const workerCount = stats?.members.workers ?? 0;
 
-    const attentionTotal = criticalReports + maintenance;
+    // Every open incident needs attention — `open` is the superset of the
+    // critical/maintenance buckets (a medium-severity damage report counts in
+    // neither, but must still surface here).
+    const attentionTotal = stats?.incidents.open ?? criticalReports + maintenance;
 
     return {
       organizationName: orgName,

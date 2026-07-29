@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   assignments as assignmentsApi,
   incidents as incidentsApi,
@@ -53,8 +54,13 @@ export function useFleetStatusData(): FleetStatusData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setIsLoading(true);
     setError(undefined);
     try {
       // allSettled, not all: a single slow/failed endpoint must not blank the
@@ -85,12 +91,23 @@ export function useFleetStatusData(): FleetStatusData {
       setError(err instanceof Error ? err.message : 'Failed to load fleet status');
     } finally {
       setIsLoading(false);
+      hasLoadedRef.current = true;
+      inFlightRef.current = false;
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Dashboard tabs stay mounted for the app's lifetime — refresh silently on
+  // tab return so mutations made elsewhere show up without pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current || inFlightRef.current) return;
+      load({ silent: true });
+    }, [load])
+  );
 
   const data = useMemo<Omit<FleetStatusData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();

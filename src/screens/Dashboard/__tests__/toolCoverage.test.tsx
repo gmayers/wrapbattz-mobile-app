@@ -26,6 +26,9 @@ jest.mock('../../../api/endpoints', () => ({
 const mockAuth = { user: { id: 1 }, userData: { role: 'owner' }, isAdminOrOwner: true };
 jest.mock('../../../context/AuthContext', () => ({ useAuth: () => mockAuth }));
 
+// The hooks refresh on tab focus; there is no navigator in these tests.
+jest.mock('@react-navigation/native', () => ({ useFocusEffect: () => {} }));
+
 const STATS = {
   tools: { total: 5, with_nfc_tag: 3, available: 4 },
   assignments: { active: 1 },
