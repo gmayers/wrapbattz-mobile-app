@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.5';
+export const CHANGELOG_VERSION = '1.4.6';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.6',
+    date: '2026-07-29',
+    highlights: [
+      'Selection menus no longer hide the last options behind the Android navigation bar, and long lists scroll properly.',
+      'Location pickers now show every location, however many you have.',
+      'The phone number you enter at sign-up now carries into profile setup automatically.',
+      'The website field opens the keyboard reliably, and https:// is added for you.',
+      'New reports show up in the Reports tab straight away, and the dashboard refreshes itself when you come back to it — "Needs attention" now counts every open report.',
+      'Admins: "Re-write tag data" now makes a tapped tag open the app directly — handy for refreshing older tags.',
+    ],
+  },
   {
     version: '1.4.5',
     date: '2026-07-28',
