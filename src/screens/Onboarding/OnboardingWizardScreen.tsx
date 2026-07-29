@@ -207,11 +207,14 @@ const OnboardingWizardScreen: React.FC = () => {
         </Text>
       </View>
 
+      {/* Android already resizes the window for the keyboard (adjustResize);
+          stacking behavior="height" on top re-laid-out the form mid-touch and
+          cancelled focus on the bottom-most field (the website input never got
+          a cursor). Only iOS needs manual avoidance. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
-        enabled
+        enabled={Platform.OS === 'ios'}
       >
       <ScrollView
         contentContainerStyle={styles.body}

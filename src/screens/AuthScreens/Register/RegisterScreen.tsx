@@ -89,7 +89,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
       navigation.navigate('VerifyEmail', {
         emailVerificationId: response.email_verification_id,
-        email: formData.email
+        email: formData.email,
+        // The register endpoint has no phone field — hand the number to the
+        // verify screen so it can be saved once the account exists.
+        phoneNumber: formData.phone_number
 });
     } catch (error: any) {
       const detail = error?.detail;

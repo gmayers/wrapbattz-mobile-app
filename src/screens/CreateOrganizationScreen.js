@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/Form/FormField';
 import { organizations as organizationsApi } from '../api/endpoints';
 import { ApiError } from '../api/errors';
+import { normalizeWebsiteUrl } from '../utils/CommonUtils';
 
 const CreateOrganizationScreen = ({ navigation, route }) => {
   const { updateOnboarding, refreshUser, isLoading, logout } = useAuth();
@@ -117,12 +118,6 @@ const CreateOrganizationScreen = ({ navigation, route }) => {
       isValid = false;
     }
     
-    // Website validation if provided - More flexible
-    if (website && website.trim() && !(/^https?:\/\/.+/.test(website))) {
-      formErrors.website = 'Website must start with http:// or https://';
-      isValid = false;
-    }
-    
     setErrors(formErrors);
     return isValid;
   };
@@ -145,7 +140,7 @@ const CreateOrganizationScreen = ({ navigation, route }) => {
         trading_name: tradingName.trim() || '',
         email: email.trim() || null,
         phone: phone.trim() || '',
-        website: website.trim() || '',
+        website: normalizeWebsiteUrl(website),
       };
 
       if (isEditMode) {
@@ -207,10 +202,13 @@ const CreateOrganizationScreen = ({ navigation, route }) => {
   
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      {/* Android's adjustResize handles the keyboard; behavior="height" on top
+          re-laid-out the form mid-touch and cancelled focus on the bottom-most
+          field. Only iOS needs manual avoidance. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
+        enabled={Platform.OS === 'ios'}
       >
         <ScrollView
           showsVerticalScrollIndicator={false}

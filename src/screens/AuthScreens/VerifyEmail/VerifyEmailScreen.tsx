@@ -23,14 +23,15 @@ interface Props {
     params: {
       emailVerificationId: string;
       email: string;
+      phoneNumber?: string;
     };
   };
 }
 
 const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { verifyEmail } = useAuth();
+  const { verifyEmail, updateUser } = useAuth();
   const { colors } = useTheme();
-  const { emailVerificationId, email } = route.params;
+  const { emailVerificationId, email, phoneNumber } = route.params;
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +47,16 @@ const VerifyEmailScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       await verifyEmail({ email_verification_id: emailVerificationId, code: code.trim() });
       // On success, AuthProvider updates state → navigation routes into the app.
+      // Registration can't carry the phone number (no field on the register
+      // endpoint), so persist it now that the account exists. Best-effort —
+      // the profile step lets the user enter it again if this fails.
+      if (phoneNumber?.trim()) {
+        try {
+          await updateUser({ phone_number: phoneNumber.trim() });
+        } catch {
+          // Non-critical.
+        }
+      }
     } catch (e) {
       const apiError = e as ApiError;
       if (apiError.code === 'validation' || apiError.code === 'unauthorized') {

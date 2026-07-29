@@ -19,7 +19,7 @@ import {
 } from '../../api/endpoints';
 import { getCached as getCachedTokens } from '../../api/tokenStore';
 import { ApiError } from '../../api/errors';
-import { normalizePostcode } from '../../utils/CommonUtils';
+import { normalizePostcode, normalizeWebsiteUrl } from '../../utils/CommonUtils';
 import {
   LOCATION_TYPES,
   LOCATION_TYPE_OTHER,
@@ -111,6 +111,15 @@ const ProfileStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
   const [phone, setPhone] = useState(user?.phone_number ?? '');
   const [submitting, setSubmitting] = useState(false);
 
+  // The phone captured at registration is PATCHed right after email
+  // verification and can land after this step mounts — fill the field when it
+  // arrives, but never clobber something the user has typed.
+  useEffect(() => {
+    if (user?.phone_number) {
+      setPhone((prev) => prev || user.phone_number);
+    }
+  }, [user?.phone_number]);
+
   const onPrimary = async () => {
     if (!firstName.trim() || !lastName.trim()) {
       Alert.alert('Missing details', 'Please enter your first and last name.');
@@ -186,16 +195,12 @@ const CompanyStep: React.FC<StepProps> = ({ advance, busyAdvancing }) => {
       Alert.alert('Missing details', 'Please enter your organization name.');
       return;
     }
-    if (website.trim() && !/^https?:\/\/.+/.test(website.trim())) {
-      Alert.alert('Invalid website', 'Website must start with http:// or https://');
-      return;
-    }
     const payload = {
       name: name.trim(),
       trading_name: tradingName.trim() || '',
       email: email.trim() || null,
       phone: phone.trim() || '',
-      website: website.trim() || '',
+      website: normalizeWebsiteUrl(website),
     };
     setSubmitting(true);
     try {
