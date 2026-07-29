@@ -207,8 +207,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error('Error fetching sites:', error);
       try {
-        const fallback = await sitesApi.listSites();
-        setLocations(fallback.items.map(toLegacyLocation));
+        const fallback = await sitesApi.listAllSites();
+        setLocations(fallback.map(toLegacyLocation));
       } catch (fallbackError) {
         console.error('Fallback sites fetch also failed:', fallbackError);
       }

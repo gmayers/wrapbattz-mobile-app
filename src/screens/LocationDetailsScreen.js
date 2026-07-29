@@ -105,8 +105,8 @@ const LocationDetailsScreen = ({ navigation, route }) => {
   const fetchOtherLocations = useCallback(async () => {
     if (!isAdminOrOwner) return;
     try {
-      const page = await sitesApi.listSites();
-      const filtered = page.items
+      const items = await sitesApi.listAllSites();
+      const filtered = items
         .filter((s) => s.id !== siteId)
         .map(toLegacyLocation);
       setOtherLocations(filtered);
