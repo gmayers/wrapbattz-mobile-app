@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.6';
+export const CHANGELOG_VERSION = '1.4.7';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.7',
+    date: '2026-08-03',
+    highlights: [
+      'Admins: add or remove demo tools any time from Settings → Organization — no need to go through setup.',
+      'Assignment history is easier to read, especially in dark mode.',
+    ],
+  },
   {
     version: '1.4.6',
     date: '2026-07-29',
