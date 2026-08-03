@@ -8,6 +8,7 @@ import SettingsRow from './components/SettingsRow';
 import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
 import { useWhatsNewPrompt } from '../../components/WhatsNewModal';
+import { organizations } from '../../api/endpoints';
 
 const SettingsScreen: React.FC = () => {
   const { userData, logout, deleteAccount } = useAuth();
@@ -23,6 +24,44 @@ const SettingsScreen: React.FC = () => {
     }
     if (row.kind === 'action' && row.onPressType === 'whatsNew') {
       openWhatsNew();
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'addDemoData') {
+      Alert.alert(
+        'Add Demo Tools',
+        'This adds a Demo Warehouse site and a set of sample tools so you can try out assignments, transfers, and reports. You can remove them again from here at any time.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add Demo Tools', onPress: async () => {
+            try {
+              await organizations.createDemoData();
+              Alert.alert('Demo Tools Added', 'The Demo Warehouse site and sample tools are now in your organization.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to add demo tools. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'removeDemoData') {
+      Alert.alert(
+        'Remove Demo Tools',
+        'This removes the Demo Warehouse site and all demo tools. Your own tools and sites are not affected.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: async () => {
+            try {
+              await organizations.deleteDemoData();
+              Alert.alert('Demo Tools Removed', 'All demo data has been removed from your organization.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to remove demo tools. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
       return;
     }
     if (row.kind === 'action' && row.onPressType === 'logout') {

@@ -10,7 +10,7 @@ export interface SettingsRow {
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
   params?: Record<string, unknown>;
-  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew';
+  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew' | 'addDemoData' | 'removeDemoData';
   destructive?: boolean;
 }
 
@@ -50,6 +50,10 @@ const ALL_SECTIONS: SettingsSection[] = [
     rows: [
       { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization', params: { mode: 'edit' } },
       { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
+      // Same sample data as the web portal's demo-tools buttons; backend
+      // create is idempotent so re-adding after a remove is safe.
+      { key: 'addDemoTools',    label: 'Add Demo Tools',    icon: 'construct-outline', kind: 'action', onPressType: 'addDemoData' },
+      { key: 'removeDemoTools', label: 'Remove Demo Tools', icon: 'trash-bin-outline', kind: 'action', onPressType: 'removeDemoData', destructive: true },
       // 'InviteCode' screen not built yet.
     ],
   },
