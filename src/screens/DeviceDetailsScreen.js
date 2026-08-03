@@ -539,7 +539,14 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               const isActive = !assignment.returned_date;
               
               return (
-                <View key={assignment.id} style={[styles.historyItem, isActive && styles.activeHistoryItem]}>
+                <View
+                  key={assignment.id}
+                  style={[
+                    styles.historyItem,
+                    { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                    isActive && [styles.activeHistoryItem, { backgroundColor: colors.primaryLight, borderColor: colors.primary }],
+                  ]}
+                >
                   {/* Assignment Status Badge */}
                   <View style={styles.historyHeader}>
                     <View style={styles.historyDateContainer}>
@@ -605,7 +612,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     
                     {/* Previous Assignment Link */}
                     {assignment.previous_assignment_details && (
-                      <View style={styles.previousAssignmentInfo}>
+                      <View style={[styles.previousAssignmentInfo, { borderTopColor: colors.border }]}>
                         <Text style={[styles.previousAssignmentLabel, { color: colors.textSecondary }]}>Previous Assignment:</Text>
                         <Text style={[styles.previousAssignmentText, { color: colors.textSecondary }]}>
                           {assignment.previous_assignment_details.user_name 
@@ -617,7 +624,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                     )}
                   </View>
                   
-                  {index < deviceHistory.length - 1 && <View style={styles.historySeparator} />}
+                  {index < deviceHistory.length - 1 && <View style={[styles.historySeparator, { backgroundColor: colors.border }]} />}
                 </View>
               );
             })
@@ -938,14 +945,10 @@ const styles = StyleSheet.create({
   historyItem: {
     marginBottom: 15,
     padding: 16,
-    backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef'
+    borderWidth: 1
 },
   activeHistoryItem: {
-    backgroundColor: '#fff3cd',
-    borderColor: ORANGE_COLOR,
     borderWidth: 2
 },
   historyHeader: {
