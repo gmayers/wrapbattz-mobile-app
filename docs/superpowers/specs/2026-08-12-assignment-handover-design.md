@@ -32,24 +32,32 @@ in one step and the history table keeps a complete, gapless record.
 ### New helper
 
 ```python
-def _close_active_assignment(device, actor, condition=""):
-    """Close the device's open assignment, if any. Returns the closed row.
+def _close_open_assignments(rows, keep_pk=None):
+    """Close every open row the transaction holds a lock on.
 
-    Caller must already hold the transaction and have locked the rows.
+    Caller must already hold the transaction, the Device lock and the
+    assignment-row locks; ``rows`` comes from the locked pk list.
     """
 ```
 
-It sets `returned_date = timezone.now().date()` and `return_condition` when a
-condition is supplied, matching what `return_assignment` writes today.
+It sets `returned_date = timezone.now().date()` on each row. It closes *all*
+the open rows rather than the first one because two non-API writers — the web
+portal's bulk "assign devices to site" (`sites/views/site_views.py`) and
+`devices/services.py` — open assignments without closing the incumbent, so a
+device can already carry 2+ open rows in production. Closing one and creating
+another would carry that surplus forward forever and break the one-open-row
+invariant `annotate_assignment_fields` / `is_available` derive from.
 
 ### `POST /assignments/` (create_assignment)
 
 Currently `@require_role(OWNER, ADMIN, OFFICE_WORKER)`. Keep that. Inside
 `transaction.atomic()`:
 
-1. `select_for_update()` the device's open assignments.
-2. Call `_close_active_assignment`.
-3. Create the new assignment as it does today.
+1. `select_for_update()` the **Device** row — the serialisation point that
+   always exists (see the concurrency row in Error handling).
+2. `select_for_update()` the device's open assignments, keeping their pks.
+3. Close every locked open row, not just the newest one.
+4. Create the new assignment as it does today.
 
 This covers drop-off at a location, moving a tool between locations, and an
 officer assigning a held tool to a named user.
@@ -61,10 +69,12 @@ Wrap in `transaction.atomic()` with the same lock, then branch on who holds it:
 - **Held by a site, or unheld** — close and take it. This is the normal field
   pickup and the main thing that is broken today.
 - **Held by another user** — keep the 409, but with a clearer code and message:
-  `tool_held_by_user`, "This tool is currently with {name}. Ask them to transfer
-  it to you, or request it." Taking a tool silently out of a named person's
-  custody removes the accountability the assignment record exists to provide.
-  The transfer-confirmation feature is the supported path for that move.
+  `tool_held_by_user`, "This tool is currently with {name}. Ask an admin to
+  reassign it to you." Taking a tool silently out of a named person's custody
+  removes the accountability the assignment record exists to provide. The
+  message points at an admin because that is the only path that exists today:
+  there is no transfer-confirmation feature yet, and no `/tools/{id}/request/`
+  endpoint in the backend (the mobile app calls one, and gets a 404).
 - **Held by the caller already** — return the existing assignment unchanged
   (idempotent re-scan) rather than 409ing.
 
@@ -86,7 +96,7 @@ POST /assignments/ {tool_id, assignee_site_id}
 | Neither or both of user/site given | 422 `invalid_assignee` (unchanged) |
 | Self-assign of a tool held by another user | 409 `tool_held_by_user` |
 | Self-assign of a tool the caller already holds | 200, existing assignment |
-| Concurrent handover on the same tool | Serialised by `select_for_update`; the loser closes the row the winner opened, which is correct last-writer-wins custody |
+| Concurrent handover on the same tool | Serialised by `select_for_update()` on the **Device** row, which always exists. Locking only the open assignment rows is not enough: on an unheld tool that query matches nothing, so both callers proceed and both create — two open rows, with no DB-level backstop (`DeviceAssignment` has no partial unique index). Locking the Device first also removes the read-committed TOCTOU where a caller that blocks on the assignment lock then reads, closes and replaces the winner's brand-new row without holding a lock on it. With the Device lock the loser waits for the winner to commit, then closes the row the winner opened — correct last-writer-wins custody. Both callers still hold `select_for_update()` on the assignment rows, which is what keeps a concurrent `POST /assignments/{id}/return/` out of the middle of a handover. |
 
 ## Testing
 
