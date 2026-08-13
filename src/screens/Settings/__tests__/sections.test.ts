@@ -71,6 +71,10 @@ describe('Reset Onboarding row', () => {
   it('sits above Delete Account so the destructive row stays last', () => {
     const account = getSectionsForRole('site_worker').find(s => s.key === 'account')!;
     const keys = account.rows.map(r => r.key);
+    // indexOf returns -1 for a missing key, and -1 < anything would pass
+    // trivially even if a row were deleted — assert presence first.
+    expect(keys).toContain('resetOnboarding');
+    expect(keys).toContain('deleteAccount');
     expect(keys.indexOf('resetOnboarding')).toBeLessThan(keys.indexOf('deleteAccount'));
   });
 });
