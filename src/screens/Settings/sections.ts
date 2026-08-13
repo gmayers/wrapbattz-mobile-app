@@ -10,7 +10,7 @@ export interface SettingsRow {
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
   params?: Record<string, unknown>;
-  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew' | 'addDemoData' | 'removeDemoData';
+  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew' | 'addDemoData' | 'removeDemoData' | 'resetOnboarding';
   destructive?: boolean;
 }
 
@@ -30,6 +30,9 @@ const ALL_SECTIONS: SettingsSection[] = [
       { key: 'profile',        label: 'Profile',              icon: 'person-circle-outline', kind: 'nav', destination: 'EditProfile' },
       { key: 'changePassword', label: 'Change Password',      icon: 'key-outline',           kind: 'nav', destination: 'ChangePassword' },
       // 'SecurityPreferences' (biometric/PIN) screen not built yet.
+      // Replays the setup wizard for this user only — no organisation data,
+      // tools or members are touched. Backed by PATCH /account/onboarding/.
+      { key: 'resetOnboarding', label: 'Reset Onboarding', icon: 'refresh-outline', kind: 'action', onPressType: 'resetOnboarding' },
       // App Store guideline 5.1.1(v): account creation requires in-app deletion.
       { key: 'deleteAccount',  label: 'Delete Account',       icon: 'trash-outline',         kind: 'action', onPressType: 'deleteAccount', destructive: true },
     ],

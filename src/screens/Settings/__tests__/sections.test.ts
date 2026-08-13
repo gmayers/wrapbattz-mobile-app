@@ -44,3 +44,33 @@ describe('getSectionsForRole', () => {
     expect(logout.rows[0].destructive).toBe(true);
   });
 });
+
+describe('Reset Onboarding row', () => {
+  const findReset = (role: string) =>
+    getSectionsForRole(role as any)
+      .flatMap(s => s.rows)
+      .find(r => r.key === 'resetOnboarding');
+
+  it.each(['site_worker', 'office_worker', 'admin', 'owner'])(
+    'is available to %s',
+    (role) => {
+      expect(findReset(role)).toBeDefined();
+    },
+  );
+
+  it('lives in the Account section and is not styled destructive', () => {
+    const account = getSectionsForRole('site_worker').find(s => s.key === 'account')!;
+    const row = account.rows.find(r => r.key === 'resetOnboarding')!;
+    expect(row).toBeDefined();
+    expect(row.kind).toBe('action');
+    expect(row.onPressType).toBe('resetOnboarding');
+    // A replay is not a deletion — destructive styling would misrepresent it.
+    expect(row.destructive).toBeFalsy();
+  });
+
+  it('sits above Delete Account so the destructive row stays last', () => {
+    const account = getSectionsForRole('site_worker').find(s => s.key === 'account')!;
+    const keys = account.rows.map(r => r.key);
+    expect(keys.indexOf('resetOnboarding')).toBeLessThan(keys.indexOf('deleteAccount'));
+  });
+});
