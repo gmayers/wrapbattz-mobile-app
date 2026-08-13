@@ -8,10 +8,10 @@ import SettingsRow from './components/SettingsRow';
 import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
 import { useWhatsNewPrompt } from '../../components/WhatsNewModal';
-import { organizations } from '../../api/endpoints';
+import { account, organizations } from '../../api/endpoints';
 
 const SettingsScreen: React.FC = () => {
-  const { userData, logout, deleteAccount } = useAuth();
+  const { userData, logout, deleteAccount, updateOnboarding } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { openManually: openWhatsNew } = useWhatsNewPrompt();
@@ -71,6 +71,33 @@ const SettingsScreen: React.FC = () => {
           try { await logout(); } catch { Alert.alert('Error', 'Failed to logout.'); }
         } },
       ], { cancelable: true });
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'resetOnboarding') {
+      Alert.alert(
+        'Reset Onboarding',
+        'This replays the setup wizard for your account. Your organization, tools, sites and team members are not changed.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Reset', onPress: async () => {
+            try {
+              // The wizard is role-branched server-side, so the first step is
+              // not a constant — ask for this user's flow rather than guessing.
+              const state = await account.getOnboarding();
+              const firstStep = state?.steps?.[0]?.key;
+              await updateOnboarding({
+                has_completed_onboarding: false,
+                has_seen_onboarding_outro: false,
+                ...(firstStep ? { onboarding_step: firstStep } : {}),
+              });
+              navigation.navigate('OnboardingWizard');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to reset onboarding. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
       return;
     }
     if (row.kind === 'action' && row.onPressType === 'deleteAccount') {
