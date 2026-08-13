@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.7';
+export const CHANGELOG_VERSION = '1.4.8';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.8',
+    date: '2026-08-13',
+    highlights: [
+      'Sign-up now tells you what went wrong. Previously the Register button could appear to do nothing when the account already existed or the password was too short.',
+      'Password rules are shown on the sign-up form instead of only appearing as an error.',
+      'Edit Profile and Change Password now show the reason when a save fails.',
+    ],
+  },
   {
     version: '1.4.7',
     date: '2026-08-03',
