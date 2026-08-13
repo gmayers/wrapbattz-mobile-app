@@ -54,15 +54,18 @@ describe('Reset Onboarding', () => {
     fireEvent.press(screen.getByText('Reset Onboarding'));
     await pressConfirm();
 
+    // There is no explicit navigate() call to assert: has_completed_onboarding:
+    // false is what flips the onboarding gate in navigation/index.tsx, which
+    // re-renders the app into the wizard on its own. This assertion pins that
+    // real mechanism directly.
     await waitFor(() => expect(mockUpdateOnboarding).toHaveBeenCalledWith({
       has_completed_onboarding: false,
       has_seen_onboarding_outro: false,
       onboarding_step: 'welcome',
     }));
-    expect(mockNavigate).toHaveBeenCalledWith('OnboardingWizard');
   });
 
-  it('does not navigate when the reset fails', async () => {
+  it('surfaces the error via Alert when the reset PATCH fails, without a false completion', async () => {
     mockUpdateOnboarding.mockRejectedValue(new Error('network is down'));
 
     render(<SettingsScreen />);
@@ -72,10 +75,14 @@ describe('Reset Onboarding', () => {
     await waitFor(() =>
       expect(Alert.alert).toHaveBeenCalledWith('Error', 'network is down'),
     );
-    expect(mockNavigate).not.toHaveBeenCalled();
+    // The real updateOnboarding only flips has_completed_onboarding (the
+    // gate that re-renders into the wizard) once its PATCH resolves. Since
+    // it rejected here, that never happens, and the handler must not retry
+    // or otherwise paper over the failure.
+    expect(mockUpdateOnboarding).toHaveBeenCalledTimes(1);
   });
 
-  it('still resets when the flow lookup fails, without navigating blind', async () => {
+  it('aborts the reset without calling updateOnboarding when the flow lookup fails', async () => {
     mockGetOnboarding.mockRejectedValue(new Error('offline'));
 
     render(<SettingsScreen />);

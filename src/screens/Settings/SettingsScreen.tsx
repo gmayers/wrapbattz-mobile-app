@@ -90,7 +90,13 @@ const SettingsScreen: React.FC = () => {
                 has_seen_onboarding_outro: false,
                 ...(firstStep ? { onboarding_step: firstStep } : {}),
               });
-              navigation.navigate('OnboardingWizard');
+              // No explicit navigation here: OnboardingWizard is not reachable
+              // from this screen (it lives in the mutually-exclusive
+              // OnboardingStack branch, see navigation/index.tsx:357-369).
+              // updateOnboarding() above sets has_completed_onboarding: false
+              // on the cached user, which flips the onboardingComplete gate
+              // and re-renders into the wizard stack on its own — the same
+              // mechanism navigation/index.tsx:351-356 describes in reverse.
             } catch (e: any) {
               Alert.alert('Error', e?.message || 'Failed to reset onboarding. Please try again.');
             }
