@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.8';
+export const CHANGELOG_VERSION = '1.4.9';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,14 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.9',
+    date: '2026-08-13',
+    highlights: [
+      'Settings → Account → Reset Onboarding replays the setup wizard for your own account. Your tools, sites and team members are not removed.',
+      'Once the wizard starts you will need to finish it to get back to the app, and it needs a connection to move between steps — so pick a moment when you have signal.',
+    ],
+  },
   {
     version: '1.4.8',
     date: '2026-08-13',
