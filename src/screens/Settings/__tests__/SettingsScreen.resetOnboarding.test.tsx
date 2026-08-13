@@ -105,4 +105,46 @@ describe('Reset Onboarding', () => {
     expect(organizations.createDemoData).not.toHaveBeenCalled();
     expect(organizations.deleteDemoData).not.toHaveBeenCalled();
   });
+
+  it('aborts without calling updateOnboarding when the onboarding flow has no first step', async () => {
+    // steps: [] means state?.steps?.[0]?.key is undefined. Sending the PATCH
+    // without onboarding_step leaves the server's user.onboarding_step at
+    // "completed", which makes the very next response report completed: true
+    // and silently undoes the reset client-side. The handler must refuse to
+    // send a partial PATCH and tell the user instead.
+    mockGetOnboarding.mockResolvedValue({ steps: [] });
+
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText('Reset Onboarding'));
+    await pressConfirm();
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Error', expect.any(String)));
+    expect(mockUpdateOnboarding).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an error when the PATCH resolves but the server reports the reset did not take', async () => {
+    // completed: true means the server never actually flipped
+    // has_completed_onboarding to false (e.g. onboarding_step never left
+    // "completed"). Treating "the promise resolved" as success would leave
+    // the user with no wizard and no explanation.
+    mockUpdateOnboarding.mockResolvedValue({ completed: true });
+
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText('Reset Onboarding'));
+    await pressConfirm();
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Error', expect.any(String)));
+  });
+
+  it('shows honest confirm copy: setup will be replayed and organisation details reconfirmed', () => {
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText('Reset Onboarding'));
+
+    const [title, message] = (Alert.alert as jest.Mock).mock.calls[0];
+    expect(title).toBe('Reset Onboarding');
+    expect(message).toMatch(/confirm|re-enter/i);
+    expect(message).toMatch(/organisation|organization/i);
+    expect(message).not.toMatch(/not changed/i);
+  });
 });

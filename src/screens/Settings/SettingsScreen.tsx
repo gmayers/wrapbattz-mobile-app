@@ -76,7 +76,7 @@ const SettingsScreen: React.FC = () => {
     if (row.kind === 'action' && row.onPressType === 'resetOnboarding') {
       Alert.alert(
         'Reset Onboarding',
-        'This replays the setup wizard for your account. Your organization, tools, sites and team members are not changed.',
+        "This walks you back through the setup wizard and will ask you to confirm or re-enter your organisation's details. It won't remove your tools, sites, or team members.",
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Reset', onPress: async () => {
@@ -85,11 +85,25 @@ const SettingsScreen: React.FC = () => {
               // not a constant — ask for this user's flow rather than guessing.
               const state = await account.getOnboarding();
               const firstStep = state?.steps?.[0]?.key;
-              await updateOnboarding({
+              if (!firstStep) {
+                // Sending the PATCH without onboarding_step leaves the
+                // server's user.onboarding_step at "completed", which makes
+                // the response report completed: true and silently undoes
+                // the reset. Refuse to send a partial PATCH.
+                Alert.alert('Error', 'Could not determine the setup flow. Please try again.');
+                return;
+              }
+              const result = await updateOnboarding({
                 has_completed_onboarding: false,
                 has_seen_onboarding_outro: false,
-                ...(firstStep ? { onboarding_step: firstStep } : {}),
+                onboarding_step: firstStep,
               });
+              if (result?.completed === true) {
+                // The PATCH resolved but the server reports the account is
+                // still (or again) fully onboarded — the reset did not take.
+                Alert.alert('Error', 'Failed to reset onboarding. Please try again.');
+                return;
+              }
               // No explicit navigation here: OnboardingWizard is not reachable
               // from this screen (it lives in the mutually-exclusive
               // OnboardingStack branch, see navigation/index.tsx:357-369).
