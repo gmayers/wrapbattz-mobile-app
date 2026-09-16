@@ -93,7 +93,6 @@ const FleetStatusScreen: React.FC = () => {
           subtitle={subtitle}
           initials={data.userInitials}
           hasUnreadAlerts={data.hasUnreadAlerts}
-          onAlertsPress={() => navigation.navigate('NotificationPreferences')}
           onAvatarPress={() => navigation.navigate('settings')}
         />
 

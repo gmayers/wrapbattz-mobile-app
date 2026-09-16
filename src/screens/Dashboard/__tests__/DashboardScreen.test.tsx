@@ -46,7 +46,6 @@ describe('DashboardScreen', () => {
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Add')).toBeTruthy();
     expect(screen.getByLabelText('Audit')).toBeTruthy();
-    expect(screen.getByLabelText('Alerts')).toBeTruthy();
     expect(screen.getByLabelText('Report')).toBeTruthy();
   });
 });

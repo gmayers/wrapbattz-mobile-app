@@ -24,13 +24,18 @@ const ADMIN_EXTRAS: QuickAction[] = [
   { key: 'addTool',    label: 'Add Tool',    icon: 'add-circle-outline',   destination: 'AddDevice' },
   { key: 'sites',      label: 'Sites',       icon: 'business-outline',     destination: 'MainTabs', params: { screen: 'sites' } },
   { key: 'inviteUser', label: 'Invite User', icon: 'person-add-outline',   destination: 'Members' },
-  { key: 'billing',    label: 'Billing',     icon: 'card-outline',         destination: 'ManageBilling' },
-  // Notification preferences (incl. billing recipients) are admin/owner-only —
-  // showing this to site workers produced an "access denied" popup.
-  { key: 'notifications', label: 'Notifications', icon: 'notifications-outline', destination: 'NotificationPreferences' },
+];
+
+// Billing is owner-only: it manages the org's Stripe subscription, which
+// admins cannot see or act on (see Settings sections.ts).
+const OWNER_EXTRAS: QuickAction[] = [
+  { key: 'billing', label: 'Billing', icon: 'card-outline', destination: 'Subscription' },
 ];
 
 export function quickActionsForRole(role: Role | undefined): QuickAction[] {
   const isAdminOrOwner = role === 'admin' || role === 'owner';
-  return isAdminOrOwner ? [...WORKER_ACTIONS, ...ADMIN_EXTRAS] : WORKER_ACTIONS;
+  if (!isAdminOrOwner) return WORKER_ACTIONS;
+  return role === 'owner'
+    ? [...WORKER_ACTIONS, ...ADMIN_EXTRAS, ...OWNER_EXTRAS]
+    : [...WORKER_ACTIONS, ...ADMIN_EXTRAS];
 }
