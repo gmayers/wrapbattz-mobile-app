@@ -39,16 +39,18 @@ const DashboardHeader: React.FC<Props> = ({
         </Text>
       </View>
       <View style={styles.right}>
-        <TouchableOpacity
-          style={styles.bellWrap}
-          onPress={onAlertsPress}
-          accessibilityRole="button"
-          accessibilityLabel="View alerts"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="notifications-outline" size={22} color={palette.textSecondary} />
-          {hasUnreadAlerts ? <View style={styles.bellDot} /> : null}
-        </TouchableOpacity>
+        {onAlertsPress ? (
+          <TouchableOpacity
+            style={styles.bellWrap}
+            onPress={onAlertsPress}
+            accessibilityRole="button"
+            accessibilityLabel="View alerts"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="notifications-outline" size={22} color={palette.textSecondary} />
+            {hasUnreadAlerts ? <View style={styles.bellDot} /> : null}
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           style={styles.avatar}
           onPress={onAvatarPress}
