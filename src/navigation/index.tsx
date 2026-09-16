@@ -30,17 +30,7 @@ import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScree
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
-// Billing screens are registered on ANDROID ONLY (see the Platform-gated group
-// in MainStack). TOOLTRAQ is a free B2B access client and the iOS build sells no
-// subscriptions in-app (App Store Guideline 3.1.3(c) enterprise) — so on iOS
-// these stay off the nav graph entirely, unreachable via navigation AND deep
-// links. Android keeps them for in-app billing / IAP. The matching Settings
-// "Billing" section is likewise gated to Android in screens/Settings/sections.ts.
-import ManageBillingScreen from '../screens/PaymentScreens/ManageBillingScreen';
-import PaymentHistoryScreen from '../screens/PaymentScreens/PaymentHistoryScreen';
-import DataHandlingFeeScreen from '../screens/PaymentScreens/DataHandlingFeeScreen';
-import BillingAnalyticsScreen from '../screens/PaymentScreens/BillingAnalyticsScreen';
-import SubscribeScreen from '../screens/Subscribe/SubscribeScreen';
+import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
 
 const Stack = createStackNavigator();
 
@@ -281,61 +271,19 @@ const MainStack = () => {
       }}
     />
 
-    {/* Billing — ANDROID ONLY. Not registered on iOS (App Store 3.1.3(c)); the
-        Settings "Billing" section is gated to Android to match. */}
-    {Platform.OS === 'android' && (
-      <Stack.Group>
-        <Stack.Screen
-          name="ManageBilling"
-          component={ManageBillingScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Manage Billing',
-            headerStyle: getHeaderStyle(),
-            headerTitleStyle,
-            headerTintColor: colors.primary,
-          }}
-        />
-        <Stack.Screen
-          name="PaymentHistory"
-          component={PaymentHistoryScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Payment History',
-            headerStyle: getHeaderStyle(),
-            headerTitleStyle,
-            headerTintColor: colors.primary,
-          }}
-        />
-        <Stack.Screen
-          name="DataHandlingFee"
-          component={DataHandlingFeeScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Device Management Fee',
-            headerStyle: getHeaderStyle(),
-            headerTitleStyle,
-            headerTintColor: colors.primary,
-          }}
-        />
-        <Stack.Screen
-          name="BillingAnalytics"
-          component={BillingAnalyticsScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Billing Analytics',
-            headerStyle: getHeaderStyle(),
-            headerTitleStyle,
-            headerTintColor: colors.primary,
-          }}
-        />
-        <Stack.Screen
-          name="Subscribe"
-          component={SubscribeScreen}
-          options={{ headerShown: false }}
-        />
-      </Stack.Group>
-    )}
+    {/* Billing — owner-only screen for a subscription bought on the web.
+        No purchase path in-app (App Store 3.1.1 / 3.1.3(c)). */}
+    <Stack.Screen
+      name="Subscription"
+      component={SubscriptionScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Subscription',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
   </Stack.Navigator>
   );
 };
