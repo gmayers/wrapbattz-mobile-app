@@ -18,7 +18,6 @@ import type {
 import { useAuth } from '../../../../context/AuthContext';
 import type { ControlRoomData, SiteSummary } from '../types';
 
-const TOOLS_PAGE_SIZE = 200;
 const MEMBERS_PAGE_SIZE = 200;
 const ASSIGNMENTS_PAGE_SIZE = 500;
 
@@ -69,7 +68,9 @@ export function useControlRoomData(): ControlRoomData {
     setError(undefined);
     const results = await Promise.allSettled([
       organizationsApi.getMyOrganization(),
-      toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
+      // Server clamps page_size to 100 — walk every page so the NFC-tag
+      // count covers the whole fleet, keeping the {items,total} page shape.
+      toolsApi.listAllTools().then((items) => ({ items, total: items.length })),
       assignmentsApi.listAssignments({ status: 'active' }),
       incidentsApi.listIncidents(),
       sitesApi.listSites(),
@@ -218,6 +219,6 @@ function computeInitials(first?: string | null, last?: string | null, email?: st
 // cannot compute "scanning today" or "idle" counts.
 // BACKEND_GAP: no compliance endpoint — PAT tests / service / hire data unavailable.
 // BACKEND_GAP: no notifications endpoint feeding the bell badge.
-// BACKEND_GAP: tools `total` is paginated; if org has > TOOLS_PAGE_SIZE tools
+// BACKEND_GAP: tools coverage walks pages (capped at 1000 tools); if org has more
 // the tag count under-reports. Need a `/tools/stats` endpoint or
 // `nfc_tag_id__isnull=False` filter for an authoritative count.

@@ -15,7 +15,6 @@ import { useAuth } from '../../../../context/AuthContext';
 import type { FleetException, FleetStatusData } from '../types';
 import { computeInventory } from './donutTotals';
 
-const TOOLS_PAGE_SIZE = 200;
 
 const CLOSED_STATUSES = new Set([
   'resolved',
@@ -66,7 +65,9 @@ export function useFleetStatusData(): FleetStatusData {
       // error if every data call failed.
       const [orgR, toolsR, activeR, incidentsR] = await Promise.allSettled([
         organizationsApi.getMyOrganization(),
-        toolsApi.listTools({ page_size: TOOLS_PAGE_SIZE }),
+        // Server clamps page_size to 100 — walk every page so the NFC-tag
+        // count covers the whole fleet, keeping the {items,total} page shape.
+        toolsApi.listAllTools().then((items) => ({ items, total: items.length })),
         assignmentsApi.listAssignments({ status: 'active' }),
         incidentsApi.listIncidents(),
       ]);

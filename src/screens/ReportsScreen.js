@@ -1,5 +1,6 @@
 // ReportsScreen.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -21,6 +22,10 @@ import { useTheme } from '../context/ThemeContext';
 import { incidents as incidentsApi } from '../api/endpoints';
 import { toLegacyReport } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { useRefetchOnFocus } from '../query/useRefetchOnFocus';
+
+// Shared cache key for the user's incident list (legacy Report shape).
+export const MY_INCIDENTS_QUERY_KEY = ['incidents', 'mine', 'legacy-list'];
 
 const { width } = Dimensions.get('window');
 
@@ -46,12 +51,9 @@ const STATUS_CHOICES = [
 ];
 
 const ReportsScreen = ({ navigation }) => {
-  const { userData, user, refreshUser } = useAuth();
+  const { userData, user } = useAuth();
   const { colors } = useTheme();
 
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Get role directly from userData
   const userRole = userData?.role;
@@ -65,61 +67,46 @@ const ReportsScreen = ({ navigation }) => {
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
-    if (refreshUser) refreshUser();
-  }, [navigation, refreshUser]);
+  }, [navigation]);
 
-  const fetchReports = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  // Cached + persisted incident list. Cached reports stay on screen during
+  // focus refetches (isLoading only on an empty cache); concurrent refetches
+  // are deduped by the query cache.
+  const reportsQuery = useQuery({
+    queryKey: MY_INCIDENTS_QUERY_KEY,
+    queryFn: async () => {
       const page = await incidentsApi.listMyIncidents();
       const allReports = page.items.map(toLegacyReport);
-
       // Sort by most recent first
       allReports.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return allReports;
+    },
+  });
+  const isLoading = reportsQuery.isLoading;
 
-      // Filter to only show pending and in-progress reports first
-      const filteredReports = allReports.filter(report =>
-        report.status === 'PENDING' || report.status === 'IN_PROGRESS'
-      );
+  useRefetchOnFocus(navigation, reportsQuery);
 
-      // If there are less than 5 pending/in-progress reports, add other reports until we have 5
-      let displayReports = filteredReports;
+  const rawError = reportsQuery.error;
+  const error =
+    rawError && !(rawError instanceof ApiError && rawError.code === 'unauthorized')
+      ? (rawError instanceof ApiError && rawError.message) ||
+        'Failed to fetch your reports. Please try again later.'
+      : null;
 
-      if (filteredReports.length < 5) {
-        const otherReports = allReports.filter(report =>
-          report.status !== 'PENDING' && report.status !== 'IN_PROGRESS'
-        );
+  const fetchReports = useCallback(() => reportsQuery.refetch(), [reportsQuery.refetch]);
 
-        const additionalReports = otherReports.slice(0, 5 - filteredReports.length);
-        displayReports = [...filteredReports, ...additionalReports];
-      } else {
-        // If we have more than 5 pending/in-progress reports, only display 5
-        displayReports = filteredReports.slice(0, 5);
-      }
-
-      setReports(displayReports);
-    } catch (error) {
-      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
-        const errorMsg =
-          (error instanceof ApiError && error.message) ||
-          'Failed to fetch your reports. Please try again later.';
-        setError(errorMsg);
-        Alert.alert('Error', errorMsg);
-      }
-      setReports([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchReports();
-    });
-    return unsubscribe;
-  }, [navigation, fetchReports]);
+  // Show pending/in-progress first, topped up with other reports to 5 rows.
+  const reports = useMemo(() => {
+    const allReports = reportsQuery.data ?? [];
+    const filteredReports = allReports.filter(
+      (report) => report.status === 'PENDING' || report.status === 'IN_PROGRESS'
+    );
+    if (filteredReports.length >= 5) return filteredReports.slice(0, 5);
+    const otherReports = allReports.filter(
+      (report) => report.status !== 'PENDING' && report.status !== 'IN_PROGRESS'
+    );
+    return [...filteredReports, ...otherReports.slice(0, 5 - filteredReports.length)];
+  }, [reportsQuery.data]);
 
 
 

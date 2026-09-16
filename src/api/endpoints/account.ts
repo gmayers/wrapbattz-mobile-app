@@ -14,17 +14,21 @@ import type {
 
 export interface GetMeOptions {
   timeout?: number;
+  noTransientRetry?: boolean;
 }
 
 export async function getMe(options: GetMeOptions = {}): Promise<UserMe> {
   const { data } = await apiClient.get<UserMe>('/account/', {
     timeout: options.timeout,
+    noTransientRetry: options.noTransientRetry,
   });
   return data;
 }
 
 export function getMeBootstrap(): Promise<UserMe> {
-  return getMe({ timeout: BOOTSTRAP_TIMEOUT_MS });
+  // One fast attempt, no retries: this call gates the splash screen, and an
+  // offline device should reach the login screen in one timeout.
+  return getMe({ timeout: BOOTSTRAP_TIMEOUT_MS, noTransientRetry: true });
 }
 
 export async function updateMe(payload: UserUpdate): Promise<UserMe> {

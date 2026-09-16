@@ -11,17 +11,46 @@ jest.mock('../../client', () => ({
 describe('tools endpoints', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  describe('listAllTools', () => {
+    // The server clamps page_size to 100; full coverage means walking pages.
+    it('walks every page within the clamp', async () => {
+      (apiClient.get as jest.Mock)
+        .mockResolvedValueOnce({ data: { items: [{ id: 1 }], total_pages: 2 } })
+        .mockResolvedValueOnce({ data: { items: [{ id: 2 }], total_pages: 2 } });
+
+      const items = await tools.listAllTools();
+
+      expect(items.map((t: any) => t.id)).toEqual([1, 2]);
+      expect(apiClient.get).toHaveBeenNthCalledWith(1, '/tools/', {
+        params: { page: 1, page_size: 100 },
+      });
+      expect(apiClient.get).toHaveBeenNthCalledWith(2, '/tools/', {
+        params: { page: 2, page_size: 100 },
+      });
+    });
+
+    it('stops at the runaway cap', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: { items: [{ id: 9 }], total_pages: 99 },
+      });
+      await tools.listAllTools(3);
+      expect(apiClient.get).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('listToolCategories', () => {
     // The live API exposes no dedicated category lookup, so categories are
     // derived from the distinct category_id/category_name pairs on existing tools.
     const pageOf = (items: any[]) => ({
-      data: { items, page: 1, page_size: 200, total: items.length, total_pages: 1 },
+      data: { items, page: 1, page_size: 100, total: items.length, total_pages: 1 },
     });
 
-    it('reads from GET /tools/ (no dedicated categories route exists)', async () => {
+    it('reads every page of GET /tools/ (no dedicated categories route exists)', async () => {
       (apiClient.get as jest.Mock).mockResolvedValueOnce(pageOf([]));
       await tools.listToolCategories();
-      expect(apiClient.get).toHaveBeenCalledWith('/tools/', { params: { page_size: 200 } });
+      expect(apiClient.get).toHaveBeenCalledWith('/tools/', {
+        params: { page: 1, page_size: 100 },
+      });
     });
 
     it('returns distinct categories, deduped and sorted by name', async () => {

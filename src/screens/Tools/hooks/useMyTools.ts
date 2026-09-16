@@ -150,10 +150,11 @@ export function useMyTools(initialFilter: 'mine' | 'all' = 'mine'): UseMyToolsRe
             }
           }
         } else {
-          const page = await toolsApi.listTools({ page_size: 200 });
+          // Server clamps page_size to 100 — walk pages for full coverage.
+          const items = await toolsApi.listAllTools();
           if (!cancelled) {
             setHasLoadedOnce(true);
-            setGroups(groupAll(page.items));
+            setGroups(groupAll(items));
           }
         }
       } catch (err) {

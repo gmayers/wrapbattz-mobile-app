@@ -4,6 +4,8 @@ import type { PagedSites, SiteCreate, SiteRead, SiteUpdate } from '../types';
 export interface ListSitesFilter {
   site_type?: string;
   status?: string;
+  page?: number;
+  page_size?: number; // server clamps to 100
 }
 
 export async function listSites(filter: ListSitesFilter = {}): Promise<PagedSites> {

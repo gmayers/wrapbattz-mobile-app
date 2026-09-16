@@ -99,20 +99,20 @@ const QuickActionModalScreen: React.FC = () => {
     setActiveHolderKind(null);
     setActiveHolderUserId(null);
     try {
+      // The active-assignment lookup doesn't depend on the tool result — only
+      // the match does — so both requests run in parallel (scan-to-card is the
+      // app's hottest path). Failure is non-critical.
+      const activePromise = assignmentsApi.listMyActiveAssignments().catch(() => null);
       const tool = await toolsApi.getToolByNfc(tagUID);
       if (cancelled.current) return;
       // Look up the active assignment so we can return it later.
       let currentAssignmentId: number | null = null;
-      try {
-        const active = await assignmentsApi.listMyActiveAssignments();
-        if (!cancelled.current) {
-          const match = active.find((a) => a.tool_id === tool.id);
-          if (match) currentAssignmentId = match.id;
-        }
-      } catch {
-        // Non-critical.
-      }
+      const active = await activePromise;
       if (cancelled.current) return;
+      if (active) {
+        const match = active.find((a) => a.tool_id === tool.id);
+        if (match) currentAssignmentId = match.id;
+      }
       setDevice({
         id: tool.id,
         identifier: tool.name,
