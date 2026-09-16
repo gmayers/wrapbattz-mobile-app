@@ -27,7 +27,6 @@ import OnboardingWizardScreen from '../screens/Onboarding/OnboardingWizardScreen
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
-import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
@@ -235,17 +234,6 @@ const MainStack = () => {
       name="Members"
       component={MembersScreen}
       options={{ headerShown: false }}
-    />
-    <Stack.Screen
-      name="NotificationPreferences"
-      component={NotificationPreferencesScreen}
-      options={{
-        headerShown: true,
-        headerTitle: 'Notifications',
-        headerStyle: getHeaderStyle(),
-        headerTitleStyle,
-        headerTintColor: colors.primary,
-      }}
     />
     <Stack.Screen
       name="SuggestFeature"

@@ -24,9 +24,6 @@ const ADMIN_EXTRAS: QuickAction[] = [
   { key: 'addTool',    label: 'Add Tool',    icon: 'add-circle-outline',   destination: 'AddDevice' },
   { key: 'sites',      label: 'Sites',       icon: 'business-outline',     destination: 'MainTabs', params: { screen: 'sites' } },
   { key: 'inviteUser', label: 'Invite User', icon: 'person-add-outline',   destination: 'Members' },
-  // Notification preferences (incl. billing recipients) are admin/owner-only —
-  // showing this to site workers produced an "access denied" popup.
-  { key: 'notifications', label: 'Notifications', icon: 'notifications-outline', destination: 'NotificationPreferences' },
 ];
 
 // Billing is owner-only: it manages the org's Stripe subscription, which

@@ -42,12 +42,6 @@ const ControlRoomScreen: React.FC = () => {
         onPress: () => navigation.navigate('AllReports'),
       },
       {
-        key: 'alerts',
-        label: 'Alerts',
-        icon: 'notifications-outline',
-        onPress: () => navigation.navigate('NotificationPreferences'),
-      },
-      {
         key: 'report',
         label: 'Report',
         icon: 'bar-chart-outline',
@@ -94,7 +88,6 @@ const ControlRoomScreen: React.FC = () => {
           subtitle="All systems at a glance"
           initials={data.userInitials}
           hasUnreadAlerts={data.hasUnreadAlerts}
-          onAlertsPress={() => navigation.navigate('NotificationPreferences')}
           onAvatarPress={() => navigation.navigate('settings')}
         />
         <QuickActions items={quickActions} />

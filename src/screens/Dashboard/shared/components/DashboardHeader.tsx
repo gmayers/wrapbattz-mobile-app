@@ -9,7 +9,7 @@ interface Props {
   subtitle: string;
   initials: string;
   hasUnreadAlerts: boolean | null;
-  onAlertsPress: () => void;
+  onAlertsPress?: () => void;
   onAvatarPress: () => void;
 }
 

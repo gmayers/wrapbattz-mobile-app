@@ -78,8 +78,7 @@
             "uploadSourceMaps": false
           }
         }
-      ],
-      "expo-iap"
+      ]
     ],
     "scheme": "tooltraq",
     "ios": {
