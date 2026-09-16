@@ -89,6 +89,10 @@ const SubscriptionScreen: React.FC = () => {
   }
 
   const hasStripe = Boolean(state.stripe_customer_id);
+  // A Stripe customer can exist with a subscription that has since ended
+  // (GRACE / CANCELED) — the manage/cancel/resume actions only make sense
+  // while there's a live subscription to act on.
+  const isLiveSubscription = hasStripe && (state.status === 'active' || state.status === 'past_due');
   const periodEnd = state.current_period_end ? day(state.current_period_end) : null;
 
   return (
@@ -97,14 +101,14 @@ const SubscriptionScreen: React.FC = () => {
         <Text style={s.label}>Plan</Text>
         <Text style={s.title}>{state.tier ?? 'No plan'}</Text>
         <Text style={s.body}>Status: {state.status}</Text>
-        {periodEnd && (
+        {isLiveSubscription && periodEnd && (
           <Text style={s.body}>{state.cancel_at_period_end ? `Ends ${periodEnd}` : `Renews ${periodEnd}`}</Text>
         )}
         <Text style={s.body}>Seats: {state.limits.seats.used} of {state.limits.seats.limit}</Text>
         <Text style={s.body}>Tools: {state.limits.devices.used} of {state.limits.devices.limit}</Text>
       </View>
 
-      {hasStripe ? (
+      {isLiveSubscription ? (
         <View style={s.card}>
           <Pressable style={s.button} onPress={onManageCard} disabled={busy}>
             <Text style={s.buttonText}>Manage payment card</Text>
@@ -119,10 +123,15 @@ const SubscriptionScreen: React.FC = () => {
             </Pressable>
           )}
         </View>
+      ) : hasStripe ? (
+        <View style={s.card}>
+          {/* Subscription ended (grace / canceled): no actions left to take. */}
+          <Text style={s.body}>Your subscription has ended.</Text>
+        </View>
       ) : (
         <View style={s.card}>
           {/* Plain text only: no link or button to a purchase flow. */}
-          <Text style={s.body}>Subscriptions are managed at app.tooltraq.com</Text>
+          <Text style={s.body}>Your organisation doesn't have an active subscription.</Text>
         </View>
       )}
 

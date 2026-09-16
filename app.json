@@ -120,8 +120,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.NFC",
-        "android.permission.VIBRATE",
-        "com.android.vending.BILLING"
+        "android.permission.VIBRATE"
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",

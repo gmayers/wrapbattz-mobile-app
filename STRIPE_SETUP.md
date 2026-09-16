@@ -2,6 +2,21 @@
 
 This guide will help you complete the Stripe integration for the WrapBattz mobile app.
 
+## Stripe keys
+
+The app reads its publishable key from `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` — there is no key hardcoded in app code.
+
+- **Local dev**: the key comes from `.env.development.local` (gitignored, not committed). Copy your Stripe test publishable key (`pk_test_...`) in there.
+- **Dev / preview EAS builds**: the test key is baked into `eas.json` under `build.development.env` / `build.preview.env`. No extra setup needed.
+- **Production builds and OTA updates**: `eas.json`'s `production` profile does *not* set the key. Before building for production or running `eas update --channel production`, create the production env var once with:
+
+  ```
+  eas env:create --environment production --name EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY --value pk_live_...
+  ```
+
+  and build/update with `--environment production` so EAS injects it. Never put a `pk_live_...` key in `eas.json` or any committed file.
+- **Mode must match the backend**: the key's mode (test vs. live) must match the backend's `STRIPE_LIVE_MODE` setting for that environment — a live key against a test-mode backend (or vice versa) will fail at the Stripe API boundary.
+
 ## Prerequisites
 
 1. A Stripe account (sign up at https://stripe.com if you don't have one)

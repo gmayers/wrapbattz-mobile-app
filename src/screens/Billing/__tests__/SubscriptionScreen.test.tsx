@@ -79,16 +79,40 @@ describe('SubscriptionScreen', () => {
     await waitFor(() => expect(manageCard).toHaveBeenCalled());
   });
 
-  it('trial org: explains subscriptions are set up on the web, no buy button or link', async () => {
+  it('trial org: neutral no-subscription copy, no buy button or link', async () => {
     (billing.getBillingState as jest.Mock).mockResolvedValue({
-      ...active, status: 'trialing', stripe_customer_id: null,
+      ...active, status: 'trial', stripe_customer_id: null,
       actions: { ...active.actions, can_open_portal: false, needs_payment_method: true },
     });
     (billing.listInvoices as jest.Mock).mockResolvedValue([]);
     const { findByText, queryByText } = render(<SubscriptionScreen />);
-    expect(await findByText('Subscriptions are managed at app.tooltraq.com')).toBeTruthy();
+    expect(await findByText("Your organisation doesn't have an active subscription.")).toBeTruthy();
     expect(queryByText('Manage payment card')).toBeNull();
     expect(queryByText('Cancel subscription')).toBeNull();
+  });
+
+  it('grace period: subscription ended, no actions shown', async () => {
+    (billing.getBillingState as jest.Mock).mockResolvedValue({
+      ...active, status: 'grace', cancel_at_period_end: true,
+    });
+    const { findByText, queryByText } = render(<SubscriptionScreen />);
+    expect(await findByText('Your subscription has ended.')).toBeTruthy();
+    expect(queryByText('Manage payment card')).toBeNull();
+    expect(queryByText('Cancel subscription')).toBeNull();
+    expect(queryByText('Resume subscription')).toBeNull();
+    expect(queryByText(/Ends /)).toBeNull();
+    expect(queryByText(/Renews /)).toBeNull();
+  });
+
+  it('canceled: subscription ended, no actions shown', async () => {
+    (billing.getBillingState as jest.Mock).mockResolvedValue({
+      ...active, status: 'canceled',
+    });
+    const { findByText, queryByText } = render(<SubscriptionScreen />);
+    expect(await findByText('Your subscription has ended.')).toBeTruthy();
+    expect(queryByText('Manage payment card')).toBeNull();
+    expect(queryByText('Cancel subscription')).toBeNull();
+    expect(queryByText('Resume subscription')).toBeNull();
   });
 
   it('shows an error with retry when loading fails', async () => {

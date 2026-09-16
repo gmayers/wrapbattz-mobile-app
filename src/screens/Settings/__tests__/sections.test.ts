@@ -12,7 +12,7 @@ describe('getSectionsForRole', () => {
     expect(keys).toEqual(['account', 'preferences', 'support', 'logout']);
   });
 
-  it('returns all 6 sections for admin on Android (no billing)', () => {
+  it('returns 5 sections for admin on Android (no billing)', () => {
     Platform.OS = 'android';
     const keys = getSectionsForRole('admin').map(s => s.key);
     expect(keys).toEqual(['account', 'preferences', 'organization', 'support', 'logout']);
