@@ -16,6 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { normalizeFormError } from '../api/errors';
+
+// Fields this screen renders an error slot for. Anything else has to be
+// alerted, or the failure never reaches the user.
+const RENDERED_FIELDS = ['first_name', 'last_name', 'email', 'phone_number'];
 
 const EditProfileScreen = ({ navigation, route }) => {
   const { updateUser, user } = useAuth();
@@ -124,16 +129,19 @@ const EditProfileScreen = ({ navigation, route }) => {
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err) {
-      const detail = err?.detail;
-      if (detail && typeof detail === 'object') {
-        const apiErrors = {};
-        Object.keys(detail).forEach((key) => {
-          const value = detail[key];
-          apiErrors[key] = Array.isArray(value) ? String(value[0]) : String(value);
-        });
-        setErrors(apiErrors);
-      } else {
-        Alert.alert('Error', err?.message || 'Failed to update profile');
+      const { fieldErrors, message } = normalizeFormError(err, 'Failed to update profile');
+
+      const inlineErrors = {};
+      const unrenderable = [];
+      Object.entries(fieldErrors).forEach(([key, value]) => {
+        if (RENDERED_FIELDS.includes(key)) inlineErrors[key] = value;
+        else unrenderable.push(value);
+      });
+
+      setErrors(inlineErrors);
+
+      if (Object.keys(inlineErrors).length === 0) {
+        Alert.alert('Error', unrenderable.join('\n') || message);
       }
     } finally {
       setLoading(false);

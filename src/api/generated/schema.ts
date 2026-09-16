@@ -199,13 +199,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get Onboarding
-         * @description The onboarding wizard shape for this user (flow + ordered steps).
-         *
-         *     Same source of truth as the web wizard, so native renders the
-         *     identical 5-step (owner) or 3-step (invited) sequence.
-         */
+        /** Get Onboarding */
         get: operations["api_routers_account_profile_get_onboarding"];
         put?: never;
         post?: never;
@@ -345,6 +339,31 @@ export interface paths {
         head?: never;
         /** Update My Organization */
         patch: operations["api_routers_organization_organizations_update_my_organization"];
+        trace?: never;
+    };
+    "/api/v1/organizations/me/stats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Org Stats
+         * @description Dashboard counts in one call.
+         *
+         *     tools.available mirrors ToolRead.is_available (no assignment row with
+         *     returned_date IS NULL). incidents.open = status in
+         *     (pending, in_progress, escalated); missing = open lost/stolen;
+         *     maintenance_due = open maintenance; critical = open critical-severity.
+         */
+        get: operations["api_routers_organization_organizations_org_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/organizations/demo-data/": {
@@ -585,6 +604,27 @@ export interface paths {
         };
         /** Get Tool By Nfc */
         get: operations["api_routers_tools_tools_get_tool_by_nfc"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/categories/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Categories
+         * @description The org's category catalog — for pickers; replaces deriving
+         *     categories client-side from a full /tools/ page.
+         */
+        get: operations["api_routers_tools_tools_list_categories"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1506,6 +1546,55 @@ export interface components {
             /** Website */
             website?: string | null;
         };
+        /** AssignmentStats */
+        AssignmentStats: {
+            /** Active */
+            active: number;
+        };
+        /** IncidentStats */
+        IncidentStats: {
+            /** Open */
+            open: number;
+            /** Missing */
+            missing: number;
+            /** Maintenance Due */
+            maintenance_due: number;
+            /** Critical */
+            critical: number;
+        };
+        /** MemberStats */
+        MemberStats: {
+            /** Total */
+            total: number;
+            /** Admins */
+            admins: number;
+            /** Workers */
+            workers: number;
+        };
+        /** OrgStats */
+        OrgStats: {
+            tools: components["schemas"]["ToolStats"];
+            assignments: components["schemas"]["AssignmentStats"];
+            incidents: components["schemas"]["IncidentStats"];
+            members: components["schemas"]["MemberStats"];
+            sites: components["schemas"]["SiteStats"];
+        };
+        /** SiteStats */
+        SiteStats: {
+            /** Total */
+            total: number;
+            /** Active */
+            active: number;
+        };
+        /** ToolStats */
+        ToolStats: {
+            /** Total */
+            total: number;
+            /** With Nfc Tag */
+            with_nfc_tag: number;
+            /** Available */
+            available: number;
+        };
         /** DemoDataStatus */
         DemoDataStatus: {
             /** Has Demo Data */
@@ -1710,6 +1799,18 @@ export interface components {
              */
             reason: string;
         };
+        /** LastAssignment */
+        LastAssignment: {
+            /** User Id */
+            user_id?: number | null;
+            /**
+             * User Name
+             * @default
+             */
+            user_name: string;
+            /** Returned At */
+            returned_at?: string | null;
+        };
         /** PagedTools */
         PagedTools: {
             /** Items */
@@ -1782,6 +1883,7 @@ export interface components {
             purchase_cost?: number | string | null;
             /** Condition Score */
             condition_score?: number | string | null;
+            last_assignment?: components["schemas"]["LastAssignment"] | null;
         };
         /** ToolCreate */
         ToolCreate: {
@@ -1810,6 +1912,13 @@ export interface components {
             maintenance_interval_days?: number | null;
             /** Next Maintenance Date */
             next_maintenance_date?: string | null;
+        };
+        /** CategoryRead */
+        CategoryRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** ToolUpdate */
         ToolUpdate: {
@@ -2237,6 +2346,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Photos
+             * @default []
+             */
+            photos: components["schemas"]["ToolPhotoRead"][];
         };
         /** PagedIncidents */
         PagedIncidents: {
@@ -2668,7 +2782,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserMe"];
+                    "application/json": components["schemas"]["OnboardingState"];
                 };
             };
         };
@@ -2879,6 +2993,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_organizations_org_stats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgStats"];
                 };
             };
         };
@@ -3362,6 +3496,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolRead"];
+                };
+            };
+        };
+    };
+    api_routers_tools_tools_list_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"][];
                 };
             };
         };

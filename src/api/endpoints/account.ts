@@ -41,8 +41,8 @@ export async function getOnboarding(): Promise<OnboardingState> {
   return data;
 }
 
-export async function updateOnboarding(payload: OnboardingUpdate): Promise<UserMe> {
-  const { data } = await apiClient.patch<UserMe>('/account/onboarding/', payload);
+export async function updateOnboarding(payload: OnboardingUpdate): Promise<OnboardingState> {
+  const { data } = await apiClient.patch<OnboardingState>('/account/onboarding/', payload);
   return data;
 }
 

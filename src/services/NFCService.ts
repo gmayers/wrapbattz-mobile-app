@@ -536,8 +536,10 @@ export class NFCService {
       }
       nfcLogger.logStep(operationId, 'Tag is writable');
 
-      // Check capacity if available
-      if (tag.maxSize && stringByteLength > tag.maxSize) {
+      // Check capacity if available. With a uri option the JSON record can be
+      // dropped in favour of the URI alone, so only hard-fail here when there
+      // is no fallback.
+      if (!options.uri && tag.maxSize && stringByteLength > tag.maxSize) {
         throw new Error(`Data size (${stringByteLength} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
       }
 
@@ -558,11 +560,15 @@ export class NFCService {
         }
       }
       
-      // Create NDEF message bytes
+      // Create NDEF message bytes. When a uri is supplied it leads the message
+      // so the OS deep-links on tap; the JSON text record rides behind it.
       nfcLogger.logStep(operationId, 'Encoding NDEF message');
       let bytes: number[];
+      let writtenJson = true;
       try {
-        bytes = Ndef.encodeMessage([Ndef.textRecord(finalJsonString)]);
+        bytes = options.uri
+          ? Ndef.encodeMessage([Ndef.uriRecord(options.uri), Ndef.textRecord(finalJsonString)])
+          : Ndef.encodeMessage([Ndef.textRecord(finalJsonString)]);
         nfcLogger.logStep(operationId, 'NDEF message encoded', { messageSize: bytes?.length });
       } catch (encodeError) {
         throw new Error(`Failed to encode data: ${(encodeError as Error).message}`);
@@ -572,9 +578,23 @@ export class NFCService {
         throw new Error('Failed to create NDEF message. The encoding returned null.');
       }
 
-      // Final size check
+      // Final size check — with a uri, fall back to the URI record alone when
+      // both records don't fit the tag.
       if (tag.maxSize && bytes.length > tag.maxSize) {
-        throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
+        if (options.uri) {
+          const uriOnly = Ndef.encodeMessage([Ndef.uriRecord(options.uri)]);
+          if (uriOnly && uriOnly.length <= tag.maxSize) {
+            bytes = uriOnly;
+            writtenJson = false;
+            nfcLogger.logStep(operationId, 'Tag too small for JSON — writing URI record only', {
+              messageSize: uriOnly.length,
+            });
+          } else {
+            throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
+          }
+        } else {
+          throw new Error(`Encoded message size (${bytes.length} bytes) exceeds tag capacity (${tag.maxSize} bytes).`);
+        }
       }
 
       // Write the message to the tag with platform-specific handling
@@ -621,7 +641,7 @@ export class NFCService {
 
         nfcLogger.endOperation(operationId, { success: true, tagId });
         if (Platform.OS === 'ios') { try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ } }
-        return { success: true, data: { jsonString: finalJsonString } };
+        return { success: true, data: { jsonString: finalJsonString, writtenJson } };
       } catch (error) {
         // Categorize and log error
         const errorCategory = nfcLogger.categorizeError(error as Error);

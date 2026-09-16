@@ -13,6 +13,21 @@ export async function listSites(filter: ListSitesFilter = {}): Promise<PagedSite
   return data;
 }
 
+// Every site in the org. The server clamps page_size to 100, so callers that
+// assume full coverage (location selectors) must walk total_pages; maxPages is
+// a runaway guard.
+export async function listAllSites(maxPages = 10): Promise<SiteRead[]> {
+  const items: SiteRead[] = [];
+  let page = 1;
+  for (;;) {
+    const data = await listSites({ page, page_size: 100 });
+    items.push(...(data.items ?? []));
+    if (page >= (data.total_pages ?? 1) || page >= maxPages) break;
+    page += 1;
+  }
+  return items;
+}
+
 export async function createSite(payload: SiteCreate): Promise<SiteRead> {
   const { data } = await apiClient.post<SiteRead>('/sites/', payload);
   return data;

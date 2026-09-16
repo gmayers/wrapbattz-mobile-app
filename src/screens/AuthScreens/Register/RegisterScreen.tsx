@@ -22,10 +22,23 @@ import { RegisterForm, ValidationResult, NavigationProp } from '../../../types';
 import { FormValidation } from '../../../utils/FormValidation';
 import GoogleSignInButton from '../../../components/GoogleSignInButton';
 import { googleSignInAlert } from '../../../auth/googleSignIn';
+import { normalizeFormError } from '../../../api/errors';
 
 interface RegisterScreenProps {
   navigation: NavigationProp;
 }
+
+// Fields this screen actually renders an error slot for. A server error keyed
+// to anything else has to be alerted instead, or it never reaches the user.
+const RENDERED_FIELDS = [
+  'email',
+  'password',
+  'password2',
+  'first_name',
+  'last_name',
+  'phone_number',
+  'organization_invite_code',
+];
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const { register, loginWithGoogle } = useAuth();
@@ -42,6 +55,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formMessage, setFormMessage] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const passwordInputRef = useRef<RNTextInput>(null);
@@ -70,13 +84,20 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     if (errors[key]) {
       setErrors(prev => ({ ...prev, [key]: '' }));
     }
+    if (formMessage) {
+      setFormMessage('');
+    }
   };
 
   const handleRegister = async (): Promise<void> => {
     if (!validateForm()) {
+      // The offending field can be scrolled off-screen, so say so next to the
+      // button the user just pressed rather than relying on the inline error.
+      setFormMessage('Please fix the highlighted fields above.');
       return;
     }
 
+    setFormMessage('');
     setIsSubmitting(true);
 
     try {
@@ -89,23 +110,32 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
       navigation.navigate('VerifyEmail', {
         emailVerificationId: response.email_verification_id,
-        email: formData.email
+        email: formData.email,
+        // The register endpoint has no phone field — hand the number to the
+        // verify screen so it can be saved once the account exists.
+        phoneNumber: formData.phone_number
 });
     } catch (error: any) {
-      const detail = error?.detail;
-      if (detail && typeof detail === 'object') {
-        const serverErrors = detail as Record<string, unknown>;
-        const formattedErrors: Record<string, string> = {};
-        Object.keys(serverErrors).forEach((key) => {
-          const value = serverErrors[key];
-          formattedErrors[key] = Array.isArray(value) ? String(value[0]) : String(value);
-        });
-        setErrors(formattedErrors);
+      const { fieldErrors, message } = normalizeFormError(
+        error,
+        'An unexpected error occurred. Please try again.'
+      );
+
+      const inlineErrors: Record<string, string> = {};
+      const unrenderable: string[] = [];
+      Object.entries(fieldErrors).forEach(([key, value]) => {
+        if (RENDERED_FIELDS.includes(key)) inlineErrors[key] = value;
+        else unrenderable.push(value);
+      });
+
+      setErrors(inlineErrors);
+
+      if (Object.keys(inlineErrors).length > 0) {
+        setFormMessage('Please fix the highlighted fields above.');
       } else {
-        Alert.alert(
-          'Registration Failed',
-          error?.message || 'An unexpected error occurred. Please try again.'
-        );
+        // Nothing landed on a field — the user must be told some other way.
+        setFormMessage('');
+        Alert.alert('Registration Failed', unrenderable.join('\n') || message);
       }
     } finally {
       setIsSubmitting(false);
@@ -229,6 +259,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               error={errors.password}
               required
             />
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: -8, marginBottom: 16, lineHeight: 18 }}>
+              At least 12 characters, using 3 of: uppercase, lowercase, number, symbol.
+            </Text>
 
             <PasswordField
               label="Confirm Password"
@@ -238,6 +271,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               error={errors.password2}
               required
             />
+
+            {formMessage ? (
+              <Text style={{ color: '#EF4444', fontSize: 14, marginTop: 4, textAlign: 'center' }}>
+                {formMessage}
+              </Text>
+            ) : null}
 
             <Button
               title="Register"

@@ -65,16 +65,6 @@ const OnboardingWizardScreen: React.FC = () => {
     load();
   }, [load]);
 
-  // Background refresh that never touches `loading` — used after an optimistic
-  // step advance to pick up server-side flow changes (e.g. org creation can
-  // switch the invited flow to the owner flow) without blocking the UI.
-  const revalidate = useCallback(async () => {
-    try {
-      setState(await account.getOnboarding());
-    } catch {
-      // Keep the optimistic state; the next load()/advance will resync.
-    }
-  }, []);
 
   const steps = state?.steps ?? [];
   const currentKey = state?.current_step ?? null;
@@ -102,11 +92,11 @@ const OnboardingWizardScreen: React.FC = () => {
     async (stepKey: string) => {
       setBusyAdvancing(true);
       try {
-        await updateOnboarding({ onboarding_step: stepKey });
-        // The target key came from the loaded steps[], so advance immediately
-        // and revalidate in the background rather than blocking on a refetch.
-        setState((prev) => (prev ? { ...prev, current_step: stepKey } : prev));
-        void revalidate();
+        // The PATCH returns the fresh OnboardingState (server may recompute
+        // the flow, e.g. org creation switches invited → owner steps), so no
+        // follow-up GET is needed.
+        const next = await updateOnboarding({ onboarding_step: stepKey });
+        setState(next);
       } catch (e) {
         Alert.alert(
           'Error',
@@ -116,7 +106,7 @@ const OnboardingWizardScreen: React.FC = () => {
         setBusyAdvancing(false);
       }
     },
-    [updateOnboarding, revalidate]
+    [updateOnboarding]
   );
 
   const advance = useCallback(() => {
@@ -217,11 +207,14 @@ const OnboardingWizardScreen: React.FC = () => {
         </Text>
       </View>
 
+      {/* Android already resizes the window for the keyboard (adjustResize);
+          stacking behavior="height" on top re-laid-out the form mid-touch and
+          cancelled focus on the bottom-most field (the website input never got
+          a cursor). Only iOS needs manual avoidance. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}
-        enabled
+        enabled={Platform.OS === 'ios'}
       >
       <ScrollView
         contentContainerStyle={styles.body}

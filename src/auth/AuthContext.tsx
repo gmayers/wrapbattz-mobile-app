@@ -24,6 +24,7 @@ import { clearQueryCache } from '../query/queryClient';
 import { clearCachedUser, loadCachedUser, saveCachedUser } from './userCache';
 import type {
   ForgotPasswordRequest,
+  OnboardingState,
   OnboardingUpdate,
   OrganizationSummary,
   RegisterRequest,
@@ -57,7 +58,7 @@ export interface AuthContextValue {
   resetPassword: (payload: ResetPasswordRequest) => Promise<void>;
   refreshUser: () => Promise<UserMe | null>;
   updateUser: (payload: UserUpdate) => Promise<UserMe>;
-  updateOnboarding: (payload: OnboardingUpdate) => Promise<UserMe>;
+  updateOnboarding: (payload: OnboardingUpdate) => Promise<OnboardingState>;
   deleteAccount: () => Promise<void>;
 
   loginWithStoredCredentials: () => Promise<UserMe>;
@@ -207,14 +208,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyUser]
   );
 
-  const updateOnboarding = useCallback(
-    async (payload: OnboardingUpdate) => {
-      const me = await account.updateOnboarding(payload);
-      applyUser(me);
-      return me;
-    },
-    [applyUser]
-  );
+  const updateOnboarding = useCallback(async (payload: OnboardingUpdate) => {
+    const state = await account.updateOnboarding(payload);
+    // The PATCH returns the wizard OnboardingState, not UserMe — merge the
+    // fields that changed into the cached user so navigation gates
+    // (onboardingComplete) flip without another /account/ fetch.
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        has_completed_onboarding: state.completed,
+        onboarding_step: state.current_step,
+        ...(payload.has_seen_onboarding_outro != null
+          ? { has_seen_onboarding_outro: payload.has_seen_onboarding_outro }
+          : {}),
+      };
+      void saveCachedUser(next);
+      return next;
+    });
+    return state;
+  }, []);
 
   const deleteAccount = useCallback(async () => {
     await account.deleteAccount();

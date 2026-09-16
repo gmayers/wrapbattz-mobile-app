@@ -171,8 +171,8 @@ const [formData, setFormData] = useState({
 
   const fetchLocations = async () => {
     try {
-      const page = await sitesApi.listSites();
-      const siteList = page.items.map(toLegacyLocation);
+      const items = await sitesApi.listAllSites();
+      const siteList = items.map(toLegacyLocation);
       setLocations(siteList);
     } catch (error) {
       console.error('Error fetching sites:', error);

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   assignments as assignmentsApi,
   incidents as incidentsApi,
   organizations as organizationsApi,
-  tools as toolsApi,
 } from '../../../../api/endpoints';
 import type {
   AssignmentRead,
   IncidentRead,
   OrganizationRead,
-  ToolRead,
+  OrgStats,
 } from '../../../../api/types';
 import { useAuth } from '../../../../context/AuthContext';
 import type { FleetException, FleetStatusData } from '../types';
@@ -36,16 +36,14 @@ const HIGH_SEVERITIES = new Set(['critical', 'high', 'CRITICAL', 'HIGH']);
 
 interface RawData {
   org: OrganizationRead | null;
-  tools: ToolRead[];
-  toolsTotal: number;
+  stats: OrgStats | null;
   activeAssignments: AssignmentRead[];
   incidents: IncidentRead[];
 }
 
 const EMPTY_RAW: RawData = {
   org: null,
-  tools: [],
-  toolsTotal: 0,
+  stats: null,
   activeAssignments: [],
   incidents: [],
 };
@@ -56,39 +54,45 @@ export function useFleetStatusData(): FleetStatusData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setIsLoading(true);
     setError(undefined);
     try {
       // allSettled, not all: a single slow/failed endpoint must not blank the
       // entire dashboard. Each card falls back to empty; we only surface an
       // error if every data call failed.
-      const [orgR, toolsR, activeR, incidentsR] = await Promise.allSettled([
+      const [orgR, statsR, activeR, incidentsR] = await Promise.allSettled([
         organizationsApi.getMyOrganization(),
-        // Server clamps page_size to 100 — walk every page so the NFC-tag
-        // count covers the whole fleet, keeping the {items,total} page shape.
-        toolsApi.listAllTools().then((items) => ({ items, total: items.length })),
+        // Tool/NFC counts come from the stats endpoint; the incident list is
+        // still fetched because exception rows render real incidents.
+        organizationsApi.getOrgStats(),
         assignmentsApi.listAssignments({ status: 'active' }),
         incidentsApi.listIncidents(),
       ]);
       const org = orgR.status === 'fulfilled' ? orgR.value : null;
-      const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
+      const stats = statsR.status === 'fulfilled' ? statsR.value : null;
       const activePage = activeR.status === 'fulfilled' ? activeR.value : null;
       const incidentsPage = incidentsR.status === 'fulfilled' ? incidentsR.value : null;
       setRaw({
         org,
-        tools: toolsPage?.items ?? [],
-        toolsTotal: toolsPage?.total ?? toolsPage?.items.length ?? 0,
+        stats,
         activeAssignments: activePage?.items ?? [],
         incidents: incidentsPage?.items ?? [],
       });
-      if (!toolsPage && !activePage && !incidentsPage) {
+      if (!stats && !activePage && !incidentsPage) {
         setError('Failed to load fleet status');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load fleet status');
     } finally {
       setIsLoading(false);
+      hasLoadedRef.current = true;
+      inFlightRef.current = false;
     }
   }, []);
 
@@ -96,23 +100,37 @@ export function useFleetStatusData(): FleetStatusData {
     load();
   }, [load]);
 
+  // Dashboard tabs stay mounted for the app's lifetime — refresh silently on
+  // tab return so mutations made elsewhere show up without pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current || inFlightRef.current) return;
+      load({ silent: true });
+    }, [load])
+  );
+
   const data = useMemo<Omit<FleetStatusData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
-    const inUse = raw.activeAssignments.length;
+    const stats = raw.stats;
+    const inUse = stats?.assignments.active ?? raw.activeAssignments.length;
     const open = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
-    const maintenance = open.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
-    // BACKEND_GAP: missing-status not directly tracked on tools — derived from incidents.
-    const missingFromIncidents = open.filter((i) => MISSING_TYPES.has(i.type)).length;
+    // Stats counts are authoritative (the incident list is clamped at 100
+    // rows); the list-derived numbers are only a fallback.
+    const maintenance =
+      stats?.incidents.maintenance_due ??
+      open.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
+    const missingFromIncidents =
+      stats?.incidents.missing ?? open.filter((i) => MISSING_TYPES.has(i.type)).length;
     const { total, available } = computeInventory({
       toolCount: raw.org?.tool_count ?? null,
-      toolsTotal: raw.toolsTotal,
+      toolsTotal: stats?.tools.total ?? 0,
       inUse,
       maintenance,
       missing: missingFromIncidents,
     });
 
-    const tagsUsed = raw.tools.filter((t) => !!t.nfc_tag_id && t.nfc_tag_id.length > 0).length;
+    const tagsUsed = stats?.tools.with_nfc_tag ?? 0;
     // BACKEND_GAP: total NFC-tag inventory (issued tag pool) not exposed.
     const tagsTotal: number | null = null;
     const taggedPercent =

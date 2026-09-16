@@ -93,8 +93,8 @@ const AllDevicesScreen = ({ navigation, route }) => {
 
   const fetchLocations = async () => {
     try {
-      const page = await sitesApi.listSites();
-      setLocations(page.items.map(toLegacyLocation));
+      const items = await sitesApi.listAllSites();
+      setLocations(items.map(toLegacyLocation));
     } catch (error) {
       // Locations only needed for return modal — assignments still display fine
     }

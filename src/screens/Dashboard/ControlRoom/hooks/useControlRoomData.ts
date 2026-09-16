@@ -1,60 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   assignments as assignmentsApi,
-  incidents as incidentsApi,
-  members as membersApi,
   organizations as organizationsApi,
   sites as sitesApi,
-  tools as toolsApi,
 } from '../../../../api/endpoints';
 import type {
   AssignmentRead,
-  IncidentRead,
-  MemberRead,
   OrganizationRead,
+  OrgStats,
   SiteRead,
-  ToolRead,
 } from '../../../../api/types';
 import { useAuth } from '../../../../context/AuthContext';
 import type { ControlRoomData, SiteSummary } from '../types';
 
-const MEMBERS_PAGE_SIZE = 200;
-const ASSIGNMENTS_PAGE_SIZE = 500;
-
-const CRITICAL_SEVERITIES = new Set(['critical', 'high', 'CRITICAL', 'HIGH']);
-const MAINTENANCE_TYPES = new Set([
-  'maintenance',
-  'maintenance_due',
-  'MAINTENANCE',
-  'MAINTENANCE_DUE',
-]);
-const CLOSED_STATUSES = new Set([
-  'resolved',
-  'RESOLVED',
-  'cancelled',
-  'CANCELLED',
-  'closed',
-  'CLOSED',
-]);
-
 interface RawData {
   org: OrganizationRead | null;
-  tools: ToolRead[];
-  toolsTotal: number;
+  stats: OrgStats | null;
   activeAssignments: AssignmentRead[];
-  incidents: IncidentRead[];
   sites: SiteRead[];
-  members: MemberRead[];
 }
 
 const EMPTY_RAW: RawData = {
   org: null,
-  tools: [],
-  toolsTotal: 0,
+  stats: null,
   activeAssignments: [],
-  incidents: [],
   sites: [],
-  members: [],
 };
 
 export function useControlRoomData(): ControlRoomData {
@@ -63,20 +34,23 @@ export function useControlRoomData(): ControlRoomData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setIsLoading(true);
     setError(undefined);
     const results = await Promise.allSettled([
       organizationsApi.getMyOrganization(),
-      // Server clamps page_size to 100 — walk every page so the NFC-tag
-      // count covers the whole fleet, keeping the {items,total} page shape.
-      toolsApi.listAllTools().then((items) => ({ items, total: items.length })),
+      // All scalar counts (tools/NFC tags/incidents/members) come from the
+      // stats endpoint — no full-list downloads just to count client-side.
+      organizationsApi.getOrgStats(),
       assignmentsApi.listAssignments({ status: 'active' }),
-      incidentsApi.listIncidents(),
       sitesApi.listSites(),
-      membersApi.listMembers(),
     ]);
-    const [orgR, toolsR, assignR, incR, sitesR, membersR] = results;
+    const [orgR, statsR, assignR, sitesR] = results;
     const failures = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
     if (failures.length > 0) {
       // Log each rejection but only surface a banner if EVERYTHING failed —
@@ -90,41 +64,48 @@ export function useControlRoomData(): ControlRoomData {
         );
       }
     }
-    const toolsPage = toolsR.status === 'fulfilled' ? toolsR.value : null;
     const assignPage = assignR.status === 'fulfilled' ? assignR.value : null;
-    const incPage = incR.status === 'fulfilled' ? incR.value : null;
     const sitesPage = sitesR.status === 'fulfilled' ? sitesR.value : null;
-    const membersPage = membersR.status === 'fulfilled' ? membersR.value : null;
     setRaw({
       org: orgR.status === 'fulfilled' ? orgR.value : null,
-      tools: toolsPage?.items ?? [],
-      toolsTotal: toolsPage?.total ?? toolsPage?.items?.length ?? 0,
+      stats: statsR.status === 'fulfilled' ? statsR.value : null,
       activeAssignments: assignPage?.items ?? [],
-      incidents: incPage?.items ?? [],
       sites: sitesPage?.items ?? [],
-      members: membersPage?.items ?? [],
     });
     setIsLoading(false);
+    hasLoadedRef.current = true;
+    inFlightRef.current = false;
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // Dashboard tabs stay mounted for the app's lifetime, so without this the
+  // numbers freeze at first load until a manual pull-to-refresh. Refresh
+  // silently whenever the tab regains focus (e.g. after creating a report or
+  // assigning a tool elsewhere in the app).
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current || inFlightRef.current) return;
+      load({ silent: true });
+    }, [load])
+  );
+
   const data = useMemo<Omit<ControlRoomData, 'isLoading' | 'error' | 'refresh'>>(() => {
     const orgName = (raw.org?.name ?? userData?.organization?.name ?? '').toUpperCase();
     const initials = computeInitials(userData?.first_name, userData?.last_name, userData?.email);
 
-    const tags = countTaggedTools(raw.tools);
-    const inUse = raw.activeAssignments.length;
+    const stats = raw.stats;
+    const tags = stats?.tools.with_nfc_tag ?? null;
+    const inUse = stats?.assignments.active ?? raw.activeAssignments.length;
     // Total can't be less than what's in use — guards the donut against a
-    // "0 devices / N in use" display when listTools is empty/failed under
-    // backend flakiness (the empty-tools symptom is a backend issue).
-    const devices = Math.max(raw.org?.tool_count ?? 0, raw.toolsTotal, inUse);
+    // "0 devices / N in use" display when the stats call failed under
+    // backend flakiness.
+    const devices = Math.max(raw.org?.tool_count ?? 0, stats?.tools.total ?? 0, inUse);
     const available = Math.max(0, devices - inUse);
-    const openIncidents = raw.incidents.filter((i) => !CLOSED_STATUSES.has(i.status));
-    const maintenance = openIncidents.filter((i) => MAINTENANCE_TYPES.has(i.type)).length;
-    const criticalReports = openIncidents.filter((i) => CRITICAL_SEVERITIES.has(i.severity)).length;
+    const maintenance = stats?.incidents.maintenance_due ?? 0;
+    const criticalReports = stats?.incidents.critical ?? 0;
 
     const siteToolCount = groupActiveAssignmentsBySite(raw.activeAssignments);
     const topSites: SiteSummary[] = raw.sites
@@ -137,10 +118,13 @@ export function useControlRoomData(): ControlRoomData {
       .sort((a, b) => b.toolCount - a.toolCount)
       .slice(0, 3);
 
-    const adminCount = raw.members.filter((m) => isAdminLike(m.role)).length;
-    const workerCount = raw.members.length - adminCount;
+    const adminCount = stats?.members.admins ?? 0;
+    const workerCount = stats?.members.workers ?? 0;
 
-    const attentionTotal = criticalReports + maintenance;
+    // Every open incident needs attention — `open` is the superset of the
+    // critical/maintenance buckets (a medium-severity damage report counts in
+    // neither, but must still surface here).
+    const attentionTotal = stats?.incidents.open ?? criticalReports + maintenance;
 
     return {
       organizationName: orgName,
@@ -161,11 +145,11 @@ export function useControlRoomData(): ControlRoomData {
         maintenanceOverdue: maintenance,
       },
       sites: {
-        total: raw.org?.site_count ?? raw.sites.length,
+        total: stats?.sites.total ?? raw.org?.site_count ?? raw.sites.length,
         top: topSites,
       },
       members: {
-        total: raw.org?.member_count ?? raw.members.length,
+        total: stats?.members.total ?? raw.org?.member_count ?? 0,
         admins: adminCount,
         workers: workerCount,
         scanningToday: null,
@@ -183,11 +167,6 @@ export function useControlRoomData(): ControlRoomData {
   return { ...data, isLoading, error, refresh: load };
 }
 
-function countTaggedTools(tools: ToolRead[]): number | null {
-  if (tools.length === 0) return 0;
-  return tools.filter((t) => !!t.nfc_tag_id && t.nfc_tag_id.length > 0).length;
-}
-
 function groupActiveAssignmentsBySite(assignments: AssignmentRead[]): Map<number, number> {
   const map = new Map<number, number>();
   for (const a of assignments) {
@@ -195,10 +174,6 @@ function groupActiveAssignmentsBySite(assignments: AssignmentRead[]): Map<number
     map.set(a.assignee_site_id, (map.get(a.assignee_site_id) ?? 0) + 1);
   }
   return map;
-}
-
-function isAdminLike(role: string): boolean {
-  return role === 'owner' || role === 'admin' || role === 'office_worker';
 }
 
 function computeInitials(first?: string | null, last?: string | null, email?: string | null): string {
@@ -219,6 +194,3 @@ function computeInitials(first?: string | null, last?: string | null, email?: st
 // cannot compute "scanning today" or "idle" counts.
 // BACKEND_GAP: no compliance endpoint — PAT tests / service / hire data unavailable.
 // BACKEND_GAP: no notifications endpoint feeding the bell badge.
-// BACKEND_GAP: tools coverage walks pages (capped at 1000 tools); if org has more
-// the tag count under-reports. Need a `/tools/stats` endpoint or
-// `nfc_tag_id__isnull=False` filter for an authoritative count.

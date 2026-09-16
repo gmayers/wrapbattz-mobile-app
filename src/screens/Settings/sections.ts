@@ -1,7 +1,6 @@
-import { Platform } from 'react-native';
 import type { Role } from '../../navigation/mainTabs';
 
-export type RoleGate = 'all' | 'admin';
+export type RoleGate = 'all' | 'admin' | 'owner';
 
 export interface SettingsRow {
   key: string;
@@ -10,7 +9,7 @@ export interface SettingsRow {
   kind: 'nav' | 'action' | 'themePicker';
   destination?: string;
   params?: Record<string, unknown>;
-  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew';
+  onPressType?: 'logout' | 'deleteAccount' | 'whatsNew' | 'addDemoData' | 'removeDemoData' | 'resetOnboarding';
   destructive?: boolean;
 }
 
@@ -30,6 +29,9 @@ const ALL_SECTIONS: SettingsSection[] = [
       { key: 'profile',        label: 'Profile',              icon: 'person-circle-outline', kind: 'nav', destination: 'EditProfile' },
       { key: 'changePassword', label: 'Change Password',      icon: 'key-outline',           kind: 'nav', destination: 'ChangePassword' },
       // 'SecurityPreferences' (biometric/PIN) screen not built yet.
+      // Replays the setup wizard for this user only — no organisation data,
+      // tools or members are touched. Backed by PATCH /account/onboarding/.
+      { key: 'resetOnboarding', label: 'Reset Onboarding', icon: 'refresh-outline', kind: 'action', onPressType: 'resetOnboarding' },
       // App Store guideline 5.1.1(v): account creation requires in-app deletion.
       { key: 'deleteAccount',  label: 'Delete Account',       icon: 'trash-outline',         kind: 'action', onPressType: 'deleteAccount', destructive: true },
     ],
@@ -39,8 +41,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Preferences',
     requiredRole: 'all',
     rows: [
-      { key: 'notifications', label: 'Notifications', icon: 'notifications-outline', kind: 'nav', destination: 'NotificationPreferences' },
-      { key: 'theme',         label: 'Theme',         icon: 'color-palette-outline', kind: 'themePicker' },
+      { key: 'theme', label: 'Theme', icon: 'color-palette-outline', kind: 'themePicker' },
     ],
   },
   {
@@ -50,25 +51,19 @@ const ALL_SECTIONS: SettingsSection[] = [
     rows: [
       { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization', params: { mode: 'edit' } },
       { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
+      // Same sample data as the web portal's demo-tools buttons; backend
+      // create is idempotent so re-adding after a remove is safe.
+      { key: 'addDemoTools',    label: 'Add Demo Tools',    icon: 'construct-outline', kind: 'action', onPressType: 'addDemoData' },
+      { key: 'removeDemoTools', label: 'Remove Demo Tools', icon: 'trash-bin-outline', kind: 'action', onPressType: 'removeDemoData', destructive: true },
       // 'InviteCode' screen not built yet.
     ],
   },
   {
     key: 'billing',
     title: 'Billing',
-    requiredRole: 'admin',
+    requiredRole: 'owner',
     rows: [
-      // The Subscription row is gated on EXPO_PUBLIC_IAP_ENABLED. Backend
-      // /billing/catalog and /billing/subscription don't exist yet, so keep
-      // the row hidden in production until that ships. Flip the env var to
-      // 'true' in eas.json (or a local .env) to expose the screen.
-      ...(process.env.EXPO_PUBLIC_IAP_ENABLED === 'true'
-        ? [{ key: 'subscription', label: 'Subscription', icon: 'card-outline', kind: 'nav' as const, destination: 'Subscribe' }]
-        : []),
-      { key: 'manageBilling',    label: 'Manage Billing',      icon: 'card-outline',        kind: 'nav', destination: 'ManageBilling' },
-      { key: 'paymentHistory',   label: 'Payment History',     icon: 'receipt-outline',     kind: 'nav', destination: 'PaymentHistory' },
-      { key: 'dataHandlingFee',  label: 'Data Handling Fee',   icon: 'document-outline',    kind: 'nav', destination: 'DataHandlingFee' },
-      { key: 'billingAnalytics', label: 'Billing Analytics',   icon: 'stats-chart-outline', kind: 'nav', destination: 'BillingAnalytics' },
+      { key: 'subscription', label: 'Subscription', icon: 'card-outline', kind: 'nav', destination: 'Subscription' },
     ],
   },
   {
@@ -94,10 +89,7 @@ const ALL_SECTIONS: SettingsSection[] = [
 export function getSectionsForRole(role: Role | undefined): SettingsSection[] {
   const isAdminOrOwner = role === 'admin' || role === 'owner';
   return ALL_SECTIONS.filter(s => {
-    // Billing is Android-only: the billing screens are not registered in the
-    // iOS nav graph (App Store 3.1.3(c)), so hide the whole section there to
-    // avoid dead links. Android keeps it for in-app billing / IAP.
-    if (s.key === 'billing' && Platform.OS !== 'android') return false;
+    if (s.requiredRole === 'owner') return role === 'owner';
     return s.requiredRole === 'all' || isAdminOrOwner;
   });
 }

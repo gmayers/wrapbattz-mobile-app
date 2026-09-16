@@ -8,9 +8,10 @@ import SettingsRow from './components/SettingsRow';
 import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
 import { useWhatsNewPrompt } from '../../components/WhatsNewModal';
+import { account, organizations } from '../../api/endpoints';
 
 const SettingsScreen: React.FC = () => {
-  const { userData, logout, deleteAccount } = useAuth();
+  const { userData, logout, deleteAccount, updateOnboarding } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { openManually: openWhatsNew } = useWhatsNewPrompt();
@@ -25,6 +26,44 @@ const SettingsScreen: React.FC = () => {
       openWhatsNew();
       return;
     }
+    if (row.kind === 'action' && row.onPressType === 'addDemoData') {
+      Alert.alert(
+        'Add Demo Tools',
+        'This adds a Demo Warehouse site and a set of sample tools so you can try out assignments, transfers, and reports. You can remove them again from here at any time.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add Demo Tools', onPress: async () => {
+            try {
+              await organizations.createDemoData();
+              Alert.alert('Demo Tools Added', 'The Demo Warehouse site and sample tools are now in your organization.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to add demo tools. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'removeDemoData') {
+      Alert.alert(
+        'Remove Demo Tools',
+        'This removes the Demo Warehouse site and all demo tools. Your own tools and sites are not affected.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: async () => {
+            try {
+              await organizations.deleteDemoData();
+              Alert.alert('Demo Tools Removed', 'All demo data has been removed from your organization.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to remove demo tools. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
     if (row.kind === 'action' && row.onPressType === 'logout') {
       Alert.alert('Logout', 'Are you sure you want to logout?', [
         { text: 'Cancel', style: 'cancel' },
@@ -32,6 +71,53 @@ const SettingsScreen: React.FC = () => {
           try { await logout(); } catch { Alert.alert('Error', 'Failed to logout.'); }
         } },
       ], { cancelable: true });
+      return;
+    }
+    if (row.kind === 'action' && row.onPressType === 'resetOnboarding') {
+      Alert.alert(
+        'Reset Onboarding',
+        "This walks you back through the setup wizard and will ask you to confirm or re-enter your organisation's details. It won't remove your tools, sites, or team members.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Reset', onPress: async () => {
+            try {
+              // The wizard is role-branched server-side, so the first step is
+              // not a constant — ask for this user's flow rather than guessing.
+              const state = await account.getOnboarding();
+              const firstStep = state?.steps?.[0]?.key;
+              if (!firstStep) {
+                // Sending the PATCH without onboarding_step leaves the
+                // server's user.onboarding_step at "completed", which makes
+                // the response report completed: true and silently undoes
+                // the reset. Refuse to send a partial PATCH.
+                Alert.alert('Error', 'Could not determine the setup flow. Please try again.');
+                return;
+              }
+              const result = await updateOnboarding({
+                has_completed_onboarding: false,
+                has_seen_onboarding_outro: false,
+                onboarding_step: firstStep,
+              });
+              if (result?.completed === true) {
+                // The PATCH resolved but the server reports the account is
+                // still (or again) fully onboarded — the reset did not take.
+                Alert.alert('Error', 'Failed to reset onboarding. Please try again.');
+                return;
+              }
+              // No explicit navigation here: OnboardingWizard is not reachable
+              // from this screen (it lives in the mutually-exclusive
+              // OnboardingStack branch, see navigation/index.tsx:357-369).
+              // updateOnboarding() above sets has_completed_onboarding: false
+              // on the cached user, which flips the onboardingComplete gate
+              // and re-renders into the wizard stack on its own — the same
+              // mechanism navigation/index.tsx:351-356 describes in reverse.
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Failed to reset onboarding. Please try again.');
+            }
+          } },
+        ],
+        { cancelable: true }
+      );
       return;
     }
     if (row.kind === 'action' && row.onPressType === 'deleteAccount') {

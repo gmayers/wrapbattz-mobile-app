@@ -32,6 +32,10 @@ const FormField: React.FC<FormFieldProps> = ({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#999"
+        // The input hard-codes light colours, so pin the caret too — the
+        // theme-default caret can be invisible on the light background.
+        cursorColor="#333"
+        selectionColor="rgba(255, 199, 44, 0.4)"
         keyboardType={keyboardType}
         multiline={multiline}
         autoCapitalize={autoCapitalize}

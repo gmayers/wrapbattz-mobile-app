@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import type { Role } from '../../../navigation/mainTabs';
 import {
   assignments as assignmentsApi,
@@ -44,8 +45,13 @@ export function useDashboardStats(role: Role | undefined): DashboardStats {
   const [admin, setAdmin] = useState<AdminStats | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const inFlightRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+
+  const load = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setIsLoading(true);
     setError(undefined);
 
     try {
@@ -102,12 +108,23 @@ export function useDashboardStats(role: Role | undefined): DashboardStats {
       setError(err instanceof Error ? err.message : 'Failed to load stats');
     } finally {
       setIsLoading(false);
+      hasLoadedRef.current = true;
+      inFlightRef.current = false;
     }
   }, [isAdminOrOwner]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Dashboard tabs stay mounted for the app's lifetime — refresh silently on
+  // tab return so mutations made elsewhere show up without pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current || inFlightRef.current) return;
+      load({ silent: true });
+    }, [load])
+  );
 
   return {
     isLoading,

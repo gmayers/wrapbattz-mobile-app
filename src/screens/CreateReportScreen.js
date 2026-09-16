@@ -27,6 +27,8 @@ import {
 } from '../api/endpoints';
 import { toLegacyAssignment } from '../api/adapters';
 import { ApiError } from '../api/errors';
+import { queryClient } from '../query/queryClient';
+import { MY_INCIDENTS_QUERY_KEY } from './ReportsScreen';
 
 const REPORT_TYPES = {
   DAMAGED: "Device is physically damaged or broken",
@@ -423,6 +425,11 @@ const CreateReportScreen = ({ navigation, route }) => {
       }
 
       await Promise.allSettled(uploadPromises);
+
+      // The Reports tab caches its list (staleTime 60s) and its focus refetch
+      // is stale-gated — without this the new report can take up to a minute
+      // to appear after goBack().
+      queryClient.invalidateQueries({ queryKey: MY_INCIDENTS_QUERY_KEY });
 
       Alert.alert(
         'Success',

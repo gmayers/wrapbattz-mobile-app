@@ -19,7 +19,7 @@ import { PasswordChangeForm, ValidationResult, NavigationProp } from '../../type
 import { FormValidation } from '../../utils/FormValidation';
 import PasswordField from '../../components/Form/PasswordField';
 import * as authApi from '../../api/endpoints/auth';
-import { ApiError } from '../../api/errors';
+import { normalizeFormError } from '../../api/errors';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -93,27 +93,24 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ navigation 
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err) {
-      const detail = err instanceof ApiError ? err.detail : undefined;
-      if (detail && typeof detail === 'object') {
-        const apiErrors: Record<string, string> = {};
-        const pick = (key: string): string | undefined => {
-          const value = (detail as Record<string, unknown>)[key];
-          if (Array.isArray(value) && value.length > 0) return String(value[0]);
-          if (typeof value === 'string') return value;
-          return undefined;
-        };
-        const current = pick('current_password') ?? pick('old_password');
-        const next = pick('new_password') ?? pick('password');
-        if (current) apiErrors.current_password = current;
-        if (next) apiErrors.new_password = next;
-        const nonField = pick('detail') ?? pick('non_field_errors');
-        if (nonField) Alert.alert('Error', nonField);
-        setErrors(apiErrors);
-      } else {
-        Alert.alert(
-          'Error',
-          (err instanceof ApiError && err.message) || 'Failed to change password. Please try again.'
-        );
+      const { fieldErrors, message } = normalizeFormError(
+        err,
+        'Failed to change password. Please try again.'
+      );
+
+      // The API names these differently depending on the endpoint; fold the
+      // aliases onto the two fields this screen actually renders.
+      const apiErrors: Record<string, string> = {};
+      const current = fieldErrors.current_password ?? fieldErrors.old_password;
+      const next = fieldErrors.new_password ?? fieldErrors.password;
+      if (current) apiErrors.current_password = current;
+      if (next) apiErrors.new_password = next;
+
+      setErrors(apiErrors);
+
+      // Nothing landed on a field — alert, or the failure goes unseen.
+      if (Object.keys(apiErrors).length === 0) {
+        Alert.alert('Error', message);
       }
     } finally {
       setLoading(false);

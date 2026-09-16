@@ -9,8 +9,9 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
@@ -39,6 +40,8 @@ const Dropdown = ({
   testID,
 }) => {
   const { colors } = useTheme();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
@@ -75,7 +78,7 @@ const Dropdown = ({
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
-        toValue: SCREEN_HEIGHT,
+        toValue: windowHeight,
         duration: 200,
         useNativeDriver: true,
       }),
@@ -154,6 +157,7 @@ const Dropdown = ({
               {
                 backgroundColor: colors.surface,
                 shadowColor: colors.shadow,
+                maxHeight: windowHeight * 0.6,
                 transform: [{ translateY: slideAnim }]
               }
             ]}
@@ -177,8 +181,10 @@ const Dropdown = ({
               ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.border }]} />}
             />
 
-            {/* Safe area bottom padding */}
-            <View style={[styles.safeAreaBottom, { backgroundColor: colors.surface }]} />
+            {/* Safe area bottom padding — with statusBarTranslucent the sheet
+                bottom sits at the true screen edge, under the Android nav bar /
+                gesture pill, so pad by the real inset. */}
+            <View style={{ height: Math.max(insets.bottom, 16), backgroundColor: colors.surface }} />
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -277,7 +283,6 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: SCREEN_HEIGHT * 0.6,
     shadowOffset: {
       width: 0,
       height: -4,
@@ -309,7 +314,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   optionsList: {
-    maxHeight: SCREEN_HEIGHT * 0.45,
+    // Let the container's maxHeight be the only cap: size to content, but
+    // shrink (and scroll) when header + padding + list exceed it.
+    flexGrow: 0,
+    flexShrink: 1,
   },
   listItem: {
     flexDirection: 'row',
@@ -325,9 +333,6 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 20,
-  },
-  safeAreaBottom: {
-    height: Platform.OS === 'ios' ? 34 : 16,
   },
 });
 

@@ -4,6 +4,7 @@ import type {
   OrganizationCreate,
   OrganizationRead,
   OrganizationUpdate,
+  OrgStats,
 } from '../types';
 
 export async function createOrganization(payload: OrganizationCreate): Promise<OrganizationRead> {
@@ -23,6 +24,13 @@ export async function updateMyOrganization(payload: OrganizationUpdate): Promise
 
 // Demo data — same sample site + tools as the web dashboard's
 // "try with demo data" button. Owner/admin only for create/delete.
+// Dashboard counts in one call — replaces downloading full tool/incident/
+// member lists just to compute scalars client-side.
+export async function getOrgStats(): Promise<OrgStats> {
+  const { data } = await apiClient.get<OrgStats>('/organizations/me/stats/');
+  return data;
+}
+
 export async function getDemoDataStatus(): Promise<DemoDataStatus> {
   const { data } = await apiClient.get<DemoDataStatus>('/organizations/demo-data/');
   return data;

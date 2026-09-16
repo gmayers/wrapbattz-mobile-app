@@ -50,6 +50,14 @@ export const DEVICE_STATUS_CHOICES = [
 export const normalizePostcode = (pc) =>
   (pc || '').toString().trim().toUpperCase().replace(/\s+/g, ' ');
 
+// Prepend https:// when the user typed a bare domain — nobody should have to
+// type the scheme by hand.
+export const normalizeWebsiteUrl = (url) => {
+  const trimmed = (url || '').toString().trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
 // Common validation functions
 export const validation = {
   email: (email) => {

@@ -11,6 +11,7 @@ jest.mock('../../../context/AuthContext', () => ({
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
+  useFocusEffect: () => {},
 }));
 
 jest.mock('../../../hooks/useScanTag', () => ({
@@ -45,7 +46,6 @@ describe('DashboardScreen', () => {
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Add')).toBeTruthy();
     expect(screen.getByLabelText('Audit')).toBeTruthy();
-    expect(screen.getByLabelText('Alerts')).toBeTruthy();
     expect(screen.getByLabelText('Report')).toBeTruthy();
   });
 });

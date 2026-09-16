@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.5';
+export const CHANGELOG_VERSION = '1.4.9';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,43 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.9',
+    date: '2026-08-13',
+    highlights: [
+      'Settings → Account → Reset Onboarding replays the setup wizard for your own account. Your tools, sites and team members are not removed.',
+      'Once the wizard starts you will need to finish it to get back to the app, and it needs a connection to move between steps — so pick a moment when you have signal.',
+    ],
+  },
+  {
+    version: '1.4.8',
+    date: '2026-08-13',
+    highlights: [
+      'Sign-up now tells you what went wrong. Previously the Register button could appear to do nothing when the account already existed or the password was too short.',
+      'Password rules are shown on the sign-up form instead of only appearing as an error.',
+      'Edit Profile and Change Password now show the reason when a save fails.',
+    ],
+  },
+  {
+    version: '1.4.7',
+    date: '2026-08-03',
+    highlights: [
+      'Admins: add or remove demo tools any time from Settings → Organization — no need to go through setup.',
+      'Assignment history is easier to read, especially in dark mode.',
+    ],
+  },
+  {
+    version: '1.4.6',
+    date: '2026-07-29',
+    highlights: [
+      'Selection menus no longer hide the last options behind the Android navigation bar, and long lists scroll properly.',
+      'Location pickers now show every location, however many you have.',
+      'The phone number you enter at sign-up now carries into profile setup automatically.',
+      'The website field opens the keyboard reliably, and https:// is added for you.',
+      'New reports show up in the Reports tab straight away, and the dashboard refreshes itself when you come back to it — "Needs attention" now counts every open report.',
+      'Admins: "Re-write tag data" now makes a tapped tag open the app directly — handy for refreshing older tags.',
+    ],
+  },
   {
     version: '1.4.5',
     date: '2026-07-28',
