@@ -13,6 +13,7 @@ const NON_REFRESHABLE_PATHS = [
   '/auth/password/forgot/',
   '/auth/password/reset/',
   '/auth/token/refresh/',
+  '/auth/oauth/', // authorize + callback are auth=None; a 401 here is oauth_failed, not an expired session
 ];
 
 let inFlight: Promise<string | null> | null = null;
@@ -39,7 +40,20 @@ async function runRefresh(): Promise<string | null> {
     emit('tokens-updated', undefined);
     return data.access_token;
   } catch (error) {
-    console.log('[api.refresh] refresh failed — clearing tokens', error);
+    // Only a rejected refresh token ends the session. Timeouts, network
+    // failures and 5xx/429 are transient — WorkOS having a slow moment must
+    // not sign the user out (refresh tokens stay valid; we just try again
+    // on the next 401).
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    const terminal = status === 400 || status === 401 || status === 403;
+    if (!terminal) {
+      console.log(
+        `[api.refresh] transient refresh failure (status=${status ?? 'none'}) — keeping tokens`,
+        error
+      );
+      return null;
+    }
+    console.log('[api.refresh] refresh token rejected — clearing session', error);
     await clear();
     emit('tokens-cleared', undefined);
     emit('session-expired', undefined);
@@ -47,7 +61,7 @@ async function runRefresh(): Promise<string | null> {
   }
 }
 
-function refreshOnce(): Promise<string | null> {
+export function refreshOnce(): Promise<string | null> {
   if (!inFlight) {
     inFlight = runRefresh().finally(() => {
       inFlight = null;
@@ -62,7 +76,14 @@ export function installRefreshOn401(client: AxiosInstance): void {
     async (error: AxiosError) => {
       const original = error.config as RetryConfig | undefined;
       const status = error.response?.status;
-      if (status !== 401 || !original || original._retried) {
+      // 403 organization_required means the access token is user-scoped but the
+      // endpoint needs org scope (e.g. right after onboarding creates the org).
+      // The refresh endpoint upgrades single-membership users to an org-scoped
+      // token, so refresh-and-retry heals this the same way it heals a 401.
+      const needsOrgScope =
+        status === 403 &&
+        (error.response?.data as { code?: string } | null)?.code === 'organization_required';
+      if ((status !== 401 && !needsOrgScope) || !original || original._retried) {
         return Promise.reject(error);
       }
       if (NON_REFRESHABLE_PATHS.some((p) => original.url?.includes(p))) {

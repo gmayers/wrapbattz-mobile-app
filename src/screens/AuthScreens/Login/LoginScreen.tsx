@@ -28,6 +28,8 @@ import DeviceAuthService, { BiometricCapability } from '../../../services/Device
 import PinAuthService from '../../../services/PinAuthService';
 import PinModal, { PinModalMode } from './PinModal';
 import { API_BASE_URL } from '../../../api/config';
+import GoogleSignInButton from '../../../components/GoogleSignInButton';
+import { googleSignInAlert } from '../../../auth/googleSignIn';
 
 type PinFlow =
   | { kind: 'idle' }
@@ -38,6 +40,7 @@ type PinFlow =
 const LoginScreen: React.FC = () => {
   const {
     login,
+    loginWithGoogle,
     loginWithStoredCredentials,
     enableBiometricUnlock,
     enablePinUnlock
@@ -49,6 +52,7 @@ const LoginScreen: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
   const passwordInputRef = useRef<RNTextInput>(null);
 
   const [staySignedIn, setStaySignedIn] = useState<boolean>(true);
@@ -196,6 +200,19 @@ const LoginScreen: React.FC = () => {
       setLoginError(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async (): Promise<void> => {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle('sign-in');
+      // Success or cancel: navigation falls out of auth state; nothing to do.
+    } catch (err) {
+      const alert = googleSignInAlert(err);
+      Alert.alert(alert.title, alert.message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -418,10 +435,18 @@ const LoginScreen: React.FC = () => {
                 title="Sign In"
                 onPress={handleLogin}
                 loading={isLoading}
+                disabled={isLoading || googleLoading}
                 textColorProp="black"
                 style={{ marginTop: 12, backgroundColor: colors.primary }}
                 testID="login-button"
               />
+
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.borderLight }]} />
+                <Text style={{ color: colors.textSecondary, marginHorizontal: 10, fontSize: 13 }}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.borderLight }]} />
+              </View>
+              <GoogleSignInButton onPress={handleGoogleSignIn} loading={googleLoading} disabled={isLoading} />
 
               <TouchableOpacity
                 style={{ alignItems: 'center', marginTop: 20 }}
@@ -498,7 +523,9 @@ const styles = StyleSheet.create({
     top: -10,
     fontSize: 12,
     paddingHorizontal: 10
-}
+},
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
 });
 
 export default LoginScreen;

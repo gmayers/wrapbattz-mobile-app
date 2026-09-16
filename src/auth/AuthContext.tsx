@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import * as auth from '../api/endpoints/auth';
 import * as account from '../api/endpoints/account';
+import { signInWithGoogle } from './googleSignIn';
 import {
   disableBiometricUnlock as qaDisableBiometric,
   disablePinUnlock as qaDisablePin,
@@ -45,6 +46,7 @@ export interface AuthContextValue {
   onboardingComplete: boolean;
 
   login: (email: string, password: string) => Promise<UserMe>;
+  loginWithGoogle: (screenHint: 'sign-in' | 'sign-up') => Promise<UserMe | null>;
   logout: () => Promise<void>;
   register: (payload: RegisterRequest) => Promise<VerifyPendingResponse>;
   verifyEmail: (payload: VerifyEmailRequest) => Promise<UserMe>;
@@ -111,6 +113,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const response = await auth.login({ email, password });
+      applyUser(response.user);
+      return response.user;
+    },
+    [applyUser]
+  );
+
+  const loginWithGoogle = useCallback(
+    async (screenHint: 'sign-in' | 'sign-up') => {
+      const response = await signInWithGoogle(screenHint);
+      if (!response) return null; // user cancelled
       applyUser(response.user);
       return response.user;
     },
@@ -232,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onboardingComplete: user?.has_completed_onboarding ?? false,
 
       login,
+      loginWithGoogle,
       logout,
       register,
       verifyEmail,
@@ -252,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     user,
     login,
+    loginWithGoogle,
     logout,
     register,
     verifyEmail,
