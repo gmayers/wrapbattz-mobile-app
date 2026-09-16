@@ -21,7 +21,7 @@ export async function getInvitationByToken(token: string): Promise<InvitationByT
 }
 
 export async function listInvitations(
-  params?: { page?: number; page_size?: number }
+  params?: { status?: string; page?: number; page_size?: number }
 ): Promise<PagedInvitations> {
   const { data } = await apiClient.get<PagedInvitations>('/invitations/', { params });
   return data;

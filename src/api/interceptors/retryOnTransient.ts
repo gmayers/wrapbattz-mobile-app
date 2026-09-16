@@ -17,10 +17,26 @@ import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axio
 //     4xx (validation, conflict, not-found, forbidden) are real and surface.
 //   - 401 is explicitly skipped — the refresh interceptor owns that path.
 
-type RetryConfig = InternalAxiosRequestConfig & { __retryCount?: number };
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    // Opt a request out of transient retries. Used by calls with their own
+    // fail-fast contract (e.g. splash-screen bootstrap must surface an error
+    // in one timeout, not timeout × attempts).
+    noTransientRetry?: boolean;
+  }
+}
+
+type RetryConfig = InternalAxiosRequestConfig & {
+  __retryCount?: number;
+  __firstFailureAt?: number;
+};
 
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 400; // 400ms, then 800ms
+// Retries may only be STARTED within this window after the first failure.
+// A hung connection consumes its full timeout per attempt; without this cap
+// the user waits timeout × 3 (+ backoff) before seeing any error.
+const RETRY_BUDGET_MS = 8_000;
 
 function isIdempotent(method?: string): boolean {
   const m = (method ?? 'get').toLowerCase();
@@ -44,9 +60,13 @@ export function installRetryOnTransient(client: AxiosInstance): void {
       // 401 is the refresh interceptor's job — never retry it here.
       if (error.response?.status === 401) return Promise.reject(error);
 
-      if (!isIdempotent(cfg.method) || !isTransient(error)) {
+      if (cfg.noTransientRetry || !isIdempotent(cfg.method) || !isTransient(error)) {
         return Promise.reject(error);
       }
+
+      const now = Date.now();
+      cfg.__firstFailureAt ??= now;
+      if (now - cfg.__firstFailureAt >= RETRY_BUDGET_MS) return Promise.reject(error);
 
       const attempt = cfg.__retryCount ?? 0;
       if (attempt >= MAX_RETRIES) return Promise.reject(error);

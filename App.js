@@ -16,6 +16,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { STRIPE_CONFIG, validateStripeConfig } from './src/config/stripe';
 import { iapService, flushPendingReceipts } from './src/iap';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import {
+  queryClient,
+  queryPersister,
+  installAppFocusTracking,
+  PERSIST_MAX_AGE_MS,
+} from './src/query/queryClient';
 // Initialize Sentry
 Sentry.init({
   dsn: process.env.SENTRY_DSN || 'https://277ff03f5d87270ffeba62cd99fbd265@o4508371086999552.ingest.de.sentry.io/4510799870623824',
@@ -99,11 +106,13 @@ function App() {
     const appStateSub = AppState.addEventListener('change', (next) => {
       if (next === 'active') flushPendingReceipts().catch(() => {});
     });
+    const removeFocusTracking = installAppFocusTracking();
 
     // Cleanup function
     return () => {
       console.log('🧹 App.js - Cleaning up...');
       appStateSub.remove();
+      removeFocusTracking();
       iapService.teardown().catch(() => {});
       // Clean up NFC when app is unmounted
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
@@ -128,18 +137,23 @@ function App() {
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <StripeProvider
-        publishableKey={STRIPE_CONFIG.publishableKey}
-        merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
-        urlScheme={STRIPE_CONFIG.urlScheme}
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: queryPersister, maxAge: PERSIST_MAX_AGE_MS }}
       >
-        <AuthProvider>
-          <SessionExpiryAlert />
-          <ThemeProvider>
-            <AppNavigator />
-          </ThemeProvider>
-        </AuthProvider>
-      </StripeProvider>
+        <StripeProvider
+          publishableKey={STRIPE_CONFIG.publishableKey}
+          merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
+          urlScheme={STRIPE_CONFIG.urlScheme}
+        >
+          <AuthProvider>
+            <SessionExpiryAlert />
+            <ThemeProvider>
+              <AppNavigator />
+            </ThemeProvider>
+          </AuthProvider>
+        </StripeProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }
