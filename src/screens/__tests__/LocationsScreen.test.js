@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { sites as sitesApi } from '../../api/endpoints';
 import LocationsScreen from '../LocationsScreen';
@@ -87,5 +87,16 @@ describe('LocationsScreen', () => {
       fireFocus();
     });
     expect(screen.getByText(/Head Office/)).toBeTruthy();
+  });
+
+  it('sends the avatar press to the real settings tab, not the unregistered Profile route', async () => {
+    sitesApi.listSites.mockResolvedValueOnce({ items: [] });
+    const { navigation } = makeNavigation();
+    const screen = renderScreen(navigation);
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('profileButton'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('settings');
   });
 });

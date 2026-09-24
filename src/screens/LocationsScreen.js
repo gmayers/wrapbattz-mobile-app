@@ -656,8 +656,9 @@ const LocationsScreen = ({ navigation }) => {
           
           {/* Profile Button in Header */}
           <TouchableOpacity
+            testID="profileButton"
             style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('settings')}
           >
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
               <Text style={[styles.avatarText, { color: colors.onPrimary }]}>

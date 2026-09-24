@@ -66,11 +66,11 @@ const FleetStatusScreen: React.FC = () => {
 
   const handleException = (item: FleetException) => {
     if (item.incidentId !== undefined) {
-      navigation.navigate('ReportDetails', { id: item.incidentId });
+      navigation.navigate('ReportDetails', { reportId: item.incidentId });
       return;
     }
     if (item.toolId !== undefined) {
-      navigation.navigate('DeviceDetails', { id: item.toolId });
+      navigation.navigate('DeviceDetails', { deviceId: item.toolId });
     }
   };
 
