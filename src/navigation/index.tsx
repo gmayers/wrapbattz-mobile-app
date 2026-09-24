@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { navigationRef } from './navigationRef';
 
 // Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -377,7 +378,7 @@ export const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       {isAuthenticated ? (
         <WhatsNewProvider>
           <OnboardingStack />
