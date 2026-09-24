@@ -50,3 +50,8 @@ build-1747169980700.apk
 
 .env.local
 .superpowers/
+
+# GCP service-account keys (never commit these)
+*service-account*.json
+fluted-*.json
+google-services.json.bak
