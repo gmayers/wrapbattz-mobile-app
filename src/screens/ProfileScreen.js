@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Switch,
   Alert,
   ActivityIndicator
 } from 'react-native';
@@ -22,8 +21,6 @@ const ProfileScreen = ({ navigation }) => {
   const { colors, themeMode, setThemeMode } = useTheme();
 
   const [profileData, setProfileData] = useState(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -90,17 +87,6 @@ const ProfileScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Notification preference toggles are no-ops until the new API exposes a
-  // preference endpoint. The local state updates optimistically so the UI
-  // still feels responsive.
-  const handlePushNotificationToggle = useCallback((value) => {
-    setNotificationsEnabled(value);
-  }, []);
-
-  const handleEmailNotificationToggle = useCallback((value) => {
-    setEmailNotificationsEnabled(value);
-  }, []);
-  
   // Permanent account deletion (App Store Guideline 5.1.1(v)). Two-step
   // destructive confirmation, then DELETE /account/ via AuthContext. On success
   // the auth state flips to unauthenticated and navigation returns to login.
@@ -269,27 +255,17 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Notification Settings Section */}
-        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notification Settings</Text>
+        <TouchableOpacity
+          style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}
+          onPress={() => navigation.navigate('NotificationSettings')}
+          accessibilityRole="button"
+          accessibilityLabel="Notification settings"
+        >
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Push Notifications</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={handlePushNotificationToggle}
-              trackColor={{ false: colors.disabled, true: colors.primary }}
-              thumbColor={'#FFFFFF'}
-            />
+            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Notification settings</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
           </View>
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Email Notifications</Text>
-            <Switch
-              value={emailNotificationsEnabled}
-              onValueChange={handleEmailNotificationToggle}
-              trackColor={{ false: colors.disabled, true: colors.primary }}
-              thumbColor={'#FFFFFF'}
-            />
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Appearance Section */}
         <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
