@@ -22,6 +22,14 @@ export type ChangePasswordRequest = S['ChangePasswordRequest'];
 export type UserUpdate = S['UserUpdate'];
 export type OnboardingUpdate = S['OnboardingUpdate'];
 
+// Verified email-change flow: POST /account/email/change/ then
+// POST /account/email/confirm/. Email is deliberately absent from
+// UserUpdate above — this is the only way to mutate it.
+export type EmailChangeRequestPayload = S['EmailChangeRequestPayload'];
+export type EmailChangeRequested = S['EmailChangeRequested'];
+export type EmailChangeConfirmPayload = S['EmailChangeConfirmPayload'];
+export type EmailChangeConfirmed = S['EmailChangeConfirmed'];
+
 export type OnboardingStepInfo = S['OnboardingStepInfo'];
 export type OnboardingState = S['OnboardingState'];
 export type PushTokenRead = S['PushTokenRead'];
