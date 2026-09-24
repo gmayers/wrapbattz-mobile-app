@@ -60,24 +60,33 @@ export async function syncPushRegistration(ctx: {
   } catch {
     return 'skipped';
   }
-  await AsyncStorage.setItem(
-    KEY,
-    JSON.stringify({ token: result.token, userId: ctx.userId, orgId: ctx.orgId })
-  );
+  try {
+    await AsyncStorage.setItem(
+      KEY,
+      JSON.stringify({ token: result.token, userId: ctx.userId, orgId: ctx.orgId })
+    );
+  } catch {
+    // Registration succeeded server-side; failing to cache locally just means
+    // the next sync needlessly re-POSTs an unchanged token. Don't turn a
+    // storage hiccup into an unhandled rejection on the `void`-called sync.
+  }
   return 'registered';
 }
 
 export async function unregisterPush(): Promise<void> {
   const stored = await readStored();
   if (!stored) return;
-  try {
-    await unregisterPushToken({ token: stored.token });
-  } catch {
-    // Offline or already gone: the backend prunes dead tokens from Expo receipts.
-  }
+  // Clear the local cache first: even if the DELETE below fails or hangs, we
+  // never want a subsequent syncPushRegistration to treat this token as
+  // still-registered for a user who's signed out.
   try {
     await AsyncStorage.removeItem(KEY);
   } catch {
     // ignore
+  }
+  try {
+    await unregisterPushToken({ token: stored.token }, { timeout: 4000, noTransientRetry: true });
+  } catch {
+    // Offline or already gone: the backend prunes dead tokens from Expo receipts.
   }
 }

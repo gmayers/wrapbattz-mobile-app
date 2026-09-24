@@ -56,6 +56,18 @@ export async function registerPushToken(payload: PushTokenRequest): Promise<Push
   return data;
 }
 
-export async function unregisterPushToken(payload: PushTokenDelete): Promise<void> {
-  await apiClient.delete('/account/push-tokens/', { data: payload });
+export interface UnregisterPushTokenOptions {
+  timeout?: number;
+  noTransientRetry?: boolean;
+}
+
+export async function unregisterPushToken(
+  payload: PushTokenDelete,
+  options: UnregisterPushTokenOptions = {}
+): Promise<void> {
+  await apiClient.delete('/account/push-tokens/', {
+    data: payload,
+    timeout: options.timeout,
+    noTransientRetry: options.noTransientRetry,
+  });
 }

@@ -60,6 +60,13 @@ describe('syncPushRegistration', () => {
     await expect(syncPushRegistration({ userId: 1, orgId: 2 })).resolves.toBe('skipped');
     await expect(syncPushRegistration({ userId: 1, orgId: 2 })).resolves.toBe('registered');
   });
+
+  it('still resolves "registered" when caching the token locally fails', async () => {
+    (NotificationService.registerForPush as jest.Mock).mockResolvedValue(granted);
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error('disk full'));
+    await expect(syncPushRegistration({ userId: 1, orgId: 2 })).resolves.toBe('registered');
+    expect(account.registerPushToken).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('unregisterPush', () => {
@@ -67,15 +74,19 @@ describe('unregisterPush', () => {
     (NotificationService.registerForPush as jest.Mock).mockResolvedValue(granted);
     await syncPushRegistration({ userId: 1, orgId: 2 });
     await unregisterPush();
-    expect(account.unregisterPushToken).toHaveBeenCalledWith({ token: 'ExponentPushToken[a]' });
+    expect(account.unregisterPushToken).toHaveBeenCalledWith(
+      { token: 'ExponentPushToken[a]' },
+      { timeout: 4000, noTransientRetry: true }
+    );
     expect(store['notifications.pushRegistration.v1']).toBeUndefined();
   });
 
-  it('never throws', async () => {
+  it('never throws, and clears the cache even when the DELETE fails', async () => {
     (NotificationService.registerForPush as jest.Mock).mockResolvedValue(granted);
     await syncPushRegistration({ userId: 1, orgId: 2 });
     (account.unregisterPushToken as jest.Mock).mockRejectedValueOnce(new Error('offline'));
     await expect(unregisterPush()).resolves.toBeUndefined();
+    expect(store['notifications.pushRegistration.v1']).toBeUndefined();
   });
 
   it('does nothing when nothing was registered', async () => {

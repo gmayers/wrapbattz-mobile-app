@@ -277,6 +277,18 @@ jest.mock('expo-application', () => ({
   getIosIdForVendorAsync: jest.fn(async () => 'ios-vendor-1'),
 }));
 
+// Mock expo-constants — NotificationService reads the EAS project id off of
+// this. Not covered by transformIgnorePatterns (it only matches "expo/…", not
+// "expo-constants/…"), so any real import in a test crashes with a raw ESM
+// SyntaxError unless it's mocked here.
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { extra: { eas: { projectId: 'test-project' } } },
+    easConfig: { projectId: 'test-project' },
+  },
+}));
+
 // Global test helpers
 global.testHelpers = {
   sentry: {

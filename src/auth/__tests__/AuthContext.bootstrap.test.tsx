@@ -16,9 +16,6 @@ jest.mock('../../api/endpoints/account', () => ({
   deleteAccount: jest.fn(),
 }));
 jest.mock('../googleSignIn', () => ({ signInWithGoogle: jest.fn() }));
-jest.mock('../../notifications/pushRegistration', () => ({
-  unregisterPush: jest.fn(() => Promise.resolve()),
-}));
 jest.mock('../quickAuth', () => ({
   disableBiometricUnlock: jest.fn(),
   disablePinUnlock: jest.fn(),
