@@ -29,21 +29,33 @@ function dataOf(response: Notifications.NotificationResponse | null | undefined)
   return data ?? null;
 }
 
-// expo-notifications' "last response" (getLastNotificationResponseAsync) is a
-// process-lifetime native value, not tied to this component's mount. The
-// bridge itself remounts across logout -> login, and calling
-// clearLastNotificationResponse() after consuming it is not guaranteed to
-// take effect before a remount reads it again (and never takes effect in
-// tests, where it's just a jest.fn()). Keying dedupe on notification_id
-// (rather than response object identity) also covers the case where the same
-// tap reaches BOTH the response listener and getLastNotificationResponseAsync
-// within one mount. This is intentionally a module-level singleton — not a
-// ref — so it survives the bridge unmounting and remounting.
-let lastHandledNotificationId: number | undefined;
+// Identifies a notification response for dedupe purposes. Prefers the
+// response's own identifier (request.identifier + actionIdentifier), which
+// uniquely names a single OS-level interaction; falls back to notification_id
+// when the identifier isn't available (e.g. in tests, or if a platform ever
+// omits it).
+function responseKey(response: Notifications.NotificationResponse, data: PushData): string {
+  const identifier = response.notification?.request?.identifier;
+  if (identifier) return `${identifier}:${response.actionIdentifier}`;
+  return `id:${data.notification_id}`;
+}
+
+// Cold-start replay (getLastNotificationResponseAsync) must not re-handle a
+// response the tap listener already handled live, or a response a prior
+// cold-start pass already replayed — but a genuine LIVE tap delivered by the
+// response listener is always handled: each tap on a still-visible
+// notification is a distinct user action (the user can tap it more than
+// once), never a "replay" to be suppressed. So this Set only gates the
+// cold-start path; the listener path always handles and just records its key
+// here afterward so a later cold-start check for the same response is a
+// no-op. Module-level (not a ref) because it must survive the bridge
+// unmounting/remounting (e.g. logout -> login) so a stale
+// getLastNotificationResponseAsync() value isn't replayed on the next mount.
+const handledResponseKeys = new Set<string>();
 
 // Exposed for tests only, so each test file starts from a clean dedupe state.
 export function __resetNotificationDedupeForTests(): void {
-  lastHandledNotificationId = undefined;
+  handledResponseKeys.clear();
 }
 
 export default function NotificationsBridge(): null {
@@ -63,11 +75,6 @@ export default function NotificationsBridge(): null {
     const handleTap = (data: PushData | null) => {
       if (!data) return;
       if (data.notification_id != null) {
-        // Same logical notification already handled (via the listener, a
-        // prior cold-start replay, or a stale getLastNotificationResponseAsync
-        // value surviving a remount) — never mark-read/navigate twice for it.
-        if (data.notification_id === lastHandledNotificationId) return;
-        lastHandledNotificationId = data.notification_id;
         void markNotificationRead(data.notification_id)
           .catch(() => undefined)
           .finally(() => qc.invalidateQueries({ queryKey: notificationKeys.all }));
@@ -82,23 +89,36 @@ export default function NotificationsBridge(): null {
     const offReceive = addNotificationReceivedListener(() => {
       qc.invalidateQueries({ queryKey: notificationKeys.all });
     });
-    const offTap = addNotificationResponseListener((r) => handleTap(dataOf(r)));
+    const offTap = addNotificationResponseListener((r) => {
+      const data = dataOf(r);
+      if (!data) return;
+      // Live taps are ALWAYS handled, no dedupe — record the key so a later
+      // cold-start replay of this same response is recognized as a duplicate.
+      handledResponseKeys.add(responseKey(r, data));
+      handleTap(data);
+    });
 
     // Cold start: the app was launched by tapping a notification, before the
-    // NavigationContainer finished mounting. Wait for it to become ready,
-    // then replay the tap exactly once.
+    // NavigationContainer finished mounting. Replay it at most once, and only
+    // if the tap listener hasn't already handled the same response live.
     let offState: (() => void) | undefined;
     let cancelled = false;
     void Notifications.getLastNotificationResponseAsync().then((r) => {
       const data = dataOf(r);
-      if (!data) return;
-      // Consume it: clear the native "last response" so a future remount
-      // (e.g. after logout -> login) doesn't see this same tap again on a
-      // real device. The notification_id dedupe above is the safety net for
-      // when clearing hasn't taken effect yet, or in tests where this call is
-      // a no-op mock.
-      Notifications.clearLastNotificationResponse();
-      if (cancelled) return;
+      if (!data || cancelled) return;
+      try {
+        // Consume it: clear the native "last response" so a future remount
+        // (e.g. after logout -> login) doesn't see this same tap again on a
+        // real device. Wrapped because it throws UnavailabilityError on
+        // platforms/SDK versions without the native method — the key-based
+        // dedupe below is what actually prevents the replay either way.
+        Notifications.clearLastNotificationResponse();
+      } catch {
+        // No-op — see comment above.
+      }
+      const key = responseKey(r, data);
+      if (handledResponseKeys.has(key)) return; // already handled live, or already replayed once
+      handledResponseKeys.add(key);
       if (navigationRef.isReady()) {
         handleTap(data);
         return;

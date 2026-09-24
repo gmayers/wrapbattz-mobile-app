@@ -45,10 +45,10 @@ function renderBridge() {
 describe('NotificationsBridge', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // notification_id-based dedupe is a module-level singleton by design (it
-    // must survive the bridge unmounting/remounting on a real device — see
-    // NotificationsBridge.tsx) — reset it between tests so cases reusing the
-    // same notification_id (e.g. 9) don't see each other's state.
+    // The handled-response-key dedupe Set is a module-level singleton by
+    // design (it must survive the bridge unmounting/remounting on a real
+    // device — see NotificationsBridge.tsx) — reset it between tests so cases
+    // reusing the same notification_id (e.g. 9) don't see each other's state.
     __resetNotificationDedupeForTests();
     mockAuth.mockReturnValue({ isAdminOrOwner: false, onboardingComplete: true });
     (navigationRef.isReady as jest.Mock).mockReturnValue(true);
@@ -154,6 +154,32 @@ describe('NotificationsBridge', () => {
     await waitFor(() => expect(Notifications.clearLastNotificationResponse).toHaveBeenCalled());
     expect(navigationRef.navigate).toHaveBeenCalledTimes(1);
     expect(api.markNotificationRead).toHaveBeenCalledTimes(1);
+  });
+
+  // Round-2 regression fix: a genuine second OS tap on a still-visible
+  // notification (same notification_id — the OS can redeliver a tap, or the
+  // user can tap it twice before it's dismissed) must always be handled, not
+  // silently dropped by dedupe. Only cold-start replays of an
+  // already-(live-)handled response are ever suppressed.
+  it('handles two separate listener taps with the same notification_id every time', async () => {
+    renderBridge();
+    const onTap = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0][0];
+    onTap(response({ notification_id: 20, link: { kind: 'tool', id: 21 } }));
+    onTap(response({ notification_id: 20, link: { kind: 'tool', id: 21 } }));
+    await waitFor(() => expect(api.markNotificationRead).toHaveBeenCalledTimes(2));
+    expect(navigationRef.navigate).toHaveBeenCalledTimes(2);
+  });
+
+  // A cold-start response whose key was never seen before (not already
+  // handled by the listener, not already replayed) is handled — once.
+  it('handles a cold-start replay whose key was not already handled', async () => {
+    (Notifications.getLastNotificationResponseAsync as jest.Mock).mockResolvedValue(
+      response({ notification_id: 30, link: { kind: 'tool', id: 31 } })
+    );
+    renderBridge();
+    await waitFor(() => expect(navigationRef.navigate).toHaveBeenCalledTimes(1));
+    expect(navigationRef.navigate).toHaveBeenCalledWith('DeviceDetails', { deviceId: 31 });
+    expect(api.markNotificationRead).toHaveBeenCalledWith(30);
   });
 
   it('removes both listener subscriptions on unmount', () => {
