@@ -31,6 +31,7 @@ import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScree
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
+import NotificationsBridge from '../notifications/NotificationsBridge';
 // Billing screens are registered on ANDROID ONLY (see the Platform-gated group
 // in MainStack). TOOLTRAQ is a free B2B access client and the iOS build sells no
 // subscriptions in-app (App Store Guideline 3.1.3(c) enterprise) — so on iOS
@@ -381,6 +382,7 @@ export const AppNavigator = () => {
     <NavigationContainer ref={navigationRef} linking={linking}>
       {isAuthenticated ? (
         <WhatsNewProvider>
+          <NotificationsBridge />
           <OnboardingStack />
         </WhatsNewProvider>
       ) : (
