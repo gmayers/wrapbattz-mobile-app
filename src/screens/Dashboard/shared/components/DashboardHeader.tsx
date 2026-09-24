@@ -43,7 +43,7 @@ const DashboardHeader: React.FC<Props> = ({
           style={styles.bellWrap}
           onPress={onAlertsPress}
           accessibilityRole="button"
-          accessibilityLabel="View alerts"
+          accessibilityLabel={hasUnreadAlerts ? 'View alerts, unread' : 'View alerts'}
           activeOpacity={0.7}
         >
           <Ionicons name="notifications-outline" size={22} color={palette.textSecondary} />

@@ -18,10 +18,14 @@ jest.mock('../../../hooks/useScanTag', () => ({
   useScanTag: () => ({ scan: jest.fn() }),
 }));
 
-jest.mock('../../../notifications/queries', () => ({ useUnreadCount: () => ({ count: 2 }) }));
+let mockUnread = 2;
+jest.mock('../../../notifications/queries', () => ({ useUnreadCount: () => ({ count: mockUnread }) }));
 
 describe('DashboardScreen', () => {
-  beforeEach(() => { mockNavigate.mockClear(); });
+  beforeEach(() => {
+    mockNavigate.mockClear();
+    mockUnread = 2;
+  });
 
   it('renders worker QuickAction tiles without the admin-only Notifications tile', () => {
     currentRole = 'site_worker';
@@ -37,8 +41,18 @@ describe('DashboardScreen', () => {
   it('shows the bell for workers and opens the inbox', () => {
     currentRole = 'site_worker';
     render(<DashboardScreen />);
-    fireEvent.press(screen.getByLabelText('View alerts'));
+    const bell = screen.getByLabelText('View alerts, unread');
+    expect(bell.props.accessibilityRole).toBe('button');
+    fireEvent.press(bell);
     expect(mockNavigate).toHaveBeenCalledWith('Notifications');
+  });
+
+  it('labels the worker bell without "unread" when there is nothing unread', () => {
+    currentRole = 'site_worker';
+    mockUnread = 0;
+    render(<DashboardScreen />);
+    expect(screen.getByLabelText('View alerts')).toBeTruthy();
+    expect(screen.queryByLabelText('View alerts, unread')).toBeNull();
   });
 
   it('renders Fleet status quick actions for admin role', () => {

@@ -48,7 +48,8 @@ const StandardDashboard: React.FC<{ role: any }> = ({ role }) => {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Quick Actions</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Notifications')}
-          accessibilityLabel="View alerts"
+          accessibilityRole="button"
+          accessibilityLabel={unread > 0 ? 'View alerts, unread' : 'View alerts'}
           style={styles.bell}
         >
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
