@@ -1,8 +1,6 @@
 import { apiClient } from '../client';
 import { BOOTSTRAP_TIMEOUT_MS } from '../config';
 import type {
-  NotificationMarkReadRequest,
-  NotificationRead,
   OnboardingState,
   OnboardingUpdate,
   PushTokenDelete,
@@ -60,20 +58,4 @@ export async function registerPushToken(payload: PushTokenRequest): Promise<Push
 
 export async function unregisterPushToken(payload: PushTokenDelete): Promise<void> {
   await apiClient.delete('/account/push-tokens/', { data: payload });
-}
-
-export async function listNotifications(): Promise<Record<string, unknown>> {
-  const { data } = await apiClient.get<Record<string, unknown>>('/account/notifications/');
-  return data;
-}
-
-export async function markNotification(
-  notificationId: number,
-  payload: NotificationMarkReadRequest = { read: true }
-): Promise<NotificationRead> {
-  const { data } = await apiClient.patch<NotificationRead>(
-    `/account/notifications/${notificationId}/`,
-    payload
-  );
-  return data;
 }

@@ -289,6 +289,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/account/notifications/unread-count/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unread Count */
+        get: operations["api_routers_account_notifications_unread_count"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/notifications/mark-all-read/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark All Read */
+        post: operations["api_routers_account_notifications_mark_all_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/notifications/{notification_id}/": {
         parameters: {
             query?: never;
@@ -304,6 +338,42 @@ export interface paths {
         head?: never;
         /** Mark Notification */
         patch: operations["api_routers_account_notifications_mark_notification"];
+        trace?: never;
+    };
+    "/api/v1/account/notification-preferences/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preferences */
+        get: operations["api_routers_account_notification_preferences_get_preferences"];
+        /** Put Preferences */
+        put: operations["api_routers_account_notification_preferences_put_preferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/me/notification-policy/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Policy */
+        get: operations["api_routers_organization_notification_policy_get_policy"];
+        /** Put Policy */
+        put: operations["api_routers_organization_notification_policy_put_policy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/organizations/": {
@@ -682,6 +752,92 @@ export interface paths {
         post?: never;
         /** Delete Photo */
         delete: operations["api_routers_tools_photos_delete_photo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assignments/transfers/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transfers */
+        get: operations["api_routers_assignments_transfers_list_transfers"];
+        put?: never;
+        /** Create Transfer */
+        post: operations["api_routers_assignments_transfers_create_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assignments/transfers/{transfer_id}/accept/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Transfer */
+        post: operations["api_routers_assignments_transfers_accept_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assignments/transfers/{transfer_id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline Transfer */
+        post: operations["api_routers_assignments_transfers_decline_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assignments/transfers/{transfer_id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Transfer */
+        post: operations["api_routers_assignments_transfers_cancel_transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assignments/transfers/pending/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pending For Me */
+        get: operations["api_routers_assignments_transfers_list_pending_for_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1128,6 +1284,337 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Catalog
+         * @description Store-product catalog: one row per (plan, interval).
+         *
+         *     Not gated by billing_enabled — it's read-only marketing data the
+         *     Subscribe screen needs before any purchase can happen.
+         */
+        get: operations["api_routers_billing_mobile_get_catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Subscription */
+        get: operations["api_routers_billing_mobile_get_subscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/iap/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Iap Verify */
+        post: operations["api_routers_billing_mobile_iap_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/iap/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Iap Restore */
+        post: operations["api_routers_billing_mobile_iap_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/plans/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Plans
+         * @description Return the active plan catalog with add-on pricing.
+         *
+         *     Public endpoint — no auth required.
+         */
+        get: operations["api_routers_billing_plans_list_plans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Billing State
+         * @description Return current billing state for the authenticated organisation.
+         */
+        get: operations["api_routers_billing_state_billing_state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/checkout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Checkout
+         * @description Initiate a checkout session for the authenticated organisation owner.
+         *
+         *     Resolves Stripe credentials without mutating the global stripe.api_key,
+         *     delegates to the ``billing.services.checkout.start`` service, and maps
+         *     the result to the API response schema.
+         */
+        post: operations["api_routers_billing_checkout_start_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/portal/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open Portal
+         * @description Open a Stripe Customer Portal session for the authenticated org owner.
+         *
+         *     Resolves Stripe credentials without mutating the global stripe.api_key,
+         *     delegates to ``billing.services.portal.create_session``, and returns
+         *     a ``PortalOut`` with the redirect URL.
+         *
+         *     Raises ``ApiError(402)`` (propagated to the standard handler) when the
+         *     organisation has no Stripe customer yet — i.e. still on a free trial.
+         */
+        post: operations["api_routers_billing_portal_open_portal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/invoices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invoices
+         * @description Return recent invoices from the local djstripe mirror for the org.
+         *
+         *     If the org has no Stripe customer (trial) → returns an empty list.
+         *     Ordered newest first; optional cursor pagination via ``starting_after``.
+         */
+        get: operations["api_routers_billing_invoices_list_invoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/credits/redeem/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem Credits
+         * @description Attempt to redeem credits (stub).
+         *
+         *     Store integration is not yet implemented, so this endpoint returns
+         *     a 501 Not Implemented error.
+         */
+        post: operations["api_routers_billing_credits_redeem_credits"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/add-ons/seats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Buy Seats
+         * @description Purchase extra seats for the authenticated organisation.
+         *
+         *     Resolves Stripe credentials without mutating the global stripe.api_key,
+         *     delegates to ``billing.services.addons.buy_seats``, and maps the result
+         *     to the API response schema.  Returns 402 when the org has no active
+         *     subscription / payment method yet (client_secret carries a SetupIntent).
+         *     ``ApiError`` raised by the service (e.g. invalid_quantity) propagates
+         *     as-is to the error handler.
+         */
+        post: operations["api_routers_billing_addons_buy_seats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/add-ons/devices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Buy Devices
+         * @description Purchase extra device slots for the authenticated organisation.
+         *
+         *     Devices are sold in blocks of 100; the service rounds up automatically.
+         *     Returns 402 when the org has no active subscription yet.
+         */
+        post: operations["api_routers_billing_addons_buy_devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/customer-sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Customer Sheet */
+        post: operations["api_routers_billing_payment_methods_customer_sheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/payment-method/default/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Default Payment Method */
+        post: operations["api_routers_billing_payment_methods_set_default_payment_method"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Subscription */
+        post: operations["api_routers_billing_subscription_actions_cancel_subscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription/resume/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Subscription */
+        post: operations["api_routers_billing_subscription_actions_resume_subscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1410,6 +1897,29 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** FeedParams */
+        FeedParams: {
+            /**
+             * Status
+             * @default all
+             * @enum {string}
+             */
+            status: "all" | "unread";
+            /**
+             * Limit
+             * @default 25
+             */
+            limit: number;
+            /** Cursor */
+            cursor?: string | null;
+        };
+        /** NotificationLink */
+        NotificationLink: {
+            /** Kind */
+            kind: string;
+            /** Id */
+            id: number;
+        };
         /** NotificationRead */
         NotificationRead: {
             /** Id */
@@ -1429,6 +1939,26 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            link?: components["schemas"]["NotificationLink"] | null;
+        };
+        /** PagedNotifications */
+        PagedNotifications: {
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Prev Cursor */
+            prev_cursor?: string | null;
+        };
+        /** UnreadCount */
+        UnreadCount: {
+            /** Count */
+            count: number;
+        };
+        /** MarkAllReadResult */
+        MarkAllReadResult: {
+            /** Updated */
+            updated: number;
         };
         /** NotificationMarkReadRequest */
         NotificationMarkReadRequest: {
@@ -1437,6 +1967,109 @@ export interface components {
              * @default true
              */
             read: boolean;
+        };
+        /** ChannelState */
+        ChannelState: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Editable
+             * @default false
+             */
+            editable: boolean;
+        };
+        /** MasterSwitches */
+        MasterSwitches: {
+            /** Push */
+            push: boolean;
+            /** Email */
+            email: boolean;
+        };
+        /** TypePreference */
+        TypePreference: {
+            /** Type */
+            type: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Urgent
+             * @default false
+             */
+            urgent: boolean;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+            push: components["schemas"]["ChannelState"];
+            email: components["schemas"]["ChannelState"];
+        };
+        /** UserPreferences */
+        UserPreferences: {
+            master: components["schemas"]["MasterSwitches"];
+            /** Types */
+            types: components["schemas"]["TypePreference"][];
+        };
+        /** OrgPolicy */
+        OrgPolicy: {
+            /** Digest Minutes */
+            digest_minutes: number;
+            /** Members Can Disable Push */
+            members_can_disable_push: boolean;
+            /** Members Can Disable Email */
+            members_can_disable_email: boolean;
+            /** Types */
+            types: components["schemas"]["TypePolicy"][];
+        };
+        /** TypePolicy */
+        TypePolicy: {
+            /** Type */
+            type: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Audience
+             * @default
+             */
+            audience: string;
+            /** Push Enabled */
+            push_enabled: boolean;
+            /** Email Enabled */
+            email_enabled: boolean;
+            /** Urgent */
+            urgent: boolean;
+            /** Locked */
+            locked: boolean;
+        };
+        /** OrgPolicyUpdate */
+        OrgPolicyUpdate: {
+            /** Digest Minutes */
+            digest_minutes?: number | null;
+            /** Members Can Disable Push */
+            members_can_disable_push?: boolean | null;
+            /** Members Can Disable Email */
+            members_can_disable_email?: boolean | null;
+            /**
+             * Types
+             * @default []
+             */
+            types: components["schemas"]["TypePolicy"][];
         };
         /** OrganizationRead */
         OrganizationRead: {
@@ -1503,6 +2136,22 @@ export interface components {
              * @default 0
              */
             site_count: number;
+            /**
+             * Require Transfer Confirmation
+             * @default true
+             */
+            require_transfer_confirmation: boolean;
+            /**
+             * Timezone
+             * @default Europe/London
+             */
+            timezone: string;
+            /**
+             * Workday End Time
+             * Format: time
+             * @default 18:00:00
+             */
+            workday_end_time: string;
         };
         /** OrganizationCreate */
         OrganizationCreate: {
@@ -1545,6 +2194,12 @@ export interface components {
             phone?: string | null;
             /** Website */
             website?: string | null;
+            /** Require Transfer Confirmation */
+            require_transfer_confirmation?: boolean | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Workday End Time */
+            workday_end_time?: string | null;
         };
         /** AssignmentStats */
         AssignmentStats: {
@@ -1959,6 +2614,72 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** TransferRead */
+        TransferRead: {
+            /** Id */
+            id: number;
+            /** Uuid */
+            uuid: string;
+            /** Tool Id */
+            tool_id: number;
+            /** Tool Name */
+            tool_name: string;
+            /** From User Id */
+            from_user_id?: number | null;
+            /**
+             * From User Email
+             * @default
+             */
+            from_user_email: string;
+            /** To User Id */
+            to_user_id?: number | null;
+            /**
+             * To User Email
+             * @default
+             */
+            to_user_email: string;
+            /** Status */
+            status: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Created By Id */
+            created_by_id?: number | null;
+        };
+        /** TransferCreate */
+        TransferCreate: {
+            /** Tool Id */
+            tool_id: number;
+            /** To User Id */
+            to_user_id: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** PagedTransfers */
+        PagedTransfers: {
+            /** Items */
+            items: components["schemas"]["TransferRead"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
         };
         /** AssignmentRead */
         AssignmentRead: {
@@ -2456,6 +3177,292 @@ export interface components {
             /** Download Url */
             download_url: string;
         };
+        /** CatalogOut */
+        CatalogOut: {
+            /** Items */
+            items: components["schemas"]["TierCatalogItemOut"][];
+        };
+        /** TierCatalogItemOut */
+        TierCatalogItemOut: {
+            /** Tier Id */
+            tier_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Features */
+            features: string[];
+            /** Asset Cap */
+            asset_cap?: number | null;
+            /** Duration */
+            duration: string;
+            /** Ios Product Id */
+            ios_product_id?: string | null;
+            /** Android Product Id */
+            android_product_id?: string | null;
+            /** Stripe Price Id */
+            stripe_price_id?: string | null;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** SubscriptionStateOut */
+        SubscriptionStateOut: {
+            /** Source */
+            source?: string | null;
+            /** Tier Id */
+            tier_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /**
+             * Cancel At Period End
+             * @default false
+             */
+            cancel_at_period_end: boolean;
+            /** Purchasing User Id */
+            purchasing_user_id?: number | null;
+            /** Managed In */
+            managed_in?: string | null;
+        };
+        /** IapVerifyIn */
+        IapVerifyIn: {
+            /** Platform */
+            platform: string;
+            /** Product Id */
+            product_id: string;
+            /** Transaction Id */
+            transaction_id: string;
+            /** Original Transaction Id */
+            original_transaction_id?: string | null;
+            /** Receipt */
+            receipt: string;
+            /** Purchase Token */
+            purchase_token?: string | null;
+        };
+        /** IapRestoreIn */
+        IapRestoreIn: {
+            /** Platform */
+            platform: string;
+            /** Receipts */
+            receipts: components["schemas"]["IapRestoreReceiptIn"][];
+        };
+        /** IapRestoreReceiptIn */
+        IapRestoreReceiptIn: {
+            /** Transaction Id */
+            transaction_id: string;
+            /** Receipt */
+            receipt: string;
+            /** Product Id */
+            product_id: string;
+        };
+        /** AddonOut */
+        AddonOut: {
+            /** Unit Price Monthly */
+            unit_price_monthly: number;
+            /** Currency */
+            currency: string;
+        };
+        /** PlanOut */
+        PlanOut: {
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /**
+             * Subhead
+             * @default
+             */
+            subhead: string;
+            /** Selling Points */
+            selling_points: string[];
+            /** Monthly Price */
+            monthly_price?: number | null;
+            /** Annual Price */
+            annual_price?: number | null;
+            /** Currency */
+            currency: string;
+            /** Included Seats */
+            included_seats: number;
+            /** Included Devices */
+            included_devices: number;
+            /** Included Credits */
+            included_credits: number;
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
+        };
+        /** PlansOut */
+        PlansOut: {
+            /** Plans */
+            plans: components["schemas"]["PlanOut"][];
+            /** Addons */
+            addons: {
+                [key: string]: components["schemas"]["AddonOut"];
+            };
+        };
+        /** ActionsBlock */
+        ActionsBlock: {
+            /** Can Upgrade */
+            can_upgrade: boolean;
+            /** Can Buy Seats */
+            can_buy_seats: boolean;
+            /** Can Buy Devices */
+            can_buy_devices: boolean;
+            /** Can Open Portal */
+            can_open_portal: boolean;
+            /** Needs Payment Method */
+            needs_payment_method: boolean;
+        };
+        /** BillingStateOut */
+        BillingStateOut: {
+            /** Tier */
+            tier?: string | null;
+            /** Status */
+            status: string;
+            /** Trial Ends At */
+            trial_ends_at?: string | null;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /** Cancel At Period End */
+            cancel_at_period_end: boolean;
+            /** Billing Interval */
+            billing_interval?: string | null;
+            /** In Grace Period */
+            in_grace_period: boolean;
+            /** Grace Ends At */
+            grace_ends_at?: string | null;
+            /** Limits */
+            limits: {
+                [key: string]: components["schemas"]["LimitBlock"];
+            };
+            credits: components["schemas"]["CreditsBlock"];
+            /** Features */
+            features: {
+                [key: string]: boolean;
+            };
+            /** Stripe Customer Id */
+            stripe_customer_id?: string | null;
+            actions: components["schemas"]["ActionsBlock"];
+        };
+        /** CreditsBlock */
+        CreditsBlock: {
+            /** Balance */
+            balance: number;
+            /** Next Expiry */
+            next_expiry?: string | null;
+        };
+        /** LimitBlock */
+        LimitBlock: {
+            /** Included */
+            included: number;
+            /** Addon */
+            addon: number;
+            /** Limit */
+            limit: number;
+            /** Used */
+            used: number;
+            /** Remaining */
+            remaining: number;
+        };
+        /** CheckoutOut */
+        CheckoutOut: {
+            /** Client Secret */
+            client_secret: string;
+            /** Publishable Key */
+            publishable_key: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Subscription Id */
+            subscription_id: string;
+            /** Ephemeral Key */
+            ephemeral_key?: string | null;
+            /** Amount */
+            amount: number;
+            /** Currency */
+            currency: string;
+        };
+        /** CheckoutIn */
+        CheckoutIn: {
+            /** Plan Slug */
+            plan_slug: string;
+            /** Interval */
+            interval: string;
+        };
+        /** PortalOut */
+        PortalOut: {
+            /** Url */
+            url: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** InvoiceOut */
+        InvoiceOut: {
+            /** Id */
+            id: string;
+            /** Number */
+            number?: string | null;
+            /** Amount */
+            amount: number;
+            /** Status */
+            status: string;
+            /** Hosted Invoice Url */
+            hosted_invoice_url?: string | null;
+            /** Pdf Url */
+            pdf_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AddonResultOut */
+        AddonResultOut: {
+            /** Ok */
+            ok: boolean;
+            /** Subscription Item Id */
+            subscription_item_id?: string | null;
+            /** Granted */
+            granted: number;
+            /** New Limit */
+            new_limit: number;
+            /** Prorated Charge */
+            prorated_charge?: number | null;
+            /** Next Invoice Amount */
+            next_invoice_amount?: number | null;
+            /**
+             * Needs Payment Method
+             * @default false
+             */
+            needs_payment_method: boolean;
+            /** Client Secret */
+            client_secret?: string | null;
+        };
+        /** SeatsIn */
+        SeatsIn: {
+            /** Seats */
+            seats: number;
+        };
+        /** DevicesIn */
+        DevicesIn: {
+            /** Devices */
+            devices: number;
+        };
+        /** CustomerSheetOut */
+        CustomerSheetOut: {
+            /** Customer Id */
+            customer_id: string;
+            /** Ephemeral Key Secret */
+            ephemeral_key_secret: string;
+            /** Setup Intent Client Secret */
+            setup_intent_client_secret: string;
+        };
+        /** DefaultPaymentMethodIn */
+        DefaultPaymentMethodIn: {
+            /** Payment Method Id */
+            payment_method_id: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2883,6 +3890,30 @@ export interface operations {
     };
     api_routers_account_notifications_list_notifications: {
         parameters: {
+            query?: {
+                status?: "all" | "unread";
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedNotifications"];
+                };
+            };
+        };
+    };
+    api_routers_account_notifications_unread_count: {
+        parameters: {
             query?: never;
             header?: never;
             path?: never;
@@ -2896,9 +3927,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UnreadCount"];
+                };
+            };
+        };
+    };
+    api_routers_account_notifications_mark_all_read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkAllReadResult"];
                 };
             };
         };
@@ -2925,6 +3974,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRead"];
+                };
+            };
+        };
+    };
+    api_routers_account_notification_preferences_get_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPreferences"];
+                };
+            };
+        };
+    };
+    api_routers_account_notification_preferences_put_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPreferences"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPreferences"];
+                };
+            };
+        };
+    };
+    api_routers_organization_notification_policy_get_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgPolicy"];
+                };
+            };
+        };
+    };
+    api_routers_organization_notification_policy_put_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrgPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgPolicy"];
                 };
             };
         };
@@ -3669,6 +4806,138 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_routers_assignments_transfers_list_transfers: {
+        parameters: {
+            query?: {
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedTransfers"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_transfers_create_transfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferCreate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_transfers_accept_transfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_transfers_decline_transfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_transfers_cancel_transfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+        };
+    };
+    api_routers_assignments_transfers_list_pending_for_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"][];
+                };
             };
         };
     };
@@ -4476,6 +5745,367 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_routers_billing_mobile_get_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_mobile_get_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionStateOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_mobile_iap_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IapVerifyIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionStateOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_mobile_iap_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IapRestoreIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionStateOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_plans_list_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlansOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_state_billing_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingStateOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_checkout_start_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_portal_open_portal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_invoices_list_invoices: {
+        parameters: {
+            query?: {
+                limit?: number;
+                starting_after?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"][];
+                };
+            };
+        };
+    };
+    api_routers_billing_credits_redeem_credits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_billing_addons_buy_seats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeatsIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddonResultOut"];
+                };
+            };
+            /** @description Payment Required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddonResultOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_addons_buy_devices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DevicesIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddonResultOut"];
+                };
+            };
+            /** @description Payment Required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddonResultOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_payment_methods_customer_sheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerSheetOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_payment_methods_set_default_payment_method: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultPaymentMethodIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_routers_billing_subscription_actions_cancel_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingStateOut"];
+                };
+            };
+        };
+    };
+    api_routers_billing_subscription_actions_resume_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingStateOut"];
+                };
             };
         };
     };
