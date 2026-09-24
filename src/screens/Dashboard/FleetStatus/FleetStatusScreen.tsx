@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useFleetStatusData } from './hooks/useFleetStatusData';
+import { useUnreadCount } from '../../../notifications/queries';
 import DashboardHeader from '../shared/components/DashboardHeader';
 import QuickActions, { QuickActionItem } from '../shared/components/QuickActions';
 import InventoryDonutCard from './components/InventoryDonutCard';
@@ -20,6 +21,7 @@ import type { FleetException } from './types';
 const FleetStatusScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const data = useFleetStatusData();
+  const { count: unread } = useUnreadCount();
 
   const subtitle = buildSubtitle(data.inventory.total, data.inventory.taggedPercent);
   const tagline = data.organizationName
@@ -92,8 +94,8 @@ const FleetStatusScreen: React.FC = () => {
           title="Fleet status"
           subtitle={subtitle}
           initials={data.userInitials}
-          hasUnreadAlerts={data.hasUnreadAlerts}
-          onAlertsPress={() => navigation.navigate('NotificationPreferences')}
+          hasUnreadAlerts={unread > 0}
+          onAlertsPress={() => navigation.navigate('Notifications')}
           onAvatarPress={() => navigation.navigate('settings')}
         />
 

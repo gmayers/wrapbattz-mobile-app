@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import DashboardScreen from '../DashboardScreen';
 
 let currentRole: any = 'site_worker';
@@ -18,6 +18,8 @@ jest.mock('../../../hooks/useScanTag', () => ({
   useScanTag: () => ({ scan: jest.fn() }),
 }));
 
+jest.mock('../../../notifications/queries', () => ({ useUnreadCount: () => ({ count: 2 }) }));
+
 describe('DashboardScreen', () => {
   beforeEach(() => { mockNavigate.mockClear(); });
 
@@ -30,6 +32,13 @@ describe('DashboardScreen', () => {
     // Notifications (preferences) is admin/owner-only — it produced an
     // "access denied" popup for site workers, so it must not render here.
     expect(screen.queryByLabelText('Notifications')).toBeNull();
+  });
+
+  it('shows the bell for workers and opens the inbox', () => {
+    currentRole = 'site_worker';
+    render(<DashboardScreen />);
+    fireEvent.press(screen.getByLabelText('View alerts'));
+    expect(mockNavigate).toHaveBeenCalledWith('Notifications');
   });
 
   it('renders Fleet status quick actions for admin role', () => {

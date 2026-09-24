@@ -29,6 +29,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
 import NotificationPreferencesScreen from '../screens/PaymentScreens/NotificationPreferencesScreen';
+import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
 import NotificationsBridge from '../notifications/NotificationsBridge';
@@ -256,6 +257,21 @@ const MainStack = () => {
         headerTitle: 'Notifications',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="Notifications"
+      component={NotificationsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Notifications',
+        headerStyle: getHeaderStyle(),
+        // Passed as a fresh literal (not the shared `headerTitleStyle` const)
+        // so `fontWeight` is contextually typed as the TextStyle literal
+        // union instead of `string` — reusing the shared const here would add
+        // another instance of a pre-existing baseline type error.
+        headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
         headerTintColor: colors.primary,
       }}
     />
