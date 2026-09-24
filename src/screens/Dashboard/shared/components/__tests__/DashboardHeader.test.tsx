@@ -18,6 +18,16 @@ function renderHeader(hasUnreadAlerts: boolean | null, onAlertsPress = jest.fn()
 }
 
 describe('DashboardHeader bell', () => {
+  // The bell always has a destination now (the Notifications inbox), so it is
+  // always rendered; onAlertsPress is a required prop.
+  it('renders the bell and calls the handler once when pressed', () => {
+    const onPress = renderHeader(false);
+    const bell = screen.getByLabelText('View alerts');
+    expect(bell.props.accessibilityRole).toBe('button');
+    fireEvent.press(bell);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it('announces unread alerts to screen readers', () => {
     const onPress = renderHeader(true);
     fireEvent.press(screen.getByLabelText('View alerts, unread'));

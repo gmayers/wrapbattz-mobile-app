@@ -12,19 +12,25 @@ describe('getSectionsForRole', () => {
     expect(keys).toEqual(['account', 'preferences', 'support', 'logout']);
   });
 
-  it('returns all 6 sections for admin on Android', () => {
+  it('returns 5 sections for admin on Android (no billing)', () => {
     Platform.OS = 'android';
     const keys = getSectionsForRole('admin').map(s => s.key);
-    expect(keys).toEqual(['account', 'preferences', 'organization', 'billing', 'support', 'logout']);
+    expect(keys).toEqual(['account', 'preferences', 'organization', 'support', 'logout']);
   });
 
-  it('returns all 6 sections for owner on Android', () => {
+  it('returns billing for owner on Android', () => {
     Platform.OS = 'android';
     const keys = getSectionsForRole('owner').map(s => s.key);
     expect(keys).toEqual(['account', 'preferences', 'organization', 'billing', 'support', 'logout']);
   });
 
-  it('hides Billing on iOS even for admin (App Store 3.1.3(c))', () => {
+  it('shows Billing on iOS for owner (owner-only, not platform-gated)', () => {
+    Platform.OS = 'ios';
+    const keys = getSectionsForRole('owner').map(s => s.key);
+    expect(keys).toEqual(['account', 'preferences', 'organization', 'billing', 'support', 'logout']);
+  });
+
+  it('hides Billing on iOS for admin (owner-only)', () => {
     Platform.OS = 'ios';
     const keys = getSectionsForRole('admin').map(s => s.key);
     expect(keys).toEqual(['account', 'preferences', 'organization', 'support', 'logout']);
@@ -42,6 +48,24 @@ describe('getSectionsForRole', () => {
     expect(logout.rows).toHaveLength(1);
     expect(logout.rows[0].kind).toBe('action');
     expect(logout.rows[0].destructive).toBe(true);
+  });
+});
+
+const billingRows = (role: any) =>
+  getSectionsForRole(role).find((s) => s.key === 'billing')?.rows.map((r) => r.key);
+
+describe.each(['ios', 'android'])('billing section on %s', (os) => {
+  beforeEach(() => {
+    Platform.OS = os as any;
+  });
+
+  it('owner sees a single Subscription row', () => {
+    expect(billingRows('owner')).toEqual(['subscription']);
+  });
+
+  it('admin and workers do not see billing', () => {
+    expect(billingRows('admin')).toBeUndefined();
+    expect(billingRows('site_worker')).toBeUndefined();
   });
 });
 

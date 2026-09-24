@@ -1,26 +1,15 @@
 // Stripe configuration
 //
 // ============================================================================
-// IMPORTANT: ADD YOUR STRIPE PUBLISHABLE KEYS BELOW
-// ============================================================================
-//
-// 1. Get your TEST key from: https://dashboard.stripe.com/test/apikeys
-//    - Copy the "Publishable key" (starts with pk_test_)
-//    - Replace pk_test_YOUR_ACTUAL_TEST_KEY_HERE below
-//
-// 2. Get your LIVE key from: https://dashboard.stripe.com/apikeys
-//    - Copy the "Publishable key" (starts with pk_live_)
-//    - Replace pk_live_YOUR_ACTUAL_LIVE_KEY_HERE below
-//
-// 3. Restart your development server after changing keys
-//
-// NOTE: These are PUBLISHABLE keys (safe to include in app), not SECRET keys
+// The publishable key comes from the environment, not from source:
+//   - development / preview builds get it from eas.json's build.<profile>.env
+//   - production gets it from an EAS environment variable (see eas.json)
+//   - local `npm start` gets it from .env (gitignored)
+// NOTE: This is a PUBLISHABLE key (safe to include in app), not a SECRET key.
 // ============================================================================
 
 export const STRIPE_CONFIG = {
-  publishableKey: __DEV__
-    ? "pk_test_51SRw87Df0YSwO3Xvn6PKAp7us1hF7VyhfCMqwH11jFQ1QjG2VfrDne7MEkJG1A56RAxSvMPx6vvxk7Z3Ujw6iwxL00hnf7uSKd" // ⚠️ REPLACE with your Stripe TEST publishable key
-    : "pk_live_YOUR_ACTUAL_LIVE_KEY_HERE", // ⚠️ REPLACE with your Stripe LIVE publishable key
+  publishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
 
   // Apple Pay merchant identifier (must match your Apple Developer account)
   merchantIdentifier: "merchant.com.wrapbattz.app",

@@ -120,26 +120,6 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
-jest.mock('expo-iap', () => ({
-  initConnection: jest.fn(() => Promise.resolve(true)),
-  endConnection: jest.fn(() => Promise.resolve()),
-  fetchProducts: jest.fn(() => Promise.resolve([])),
-  requestPurchase: jest.fn(() => Promise.resolve()),
-  finishTransaction: jest.fn(() => Promise.resolve()),
-  getAvailablePurchases: jest.fn(() => Promise.resolve([])),
-  purchaseUpdatedListener: jest.fn(() => ({ remove: jest.fn() })),
-  purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
-  ErrorCode: {
-    UserCancelled: 'user-cancelled',
-    NetworkError: 'network-error',
-    ItemUnavailable: 'item-unavailable',
-    AlreadyOwned: 'already-owned',
-    NotPrepared: 'not-prepared',
-    ServiceError: 'service-error',
-    BillingUnavailable: 'billing-unavailable',
-  },
-}));
-
 jest.mock('expo-local-authentication', () => ({
   hasHardwareAsync: jest.fn(() => Promise.resolve(false)),
   isEnrolledAsync: jest.fn(() => Promise.resolve(false)),

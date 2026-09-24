@@ -8,7 +8,10 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRw87Df0YSwO3Xvn6PKAp7us1hF7VyhfCMqwH11jFQ1QjG2VfrDne7MEkJG1A56RAxSvMPx6vvxk7Z3Ujw6iwxL00hnf7uSKd"
+      }
     },
     "preview": {
       "android": {
@@ -18,7 +21,8 @@
       "autoIncrement": true,
       "channel": "preview",
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRw87Df0YSwO3Xvn6PKAp7us1hF7VyhfCMqwH11jFQ1QjG2VfrDne7MEkJG1A56RAxSvMPx6vvxk7Z3Ujw6iwxL00hnf7uSKd"
       }
     },
     "production": {

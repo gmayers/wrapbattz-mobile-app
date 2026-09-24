@@ -79,7 +79,6 @@
           }
         }
       ],
-      "expo-iap",
       [
         "expo-notifications",
         {
@@ -130,7 +129,6 @@
         "android.permission.CAMERA",
         "android.permission.NFC",
         "android.permission.VIBRATE",
-        "com.android.vending.BILLING",
         "android.permission.POST_NOTIFICATIONS"
       ],
       "googleServicesFile": "./google-services.json",
