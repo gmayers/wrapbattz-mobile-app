@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import appJson from '../../../app.json';
 
 describe('app.json notification config', () => {
@@ -9,6 +11,14 @@ describe('app.json notification config', () => {
     );
     expect(entry).toBeDefined();
     expect(entry[1]).toMatchObject({ defaultChannel: 'default' });
+  });
+
+  it('uses the monochrome notification icon (Android renders it as an alpha mask)', () => {
+    const entry = expo.plugins.find(
+      (p: any) => (Array.isArray(p) ? p[0] : p) === 'expo-notifications'
+    );
+    expect(entry[1].icon).toBe('./assets/notification-icon.png');
+    expect(fs.existsSync(path.join(__dirname, '../../..', 'assets/notification-icon.png'))).toBe(true);
   });
 
   it('declares the Android 13 notification permission and FCM config', () => {
