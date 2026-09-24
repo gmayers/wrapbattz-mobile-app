@@ -2,7 +2,14 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import * as api from '../../api/endpoints/notifications';
-import { useMarkAllRead, useMarkRead, useNotificationsFeed, useUnreadCount } from '../queries';
+import {
+  useMarkAllRead,
+  useMarkRead,
+  useNotificationsFeed,
+  useUnreadCount,
+  useUpdateNotificationPolicy,
+  useUpdateNotificationPreferences,
+} from '../queries';
 
 jest.mock('../../api/endpoints/notifications');
 
@@ -69,14 +76,20 @@ describe('notification queries', () => {
     await waitFor(() => expect(result.current.count).toBe(5));
   });
 
-  it('mark read updates the cached feed optimistically', async () => {
+  it('mark read updates the cached feed optimistically before the mutation resolves', async () => {
     // onSettled invalidates and refetches the feed; without this the mocked
     // refetch would resolve with the still-unread item and race the optimistic
     // update, per the brief's documented adjustment.
     (api.listNotifications as jest.Mock)
       .mockResolvedValueOnce({ items: [item(1)], next_cursor: null, prev_cursor: null })
       .mockResolvedValue({ items: [item(1, true)], next_cursor: null, prev_cursor: null });
-    (api.markNotificationRead as jest.Mock).mockResolvedValue(item(1, true));
+    // markNotificationRead is held pending (never resolved until we say so),
+    // so that flipping is_read to true while the mutation is still in flight
+    // can only be the onMutate optimistic update, not a post-success refetch.
+    let resolveMark!: (value: unknown) => void;
+    (api.markNotificationRead as jest.Mock).mockImplementation(
+      () => new Promise((resolve) => { resolveMark = resolve; })
+    );
     const { Wrapper } = wrapper();
     const { result } = renderHook(
       () => ({ feed: useNotificationsFeed('all'), mark: useMarkRead() }),
@@ -84,14 +97,24 @@ describe('notification queries', () => {
     );
     await waitFor(() => expect(result.current.feed.isSuccess).toBe(true));
     expect(result.current.feed.data?.pages[0].items[0].is_read).toBe(false);
-    await act(() => result.current.mark.mutateAsync(1));
-    // As above: the observer notifies via a real setTimeout(0), so
-    // mutateAsync's own promise can resolve slightly before the optimistic
-    // update is visible on result.current; wait for it instead of asserting
-    // synchronously.
+
+    act(() => {
+      result.current.mark.mutate(1);
+    });
+
+    // notifyManager batches observer updates via a real setTimeout(0), so
+    // wait for it rather than asserting synchronously.
     await waitFor(() =>
       expect(result.current.feed.data?.pages[0].items[0].is_read).toBe(true)
     );
+    // The mutation must still be pending here — markNotificationRead's promise
+    // has not been resolved yet — proving the flip above came from onMutate.
+    expect(result.current.mark.isPending).toBe(true);
+    expect(api.markNotificationRead).toHaveBeenCalledWith(1);
+
+    // Let the mutation settle so it doesn't leak a pending promise past this test.
+    resolveMark(item(1, true));
+    await waitFor(() => expect(result.current.mark.isPending).toBe(false));
   });
 
   it('mark all read invalidates notification queries', async () => {
@@ -100,6 +123,35 @@ describe('notification queries', () => {
     const spy = jest.spyOn(client, 'invalidateQueries');
     const { result } = renderHook(() => useMarkAllRead(), { wrapper: Wrapper });
     await act(() => result.current.mutateAsync());
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications'] });
+  });
+
+  it('updating notification preferences invalidates all notification queries', async () => {
+    const prefs = {
+      master: { push: true, email: false },
+      types: [],
+    };
+    (api.updateNotificationPreferences as jest.Mock).mockResolvedValue(prefs);
+    const { client, Wrapper } = wrapper();
+    const spy = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useUpdateNotificationPreferences(), { wrapper: Wrapper });
+    await act(() => result.current.mutateAsync(prefs));
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications'] });
+  });
+
+  it('updating notification policy invalidates all notification queries', async () => {
+    const policyUpdate = {
+      digest_minutes: 60,
+      members_can_disable_push: true,
+      members_can_disable_email: true,
+      types: [],
+    };
+    const policy = { ...policyUpdate, digest_minutes: 60 };
+    (api.updateNotificationPolicy as jest.Mock).mockResolvedValue(policy);
+    const { client, Wrapper } = wrapper();
+    const spy = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useUpdateNotificationPolicy(), { wrapper: Wrapper });
+    await act(() => result.current.mutateAsync(policyUpdate));
     expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications'] });
   });
 });

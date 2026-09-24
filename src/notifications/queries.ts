@@ -78,7 +78,12 @@ export function useUpdateNotificationPreferences() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: UserPreferences) => api.updateNotificationPreferences(payload),
-    onSuccess: (data) => qc.setQueryData(notificationKeys.prefs, data),
+    onSuccess: (data) => {
+      qc.setQueryData(notificationKeys.prefs, data);
+      // Preference changes can affect what shows up in the feed/unread count
+      // (e.g. muting a type), so refresh everything notification-related.
+      qc.invalidateQueries({ queryKey: notificationKeys.all });
+    },
   });
 }
 
@@ -96,8 +101,12 @@ export function useUpdateNotificationPolicy() {
     mutationFn: (payload: OrgPolicyUpdate) => api.updateNotificationPolicy(payload),
     onSuccess: (data) => {
       qc.setQueryData(notificationKeys.policy, data);
-      // Policy changes alter what the user's own preferences screen shows.
-      qc.invalidateQueries({ queryKey: notificationKeys.prefs });
+      // Policy changes alter what the user's own preferences screen shows (and
+      // potentially the feed/unread count), so refresh everything
+      // notification-related. notificationKeys.all (['notifications']) is a
+      // prefix of notificationKeys.prefs, so this also covers the preferences
+      // query without a separate invalidateQueries call.
+      qc.invalidateQueries({ queryKey: notificationKeys.all });
     },
   });
 }
