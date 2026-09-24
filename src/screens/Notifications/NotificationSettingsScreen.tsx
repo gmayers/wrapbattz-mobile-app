@@ -1,7 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../auth/AuthContext';
+import { ApiError } from '../../api/errors';
 import {
   useNotificationPolicy, useNotificationPreferences,
   useUpdateNotificationPolicy, useUpdateNotificationPreferences,
@@ -9,6 +10,25 @@ import {
 import type { OrgPolicy, TypePolicy, TypePreference, UserPreferences } from '../../api/types';
 
 type Channel = 'push' | 'email';
+
+// A PUT that changes a non-editable preference is rejected with 403
+// {code: 'preference_not_editable'} — surface that as "your org controls
+// this" rather than a generic failure message. Any other failure (network,
+// validation, 5xx, …) gets a generic retry message; the query refetch that
+// follows the mutation's settle restores whatever the server actually has,
+// so the UI never sits silently out of sync with it.
+function describeSaveError(error: unknown): string {
+  if (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    (error.detail as { code?: string } | null)?.code === 'preference_not_editable'
+  ) {
+    return 'Your organisation manages this setting.';
+  }
+  return "Couldn't save your changes. Please try again.";
+}
+
+const showSaveError = (error: unknown) => Alert.alert("Couldn't save", describeSaveError(error));
 
 const NotificationSettingsScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -30,27 +50,44 @@ const NotificationSettingsScreen: React.FC = () => {
   }
   const prefs: UserPreferences = prefsQ.data;
 
+  // setMaster is always allowed — the master switches have no per-row
+  // editable flag. setType and the policy setters re-check editability /
+  // admin status themselves (defence in depth for Android, where a disabled
+  // Switch can still fire onValueChange from some accessibility services).
   const setMaster = (channel: Channel, value: boolean) =>
-    savePrefs.mutate({ ...prefs, master: { ...prefs.master, [channel]: value } });
+    savePrefs.mutate(
+      { ...prefs, master: { ...prefs.master, [channel]: value } },
+      { onError: showSaveError }
+    );
 
-  const setType = (row: TypePreference, channel: Channel, value: boolean) =>
-    savePrefs.mutate({
-      ...prefs,
-      types: prefs.types.map((r) =>
-        r.type === row.type ? { ...r, [channel]: { ...r[channel], enabled: value } } : r
-      ),
-    });
+  const setType = (row: TypePreference, channel: Channel, value: boolean) => {
+    if (!row[channel].editable) return;
+    savePrefs.mutate(
+      {
+        ...prefs,
+        types: prefs.types.map((r) =>
+          r.type === row.type ? { ...r, [channel]: { ...r[channel], enabled: value } } : r
+        ),
+      },
+      { onError: showSaveError }
+    );
+  };
 
   const reason = (row: TypePreference) =>
     row.locked ? 'Required' : !row.push.editable && !row.email.editable ? 'Managed by your organisation' : null;
 
   const policy: OrgPolicy | undefined = policyQ.data;
-  const setPolicy = (patch: Partial<OrgPolicy>) => policy && savePolicy.mutate({ ...policy, ...patch });
-  const setPolicyType = (row: TypePolicy, patch: Partial<TypePolicy>) =>
-    policy && savePolicy.mutate({
-      ...policy,
-      types: policy.types.map((r) => (r.type === row.type ? { ...r, ...patch } : r)),
-    });
+  const setPolicy = (patch: Partial<OrgPolicy>) => {
+    if (!isAdminOrOwner || !policy) return;
+    savePolicy.mutate({ ...policy, ...patch }, { onError: showSaveError });
+  };
+  const setPolicyType = (row: TypePolicy, patch: Partial<TypePolicy>) => {
+    if (!isAdminOrOwner || !policy) return;
+    savePolicy.mutate(
+      { ...policy, types: policy.types.map((r) => (r.type === row.type ? { ...r, ...patch } : r)) },
+      { onError: showSaveError }
+    );
+  };
 
   const sw = (label: string, value: boolean, onChange: (v: boolean) => void, disabled = false) => (
     <Switch
@@ -68,11 +105,11 @@ const NotificationSettingsScreen: React.FC = () => {
       <View style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: colors.textPrimary }]}>Push notifications</Text>
-          {sw('All push notifications', prefs.master.push, (v) => setMaster('push', v))}
+          {sw('All push notifications', prefs.master.push, (v) => setMaster('push', v), savePrefs.isPending)}
         </View>
         <View style={styles.row}>
           <Text style={[styles.label, { color: colors.textPrimary }]}>Email notifications</Text>
-          {sw('All email notifications', prefs.master.email, (v) => setMaster('email', v))}
+          {sw('All email notifications', prefs.master.email, (v) => setMaster('email', v), savePrefs.isPending)}
         </View>
       </View>
 
@@ -91,8 +128,8 @@ const NotificationSettingsScreen: React.FC = () => {
                 <Text style={[styles.note, { color: colors.textSecondary }]}>{reason(row)}</Text>
               ) : null}
             </View>
-            {sw(`${row.label} push`, row.push.enabled, (v) => setType(row, 'push', v), !row.push.editable)}
-            {sw(`${row.label} email`, row.email.enabled, (v) => setType(row, 'email', v), !row.email.editable)}
+            {sw(`${row.label} push`, row.push.enabled, (v) => setType(row, 'push', v), savePrefs.isPending || !row.push.editable)}
+            {sw(`${row.label} email`, row.email.enabled, (v) => setType(row, 'email', v), savePrefs.isPending || !row.email.editable)}
           </View>
         ))}
       </View>
@@ -108,6 +145,7 @@ const NotificationSettingsScreen: React.FC = () => {
                   key={m}
                   accessibilityLabel={m === 30 ? 'Digest every 30 minutes' : 'Digest every hour'}
                   onPress={() => setPolicy({ digest_minutes: m })}
+                  disabled={savePolicy.isPending}
                   style={[styles.chip, policy.digest_minutes === m && { backgroundColor: colors.primary }]}
                 >
                   <Text style={{ color: policy.digest_minutes === m ? '#111' : colors.textSecondary }}>
@@ -118,24 +156,24 @@ const NotificationSettingsScreen: React.FC = () => {
             </View>
             <View style={styles.row}>
               <Text style={[styles.label, { color: colors.textPrimary }]}>Members can turn off push</Text>
-              {sw('Members can turn off push', policy.members_can_disable_push, (v) => setPolicy({ members_can_disable_push: v }))}
+              {sw('Members can turn off push', policy.members_can_disable_push, (v) => setPolicy({ members_can_disable_push: v }), savePolicy.isPending)}
             </View>
             <View style={styles.row}>
               <Text style={[styles.label, { color: colors.textPrimary }]}>Members can turn off email</Text>
-              {sw('Members can turn off email', policy.members_can_disable_email, (v) => setPolicy({ members_can_disable_email: v }))}
+              {sw('Members can turn off email', policy.members_can_disable_email, (v) => setPolicy({ members_can_disable_email: v }), savePolicy.isPending)}
             </View>
             {policy.types.map((row) => (
               <View key={row.type} style={styles.policyRow}>
                 <Text style={[styles.label, { color: colors.textPrimary }]}>{row.label}</Text>
                 <View style={styles.policySwitches}>
                   <Text style={[styles.note, { color: colors.textSecondary }]}>Push</Text>
-                  {sw(`${row.label} default push`, row.push_enabled, (v) => setPolicyType(row, { push_enabled: v }))}
+                  {sw(`${row.label} default push`, row.push_enabled, (v) => setPolicyType(row, { push_enabled: v }), savePolicy.isPending)}
                   <Text style={[styles.note, { color: colors.textSecondary }]}>Email</Text>
-                  {sw(`${row.label} default email`, row.email_enabled, (v) => setPolicyType(row, { email_enabled: v }))}
+                  {sw(`${row.label} default email`, row.email_enabled, (v) => setPolicyType(row, { email_enabled: v }), savePolicy.isPending)}
                   <Text style={[styles.note, { color: colors.textSecondary }]}>Urgent</Text>
-                  {sw(`${row.label} urgent`, row.urgent, (v) => setPolicyType(row, { urgent: v }))}
+                  {sw(`${row.label} urgent`, row.urgent, (v) => setPolicyType(row, { urgent: v }), savePolicy.isPending)}
                   <Text style={[styles.note, { color: colors.textSecondary }]}>Lock</Text>
-                  {sw(`${row.label} locked`, row.locked, (v) => setPolicyType(row, { locked: v }))}
+                  {sw(`${row.label} locked`, row.locked, (v) => setPolicyType(row, { locked: v }), savePolicy.isPending)}
                 </View>
               </View>
             ))}
