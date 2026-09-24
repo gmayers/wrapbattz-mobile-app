@@ -11,6 +11,7 @@ import React, {
 import * as auth from '../api/endpoints/auth';
 import * as account from '../api/endpoints/account';
 import { unregisterPush } from '../notifications/pushRegistration';
+import { clearNotificationStateOnSignOut } from '../notifications/signOutCleanup';
 import { signInWithGoogle } from './googleSignIn';
 import {
   disableBiometricUnlock as qaDisableBiometric,
@@ -131,6 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const off = apiEvents.on('session-expired', () => {
       void clearCachedUser();
+      // Tray notifications, cold-start tap and badge belong to the session
+      // that just ended (never throws).
+      void clearNotificationStateOnSignOut();
       applyUser(null);
     });
     return off;
@@ -163,6 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // unregisterPush never throws; belt and braces for the logout path.
     }
+    // Clear the tray, cold-start tap and badge (never throws).
+    await clearNotificationStateOnSignOut();
     await auth.logout();
     await clearQueryCache();
     await clearCachedUser();
@@ -238,10 +244,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteAccount = useCallback(async () => {
+    // Remove this device's push token while the session is still valid
+    // (unregisterPush never throws).
+    try {
+      await unregisterPush();
+    } catch {
+      // Belt and braces — deletion must proceed regardless.
+    }
     await account.deleteAccount();
-    // Account is gone server-side — drop local tokens and return to the
-    // unauthenticated state so the app routes back to the auth stack.
+    // Account is gone server-side — drop local tokens, cached org data and
+    // notification state, then return to the unauthenticated state so the
+    // app routes back to the auth stack.
     await tokenStore.clear();
+    await clearQueryCache();
+    await clearCachedUser();
+    await clearNotificationStateOnSignOut();
     applyUser(null);
   }, [applyUser]);
 

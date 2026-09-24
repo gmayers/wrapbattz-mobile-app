@@ -174,3 +174,40 @@ export async function registerForPush(): Promise<PushRegistrationResult> {
 
   return { token, platform, status: 'granted' };
 }
+
+/**
+ * Remove every delivered notification from the tray/notification centre.
+ * Best-effort: never throws.
+ */
+export async function dismissAllNotifications(): Promise<void> {
+  try {
+    await Notifications.dismissAllNotificationsAsync();
+  } catch (err) {
+    console.warn('[NotificationService] dismissAllNotifications failed:', err);
+  }
+}
+
+/**
+ * Forget the native "last notification response" so a later sign-in doesn't
+ * replay a tap from the previous session. Best-effort: never throws (the
+ * native method is missing on some platforms/SDK versions).
+ */
+export async function clearLastResponse(): Promise<void> {
+  try {
+    await Notifications.clearLastNotificationResponse();
+  } catch (err) {
+    console.warn('[NotificationService] clearLastResponse failed:', err);
+  }
+}
+
+/**
+ * Set the app icon badge (iOS; supported Android launchers). Best-effort:
+ * never throws.
+ */
+export async function setBadgeCount(count: number): Promise<void> {
+  try {
+    await Notifications.setBadgeCountAsync(count);
+  } catch (err) {
+    console.warn('[NotificationService] setBadgeCount failed:', err);
+  }
+}

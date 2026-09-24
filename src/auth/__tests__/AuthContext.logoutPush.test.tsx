@@ -3,12 +3,19 @@ import { render, act, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import * as auth from '../../api/endpoints/auth';
 import * as account from '../../api/endpoints/account';
-import { tokenStore } from '../../api';
+import { apiEvents, tokenStore } from '../../api';
+import { clearQueryCache } from '../../query/queryClient';
+import { clearCachedUser } from '../userCache';
 import { AuthProvider, useAuth } from '../AuthContext';
 
 const mockUnregister = jest.fn(async () => undefined);
 jest.mock('../../notifications/pushRegistration', () => ({
   unregisterPush: () => mockUnregister(),
+}));
+
+const mockCleanup = jest.fn(async () => undefined);
+jest.mock('../../notifications/signOutCleanup', () => ({
+  clearNotificationStateOnSignOut: () => mockCleanup(),
 }));
 
 jest.mock('../../api/endpoints/auth', () => ({
@@ -75,6 +82,8 @@ describe('AuthContext logout push unregistration', () => {
     jest.clearAllMocks();
     mockUnregister.mockReset();
     mockUnregister.mockImplementation(async () => undefined);
+    mockCleanup.mockReset();
+    mockCleanup.mockImplementation(async () => undefined);
   });
 
   it('unregister before logout', async () => {
@@ -95,5 +104,46 @@ describe('AuthContext logout push unregistration', () => {
     const ctx = await renderSignedIn();
     await act(() => ctx.logout());
     expect(auth.logout).toHaveBeenCalled();
+  });
+
+  it('logout clears local notification state after unregistering', async () => {
+    const calls: string[] = [];
+    mockUnregister.mockImplementation(async () => {
+      calls.push('unregister');
+    });
+    mockCleanup.mockImplementation(async () => {
+      calls.push('cleanup');
+    });
+    (auth.logout as jest.Mock).mockImplementation(async () => {
+      calls.push('logout');
+    });
+    const ctx = await renderSignedIn();
+    await act(() => ctx.logout());
+    expect(calls).toEqual(['unregister', 'cleanup', 'logout']);
+  });
+
+  it('session-expired clears local notification state', async () => {
+    await renderSignedIn();
+    const call = (apiEvents.on as jest.Mock).mock.calls.find(([name]) => name === 'session-expired');
+    expect(call).toBeDefined();
+    act(() => call![1]());
+    await waitFor(() => expect(mockCleanup).toHaveBeenCalledTimes(1));
+  });
+
+  it('deleteAccount unregisters push first, then clears everything local', async () => {
+    const calls: string[] = [];
+    mockUnregister.mockImplementation(async () => {
+      calls.push('unregister');
+    });
+    (account.deleteAccount as jest.Mock).mockImplementation(async () => {
+      calls.push('delete');
+    });
+    const ctx = await renderSignedIn();
+    await act(() => ctx.deleteAccount());
+    expect(calls).toEqual(['unregister', 'delete']);
+    expect(tokenStore.clear).toHaveBeenCalled();
+    expect(clearQueryCache).toHaveBeenCalled();
+    expect(clearCachedUser).toHaveBeenCalled();
+    expect(mockCleanup).toHaveBeenCalledTimes(1);
   });
 });
