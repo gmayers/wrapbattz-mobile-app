@@ -79,7 +79,15 @@
           }
         }
       ],
-      "expo-iap"
+      "expo-iap",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#FFC72C",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "scheme": "tooltraq",
     "ios": {
@@ -122,8 +130,10 @@
         "android.permission.CAMERA",
         "android.permission.NFC",
         "android.permission.VIBRATE",
-        "com.android.vending.BILLING"
+        "com.android.vending.BILLING",
+        "android.permission.POST_NOTIFICATIONS"
       ],
+      "googleServicesFile": "./google-services.json",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
