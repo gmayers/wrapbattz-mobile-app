@@ -11,12 +11,13 @@ import {
   addNotificationReceivedListener,
   addNotificationResponseListener,
   configureForegroundHandler,
+  setBadgeCount,
 } from '../services/NotificationService';
 import { markNotificationRead } from '../api/endpoints/notifications';
 import { useAuth } from '../auth/AuthContext';
 import { navigationRef } from '../navigation/navigationRef';
 import { navigateToLink, type NotificationLinkLike } from './linkRouting';
-import { notificationKeys } from './queries';
+import { notificationKeys, useUnreadCount } from './queries';
 import { usePushRegistration } from './usePushRegistration';
 
 interface PushData {
@@ -68,6 +69,15 @@ export default function NotificationsBridge(): null {
   opts.current = { isAdminOrOwner, onboardingComplete };
 
   usePushRegistration();
+
+  // Keep the app icon badge (iOS; some Android launchers) in step with the
+  // server's unread count. Skipped while the first fetch is in flight so a
+  // launch doesn't flash the badge to 0. setBadgeCount never throws.
+  const { count: unreadCount, isLoading: unreadLoading } = useUnreadCount();
+  useEffect(() => {
+    if (unreadLoading) return;
+    void setBadgeCount(unreadCount);
+  }, [unreadCount, unreadLoading]);
 
   useEffect(() => {
     configureForegroundHandler();

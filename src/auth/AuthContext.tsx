@@ -167,11 +167,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // unregisterPush never throws; belt and braces for the logout path.
     }
-    // Clear the tray, cold-start tap and badge (never throws).
-    await clearNotificationStateOnSignOut();
     await auth.logout();
     await clearQueryCache();
     await clearCachedUser();
+    // Clear the tray, cold-start tap and badge (never throws). Last, right
+    // before the session UI unmounts, so the still-mounted NotificationsBridge
+    // can't re-set the badge from a late unread-count refetch.
+    await clearNotificationStateOnSignOut();
     applyUser(null);
   }, [applyUser]);
 

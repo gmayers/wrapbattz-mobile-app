@@ -6,7 +6,10 @@ import * as api from '../../api/endpoints/notifications';
 import { navigationRef } from '../../navigation/navigationRef';
 import NotificationsBridge, { __resetNotificationDedupeForTests } from '../NotificationsBridge';
 
-jest.mock('../../api/endpoints/notifications', () => ({ markNotificationRead: jest.fn(async () => ({})) }));
+jest.mock('../../api/endpoints/notifications', () => ({
+  markNotificationRead: jest.fn(async () => ({})),
+  getUnreadCount: jest.fn(async () => 0),
+}));
 jest.mock('../usePushRegistration', () => ({ usePushRegistration: jest.fn() }));
 
 const mockAuth = jest.fn(() => ({ isAdminOrOwner: false, onboardingComplete: true }));
@@ -191,5 +194,11 @@ describe('NotificationsBridge', () => {
     unmount();
     expect(receivedRemove).toHaveBeenCalledTimes(1);
     expect(responseRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('mirrors the unread count onto the app icon badge', async () => {
+    (api.getUnreadCount as jest.Mock).mockResolvedValue(4);
+    renderBridge();
+    await waitFor(() => expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(4));
   });
 });

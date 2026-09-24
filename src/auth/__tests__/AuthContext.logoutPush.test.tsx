@@ -106,7 +106,7 @@ describe('AuthContext logout push unregistration', () => {
     expect(auth.logout).toHaveBeenCalled();
   });
 
-  it('logout clears local notification state after unregistering', async () => {
+  it('logout clears local notification state after unregistering and signing out', async () => {
     const calls: string[] = [];
     mockUnregister.mockImplementation(async () => {
       calls.push('unregister');
@@ -119,7 +119,7 @@ describe('AuthContext logout push unregistration', () => {
     });
     const ctx = await renderSignedIn();
     await act(() => ctx.logout());
-    expect(calls).toEqual(['unregister', 'cleanup', 'logout']);
+    expect(calls).toEqual(['unregister', 'logout', 'cleanup']);
   });
 
   it('session-expired clears local notification state', async () => {
