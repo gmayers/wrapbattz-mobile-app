@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import * as auth from '../api/endpoints/auth';
 import * as account from '../api/endpoints/account';
+import { unregisterPush } from '../notifications/pushRegistration';
 import { signInWithGoogle } from './googleSignIn';
 import {
   disableBiometricUnlock as qaDisableBiometric,
@@ -155,6 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Remove this device's push token while the session is still valid, so a
+    // shared phone stops receiving the previous user's notifications.
+    try {
+      await unregisterPush();
+    } catch {
+      // unregisterPush never throws; belt and braces for the logout path.
+    }
     await auth.logout();
     await clearQueryCache();
     await clearCachedUser();
