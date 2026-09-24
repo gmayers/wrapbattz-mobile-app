@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Alert, RefreshControl } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import NotificationsScreen from '../NotificationsScreen';
 import * as q from '../../../notifications/queries';
 
@@ -69,6 +70,65 @@ it('mark all read', () => {
   render(<NotificationsScreen />);
   fireEvent.press(screen.getByLabelText('Mark all read'));
   expect(markAll).toHaveBeenCalled();
+});
+
+it('shows an alert when mark all read fails', () => {
+  jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  feed([item(1)]);
+  render(<NotificationsScreen />);
+  fireEvent.press(screen.getByLabelText('Mark all read'));
+  markAll.mock.calls[0][1].onError(new Error('offline'));
+  expect(Alert.alert).toHaveBeenCalledWith("Couldn't mark all read", expect.any(String));
+});
+
+it('hides mark all read when the list is empty', () => {
+  feed([]);
+  render(<NotificationsScreen />);
+  expect(screen.queryByLabelText('Mark all read')).toBeNull();
+});
+
+it('pull-to-refresh spinner follows the pull, not background refetches', async () => {
+  let resolve!: () => void;
+  const refetch = jest.fn(() => new Promise<void>((r) => (resolve = r)));
+  feed([item(1)], { isRefetching: true, refetch });
+  render(<NotificationsScreen />);
+  const rc = () => screen.UNSAFE_getByType(RefreshControl);
+  expect(rc().props.refreshing).toBe(false);
+  expect(rc().props.tintColor).toBe('#FFC72C');
+  expect(rc().props.colors).toEqual(['#FFC72C']);
+  act(() => rc().props.onRefresh());
+  expect(refetch).toHaveBeenCalledTimes(1);
+  expect(rc().props.refreshing).toBe(true);
+  await act(async () => resolve());
+  expect(rc().props.refreshing).toBe(false);
+});
+
+it('does not fetch another page while one is in flight, and shows a footer spinner', () => {
+  const fetchNextPage = jest.fn();
+  feed([item(1)], { hasNextPage: true, isFetchingNextPage: true, fetchNextPage });
+  render(<NotificationsScreen />);
+  const list = screen.UNSAFE_getByProps({ onEndReachedThreshold: 0.5 });
+  list.props.onEndReached();
+  expect(fetchNextPage).not.toHaveBeenCalled();
+  expect(screen.getByTestId('notifications-next-page')).toBeTruthy();
+});
+
+it('fetches the next page at the end of the list when idle', () => {
+  const fetchNextPage = jest.fn();
+  feed([item(1)], { hasNextPage: true, isFetchingNextPage: false, fetchNextPage });
+  render(<NotificationsScreen />);
+  screen.UNSAFE_getByProps({ onEndReachedThreshold: 0.5 }).props.onEndReached();
+  expect(fetchNextPage).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('notifications-next-page')).toBeNull();
+});
+
+it('exposes tab selection and unread state to screen readers', () => {
+  feed([item(1), item(2, { is_read: true })]);
+  render(<NotificationsScreen />);
+  expect(screen.getByLabelText('Show all').props.accessibilityState).toEqual({ selected: true });
+  expect(screen.getByLabelText('Show unread').props.accessibilityState).toEqual({ selected: false });
+  expect(screen.getByLabelText('Unread, Title 1, Body')).toBeTruthy();
+  expect(screen.getByLabelText('Title 2, Body')).toBeTruthy();
 });
 
 it('empty and error states', () => {

@@ -1,6 +1,6 @@
 import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -29,6 +29,20 @@ const NotificationsScreen: React.FC = () => {
   const feed = useNotificationsFeed(tab);
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
+  // Pull-to-refresh spinner is driven by the user's pull only — not
+  // feed.isRefetching, which also flips on background refetches (focus,
+  // invalidation after mark-read) and would flash the spinner unprompted.
+  const [pulling, setPulling] = useState(false);
+  const onPull = useCallback(() => {
+    setPulling(true);
+    Promise.resolve(feed.refetch()).finally(() => setPulling(false));
+  }, [feed]);
+  const onMarkAll = useCallback(() => {
+    markAll.mutate(undefined, {
+      onError: () =>
+        Alert.alert("Couldn't mark all read", 'Please check your connection and try again.'),
+    });
+  }, [markAll]);
 
   useLayoutEffect(() => {
     navigation.setOptions?.({
@@ -65,6 +79,7 @@ const NotificationsScreen: React.FC = () => {
       onPress={() => onPressItem(item)}
       style={[styles.row, { borderBottomColor: colors.border, backgroundColor: colors.card }]}
       accessibilityRole="button"
+      accessibilityLabel={`${item.is_read ? '' : 'Unread, '}${item.title}, ${item.message}`}
     >
       <View style={[styles.dot, { backgroundColor: item.is_read ? 'transparent' : colors.primary }]} />
       <View style={styles.rowText}>
@@ -105,9 +120,25 @@ const NotificationsScreen: React.FC = () => {
         keyExtractor={(n) => String(n.id)}
         renderItem={renderItem}
         onEndReachedThreshold={0.5}
-        onEndReached={() => feed.hasNextPage && feed.fetchNextPage()}
+        onEndReached={() => {
+          if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage();
+        }}
+        ListFooterComponent={
+          feed.isFetchingNextPage ? (
+            <ActivityIndicator
+              testID="notifications-next-page"
+              style={styles.footer}
+              color={colors.primary}
+            />
+          ) : null
+        }
         refreshControl={
-          <RefreshControl refreshing={feed.isRefetching} onRefresh={() => feed.refetch()} />
+          <RefreshControl
+            refreshing={pulling}
+            onRefresh={onPull}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
       />
     );
@@ -121,6 +152,8 @@ const NotificationsScreen: React.FC = () => {
             key={t}
             onPress={() => setTab(t)}
             accessibilityLabel={t === 'all' ? 'Show all' : 'Show unread'}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t }}
             style={[styles.tab, tab === t && { backgroundColor: colors.primary }]}
           >
             <Text style={{ color: tab === t ? '#111' : colors.textSecondary }}>
@@ -129,13 +162,16 @@ const NotificationsScreen: React.FC = () => {
           </TouchableOpacity>
         ))}
         <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={() => markAll.mutate()}
-          disabled={markAll.isPending}
-          accessibilityLabel="Mark all read"
-        >
-          <Text style={{ color: colors.primary }}>Mark all read</Text>
-        </TouchableOpacity>
+        {items.length > 0 ? (
+          <TouchableOpacity
+            onPress={onMarkAll}
+            disabled={markAll.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all read"
+          >
+            <Text style={{ color: colors.primary }}>Mark all read</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       {body}
     </View>
@@ -153,6 +189,7 @@ const styles = StyleSheet.create({
   unread: { fontWeight: '700' },
   message: { fontSize: 13, marginTop: 2 },
   time: { fontSize: 12, marginLeft: 8 },
+  footer: { paddingVertical: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });
 

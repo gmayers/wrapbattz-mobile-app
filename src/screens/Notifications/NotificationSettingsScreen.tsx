@@ -39,12 +39,25 @@ const NotificationSettingsScreen: React.FC = () => {
   const savePolicy = useUpdateNotificationPolicy();
 
   if (prefsQ.isLoading) {
-    return <ActivityIndicator style={styles.center} color={colors.primary} />;
+    return (
+      <View style={[styles.fill, { backgroundColor: colors.background }]}>
+        <ActivityIndicator style={styles.center} color={colors.primary} />
+      </View>
+    );
   }
   if (prefsQ.isError || !prefsQ.data) {
     return (
-      <View style={styles.center}>
-        <Text style={{ color: colors.textPrimary }}>Couldn't load notification settings</Text>
+      <View style={[styles.fill, { backgroundColor: colors.background }]}>
+        <View style={styles.center}>
+          <Text style={{ color: colors.textPrimary }}>Couldn't load notification settings</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => void prefsQ.refetch()}
+            style={[styles.retry, { backgroundColor: colors.primary }]}
+          >
+            <Text style={styles.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -180,6 +193,22 @@ const NotificationSettingsScreen: React.FC = () => {
           </View>
         </>
       ) : null}
+
+      {isAdminOrOwner && !policy && policyQ.isError ? (
+        <View style={[styles.row, styles.policyError]}>
+          <Text style={[styles.label, { flex: 1, color: colors.textSecondary }]}>
+            Couldn't load organisation defaults
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading organisation defaults"
+            onPress={() => void policyQ.refetch()}
+            style={[styles.chip, { backgroundColor: colors.primary }]}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </ScrollView>
   );
 };
@@ -195,7 +224,11 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, marginTop: 2 },
   col: { width: 52, textAlign: 'center', fontSize: 12 },
   chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  fill: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  retry: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  retryText: { color: '#111', fontWeight: '600' },
+  policyError: { marginTop: 16 },
 });
 
 export default NotificationSettingsScreen;

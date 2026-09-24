@@ -129,3 +129,28 @@ it('disables the organisation defaults controls while a policy save is pending',
   expect(screen.getByLabelText('Digest every 30 minutes').props.accessibilityState.disabled).toBe(true);
   expect(screen.getByLabelText('Members can turn off push').props.disabled).toBe(true);
 });
+
+it('offers a retry when preferences fail to load', () => {
+  const refetch = jest.fn();
+  (q.useNotificationPreferences as jest.Mock).mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
+  render(<NotificationSettingsScreen />);
+  expect(screen.getByText("Couldn't load notification settings")).toBeTruthy();
+  fireEvent.press(screen.getByText('Try again'));
+  expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+it('tells officers when organisation defaults fail to load, with retry', () => {
+  mockOfficer = true;
+  const refetch = jest.fn();
+  (q.useNotificationPolicy as jest.Mock).mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
+  render(<NotificationSettingsScreen />);
+  expect(screen.getByText("Couldn't load organisation defaults")).toBeTruthy();
+  fireEvent.press(screen.getByLabelText('Retry loading organisation defaults'));
+  expect(refetch).toHaveBeenCalledTimes(1);
+});
+
+it('workers never see the organisation defaults error', () => {
+  (q.useNotificationPolicy as jest.Mock).mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: jest.fn() });
+  render(<NotificationSettingsScreen />);
+  expect(screen.queryByText("Couldn't load organisation defaults")).toBeNull();
+});
