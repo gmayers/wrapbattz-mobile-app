@@ -7,6 +7,10 @@ const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
+jest.mock("../../../../notifications/queries", () => ({
+  useUnreadCount: () => ({ count: 0 }),
+}));
+
 
 const baseData: FleetStatusData = {
   isLoading: false,

@@ -86,8 +86,15 @@ const CreateReportScreen = ({ navigation, route }) => {
 
       setDeviceItems(formattedDevices);
 
-      if (activeDevices.length > 0 && activeDevices[0]?.device?.id) {
-        setFormData((prev) => ({ ...prev, device_id: activeDevices[0].device.id }));
+      // Preselect the tool the user came from (QuickActionModal / DeviceDetails
+      // pass deviceId) when it's one of theirs; otherwise the first one.
+      const requestedId = route?.params?.deviceId;
+      const requested = activeDevices.find(
+        (a) => requestedId != null && String(a.device?.id) === String(requestedId)
+      );
+      const initial = requested ?? activeDevices[0];
+      if (initial?.device?.id) {
+        setFormData((prev) => ({ ...prev, device_id: initial.device.id }));
       }
     } catch (error) {
       if (!(error instanceof ApiError && error.code === 'unauthorized')) {
@@ -97,7 +104,7 @@ const CreateReportScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [route?.params?.deviceId]);
 
   useEffect(() => {
     fetchActiveDevices();

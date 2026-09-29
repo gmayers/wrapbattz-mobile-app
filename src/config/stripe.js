@@ -15,7 +15,7 @@ export const STRIPE_CONFIG = {
   merchantIdentifier: "merchant.com.wrapbattz.app",
 
   // URL scheme for Stripe redirects (matches app.json scheme)
-  urlScheme: "wrapbattz",
+  urlScheme: "tooltraq",
 
   // Test mode configuration
   testMode: __DEV__,

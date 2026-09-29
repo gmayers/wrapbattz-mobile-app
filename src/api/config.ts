@@ -1,4 +1,7 @@
-export const API_BASE_URL = 'https://app.tooltraq.com/api/v1';
+// EXPO_PUBLIC_API_BASE_URL points a build at another backend (e.g. a local
+// Stripe-sandbox server: http://<LAN-IP>:8000/api/v1). Unset → production.
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'https://app.tooltraq.com/api/v1';
 
 // Per-attempt ceiling. Transient retries re-use it, so the worst case a user
 // can wait is bounded by this × attempts within retryOnTransient's budget.
