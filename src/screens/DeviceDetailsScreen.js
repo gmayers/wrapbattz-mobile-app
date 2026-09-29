@@ -309,8 +309,10 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   // Navigate to create report screen with device pre-selected
   const handleCreateReport = () => {
-    navigation.navigate('CreateReport', { 
-      selectedDevice: device 
+    // CreateReportScreen reads deviceId (+ identifier as a label fallback).
+    navigation.navigate('CreateReport', {
+      deviceId: toolId,
+      identifier: device?.identifier
     });
   };
 
