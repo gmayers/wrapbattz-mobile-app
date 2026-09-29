@@ -7,11 +7,11 @@ describe('quickActionsForRole', () => {
   it('returns 5 tiles for office_worker', () => {
     expect(quickActionsForRole('office_worker')).toHaveLength(5);
   });
-  it('returns 8 tiles for admin (no billing)', () => {
-    expect(quickActionsForRole('admin')).toHaveLength(8);
+  it('returns 9 tiles for admin (no billing)', () => {
+    expect(quickActionsForRole('admin')).toHaveLength(9);
   });
-  it('returns 9 tiles for owner (includes billing)', () => {
-    expect(quickActionsForRole('owner')).toHaveLength(9);
+  it('returns 10 tiles for owner (includes billing)', () => {
+    expect(quickActionsForRole('owner')).toHaveLength(10);
   });
   it('admin tiles contain Invite User but not Billing', () => {
     const keys = quickActionsForRole('admin').map(a => a.key);
@@ -27,6 +27,12 @@ describe('quickActionsForRole', () => {
     const keys = quickActionsForRole('site_worker').map(a => a.key);
     expect(keys).not.toContain('billing');
     expect(keys).not.toContain('inviteUser');
+  });
+  it('Notifications (admin/owner-only) targets the inbox and is hidden from workers', () => {
+    expect(quickActionsForRole('site_worker').map(a => a.key)).not.toContain('notifications');
+    const tile = quickActionsForRole('admin').find(a => a.key === 'notifications');
+    expect(tile?.destination).toBe('Notifications');
+    expect(quickActionsForRole('owner').map(a => a.key)).toContain('notifications');
   });
   it('My Tools targets the Tools tab inside MainTabs', () => {
     const myTools = quickActionsForRole('site_worker').find(a => a.key === 'myTools');

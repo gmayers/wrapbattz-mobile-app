@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import DashboardScreen from '../DashboardScreen';
 
 let currentRole: any = 'site_worker';
@@ -18,8 +18,14 @@ jest.mock('../../../hooks/useScanTag', () => ({
   useScanTag: () => ({ scan: jest.fn() }),
 }));
 
+let mockUnread = 2;
+jest.mock('../../../notifications/queries', () => ({ useUnreadCount: () => ({ count: mockUnread }) }));
+
 describe('DashboardScreen', () => {
-  beforeEach(() => { mockNavigate.mockClear(); });
+  beforeEach(() => {
+    mockNavigate.mockClear();
+    mockUnread = 2;
+  });
 
   it('renders worker QuickAction tiles without the admin-only Notifications tile', () => {
     currentRole = 'site_worker';
@@ -30,6 +36,23 @@ describe('DashboardScreen', () => {
     // Notifications (preferences) is admin/owner-only — it produced an
     // "access denied" popup for site workers, so it must not render here.
     expect(screen.queryByLabelText('Notifications')).toBeNull();
+  });
+
+  it('shows the bell for workers and opens the inbox', () => {
+    currentRole = 'site_worker';
+    render(<DashboardScreen />);
+    const bell = screen.getByLabelText('View alerts, unread');
+    expect(bell.props.accessibilityRole).toBe('button');
+    fireEvent.press(bell);
+    expect(mockNavigate).toHaveBeenCalledWith('Notifications');
+  });
+
+  it('labels the worker bell without "unread" when there is nothing unread', () => {
+    currentRole = 'site_worker';
+    mockUnread = 0;
+    render(<DashboardScreen />);
+    expect(screen.getByLabelText('View alerts')).toBeTruthy();
+    expect(screen.queryByLabelText('View alerts, unread')).toBeNull();
   });
 
   it('renders Fleet status quick actions for admin role', () => {
@@ -46,6 +69,7 @@ describe('DashboardScreen', () => {
     render(<DashboardScreen />);
     expect(screen.getByLabelText('Add')).toBeTruthy();
     expect(screen.getByLabelText('Audit')).toBeTruthy();
+    expect(screen.getByLabelText('Alerts')).toBeTruthy();
     expect(screen.getByLabelText('Report')).toBeTruthy();
   });
 });

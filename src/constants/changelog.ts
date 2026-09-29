@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.4.9';
+export const CHANGELOG_VERSION = '1.5.0';
 
 export interface ChangelogEntry {
   version: string;
@@ -7,6 +7,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.5.0',
+    date: '2026-09-24',
+    highlights: [
+      'Get alerts on your phone for tool transfers, approvals, overdue rentals and more.',
+      'A notification inbox behind the bell on every dashboard, with an unread dot.',
+      'Choose which notifications reach you by push or email in Settings → Notifications.',
+    ],
+  },
   {
     version: '1.4.9',
     date: '2026-08-13',

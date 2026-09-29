@@ -37,6 +37,16 @@ export type PushTokenRequest = S['PushTokenRequest'];
 export type PushTokenDelete = S['PushTokenDelete'];
 export type NotificationRead = S['NotificationRead'];
 export type NotificationMarkReadRequest = S['NotificationMarkReadRequest'];
+export type NotificationLink = S['NotificationLink'];
+export type PagedNotifications = S['PagedNotifications'];
+export type UnreadCount = S['UnreadCount'];
+export type MarkAllReadResult = S['MarkAllReadResult'];
+export type ChannelState = S['ChannelState'];
+export type TypePreference = S['TypePreference'];
+export type UserPreferences = S['UserPreferences'];
+export type TypePolicy = S['TypePolicy'];
+export type OrgPolicy = S['OrgPolicy'];
+export type OrgPolicyUpdate = S['OrgPolicyUpdate'];
 
 export type MemberRead = S['MemberRead'];
 export type MemberUpdate = S['MemberUpdate'];

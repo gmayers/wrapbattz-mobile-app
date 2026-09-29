@@ -46,7 +46,6 @@ export interface ControlRoomData {
   error?: string;
   organizationName: string;
   userInitials: string;
-  hasUnreadAlerts: boolean | null;
   inventory: InventoryStats;
   attention: AttentionStats;
   sites: SitesStats;

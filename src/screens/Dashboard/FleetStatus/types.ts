@@ -27,7 +27,6 @@ export interface FleetStatusData {
   error?: string;
   organizationName: string;
   userInitials: string;
-  hasUnreadAlerts: boolean | null;
   inventory: FleetInventory;
   exceptions: FleetException[];
   exceptionsTotal: number | null;

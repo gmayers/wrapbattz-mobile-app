@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { navigationRef } from './navigationRef';
 
 // Import existing screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -27,8 +28,11 @@ import OnboardingWizardScreen from '../screens/Onboarding/OnboardingWizardScreen
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import QuickActionModalScreen from '../screens/QuickAction/QuickActionModalScreen';
+import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
+import NotificationSettingsScreen from '../screens/Notifications/NotificationSettingsScreen';
 import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
+import NotificationsBridge from '../notifications/NotificationsBridge';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
 
 const Stack = createStackNavigator();
@@ -236,6 +240,36 @@ const MainStack = () => {
       options={{ headerShown: false }}
     />
     <Stack.Screen
+      name="Notifications"
+      component={NotificationsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Notifications',
+        headerStyle: getHeaderStyle(),
+        // Passed as a fresh literal (not the shared `headerTitleStyle` const)
+        // so `fontWeight` is contextually typed as the TextStyle literal
+        // union instead of `string` — reusing the shared const here would add
+        // another instance of a pre-existing baseline type error.
+        headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="NotificationSettings"
+      component={NotificationSettingsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Notification settings',
+        headerStyle: getHeaderStyle(),
+        // Passed as a fresh literal (not the shared `headerTitleStyle` const)
+        // so `fontWeight` is contextually typed as the TextStyle literal
+        // union instead of `string` — reusing the shared const here would add
+        // another instance of a pre-existing baseline type error.
+        headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
       name="SuggestFeature"
       component={SuggestFeatureScreen}
       options={{
@@ -313,9 +347,10 @@ export const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       {isAuthenticated ? (
         <WhatsNewProvider>
+          <NotificationsBridge />
           <OnboardingStack />
         </WhatsNewProvider>
       ) : (
