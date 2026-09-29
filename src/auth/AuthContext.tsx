@@ -307,7 +307,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner,
       isAdmin,
       isAdminOrOwner: isOwner || isAdmin,
-      onboardingComplete: user?.has_completed_onboarding ?? false,
+      // No organisation means the main app has nothing to show (every screen
+      // is org-scoped), whatever the flag says — e.g. a Google sign-up the
+      // backend created with has_completed_onboarding already true. The
+      // wizard's owner flow collects the profile and creates the org.
+      onboardingComplete: (user?.has_completed_onboarding ?? false) && !!user?.organization,
 
       login,
       loginWithGoogle,
