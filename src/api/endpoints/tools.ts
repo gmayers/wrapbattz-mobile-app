@@ -7,6 +7,8 @@ import type {
   ToolCreate,
   ToolRead,
   ToolUpdate,
+  TransferClaimCreate,
+  TransferRead,
 } from '../types';
 
 export interface ListToolsParams {
@@ -83,10 +85,13 @@ export async function assignToolByIdentifier(identifier: string): Promise<Assign
   return data;
 }
 
+// Ask the current holder to hand the tool over (a transfer "claim"). Pending
+// until the holder (or an owner/admin) accepts — or, when the org has
+// transfer confirmation off, accepted immediately.
 export async function requestTool(
   toolId: number,
-  body: { message?: string } = {},
-): Promise<{ id: number; status: string }> {
-  const { data } = await apiClient.post(`/tools/${toolId}/request/`, body);
-  return data as { id: number; status: string };
+  body: TransferClaimCreate = { message: '' },
+): Promise<TransferRead> {
+  const { data } = await apiClient.post<TransferRead>(`/tools/${toolId}/request/`, body);
+  return data;
 }

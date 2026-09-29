@@ -36,8 +36,14 @@ function formatExpiry(iso: string): string {
   });
 }
 
-function senderLabel(t: TransferRead): string {
-  return t.from_user_email || 'A team member';
+// A claim is someone asking this user (the holder) for their tool; an offer
+// is someone handing a tool to this user. Both wait on this user's answer.
+const isClaim = (t: TransferRead) => t.kind === 'claim';
+
+function headline(t: TransferRead): string {
+  return isClaim(t)
+    ? `${t.to_user_email || 'A team member'} wants to take this tool`
+    : `From ${t.from_user_email || 'A team member'}`;
 }
 
 const PendingTransfersModal: React.FC = () => {
@@ -75,7 +81,12 @@ const PendingTransfersModal: React.FC = () => {
       // Custody moved (or didn't) — refresh "my tools" counts and lists.
       queryClient.invalidateQueries();
       if (action === 'accept') {
-        Alert.alert('Transfer accepted', `${t.tool_name} is now assigned to you.`);
+        Alert.alert(
+          isClaim(t) ? 'Handed over' : 'Transfer accepted',
+          isClaim(t)
+            ? `${t.tool_name} is now assigned to ${t.to_user_email || 'them'}.`
+            : `${t.tool_name} is now assigned to you.`
+        );
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === 'unauthorized') return;
@@ -101,7 +112,13 @@ const PendingTransfersModal: React.FC = () => {
         <View style={[styles.sheet, { backgroundColor: colors.surface }]} testID="pending-transfers-modal">
           <View style={styles.headerRow}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
-              {transfers.length === 1 ? 'A tool is being handed to you' : 'Tools are being handed to you'}
+              {transfers.every(isClaim)
+                ? 'Someone is asking for your tool'
+                : transfers.some(isClaim)
+                  ? 'Tool handovers need your answer'
+                  : transfers.length === 1
+                    ? 'A tool is being handed to you'
+                    : 'Tools are being handed to you'}
             </Text>
             <TouchableOpacity
               onPress={dismiss}
@@ -113,7 +130,9 @@ const PendingTransfersModal: React.FC = () => {
             </TouchableOpacity>
           </View>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Accept once you have the tool in hand. Until then it stays with the sender.
+            {transfers.every(isClaim)
+              ? 'Hand it over only once they have it. Until you do, it stays assigned to you.'
+              : 'Accept once you have the tool in hand. Until then it stays with the sender.'}
           </Text>
           <ScrollView style={styles.list}>
             {transfers.map((t) => {
@@ -126,7 +145,7 @@ const PendingTransfersModal: React.FC = () => {
                   testID={`pending-transfer-${t.id}`}
                 >
                   <Text style={[styles.toolName, { color: colors.textPrimary }]}>{t.tool_name}</Text>
-                  <Text style={[styles.meta, { color: colors.textSecondary }]}>From {senderLabel(t)}</Text>
+                  <Text style={[styles.meta, { color: colors.textSecondary }]}>{headline(t)}</Text>
                   {t.note ? (
                     <Text style={[styles.meta, { color: colors.textSecondary }]}>“{t.note}”</Text>
                   ) : null}
@@ -141,7 +160,7 @@ const PendingTransfersModal: React.FC = () => {
                       accessibilityRole="button"
                       accessibilityLabel={`Decline ${t.tool_name}`}
                     >
-                      <Text style={[styles.buttonText, { color: colors.textPrimary }]}>Decline</Text>
+                      <Text style={[styles.buttonText, { color: colors.textPrimary }]}>{isClaim(t) ? 'Keep it' : 'Decline'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.button, { backgroundColor: colors.primary }]}
@@ -153,7 +172,7 @@ const PendingTransfersModal: React.FC = () => {
                       {busy ? (
                         <ActivityIndicator color="#000" />
                       ) : (
-                        <Text style={[styles.buttonText, { color: '#000' }]}>Accept</Text>
+                        <Text style={[styles.buttonText, { color: '#000' }]}>{isClaim(t) ? 'Hand over' : 'Accept'}</Text>
                       )}
                     </TouchableOpacity>
                   </View>

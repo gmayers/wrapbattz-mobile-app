@@ -92,3 +92,21 @@ it('closing hides the transfers for the rest of this app session', async () => {
   await act(async () => {});
   expect(screen.queryByTestId('pending-transfers-modal')).toBeNull();
 });
+
+it('shows a claim to the holder as a hand-over request', async () => {
+  (transfersApi.listPendingForMe as jest.Mock).mockResolvedValue([
+    { ...t(4, 'Drill'), kind: 'claim', from_user_email: 'me@example.com', to_user_email: 'sam@example.com', awaiting_user_id: 2 },
+  ]);
+  (transfersApi.acceptTransfer as jest.Mock).mockResolvedValue({ status: 'accepted' });
+  render(<PendingTransfersModal />);
+  expect(await screen.findByText('sam@example.com wants to take this tool')).toBeTruthy();
+  expect(screen.getByText('Someone is asking for your tool')).toBeTruthy();
+  expect(screen.getByText('Keep it')).toBeTruthy();
+
+  const handOver = screen.getByLabelText('Accept Drill');
+  await act(async () => {
+    fireEvent.press(handOver);
+  });
+  expect(transfersApi.acceptTransfer).toHaveBeenCalledWith(4);
+  expect(Alert.alert).toHaveBeenCalledWith('Handed over', 'Drill is now assigned to sam@example.com.');
+});

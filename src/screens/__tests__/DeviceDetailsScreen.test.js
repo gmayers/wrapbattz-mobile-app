@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
-import { incidents as incidentsApi, tools as toolsApi } from '../../api/endpoints';
+import { Alert } from 'react-native';
+import { render, act, fireEvent, screen } from '@testing-library/react-native';
+import { incidents as incidentsApi, sites as sitesApi, tools as toolsApi } from '../../api/endpoints';
 import DeviceDetailsScreen from '../DeviceDetailsScreen';
 
 jest.mock('../../api/endpoints', () => ({
@@ -11,6 +12,8 @@ jest.mock('../../api/endpoints', () => ({
     getTool: jest.fn(),
     getToolHistory: jest.fn(),
     assignToolToMe: jest.fn(),
+    updateTool: jest.fn(),
+    requestTool: jest.fn(),
   },
 }));
 
@@ -39,7 +42,16 @@ describe('DeviceDetailsScreen', () => {
     toolsApi.getTool.mockResolvedValue({ id: 42, name: 'Drill', status: 'no_status' });
     toolsApi.getToolHistory.mockResolvedValue({ items: [] });
     incidentsApi.listIncidents.mockResolvedValue({ items: [] });
+    sitesApi.listSitesForTool.mockResolvedValue({ items: [] });
+    mockAuth.isAdminOrOwner = false;
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
+
+  const renderScreen = async () => {
+    const navigation = { navigate: jest.fn(), goBack: jest.fn(), setOptions: jest.fn() };
+    render(<DeviceDetailsScreen navigation={navigation} route={{ params: { deviceId: 42 } }} />);
+    await act(async () => {});
+  };
 
   it('requests only this tool\'s incidents (server-side filter)', async () => {
     const navigation = { navigate: jest.fn(), goBack: jest.fn(), setOptions: jest.fn() };
@@ -49,5 +61,40 @@ describe('DeviceDetailsScreen', () => {
     await act(async () => {});
 
     expect(incidentsApi.listIncidents).toHaveBeenCalledWith({ tool: 42 });
+  });
+
+  it('shows the home location, or "Not set" for older tools', async () => {
+    toolsApi.getTool.mockResolvedValue({ id: 42, name: 'Drill', home_site_id: 5, home_site_name: 'Leeds Yard' });
+    await renderScreen();
+    expect(screen.getByTestId('device-home-site').props.children).toBe('Leeds Yard');
+    expect(screen.queryByTestId('device-set-home-site')).toBeNull(); // workers can't change it
+  });
+
+  it('lets an admin set the home location', async () => {
+    mockAuth.isAdminOrOwner = true;
+    toolsApi.getTool.mockResolvedValue({ id: 42, name: 'Drill', home_site_id: null, home_site_name: '' });
+    sitesApi.listSitesForTool.mockResolvedValue({ items: [{ id: 5, name: 'Leeds Yard', site_type: 'warehouse', status: 'active' }] });
+    toolsApi.updateTool.mockResolvedValue({ id: 42, name: 'Drill', home_site_id: 5, home_site_name: 'Leeds Yard' });
+    await renderScreen();
+    expect(screen.getByTestId('device-home-site').props.children).toBe('Not set');
+
+    fireEvent.press(screen.getByTestId('device-set-home-site'));
+    fireEvent.press(screen.getByText('Leeds Yard'));
+    await act(async () => { fireEvent.press(screen.getByText('Confirm')); });
+
+    expect(toolsApi.updateTool).toHaveBeenCalledWith(42, { home_site_id: 5 });
+    expect(screen.getByTestId('device-home-site').props.children).toBe('Leeds Yard');
+  });
+
+  it('Request Device asks the holder to hand it over', async () => {
+    toolsApi.getToolHistory.mockResolvedValue({
+      items: [{ status: 'active', returned_at: null, assignee_user_id: 2, assignee_user_email: 'alex@example.com', assigned_at: '2026-09-01' }],
+    });
+    toolsApi.requestTool.mockResolvedValue({ id: 3, status: 'pending', from_user_email: 'alex@example.com' });
+    await renderScreen();
+    await act(async () => { fireEvent.press(screen.getByText('Request Device')); });
+
+    expect(toolsApi.requestTool).toHaveBeenCalledWith(42, { message: '' });
+    expect(Alert.alert).toHaveBeenCalledWith('Request sent', expect.stringContaining('alex@example.com will be asked to confirm'));
   });
 });

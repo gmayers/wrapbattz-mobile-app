@@ -89,11 +89,15 @@ export type PagedAssignments = S['PagedAssignments'];
 export type TransferRead = S['TransferRead'];
 export type TransferCreate = S['TransferCreate'];
 export type PagedTransfers = S['PagedTransfers'];
+export type TransferClaimCreate = S['TransferClaimCreate'];
 
 export type SiteRead = S['SiteRead'];
 export type SiteCreate = S['SiteCreate'];
 export type SiteUpdate = S['SiteUpdate'];
 export type PagedSites = S['PagedSites'];
+// Sites a tool can go to, its home site first and flagged is_home.
+export type SiteForToolRead = S['SiteForToolRead'];
+export type PagedSitesForTool = S['PagedSitesForTool'];
 
 export type SiteAssignmentRead = S['SiteAssignmentRead'];
 export type SiteAssignmentCreate = S['SiteAssignmentCreate'];

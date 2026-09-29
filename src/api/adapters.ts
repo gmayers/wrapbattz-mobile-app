@@ -95,6 +95,9 @@ export interface LegacyDevice {
   warranty_expiry?: string | null;
   purchase_date?: string | null;
   purchase_cost?: string | number | null;
+  /** Where the tool is returned to; null for tools created before home sites. */
+  home_site_id?: number | null;
+  home_site_name?: string;
 }
 
 export function toLegacyDevice(t: ToolRead): LegacyDevice {
@@ -114,6 +117,8 @@ export function toLegacyDevice(t: ToolRead): LegacyDevice {
     warranty_expiry: t.warranty_expiry ?? null,
     purchase_date: t.purchase_date ?? null,
     purchase_cost: t.purchase_cost ?? null,
+    home_site_id: t.home_site_id ?? null,
+    home_site_name: t.home_site_name ?? '',
   };
 }
 

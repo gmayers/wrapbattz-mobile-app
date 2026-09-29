@@ -22,7 +22,7 @@ import {
   assignments as assignmentsApi,
   sites as sitesApi
 } from '../api/endpoints';
-import { toLegacyAssignment, toLegacyLocation } from '../api/adapters';
+import { toLegacyAssignment } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -45,16 +45,18 @@ const AllDevicesScreen = ({ navigation, route }) => {
   const [organizationAssignments, setOrganizationAssignments] = useState([]);
   const [loadingOrgAssignments, setLoadingOrgAssignments] = useState(false);
 
-  const [locations, setLocations] = useState([]);
+  // Sites the tool being returned can go to — its home site first, flagged
+  // is_home (GET /sites/for-tool/). Loaded when the return modal opens.
+  const [returnSites, setReturnSites] = useState([]);
+  const [loadingReturnSites, setLoadingReturnSites] = useState(false);
   const [returnDeviceModalVisible, setReturnDeviceModalVisible] = useState(false);
   const [selectedReturnDevice, setSelectedReturnDevice] = useState(null);
   const [selectedReturnLocation, setSelectedReturnLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch my assignments and locations once on mount
+  // Fetch my assignments once on mount
   useEffect(() => {
     fetchMyAssignments();
-    fetchLocations();
   }, []);
 
   // Fetch org assignments separately — only when user has admin/owner role
@@ -91,12 +93,18 @@ const AllDevicesScreen = ({ navigation, route }) => {
     });
   };
 
-  const fetchLocations = async () => {
+  const loadReturnSites = async (toolId) => {
+    setLoadingReturnSites(true);
+    setReturnSites([]);
     try {
-      const items = await sitesApi.listAllSites();
-      setLocations(items.map(toLegacyLocation));
+      const page = await sitesApi.listSitesForTool(Number(toolId));
+      setReturnSites(page.items);
+      // Pre-select the home site: that's where the tool is returned to.
+      setSelectedReturnLocation(page.items.find((site) => site.is_home) ?? null);
     } catch (error) {
-      // Locations only needed for return modal — assignments still display fine
+      handleApiError(error, 'Failed to load locations.');
+    } finally {
+      setLoadingReturnSites(false);
     }
   };
 
@@ -141,6 +149,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
     setSelectedReturnDevice(deviceAssignment); // selectedReturnDevice is an assignment
     setReturnDeviceModalVisible(true);
     setSelectedReturnLocation(null);
+    loadReturnSites(deviceAssignment.device.id);
   };
 
   const handleViewDeviceDetails = (deviceId) => {
@@ -152,8 +161,15 @@ const AllDevicesScreen = ({ navigation, route }) => {
     }
   };
 
+  const returnHome = returnSites.find((site) => site.is_home) ?? null;
+  const returnHasHome = returnHome != null;
+  // Only owners/admins may send a tool anywhere but home.
+  const returnChoices = isAdminOrOwner ? returnSites : returnHome ? [returnHome] : [];
+
   const handleConfirmReturn = async () => {
-    if (!selectedReturnLocation || !selectedReturnLocation.id) {
+    // With a home site, the tool goes there (or, for owners/admins, wherever
+    // they picked). Without one, the API just closes the assignment.
+    if (returnHasHome && !selectedReturnLocation?.id) {
       Alert.alert('Error', 'Please select a location.');
       return;
     }
@@ -174,7 +190,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
     setReturningAssignment(true);
     try {
       await assignmentsApi.returnAssignment(Number(assignmentId), {
-        target_site_id: Number(selectedReturnLocation.id),
+        target_site_id: returnHasHome ? Number(selectedReturnLocation.id) : null,
         condition: '',
         notes: '',
       });
@@ -420,10 +436,20 @@ const AllDevicesScreen = ({ navigation, route }) => {
                   Type: <Text style={[styles.modalTextBold, { color: colors.textPrimary }]}>{selectedReturnDevice.device.device_type}</Text>
                 </Text>
 
-                <Text style={[styles.modalSectionTitle, { color: colors.textSecondary }]}>Select Return Location:</Text>
+                <Text style={[styles.modalSectionTitle, { color: colors.textSecondary }]}>
+                  {!returnHasHome ? 'Return Location:' : isAdminOrOwner ? 'Select Return Location:' : 'Returns to its home location:'}
+                </Text>
 
+                {loadingReturnSites ? (
+                  <ActivityIndicator color={colors.primary} style={styles.loader} />
+                ) : !returnHasHome ? (
+                  <Text style={[styles.modalText, { color: colors.textSecondary }]} testID="return-no-home">
+                    This tool has no home location yet, so it won't be filed at a site.
+                    {isAdminOrOwner ? " Set one from the tool's details." : ''}
+                  </Text>
+                ) : (
                 <FlatList
-                  data={locations}
+                  data={returnChoices}
                   keyExtractor={(item) => item.id.toString()}
                   style={styles.locationList}
                   renderItem={({ item }) => {
@@ -448,7 +474,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
                               isSelected && [styles.locationListItemTextSelected, { color: colors.primary }],
                             ]}
                           >
-                            {item.name || `${item.street_number} ${item.street_name}`}
+                            {item.is_home ? '🏠 ' : ''}{item.name || item.prefix_code}{item.is_home ? ' (home)' : ''}
                           </Text>
                         </View>
                         {isSelected && (
@@ -462,6 +488,12 @@ const AllDevicesScreen = ({ navigation, route }) => {
                   }
                   ItemSeparatorComponent={() => <View style={[styles.listSeparator, { backgroundColor: colors.border }]} />}
                 />
+                )}
+                {returnHasHome && !isAdminOrOwner ? (
+                  <Text style={[styles.modalText, { color: colors.textSecondary }]}>
+                    Only an owner or admin can return it anywhere else.
+                  </Text>
+                ) : null}
 
                 <View style={styles.modalButtons}>
                   <Button
@@ -474,7 +506,7 @@ const AllDevicesScreen = ({ navigation, route }) => {
                     title={returningAssignment ? 'Returning…' : 'Confirm Return'}
                     onPress={handleConfirmReturn}
                     style={styles.confirmButton}
-                    disabled={!selectedReturnLocation || returningAssignment}
+                    disabled={loadingReturnSites || (returnHasHome && !selectedReturnLocation) || returningAssignment}
                   />
                 </View>
               </View>

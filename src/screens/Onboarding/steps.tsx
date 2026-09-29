@@ -388,7 +388,7 @@ export const LocationTypeField: React.FC<{
 };
 
 // ── Owner: add_tool ──────────────────────────────────────────────────────────
-const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardData }) => {
+const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, wizardData, setWizardData }) => {
   const { colors } = useTheme();
   const [description, setDescription] = useState('');
   const [make, setMake] = useState('');
@@ -416,6 +416,20 @@ const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardDat
     }
     setSubmitting(true);
     try {
+      // Every tool needs a home site (where it's returned to). Use the
+      // location made in the previous step, else the org's first site.
+      let homeSiteId = wizardData.siteId ?? null;
+      if (homeSiteId == null) {
+        const sites = await sitesApi.listAllSites(1);
+        homeSiteId = sites[0]?.id ?? null;
+      }
+      if (homeSiteId == null) {
+        Alert.alert(
+          'Add a location first',
+          "A tool needs a home location — where it's returned to. Go back and add a location, or skip adding a tool for now."
+        );
+        return;
+      }
       const tool = await toolsApi.createTool({
         name: description.trim(),
         make: make.trim(),
@@ -423,6 +437,7 @@ const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardDat
         serial_number: '',
         category_id: null,
         nfc_tag_id: null,
+        home_site_id: homeSiteId,
       });
       setWizardData({ toolId: tool.id, toolName: tool.name });
       advance();
@@ -435,7 +450,9 @@ const AddToolStep: React.FC<StepProps> = ({ advance, busyAdvancing, setWizardDat
 
   return (
     <StepScaffold
-      subtitle="Add your first tool or device. You can register an NFC tag for it later."
+      subtitle={`Add your first tool or device. You can register an NFC tag for it later.${
+        wizardData.siteName ? ` Its home location will be ${wizardData.siteName} — where it's returned to.` : ''
+      }`}
       primaryLabel="Add Tool"
       onPrimary={onPrimary}
       primaryLoading={submitting || busyAdvancing}
