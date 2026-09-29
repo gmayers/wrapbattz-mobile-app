@@ -1,6 +1,10 @@
 import { apiClient } from '../client';
 import { BOOTSTRAP_TIMEOUT_MS } from '../config';
 import type {
+  EmailChangeConfirmed,
+  EmailChangeConfirmPayload,
+  EmailChangeRequested,
+  EmailChangeRequestPayload,
   NotificationMarkReadRequest,
   NotificationRead,
   OnboardingState,
@@ -33,6 +37,26 @@ export function getMeBootstrap(): Promise<UserMe> {
 
 export async function updateMe(payload: UserUpdate): Promise<UserMe> {
   const { data } = await apiClient.patch<UserMe>('/account/', payload);
+  return data;
+}
+
+// Verified email-change flow — email can't be set via PATCH /account/
+// (UserUpdate has no email field). Step 1: send a 6-digit code to the
+// new mailbox. Rate-limited (3/min, plus an hourly quota); the API
+// error surfaces as a friendly message via normalizeFormError.
+export async function requestEmailChange(
+  payload: EmailChangeRequestPayload
+): Promise<EmailChangeRequested> {
+  const { data } = await apiClient.post<EmailChangeRequested>('/account/email/change/', payload);
+  return data;
+}
+
+// Step 2: present the code to finalize the change. Also rate-limited
+// (10/min).
+export async function confirmEmailChange(
+  payload: EmailChangeConfirmPayload
+): Promise<EmailChangeConfirmed> {
+  const { data } = await apiClient.post<EmailChangeConfirmed>('/account/email/confirm/', payload);
   return data;
 }
 

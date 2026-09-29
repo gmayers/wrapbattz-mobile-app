@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { incidents as incidentsApi } from '../../api/endpoints';
 import ReportsScreen from '../ReportsScreen';
@@ -122,5 +122,16 @@ describe('ReportsScreen', () => {
     renderScreen(navigation);
     await act(async () => {});
     expect(mockRefreshUser).not.toHaveBeenCalled();
+  });
+
+  it('sends the avatar press to the real settings tab, not the unregistered Profile route', async () => {
+    incidentsApi.listMyIncidents.mockResolvedValueOnce({ items: [] });
+    const { navigation } = makeNavigation();
+    const screen = renderScreen(navigation);
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('profileButton'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('settings');
   });
 });
