@@ -18,8 +18,14 @@ describe('routeForLink', () => {
     expect(routeForLink({ kind: 'join_request', id: 3 }, worker)).toEqual({ name: 'Notifications' });
   });
 
+  it.each(['transfer', 'tool_transfer'])('%s → dashboard, where the pending-transfers modal shows', (kind) => {
+    expect(routeForLink({ kind, id: 1 }, worker)).toEqual({
+      name: 'MainTabs', params: { screen: 'dashboard' },
+    });
+  });
+
   it('unknown kind → inbox', () => {
-    expect(routeForLink({ kind: 'transfer', id: 1 }, officer)).toEqual({ name: 'Notifications' });
+    expect(routeForLink({ kind: 'invoice', id: 1 }, officer)).toEqual({ name: 'Notifications' });
   });
 
   it('null link → inbox', () => {

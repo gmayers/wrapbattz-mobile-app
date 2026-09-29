@@ -83,6 +83,13 @@ export type AssignmentUpdate = S['AssignmentUpdate'];
 export type AssignmentReturn = S['AssignmentReturn'];
 export type PagedAssignments = S['PagedAssignments'];
 
+// Person-to-person transfers: the holder (or an owner/admin) proposes, the
+// recipient accepts or declines. See docs/superpowers/specs/
+// 2026-08-12-tool-transfer-confirmation-design.md.
+export type TransferRead = S['TransferRead'];
+export type TransferCreate = S['TransferCreate'];
+export type PagedTransfers = S['PagedTransfers'];
+
 export type SiteRead = S['SiteRead'];
 export type SiteCreate = S['SiteCreate'];
 export type SiteUpdate = S['SiteUpdate'];

@@ -34,6 +34,7 @@ import {
 } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import { conditionLabelFromScore, resolveNextMaintenanceDate } from '../utils/toolMaintenance';
+import TransferToPersonSheet, { memberName } from './Transfers/TransferToPersonSheet';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -83,6 +84,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   const [locations, setLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState(null);
   const [transferLoading, setTransferLoading] = useState(false);
+
+  // State for transfer to person
+  const [personTransferVisible, setPersonTransferVisible] = useState(false);
   
   // Format the date for display
   const formatDate = (dateString) => {
@@ -374,6 +378,12 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     activeHolderUserId != null &&
     activeHolderUserId !== currentUserId;
   const canAssign = !heldByOtherUser;
+  // Person-to-person handover: the tool must be held by a person, and the
+  // backend only lets the holder or an owner/admin start it.
+  const canTransferToPerson =
+    activeHolderKind === 'user' &&
+    activeHolderUserId != null &&
+    (activeHolderUserId === currentUserId || isAdminOrOwner);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -508,6 +518,14 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                 onPress={handleRequestDevice}
                 disabled={requesting}
                 style={[styles.requestButton, requesting && styles.disabledButton]}
+              />
+            )}
+
+            {canTransferToPerson && (
+              <Button
+                title="Transfer to Person"
+                onPress={() => setPersonTransferVisible(true)}
+                style={styles.transferButton}
               />
             )}
 
@@ -685,6 +703,25 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
           )}
         </View>
       </ScrollView>
+
+      <TransferToPersonSheet
+        visible={personTransferVisible}
+        toolId={toolId}
+        toolName={device?.identifier || device?.name || 'this tool'}
+        holderUserId={activeHolderUserId}
+        onClose={() => setPersonTransferVisible(false)}
+        onDone={(transfer, recipient) => {
+          setPersonTransferVisible(false);
+          const name = memberName(recipient);
+          if (transfer.status === 'pending') {
+            Alert.alert('Transfer sent', `Waiting for ${name} to accept.`);
+          } else {
+            Alert.alert('Transferred', `The tool is now assigned to ${name}.`);
+            fetchDeviceDetails();
+            fetchDeviceHistory();
+          }
+        }}
+      />
 
       {/* Transfer to Location Modal */}
       <Modal

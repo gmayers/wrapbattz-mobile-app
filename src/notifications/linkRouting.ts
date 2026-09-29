@@ -15,6 +15,11 @@ export function routeForLink(link: NotificationLinkLike, opts: { isAdminOrOwner:
     // DeviceDetailsScreen reads route.params.deviceId.
     return { name: 'DeviceDetails', params: { deviceId: link.id } };
   }
+  if (link.kind === 'transfer' || link.kind === 'tool_transfer') {
+    // The dashboard shows the pending-transfers modal (accept/decline). For
+    // the sender's accepted/declined/expired updates it's a neutral landing.
+    return { name: 'MainTabs', params: { screen: 'dashboard' } };
+  }
   if (link.kind === 'join_request' && opts.isAdminOrOwner) {
     return { name: 'Members' };
   }
