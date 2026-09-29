@@ -1023,7 +1023,7 @@ return (
           {preScannedNfcTagId && !nfcWriteSuccess && (
             <View style={styles.writeOptionsContainer}>
               <Text style={styles.writeOptionsHint}>
-                Hold your device close to the NFC tag, select the data to write, then press 'Write Data to Tag'.
+                Select the data to write, press 'Write Data to Tag', then tap the tag against the back of your phone. If the tag is already touching the phone, move it away and tap it again.
               </Text>
               <Text style={styles.writeOptionsTitle}>Select data to write to tag:</Text>
 

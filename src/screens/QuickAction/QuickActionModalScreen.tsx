@@ -317,32 +317,22 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device) return;
     setUpgrading(true);
     try {
-      const result = await Promise.race([
-        nfcService.writeDeviceToNFC(
-          {
-            deviceId: device.identifier || String(device.id),
-            make: device.make || '',
-            model: device.model || '',
-            serialNumber: device.serial_number || '',
-            maintenanceInterval: device.maintenance_interval || 0,
-            description: device.description || '',
-          },
-          // Leading URI record so a tap deep-links straight into the app
-          // (linking path d/:tagUID); JSON payload rides behind it.
-          { uri: `https://app.tooltraq.com/d/${tagUID}` }
-        ),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new Error(
-                  'NFC timed out — hold the tag steady against the device and try again.'
-                )
-              ),
-            20000
-          )
-        ),
-      ]);
+      // The service bounds the wait itself (Android's tag request never times
+      // out on its own) and cancels the pending request on expiry, so a retry
+      // isn't blocked by a request still waiting in the background.
+      const result = await nfcService.writeDeviceToNFC(
+        {
+          deviceId: device.identifier || String(device.id),
+          make: device.make || '',
+          model: device.model || '',
+          serialNumber: device.serial_number || '',
+          maintenanceInterval: device.maintenance_interval || 0,
+          description: device.description || '',
+        },
+        // Leading URI record so a tap deep-links straight into the app
+        // (linking path d/:tagUID); JSON payload rides behind it.
+        { uri: `https://app.tooltraq.com/d/${tagUID}`, timeout: 20000 }
+      );
       if (result.success) {
         const urlOnly = result.data?.writtenJson === false;
         Alert.alert(
@@ -507,7 +497,7 @@ const QuickActionModalScreen: React.FC = () => {
                   testID="quick-action-upgrade"
                 />
                 <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
-                  Refreshes the device data stored on this NFC tag.
+                  Refreshes the device data stored on this NFC tag. Press the button, then tap the tag against the back of your phone.
                 </Text>
               </>
             ) : null}
