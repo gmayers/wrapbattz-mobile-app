@@ -85,4 +85,11 @@ describe('SubscribeScreen', () => {
       (billingApi.getSubscription as jest.Mock).mock.calls.length - callsAfterMount;
     expect(callsAfterPurchase).toBeLessThanOrEqual(1);
   });
+
+  // Production's catalog is currently empty; the screen used to render no
+  // plans and no explanation, so tapping into it looked like it did nothing.
+  it('explains when there are no plans to buy instead of rendering nothing', async () => {
+    const { findByText } = render(<SubscribeScreen />);
+    expect(await findByText(/no plans are available/i)).toBeTruthy();
+  });
 });

@@ -1,138 +1,72 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { usePaymentSheet } from '@stripe/stripe-react-native';
+import { initStripe, usePaymentSheet } from '@stripe/stripe-react-native';
 import { STRIPE_CONFIG } from '../config/stripe';
-import { billingService } from '../services/BillingService';
+import { billingErrorMessage, isBillingForbidden } from '../api/billingErrors';
+import { startCheckout } from '../api/endpoints/billing';
 import Button from './Button';
 
 const ORANGE_COLOR = '#FFC72C';
 
+const formatCurrency = (minorUnits, currency = 'GBP') => {
+  const amount = typeof minorUnits === 'number' ? minorUnits / 100 : 0;
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(amount);
+};
+
 /**
- * SubscriptionSetup - Complete flow for setting up a subscription
+ * Subscribes the organisation to a plan through Stripe's PaymentSheet.
  *
- * This component handles:
- * 1. Free tier activation (0 billable devices)
- * 2. Paid subscription setup with payment method collection
+ * POST /billing/checkout/ does the whole server side in one call: it creates
+ * the customer, the subscription and its first PaymentIntent, and hands back
+ * everything PaymentSheet needs. That replaces the old two-step
+ * SetupIntent-then-create-subscription dance, which relied on endpoints that
+ * no longer exist.
  *
- * Flow for paid subscriptions:
- * 1. Create SetupIntent
- * 2. Present PaymentSheet to collect payment method
- * 3. Stripe automatically confirms SetupIntent and attaches payment method
- * 4. Create subscription using customer's default payment method
+ * Checkout is owner-only, so a non-owner gets told why rather than a generic
+ * failure.
  */
 const SubscriptionSetup = ({
-  selectedPlan,
-  billableDevices,
-  totalDevices,
+  planSlug,
+  interval,
+  planName,
   onSubscriptionSuccess,
   onSubscriptionError,
   onCancel
 }) => {
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
   const [loading, setLoading] = useState(false);
-  const [hasAutoTriggered, setHasAutoTriggered] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [started, setStarted] = useState(false);
 
-  // Get the tier based on TOTAL devices
-  const getTierInfo = (totalDevices) => {
-    // Tier determined by total device count
-    if (totalDevices <= 100) {
-      return {
-        name: '1-100 Stickers',
-        monthlyRate: 0.40,
-        annualRate: 0.25
-      };
-    } else if (totalDevices <= 400) {
-      // 101-400 stickers tier (triggers at 101 total)
-      return {
-        name: '101-400 Stickers',
-        monthlyRate: 0.33,
-        annualRate: 0.25
-      };
-    } else {
-      return {
-        name: '400+ Stickers',
-        monthlyRate: 0.25,
-        annualRate: 0.25
-      };
-    }
-  };
-
-  // Calculate cost - all billable devices at the same rate based on tier
-  const calculateAmount = () => {
-    if (billableDevices <= 0) return 0;
-
-    const totalDevs = totalDevices || (billableDevices + 3);
-    const tierInfo = getTierInfo(totalDevs);
-    const rate = selectedPlan === 'monthly' ? tierInfo.monthlyRate : tierInfo.annualRate;
-    const monthlyCost = billableDevices * rate;
-
-    // For annual, multiply by 12 months to get yearly total
-    return selectedPlan === 'annual' ? monthlyCost * 12 : monthlyCost;
-  };
-
-  const getPlanSlug = () => {
-    // Plan slugs must match backend: 'monthly-device-billing' or 'yearly-device-billing'
-    return selectedPlan === 'monthly' ? 'monthly-device-billing' : 'yearly-device-billing';
-  };
-
-  const setupFreeTier = async () => {
+  const runCheckout = async () => {
     try {
       setLoading(true);
 
-      // Activate free tier without payment
-      await billingService.activateFreeTier();
+      const checkout = await startCheckout({ plan_slug: planSlug, interval });
+      setQuote(checkout);
 
-      Alert.alert(
-        'Free Tier Activated!',
-        'Your account has been set up with the free tier. You can manage up to 3 devices at no cost.',
-        [
-          {
-            text: 'OK',
-            onPress: () => onSubscriptionSuccess && onSubscriptionSuccess()
-          }
-        ]
-      );
-
-    } catch (error) {
-      console.error('Free tier activation error:', error);
-      Alert.alert(
-        'Activation Failed',
-        error.response?.data?.detail || error.message || 'There was an error activating your free tier. Please try again.'
-      );
-      onSubscriptionError && onSubscriptionError(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setupPaidSubscription = async () => {
-    try {
-      setLoading(true);
-
-      // Step 1: Create SetupIntent for payment method collection
-      const setupIntentResponse = await billingService.createSetupIntent();
-
-      const {
-        setup_intent_client_secret,
-        customer_id,
-        ephemeral_key_secret
-      } = setupIntentResponse;
-
-      if (!setup_intent_client_secret || !customer_id || !ephemeral_key_secret) {
-        throw new Error('Invalid setup intent response from server');
+      if (!checkout.client_secret) {
+        throw new Error('Invalid checkout response from server');
       }
 
-      // Step 2: Initialize PaymentSheet with SetupIntent
+      // The client secret belongs to the server's Stripe account; the key
+      // bundled in the app may not (and is a placeholder in release builds).
+      if (checkout.publishable_key) {
+        await initStripe({
+          publishableKey: checkout.publishable_key,
+          merchantIdentifier: STRIPE_CONFIG.merchantIdentifier,
+          urlScheme: STRIPE_CONFIG.urlScheme,
+        });
+      }
+
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: 'WrapBattz',
-        customerId: customer_id,
-        customerEphemeralKeySecret: ephemeral_key_secret,
-        setupIntentClientSecret: setup_intent_client_secret,
-        returnURL: 'wrapbattz://stripe-redirect',
+        merchantDisplayName: 'ToolTraq',
+        customerId: checkout.customer_id,
+        customerEphemeralKeySecret: checkout.ephemeral_key ?? undefined,
+        // The subscription's first invoice is a PaymentIntent, not a SetupIntent.
+        paymentIntentClientSecret: checkout.client_secret,
+        returnURL: `${STRIPE_CONFIG.urlScheme}://stripe-redirect`,
         allowsDelayedPaymentMethods: false,
-        defaultBillingDetails: {
-          email: setupIntentResponse.customer_email || '',
-        },
         appearance: STRIPE_CONFIG.appearance,
       });
 
@@ -140,121 +74,45 @@ const SubscriptionSetup = ({
         throw new Error(`PaymentSheet initialization failed: ${initError.message}`);
       }
 
-      // Step 3: Present the PaymentSheet to user
       const { error: presentError } = await presentPaymentSheet();
 
       if (presentError) {
         if (presentError.code === 'Canceled') {
-          console.log('User canceled payment sheet');
           onCancel && onCancel();
           return;
         }
-        throw new Error(`Payment collection failed: ${presentError.message}`);
+        throw new Error(presentError.message || 'Payment collection failed');
       }
-
-      // Step 4: Payment method was successfully attached!
-      // When PaymentSheet confirms a SetupIntent, Stripe automatically:
-      // - Attaches the payment method to the customer
-      // - Sets it as the default payment method
-      // Now we can create the subscription - backend will use the default payment method
-
-      // Step 5: Create subscription
-      // Backend will use the customer's default payment method (just attached)
-      const subscriptionData = {
-        plan_slug: getPlanSlug(),
-        device_count: totalDevices || billableDevices + 3, // Total devices including free tier
-        // Note: payment_method_id not needed - backend uses customer's default
-      };
-
-      try {
-        await billingService.createSubscription(subscriptionData);
-      } catch (subError) {
-        // If subscription creation fails, provide helpful error message
-        console.error('Subscription creation error:', subError);
-        throw new Error(
-          subError.response?.data?.detail ||
-          subError.response?.data?.error ||
-          'Failed to create subscription. Your payment method was added but subscription creation failed. Please contact support.'
-        );
-      }
-
-      // Step 6: Success!
-      const amount = calculateAmount();
-      const period = selectedPlan === 'monthly' ? 'per month' : 'per year';
 
       Alert.alert(
-        'Subscription Activated!',
-        `Your ${selectedPlan} subscription has been successfully set up. You'll be charged £${amount.toFixed(2)} ${period}.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => onSubscriptionSuccess && onSubscriptionSuccess()
-          }
-        ]
+        'Subscription Activated',
+        `Your ${interval} subscription is set up. You'll be charged ${formatCurrency(checkout.amount, checkout.currency?.toUpperCase())} ${interval === 'monthly' ? 'per month' : 'per year'}.`,
+        [{ text: 'OK', onPress: () => onSubscriptionSuccess && onSubscriptionSuccess() }]
       );
-
     } catch (error) {
-      console.error('Subscription setup error:', error);
-
-      // Provide user-friendly error messages
-      let errorTitle = 'Subscription Setup Failed';
-      let errorMessage = 'There was an error setting up your subscription. Please try again.';
-
-      if (error.response?.status === 404) {
-        errorTitle = 'Billing Service Not Available';
-        errorMessage = 'The billing service endpoint was not found. This usually means billing is not properly configured on the server. Please contact support.';
-      } else if (error.response?.status === 400) {
-        errorTitle = 'Invalid Request';
-        errorMessage = error.response?.data?.detail || error.response?.data?.error || 'Invalid subscription details. Please check your inputs and try again.';
-      } else if (error.response?.status === 500) {
-        errorTitle = 'Server Error';
-        const serverDetail = error.response?.data?.detail || error.response?.data?.error;
-        errorMessage = serverDetail
-          ? `Server error: ${serverDetail}\n\nThis usually indicates a backend configuration issue. Please contact your administrator.`
-          : 'A server error occurred. This typically means:\n\n• Stripe API keys not configured on backend\n• Database connection issue\n• Billing service not properly set up\n\nPlease contact your administrator or check backend logs.';
-      } else if (error.message?.includes('Network Error')) {
-        errorTitle = 'Network Error';
-        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      Alert.alert(errorTitle, errorMessage);
+      const title = isBillingForbidden(error)
+        ? 'Access Denied'
+        : 'Subscription Setup Failed';
+      Alert.alert(
+        title,
+        billingErrorMessage(error, 'Unable to start checkout. Please try again later.')
+      );
       onSubscriptionError && onSubscriptionError(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSetup = async () => {
-    if (billableDevices <= 0) {
-      // Free tier - no payment needed
-      await setupFreeTier();
-    } else {
-      // Paid subscription - collect payment
-      await setupPaidSubscription();
-    }
-  };
+  // The caller renders this component only once the user has chosen a plan,
+  // so go straight to the sheet instead of asking them to confirm twice.
+  useEffect(() => {
+    if (started || !planSlug) return;
+    setStarted(true);
+    runCheckout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planSlug, interval]);
 
-  // Auto-trigger payment setup on mount for paid subscriptions
-  // This skips the subscription summary screen and goes directly to PaymentSheet
-  React.useEffect(() => {
-    if (!hasAutoTriggered && billableDevices > 0) {
-      setHasAutoTriggered(true);
-      // Small delay to ensure component is fully mounted
-      setTimeout(async () => {
-        try {
-          await setupPaidSubscription();
-        } catch (error) {
-          // Error is already handled in setupPaidSubscription
-          console.error('Auto-trigger subscription setup failed:', error);
-        }
-      }, 300); // Increased delay to 300ms for stability
-    }
-  }, []);
-
-  // Show loading state while auto-triggering payment setup
-  if (billableDevices > 0 && (!hasAutoTriggered || loading)) {
+  if (loading || !started) {
     return (
       <View style={styles.container}>
         <View style={styles.summaryBox}>
@@ -271,102 +129,55 @@ const SubscriptionSetup = ({
     <View style={styles.container}>
       <View style={styles.summaryBox}>
         <Text style={styles.summaryTitle}>Subscription Summary</Text>
+        <Text style={styles.summaryText}>Plan: {planName ?? planSlug}</Text>
         <Text style={styles.summaryText}>
-          Plan: {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
+          Billing: {interval === 'monthly' ? 'Monthly' : 'Annual'}
         </Text>
-        <Text style={styles.summaryText}>
-          Tier: {getTierInfo(totalDevices || billableDevices + 3).name}
-        </Text>
-        <Text style={styles.summaryText}>
-          Total Devices: {totalDevices || billableDevices + 3}
-        </Text>
-        <Text style={styles.summaryText}>
-          Free Devices: 3
-        </Text>
-        <Text style={styles.summaryText}>
-          Billable Devices: {billableDevices}
-        </Text>
-        <Text style={[styles.summaryText, styles.costText]}>
-          Cost: £{calculateAmount().toFixed(2)} {selectedPlan === 'monthly' ? 'per month' : 'per year'}
-        </Text>
+        {quote && (
+          <Text style={[styles.summaryText, styles.costText]}>
+            Cost: {formatCurrency(quote.amount, quote.currency?.toUpperCase())}{' '}
+            {interval === 'monthly' ? 'per month' : 'per year'}
+          </Text>
+        )}
       </View>
 
-      <Button
-        title={
-          loading
-            ? 'Setting up...'
-            : billableDevices <= 0
-            ? 'Activate Free Tier'
-            : `Subscribe - £${calculateAmount().toFixed(2)}/${selectedPlan === 'monthly' ? 'mo' : 'yr'}`
-        }
-        onPress={handleSetup}
-        disabled={loading}
-        style={styles.subscribeButton}
-        icon={loading ? <ActivityIndicator size="small" color="white" /> : null}
-      />
-
-      {billableDevices <= 0 && (
-        <Text style={styles.noChargeText}>
-          No payment required - you're using the free tier (up to 3 devices)
-        </Text>
-      )}
-
-      {billableDevices > 0 && (
-        <Text style={styles.helperText}>
-          You'll be prompted to add a payment method to complete your subscription.
-        </Text>
-      )}
+      <Button title="Try Again" onPress={runCheckout} style={styles.button} />
+      <Button title="Cancel" onPress={onCancel} variant="outlined" style={styles.button} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 20,
+    padding: 16,
   },
   summaryBox: {
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#EEEEEE',
+    padding: 20,
     marginBottom: 16,
   },
   summaryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   summaryText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    fontSize: 15,
+    color: '#555',
+    marginBottom: 6,
   },
   costText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#333',
     marginTop: 8,
   },
-  subscribeButton: {
-    backgroundColor: ORANGE_COLOR,
-    borderColor: ORANGE_COLOR,
-    minHeight: 48,
-  },
-  noChargeText: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: '#4CAF50',
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  helperText: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
+  button: {
+    marginBottom: 10,
   },
 });
 

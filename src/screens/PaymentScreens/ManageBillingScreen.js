@@ -1,5 +1,5 @@
 // ManageBillingScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,19 +15,52 @@ import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import CustomerSheetManager from '../../components/CustomerSheetManager';
-import { billingService } from '../../services/BillingService';
-import { getSubscription as getNewSubscription } from '../../api/endpoints/billing';
-import { Linking, Platform } from 'react-native';
+import { billingErrorMessage, isBillingUnavailable } from '../../api/billingErrors';
+import {
+  cancelSubscription,
+  getBillingState,
+  getInvoices,
+  getPlans,
+  getSubscription,
+  openPortal,
+  resumeSubscription,
+} from '../../api/endpoints/billing';
+import { Linking } from 'react-native';
 
 // TOOLTRAQ yellow color to match existing UI
 const ORANGE_COLOR = '#FFC72C';
+
+// Every money field on the billing API is an integer in minor units.
+const formatCurrency = (minorUnits, currency = 'GBP') => {
+  const amount = typeof minorUnits === 'number' ? minorUnits / 100 : 0;
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(amount);
+};
+
+const formatDate = (value) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const STATUS_COLORS = {
+  active: '#4CAF50',
+  trial: '#2196F3',
+  grace: '#FF9800',
+  past_due: '#FF9800',
+  canceled: '#FF9800',
+  incomplete: '#F44336',
+  none: '#9E9E9E',
+};
+
+// Statuses that mean the org has a real, usable subscription to manage.
+const MANAGEABLE = new Set(['active', 'trial', 'past_due', 'grace']);
 
 const ManageBillingScreen = ({ navigation }) => {
   const { isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
 
-  // Check permissions
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isAdminOrOwner) {
       Alert.alert(
         'Access Denied',
@@ -38,233 +71,105 @@ const ManageBillingScreen = ({ navigation }) => {
   }, [isAdminOrOwner, navigation]);
 
   const [loading, setLoading] = useState(true);
-  const [billingData, setBillingData] = useState(null);
+  const [state, setState] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [plan, setPlan] = useState(null);
   const [processingAction, setProcessingAction] = useState(false);
-  // New /billing/subscription state. Used to detect IAP-sourced subs and
-  // redirect users to native subscription management. Will be null until the
-  // backend endpoint ships or if the call 404s.
+  // Set only when the subscription was bought through Apple/Google, which
+  // means the Stripe controls below must be replaced by a store deep link.
   const [iapSourcedState, setIapSourcedState] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const s = await getNewSubscription();
-        if (cancelled) return;
-        if (s?.source === 'apple_iap' || s?.source === 'google_iap') {
-          setIapSourcedState(s);
-        }
-      } catch {
-        // 404 (endpoint not shipped) or any other error — silently fall
-        // through to the existing Stripe-driven render.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  const fetchBillingData = async () => {
-    try {
-      setLoading(true);
-      // Fetch actual billing data using new service
-      const [usageData, invoicesData] = await Promise.all([
-        billingService.getUsage(),
-        billingService.getInvoices()
+  // Each call is independent: invoices and plans are decoration, so a failure
+  // there must not blank out the billing state the screen is actually about.
+  const fetchBillingData = useCallback(async () => {
+    setLoading(true);
+
+    const [stateResult, invoicesResult, plansResult, subscriptionResult] =
+      await Promise.allSettled([
+        getBillingState(),
+        getInvoices(),
+        getPlans(),
+        getSubscription(),
       ]);
 
-      setBillingData(usageData);
-      setInvoices(invoicesData.results || invoicesData || []);
-    } catch (error) {
-      // Check if it's a 404 (no subscription/billing not set up yet)
-      if (error.response?.status === 404) {
-        console.log('ℹ️ No billing data found - user may not have a subscription yet');
-        // Don't show error, just set empty state
-        setBillingData(null);
-        setInvoices([]);
-        return;
+    if (stateResult.status === 'fulfilled') {
+      setState(stateResult.value);
+    } else {
+      setState(null);
+      if (!isBillingUnavailable(stateResult.reason)) {
+        Alert.alert('Error', billingErrorMessage(stateResult.reason, 'Unable to load billing.'));
       }
-
-      // Check for network errors
-      if (error.message === 'Network Error' || !error.response) {
-        console.log('ℹ️ Network error fetching billing data (expected if backend not running)');
-        setBillingData(null);
-        setInvoices([]);
-        return;
-      }
-
-      console.log('ℹ️ Billing data not available, trying fallback...');
-
-      try {
-        // Fallback to legacy endpoints
-        const [billingResponse, invoicesResponse] = await Promise.all([
-          billingService.getBillingStatus(),
-          billingService.getInvoices()
-        ]);
-
-        setBillingData(billingResponse);
-        setInvoices(invoicesResponse.results || invoicesResponse || []);
-      } catch (fallbackError) {
-        // Check if fallback also got 404 or network error
-        if (fallbackError.response?.status === 404 ||
-            error.response?.status === 404 ||
-            fallbackError.message === 'Network Error' ||
-            !fallbackError.response) {
-          console.log('ℹ️ No billing data available - billing may not be set up yet');
-          setBillingData(null);
-          setInvoices([]);
-          return;
-        }
-
-        // For 500 errors or other server errors, also show "not set up" state
-        // because the billing backend may not be properly configured
-        if (fallbackError.response?.status >= 500 || error.response?.status >= 500) {
-          console.log('ℹ️ Server error - billing backend may not be configured');
-          setBillingData(null);
-          setInvoices([]);
-          return;
-        }
-
-        // For any other errors, set to null to show "not set up" state
-        console.log('ℹ️ Fallback endpoints also unavailable, showing setup screen');
-        setBillingData(null);
-        setInvoices([]);
-      }
-    } finally {
-      setLoading(false);
     }
-  };
-  
+
+    setInvoices(invoicesResult.status === 'fulfilled' ? invoicesResult.value : []);
+
+    // Match the org's tier against the plan catalogue to price the summary;
+    // BillingState carries allowances, not amounts.
+    if (plansResult.status === 'fulfilled' && stateResult.status === 'fulfilled') {
+      const tier = stateResult.value?.tier;
+      setPlan(plansResult.value.plans.find((p) => p.slug === tier) ?? null);
+    } else {
+      setPlan(null);
+    }
+
+    if (subscriptionResult.status === 'fulfilled') {
+      const sub = subscriptionResult.value;
+      setIapSourcedState(
+        sub?.source === 'apple_iap' || sub?.source === 'google_iap' ? sub : null
+      );
+    } else {
+      setIapSourcedState(null);
+    }
+
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     fetchBillingData();
-  }, []);
-  
-  const openBillingPortal = async () => {
+  }, [fetchBillingData]);
+
+  const handleOpenPortal = async () => {
     setProcessingAction(true);
     try {
-      // Create a Stripe Customer Portal session using new service
-      const response = await billingService.createCustomerPortalSession();
+      const { url } = await openPortal();
+      if (!url) throw new Error('No portal URL returned');
 
-      if (response.url) {
-        // Open the Stripe portal URL in native in-app browser
-        // Uses Safari View Controller (iOS) or Chrome Custom Tabs (Android)
-        const result = await WebBrowser.openBrowserAsync(response.url, {
-          presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-          controlsColor: ORANGE_COLOR
-});
+      const result = await WebBrowser.openBrowserAsync(url, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: ORANGE_COLOR,
+      });
 
-        // Refresh billing data after user closes the portal
-        if (result.type === 'dismiss' || result.type === 'cancel') {
-          await fetchBillingData();
-        }
-      } else {
-        throw new Error('No portal URL returned');
+      // The portal can change the plan or payment method, so re-read state
+      // once the user comes back rather than trusting what's on screen.
+      if (result.type === 'dismiss' || result.type === 'cancel') {
+        await fetchBillingData();
       }
     } catch (error) {
-      console.error('Error opening billing portal:', error);
-
-      let errorMessage = 'Unable to open billing portal. Please try again later.';
-      if (error.response?.status === 404) {
-        errorMessage = 'Billing portal not available. Please contact support.';
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response) {
-        errorMessage = `Server error (${error.response.status}). Please try again later.`;
-      }
-
-      Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+      Alert.alert(
+        'Error',
+        billingErrorMessage(error, 'Unable to open the billing portal. Please try again later.')
+      );
     } finally {
       setProcessingAction(false);
     }
   };
-  
+
+  // Plan changes go through Stripe's portal when there's a customer to bill,
+  // and through Stripe checkout on DataHandlingFee when there isn't one yet.
+  // ('Subscribe' is the Apple/Google IAP screen — a dead end for Stripe.)
   const handleChangePlan = () => {
-    // Prerequisite check: Must have active subscription
-    const status = billingData?.subscription_status || billingData?.subscription?.status;
-    if (!status || !['active', 'past_due', 'trialing'].includes(status)) {
-      Alert.alert(
-        'No Active Subscription',
-        'You need an active subscription to change plans. Would you like to set up billing now?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Set Up Billing',
-            onPress: () => navigation.navigate('DataHandlingFee')
-          }
-        ]
-      );
+    if (state?.actions?.can_open_portal) {
+      handleOpenPortal();
       return;
     }
-
-    const currentCycle = billingData.billing_period || billingData.subscription?.cycle || 'monthly';
-    const newCycle = currentCycle === 'monthly' ? 'annual' : 'monthly';
-    const newPlanSlug = newCycle === 'annual' ? 'annual-device-billing' : 'monthly-device-billing';
-
-    Alert.alert(
-      'Change Billing Plan',
-      `Would you like to switch to ${newCycle} billing?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Change Plan',
-          onPress: async () => {
-            setProcessingAction(true);
-            try {
-              // Call API to change plan using new service
-              await billingService.switchPlan({
-                plan_slug: newPlanSlug,
-                prorate: true
-              });
-
-              Alert.alert(
-                'Plan Updated',
-                `Your plan has been changed to ${newCycle} billing. The change will take effect on your next billing date.`
-              );
-              // Refresh billing data
-              await fetchBillingData();
-            } catch (error) {
-              console.error('Error changing plan:', error);
-
-              let errorMessage = 'Unable to change plan. Please try again later.';
-              if (error.response?.status === 404) {
-                errorMessage = 'No subscription found. Please set up billing first.';
-              } else if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-              } else if (error.response?.data?.error) {
-                errorMessage = error.response.data.error;
-              } else if (error.response) {
-                errorMessage = `Server error (${error.response.status}). Please try again later.`;
-              }
-
-              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
-            } finally {
-              setProcessingAction(false);
-            }
-          }
-        }
-      ]
-    );
+    navigation.navigate('DataHandlingFee');
   };
-  
-  const handleCancelSubscription = () => {
-    // Prerequisite check: Must have active subscription
-    const status = billingData?.subscription_status || billingData?.subscription?.status;
-    if (!status || status === 'inactive') {
-      Alert.alert(
-        'No Active Subscription',
-        'You don\'t have an active subscription to cancel.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
 
-    // Check if already cancelled
-    const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
-    if (status === 'cancelled' || cancelAtPeriodEnd) {
+  const handleCancelSubscription = () => {
+    if (state?.cancel_at_period_end) {
       Alert.alert(
         'Subscription Already Cancelled',
-        'Your subscription is already cancelled and will end on ' +
-          formatDate(billingData?.next_billing_date || billingData?.subscription?.current_period_end) + '.',
+        `Your subscription is already cancelled and will end on ${formatDate(state?.current_period_end)}.`,
         [{ text: 'OK' }]
       );
       return;
@@ -281,57 +186,30 @@ const ManageBillingScreen = ({ navigation }) => {
           onPress: async () => {
             setProcessingAction(true);
             try {
-              // Call API to cancel subscription using new service
-              await billingService.cancelSubscription({
-                at_period_end: true
-              });
-
+              // The endpoint answers with the refreshed state, so there's no
+              // need for a follow-up read.
+              setState(await cancelSubscription());
               Alert.alert(
                 'Subscription Cancelled',
-                'Your subscription has been cancelled. It will remain active until the end of your current billing period.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: async () => {
-                      // Refresh billing data
-                      await fetchBillingData();
-                    }
-                  }
-                ]
+                'Your subscription has been cancelled. It will remain active until the end of your current billing period.'
               );
             } catch (error) {
-              console.error('Error cancelling subscription:', error);
-
-              let errorMessage = 'Unable to cancel subscription. Please try again later.';
-              if (error.response?.status === 404) {
-                errorMessage = 'No subscription found. Please contact support.';
-              } else if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-              } else if (error.response?.data?.error) {
-                errorMessage = error.response.data.error;
-              } else if (error.response) {
-                errorMessage = `Server error (${error.response.status}). Please try again later.`;
-              }
-
-              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+              Alert.alert(
+                'Error',
+                billingErrorMessage(error, 'Unable to cancel subscription. Please try again later.')
+              );
             } finally {
               setProcessingAction(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const handleReactivateSubscription = () => {
-    // Check if subscription can be reactivated
-    const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
-    if (!cancelAtPeriodEnd) {
-      Alert.alert(
-        'Subscription Active',
-        'Your subscription is already active.',
-        [{ text: 'OK' }]
-      );
+    if (!state?.cancel_at_period_end) {
+      Alert.alert('Subscription Active', 'Your subscription is already active.', [{ text: 'OK' }]);
       return;
     }
 
@@ -345,97 +223,49 @@ const ManageBillingScreen = ({ navigation }) => {
           onPress: async () => {
             setProcessingAction(true);
             try {
-              await billingService.reactivateSubscription();
-
+              setState(await resumeSubscription());
               Alert.alert(
                 'Subscription Reactivated',
-                'Your subscription has been reactivated and will continue automatically.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: async () => {
-                      await fetchBillingData();
-                    }
-                  }
-                ]
+                'Your subscription has been reactivated and will continue automatically.'
               );
             } catch (error) {
-              console.error('Error reactivating subscription:', error);
-
-              let errorMessage = 'Unable to reactivate subscription. Please try again later.';
-              if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-              }
-
-              Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
+              Alert.alert(
+                'Error',
+                billingErrorMessage(error, 'Unable to reactivate subscription. Please try again later.')
+              );
             } finally {
               setProcessingAction(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  const formatCurrency = (amount, currency = 'GBP') => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: currency
-}).format(amount);
-  };
-
-  const formatDate = (dateInput) => {
-    if (!dateInput) return 'N/A';
-
-    let date;
-    if (typeof dateInput === 'string') {
-      date = new Date(dateInput);
-    } else if (typeof dateInput === 'number') {
-      // Handle both Unix timestamps (seconds) and JavaScript timestamps (milliseconds)
-      date = new Date(dateInput < 10000000000 ? dateInput * 1000 : dateInput);
-    } else {
-      return 'N/A';
-    }
-
-    if (isNaN(date.getTime())) return 'N/A';
-
-    return date.toLocaleDateString('en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-});
-  };
-  
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-
           <Text style={styles.loadingText}>Loading billing information...</Text>
         </View>
       </SafeAreaView>
     );
   }
-  
-  // Check if user has billing data
-  // Backend returns flat fields: subscription_status, billing_period, etc.
-  const subscriptionStatus = billingData?.subscription_status || billingData?.subscription?.status;
-  const isActive = subscriptionStatus === 'active' || subscriptionStatus === 'trialing';
 
-  // If no billing data or not active, show setup screen
-  if (!billingData || !isActive) {
+  const status = state?.status ?? 'none';
+  const hasSubscription = state !== null && MANAGEABLE.has(status);
+
+  if (!hasSubscription) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
         <View style={styles.noBillingContainer}>
           <Ionicons name="alert-circle-outline" size={60} color="#888" />
           <Text style={[styles.noBillingText, { color: colors.textPrimary }]}>
-            {!billingData
-              ? 'Billing not set up yet'
-              : 'You don\'t have an active billing plan'}
+            {state === null ? 'Billing not set up yet' : "You don't have an active billing plan"}
           </Text>
           <Text style={[styles.noBillingSubtext, { color: colors.textSecondary }]}>
-            {!billingData
+            {state === null
               ? 'Contact your administrator or set up billing to get started'
               : 'Set up a billing plan to continue using premium features'}
           </Text>
@@ -450,10 +280,8 @@ const ManageBillingScreen = ({ navigation }) => {
     );
   }
 
-  // If the org's active subscription was purchased through Apple/Google
-  // (mobile IAP), the Stripe-driven controls below don't apply — Apple
-  // and Google require subscription management to happen in their native
-  // surfaces. Render a deep link instead.
+  // Apple and Google both require subscription management to happen in their
+  // own surfaces, so the Stripe controls below don't apply to IAP purchases.
   if (iapSourcedState) {
     const url = iapSourcedState.source === 'apple_iap'
       ? 'https://apps.apple.com/account/subscriptions'
@@ -484,14 +312,13 @@ const ManageBillingScreen = ({ navigation }) => {
     );
   }
 
-  // Get values from flat fields or nested subscription object for backwards compatibility
-  const billingPeriod = billingData?.billing_period || billingData?.subscription?.cycle || 'monthly';
-  const planName = billingData?.plan_name || billingData?.subscription?.plan_name || 'Device Management';
-  const freeDevices = billingData?.free_devices || billingData?.free_quota || 3;
-  const deviceCount = billingData?.device_count || billingData?.current_device_count || 0;
-  const billableDevices = billingData?.billable_devices || 0;
-  const currentPrice = billingData?.current_price || billingData?.current_cost || 0;
-  const cancelAtPeriodEnd = billingData?.cancel_at_period_end || billingData?.subscription?.cancel_at_period_end;
+  const interval = state.billing_interval ?? 'monthly';
+  const planName = plan?.name ?? state.tier ?? 'Device Management';
+  const devices = state.limits?.devices ?? { included: 0, addon: 0, limit: 0, used: 0, remaining: 0 };
+  const seats = state.limits?.seats ?? { included: 0, addon: 0, limit: 0, used: 0, remaining: 0 };
+  const planPrice = interval === 'annual' ? plan?.annual_price : plan?.monthly_price;
+  const currency = plan?.currency ?? 'GBP';
+  const cancelAtPeriodEnd = state.cancel_at_period_end;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
@@ -499,33 +326,22 @@ const ManageBillingScreen = ({ navigation }) => {
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Manage Billing</Text>
           <Text style={styles.headerSubtitle}>
-            {`${billingPeriod.charAt(0).toUpperCase() + billingPeriod.slice(1)} Plan - ${planName}`}
+            {`${interval.charAt(0).toUpperCase() + interval.slice(1)} Plan - ${planName}`}
           </Text>
         </View>
 
         <View style={styles.billingCard}>
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Status:</Text>
-            <View style={[
-              styles.statusBadge,
-              { backgroundColor:
-                subscriptionStatus === 'active' ? '#4CAF50' :
-                subscriptionStatus === 'trialing' ? '#2196F3' :
-                subscriptionStatus === 'cancelled' ? '#FF9800' :
-                subscriptionStatus === 'past_due' ? '#FF9800' :
-                '#F44336'
-              }
-            ]}>
-              <Text style={styles.statusBadgeText}>
-                {(subscriptionStatus || 'unknown').toUpperCase()}
-              </Text>
+            <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[status] ?? '#F44336' }]}>
+              <Text style={styles.statusBadgeText}>{status.replace('_', ' ').toUpperCase()}</Text>
             </View>
           </View>
 
           <View style={styles.billingCardRow}>
             <Text style={styles.billingCardLabel}>Plan:</Text>
             <Text style={styles.billingCardValue}>
-              {billingPeriod.charAt(0).toUpperCase() + billingPeriod.slice(1)}
+              {interval.charAt(0).toUpperCase() + interval.slice(1)}
             </Text>
           </View>
 
@@ -535,55 +351,68 @@ const ManageBillingScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.billingCardRow}>
-            <Text style={styles.billingCardLabel}>Free Devices:</Text>
-            <Text style={styles.billingCardValue}>{freeDevices}</Text>
+            <Text style={styles.billingCardLabel}>Devices:</Text>
+            <Text style={styles.billingCardValue}>{`${devices.used} / ${devices.limit}`}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
-            <Text style={styles.billingCardLabel}>Total Devices:</Text>
-            <Text style={styles.billingCardValue}>{deviceCount}</Text>
+            <Text style={styles.billingCardLabel}>Seats:</Text>
+            <Text style={styles.billingCardValue}>{`${seats.used} / ${seats.limit}`}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
-            <Text style={styles.billingCardLabel}>Billable Devices:</Text>
-            <Text style={styles.billingCardValue}>{billableDevices}</Text>
+            <Text style={styles.billingCardLabel}>Credits:</Text>
+            <Text style={styles.billingCardValue}>{state.credits?.balance ?? 0}</Text>
           </View>
 
           <View style={styles.billingCardRow}>
-            <Text style={styles.billingCardLabel}>Next Billing:</Text>
+            <Text style={styles.billingCardLabel}>
+              {status === 'trial' ? 'Trial Ends:' : 'Next Billing:'}
+            </Text>
             <Text style={styles.billingCardValue}>
-              {formatDate(billingData?.next_billing_date)}
+              {formatDate(status === 'trial' ? state.trial_ends_at : state.current_period_end)}
             </Text>
           </View>
 
-          <View style={styles.feesContainer}>
-            <Text style={styles.feesTitle}>Device Management Fees</Text>
-            <View style={styles.feesRow}>
-              <Text style={styles.feesDescription}>Free Tier ({freeDevices} devices)</Text>
-              <Text style={styles.feesAmount}>£0.00</Text>
+          {state.in_grace_period && (
+            <View style={styles.billingCardRow}>
+              <Text style={styles.billingCardLabel}>Grace Ends:</Text>
+              <Text style={styles.billingCardValue}>{formatDate(state.grace_ends_at)}</Text>
             </View>
+          )}
+
+          <View style={styles.feesContainer}>
+            <Text style={styles.feesTitle}>Plan Allowances</Text>
             <View style={styles.feesRow}>
               <Text style={styles.feesDescription}>
-                {billableDevices} additional device{billableDevices !== 1 ? 's' : ''}
+                Included ({devices.included} devices, {seats.included} seats)
               </Text>
               <Text style={styles.feesAmount}>
-                {formatCurrency(currentPrice)}
+                {planPrice != null ? formatCurrency(planPrice, currency) : '—'}
               </Text>
             </View>
+            {(devices.addon > 0 || seats.addon > 0) && (
+              <View style={styles.feesRow}>
+                <Text style={styles.feesDescription}>
+                  Add-ons ({devices.addon} devices, {seats.addon} seats)
+                </Text>
+                <Text style={styles.feesAmount}>Billed separately</Text>
+              </View>
+            )}
             <View style={styles.feesDivider} />
             <View style={styles.feesRow}>
               <Text style={styles.feesTotalLabel}>
-                Total {billingPeriod === 'monthly' ? 'Monthly' : 'Annual'} Fee
+                {interval === 'monthly' ? 'Monthly' : 'Annual'} Plan Fee
               </Text>
               <Text style={styles.feesTotal}>
-                {formatCurrency(currentPrice)}
+                {planPrice != null ? formatCurrency(planPrice, currency) : '—'}
               </Text>
             </View>
 
-            {billingPeriod === 'monthly' && (
+            {interval === 'monthly' && plan?.annual_price != null && (
               <View style={styles.savingsNote}>
                 <Text style={styles.savingsNoteText}>
-                  Switch to annual billing and save up to 38% on your subscription!
+                  Switch to annual billing and save on your subscription.
                 </Text>
               </View>
             )}
@@ -591,10 +420,8 @@ const ManageBillingScreen = ({ navigation }) => {
         </View>
 
         <CustomerSheetManager
-          customerId={billingData?.customer?.id}
-          onPaymentMethodSelected={(paymentMethod) => {
-            console.log('Payment method selected:', paymentMethod);
-            // Optionally refresh billing data
+          hasPaymentMethodOnFile={state.actions?.needs_payment_method === false}
+          onPaymentMethodSelected={() => {
             fetchBillingData();
           }}
           onError={(error) => {
@@ -610,48 +437,40 @@ const ManageBillingScreen = ({ navigation }) => {
                 key={invoice.id}
                 style={styles.invoiceCard}
                 onPress={async () => {
-                  // Use Stripe's native hosted invoice URL
-                  const invoiceUrl = invoice.hosted_invoice_url || invoice.invoice_pdf;
-
-                  if (invoiceUrl) {
-                    try {
-                      // Open invoice in native in-app browser
-                      await WebBrowser.openBrowserAsync(invoiceUrl, {
-                        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-                        controlsColor: ORANGE_COLOR
-});
-                    } catch (error) {
-                      console.log('Error opening invoice:', error);
-                      Alert.alert(
-                        'Error',
-                        'Unable to open invoice. Please try again.',
-                        [{ text: 'OK' }]
-                      );
-                    }
-                  } else {
+                  const invoiceUrl = invoice.hosted_invoice_url || invoice.pdf_url;
+                  if (!invoiceUrl) {
                     Alert.alert(
                       'Invoice Unavailable',
                       'This invoice is not yet available. Please try again later.',
                       [{ text: 'OK' }]
                     );
+                    return;
+                  }
+                  try {
+                    await WebBrowser.openBrowserAsync(invoiceUrl, {
+                      presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                      controlsColor: ORANGE_COLOR,
+                    });
+                  } catch (error) {
+                    Alert.alert('Error', 'Unable to open invoice. Please try again.', [{ text: 'OK' }]);
                   }
                 }}
               >
                 <View style={styles.invoiceCardHeader}>
-                  <Text style={styles.invoiceCardDate}>{formatDate(invoice.created)}</Text>
+                  <Text style={styles.invoiceCardDate}>{formatDate(invoice.created_at)}</Text>
                   <View style={[
                     styles.invoiceStatusBadge,
                     { backgroundColor: invoice.status === 'paid' ? '#4CAF50' : '#F44336' }
                   ]}>
-                    <Text style={styles.invoiceStatusBadgeText}>{invoice.status.toUpperCase()}</Text>
+                    <Text style={styles.invoiceStatusBadgeText}>
+                      {(invoice.status || 'unknown').toUpperCase()}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.invoiceCardBody}>
-                  <Text style={styles.invoiceCardAmount}>
-                    {formatCurrency(invoice.amount_paid, invoice.currency)}
-                  </Text>
+                  <Text style={styles.invoiceCardAmount}>{formatCurrency(invoice.amount, currency)}</Text>
                   <Text style={styles.invoiceCardPeriod}>
-                    {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
+                    {invoice.number ? `Invoice ${invoice.number}` : ''}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -660,6 +479,19 @@ const ManageBillingScreen = ({ navigation }) => {
         )}
 
         <View style={styles.actionsContainer}>
+          {state.actions?.can_open_portal && (
+            <View style={styles.secondaryActions}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { width: '100%' }, processingAction && styles.disabledButton]}
+                onPress={handleOpenPortal}
+                disabled={processingAction}
+              >
+                <Ionicons name="card-outline" size={20} color={colors.primary} />
+                <Text style={styles.secondaryButtonText}>Billing Portal</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={[styles.secondaryButton, { width: '100%' }, processingAction && styles.disabledButton]}
@@ -667,7 +499,6 @@ const ManageBillingScreen = ({ navigation }) => {
               disabled={processingAction}
             >
               <Ionicons name="repeat" size={20} color={colors.primary} />
-
               <Text style={styles.secondaryButtonText}>Change Plan</Text>
             </TouchableOpacity>
           </View>
@@ -684,29 +515,22 @@ const ManageBillingScreen = ({ navigation }) => {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.cancelButton, (processingAction || subscriptionStatus === 'cancelled') && styles.disabledButton]}
+                style={[styles.cancelButton, processingAction && styles.disabledButton]}
                 onPress={handleCancelSubscription}
-                disabled={processingAction || subscriptionStatus === 'cancelled'}
+                disabled={processingAction}
               >
-                <Ionicons name="close-circle-outline" size={20} color={subscriptionStatus === 'cancelled' ? '#999' : '#EF4444'} />
-                <Text style={[
-                  styles.cancelButtonText,
-                  { color: subscriptionStatus === 'cancelled' ? '#999' : '#EF4444' }
-                ]}>
-                  {subscriptionStatus === 'cancelled' ? 'Cancelled' : 'Cancel Plan'}
-                </Text>
+                <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+                <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>Cancel Plan</Text>
               </TouchableOpacity>
             )}
           </View>
 
-
           <Text style={styles.portalDescription}>
             Your device count is automatically managed based on the devices in your organization.
-            The free tier of {billingData?.free_quota || 3} devices will always be included at no cost.
+            {` ${devices.included} devices are included in your plan at no extra cost.`}
           </Text>
         </View>
       </ScrollView>
-
     </SafeAreaView>
   );
 };

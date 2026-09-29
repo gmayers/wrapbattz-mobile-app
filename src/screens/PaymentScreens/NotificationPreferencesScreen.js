@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { billingService } from '../../services/BillingService';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -50,22 +49,12 @@ const NotificationPreferencesScreen = ({ navigation }) => {
     }
   }, [isAdminOrOwner, navigation]);
 
+  // No endpoint backs these preferences: the API exposes a notification inbox
+  // (/account/notifications/) but nothing for per-event billing alert
+  // settings. Rather than call a route that does not exist and report a save
+  // failure every time, the screen shows its defaults read-only and says so.
   const fetchPreferences = async () => {
-    try {
-      const prefs = await billingService.getNotificationPreferences();
-      setPreferences(prefs);
-    } catch (error) {
-      // Check if it's a 404 (no preferences set yet)
-      if (error.response?.status === 404) {
-        console.log('ℹ️ No notification preferences found - using defaults');
-        // Keep default preferences
-      } else {
-        console.error('Error fetching notification preferences:', error);
-        // Keep default preferences if API fails
-      }
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -80,16 +69,10 @@ const NotificationPreferencesScreen = ({ navigation }) => {
   };
 
   const savePreferences = async () => {
-    setSaving(true);
-    try {
-      await billingService.updateNotificationPreferences(preferences);
-      Alert.alert('Success', 'Notification preferences updated successfully.');
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-      Alert.alert('Error', 'Unable to save preferences. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    Alert.alert(
+      'Not Available Yet',
+      'Notification preferences cannot be saved yet — the server does not store them. Your choices here will reset when you leave this screen.'
+    );
   };
 
   const addEmail = () => {

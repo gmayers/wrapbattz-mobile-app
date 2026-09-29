@@ -18,15 +18,19 @@
 // ============================================================================
 
 export const STRIPE_CONFIG = {
-  publishableKey: __DEV__
+  // EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY overrides per build, so a sandbox
+  // build and the live build can differ without code edits. It must come
+  // from the same Stripe account/mode as the backend it talks to.
+  publishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || (__DEV__
     ? "pk_test_51SRw87Df0YSwO3Xvn6PKAp7us1hF7VyhfCMqwH11jFQ1QjG2VfrDne7MEkJG1A56RAxSvMPx6vvxk7Z3Ujw6iwxL00hnf7uSKd" // ⚠️ REPLACE with your Stripe TEST publishable key
-    : "pk_live_YOUR_ACTUAL_LIVE_KEY_HERE", // ⚠️ REPLACE with your Stripe LIVE publishable key
+    : "pk_live_YOUR_ACTUAL_LIVE_KEY_HERE"), // ⚠️ REPLACE with your Stripe LIVE publishable key
 
   // Apple Pay merchant identifier (must match your Apple Developer account)
   merchantIdentifier: "merchant.com.wrapbattz.app",
 
-  // URL scheme for Stripe redirects (matches app.json scheme)
-  urlScheme: "wrapbattz",
+  // URL scheme for Stripe redirects (matches app.json "scheme"; Android
+  // registers only this one, so "wrapbattz" left 3-D Secure stranded)
+  urlScheme: "tooltraq",
 
   // Test mode configuration
   testMode: __DEV__,

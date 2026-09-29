@@ -79,6 +79,7 @@ const QuickActionModalScreen: React.FC = () => {
   const [destinationsError, setDestinationsError] = useState<string | null>(null);
 
   const [upgrading, setUpgrading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   // Holder info derived from history
   const [holderLine, setHolderLine] = useState<string | null>(null);
@@ -287,9 +288,25 @@ const QuickActionModalScreen: React.FC = () => {
     });
   };
 
-  const handleAssign = () => {
+  // Assigns to the scanning user. This used to just open DeviceDetails, so the
+  // button looked like it did nothing.
+  const handleAssign = async () => {
     if (!device) return;
-    navigation.replace('DeviceDetails', { deviceId: device.id });
+    setAssigning(true);
+    try {
+      await toolsApi.assignToolToMe(Number(device.id));
+      Alert.alert('Assigned', 'Tool has been assigned to you.', [
+        { text: 'OK', onPress: () => loadDevice({ current: false }) },
+      ]);
+    } catch (err) {
+      const msg =
+        (err instanceof ApiError && err.message) ||
+        (err instanceof Error && err.message) ||
+        'Assign failed. Please try again.';
+      Alert.alert('Assign failed', msg);
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const handleRegisterTag = () => {
@@ -471,9 +488,11 @@ const QuickActionModalScreen: React.FC = () => {
                     tools and site-held tools can always be grabbed. */}
                 {!(activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null)) ? (
                   <Button
-                    title="Assign tool"
+                    title={assigning ? 'Assigning…' : 'Assign tool'}
                     onPress={handleAssign}
                     variant="outlined"
+                    loading={assigning}
+                    disabled={assigning}
                     style={styles.actionBtn}
                     testID="quick-action-assign"
                   />

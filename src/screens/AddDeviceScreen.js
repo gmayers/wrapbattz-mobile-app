@@ -37,7 +37,7 @@ const ORANGE_COLOR = '#FFC72C';
 
 
 
-const AddDevicePage = ({ navigation }) => {
+const AddDevicePage = ({ navigation, route }) => {
   const { userData, user } = useAuth();
   const { colors } = useTheme();
 
@@ -76,7 +76,9 @@ const [formData, setFormData] = useState({
   const finishTimerRef = useRef(null);
   const [scannedNfcUuid, setScannedNfcUuid] = useState(null); // NFC tag hardware UUID for registration
   const [isScanningNfc, setIsScanningNfc] = useState(false);
-  const [preScannedNfcTagId, setPreScannedNfcTagId] = useState(null); // NFC tag scanned before form submission
+  // Seeded from QuickActionModal's "Register this tag", which has already
+  // scanned the tag and confirmed it isn't linked to a tool.
+  const [preScannedNfcTagId, setPreScannedNfcTagId] = useState(route?.params?.prefilledTagUid ?? null); // NFC tag scanned before form submission
   // NFC write options - what data to include on tag (device ID always included)
   const [nfcWriteOptions, setNfcWriteOptions] = useState({
     description: false,

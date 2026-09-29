@@ -65,10 +65,12 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Billing',
     requiredRole: 'admin',
     rows: [
-      // The Subscription row is gated on EXPO_PUBLIC_IAP_ENABLED. Backend
-      // /billing/catalog and /billing/subscription don't exist yet, so keep
-      // the row hidden in production until that ships. Flip the env var to
-      // 'true' in eas.json (or a local .env) to expose the screen.
+      // The Subscription row is gated on EXPO_PUBLIC_IAP_ENABLED. The backend
+      // /billing/catalog and /billing/subscription routes are now merged on
+      // master but are NOT yet live on app.tooltraq.com, so keep the row
+      // hidden until the API deploys and the billing_enabled waffle switch is
+      // on. Flip the env var to 'true' in eas.json (or a local .env) to
+      // expose the screen.
       ...(process.env.EXPO_PUBLIC_IAP_ENABLED === 'true'
         ? [{ key: 'subscription', label: 'Subscription', icon: 'card-outline', kind: 'nav' as const, destination: 'Subscribe' }]
         : []),

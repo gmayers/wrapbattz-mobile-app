@@ -213,6 +213,15 @@ const SubscribeScreen: React.FC = () => {
               <Text style={styles.retryText}>Try again</Text>
             </TouchableOpacity>
           </View>
+        ) : tiers.length === 0 ? (
+          <View style={styles.center}>
+            <Text style={[styles.error, { color: colors.textSecondary }]}>
+              No plans are available to purchase in the app right now.
+            </Text>
+            <TouchableOpacity onPress={loadCatalog} style={[styles.retryBtn, { backgroundColor: colors.primary }]}>
+              <Text style={styles.retryText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           tiers.map(renderTier)
         )}

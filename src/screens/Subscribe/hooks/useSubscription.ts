@@ -1,5 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { isBillingUnavailable } from '../../../api/billingErrors';
+import { getSubscription } from '../../../api/endpoints/billing';
 import type { SubscriptionState } from '../../../api/types-billing';
+import { iapEvents } from '../../../iap/events';
 
 export interface UseSubscriptionResult {
   state: SubscriptionState | null;
@@ -8,20 +12,49 @@ export interface UseSubscriptionResult {
   refresh: () => Promise<void>;
 }
 
-// DISABLED pending the billing rework: the backend /billing endpoints were
-// removed, so fetching GET /billing/subscription/ only produces errors. The
-// hook keeps its shape (state stays null → "No active subscription") so the
-// Subscribe screen renders; restore the fetch when the new billing contract
-// lands.
-//
-// Previous behaviour (re-enable with the new endpoint): fetch on mount and on
-// the iap 'subscription.changed' event via getSubscription() from
-// src/api/endpoints/billing, mapping 'unauthorized' silently and other
-// failures to `error`.
+/**
+ * The org's subscription as GET /billing/subscription sees it.
+ *
+ * `state` stays null both for "no subscription" and for "billing is not
+ * available here" — the screen renders the same empty state either way, so
+ * only errors the user could act on are surfaced through `error`.
+ */
 export function useSubscription(): UseSubscriptionResult {
-  const [state] = useState<SubscriptionState | null>(null);
+  const [state, setState] = useState<SubscriptionState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
 
-  const refresh = useCallback(async () => {}, []);
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const next = await getSubscription();
+      if (!mounted.current) return;
+      setState(next);
+      setError(null);
+    } catch (e) {
+      if (!mounted.current) return;
+      setState(null);
+      // A missing/disabled billing surface is an empty state, not an error.
+      setError(isBillingUnavailable(e) ? null : 'Could not load your subscription.');
+    } finally {
+      if (mounted.current) setIsLoading(false);
+    }
+  }, []);
 
-  return { state, isLoading: false, error: null, refresh };
+  useEffect(() => {
+    mounted.current = true;
+    void refresh();
+    // A purchase or restore rewrites the subscription server-side; refetch so
+    // the screen reflects it without the user pulling to refresh.
+    const off = iapEvents.on('subscription.changed', () => {
+      void refresh();
+    });
+    return () => {
+      mounted.current = false;
+      off();
+    };
+  }, [refresh]);
+
+  return { state, isLoading, error, refresh };
 }

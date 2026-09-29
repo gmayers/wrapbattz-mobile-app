@@ -14,7 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { billingService } from '../../services/BillingService';
+import { billingErrorMessage, isBillingUnavailable } from '../../api/billingErrors';
+import { getInvoices } from '../../api/endpoints/billing';
 
 const LINK_COLOR = '#2196F3';
 
@@ -40,34 +41,33 @@ const PaymentHistoryScreen = ({ navigation }) => {
     }
   }, [isAdminOrOwner, navigation]);
 
+  // There is no payment-history endpoint; invoices are the billing record the
+  // API actually exposes, so the history is derived from them.
   const fetchPaymentHistory = async () => {
     try {
-      const response = await billingService.getPaymentHistory();
-      const payments = Array.isArray(response) ? response : response?.results || [];
-      setPaymentHistory(payments);
+      const invoices = await getInvoices();
+      setPaymentHistory(invoices);
 
-      // Calculate statistics
-      const total = payments.reduce((sum, payment) => {
-        return payment.status === 'succeeded' ? sum + payment.amount : sum;
-      }, 0);
-
-      const successful = payments.filter(p => p.status === 'succeeded').length;
-      const failed = payments.filter(p => p.status === 'failed').length;
+      // Only settled invoices count towards "paid"; open/draft ones haven't
+      // been collected yet.
+      const total = invoices.reduce(
+        (sum, invoice) => (invoice.status === 'paid' ? sum + invoice.amount : sum),
+        0
+      );
 
       setTotalPaid(total);
-      setSuccessfulPayments(successful);
-      setFailedPayments(failed);
+      setSuccessfulPayments(invoices.filter((i) => i.status === 'paid').length);
+      setFailedPayments(
+        invoices.filter((i) => i.status === 'uncollectible' || i.status === 'void').length
+      );
     } catch (error) {
-      // Check if it's a 404 (no payment history yet)
-      if (error.response?.status === 404) {
-        console.log('ℹ️ No payment history found - billing may not be set up yet');
-        setPaymentHistory([]);
-        setTotalPaid(0);
-        setSuccessfulPayments(0);
-        setFailedPayments(0);
-      } else {
-        console.error('Error fetching payment history:', error);
-        Alert.alert('Error', 'Unable to load payment history. Please try again later.');
+      setPaymentHistory([]);
+      setTotalPaid(0);
+      setSuccessfulPayments(0);
+      setFailedPayments(0);
+      // Billing not set up / not reachable is an empty state, not an error.
+      if (!isBillingUnavailable(error)) {
+        Alert.alert('Error', billingErrorMessage(error, 'Unable to load payment history.'));
       }
     } finally {
       setLoading(false);
@@ -84,11 +84,10 @@ const PaymentHistoryScreen = ({ navigation }) => {
     fetchPaymentHistory();
   };
 
-  const formatCurrency = (amount, currency = 'GBP') => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: currency
-}).format(amount);
+  // Invoice amounts arrive as integer minor units.
+  const formatCurrency = (minorUnits, currency = 'GBP') => {
+    const amount = typeof minorUnits === 'number' ? minorUnits / 100 : 0;
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(amount);
   };
 
   const formatDate = (dateInput) => {
@@ -114,14 +113,14 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'succeeded':
+      case 'paid':
         return '#4CAF50';
-      case 'failed':
+      case 'uncollectible':
+      case 'void':
         return '#F44336';
-      case 'pending':
+      case 'open':
+      case 'draft':
         return '#FF9800';
-      case 'canceled':
-        return '#999';
       default:
         return '#999';
     }
@@ -129,33 +128,26 @@ const PaymentHistoryScreen = ({ navigation }) => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'succeeded':
+      case 'paid':
         return 'checkmark-circle';
-      case 'failed':
+      case 'uncollectible':
+      case 'void':
         return 'close-circle';
-      case 'pending':
+      case 'open':
+      case 'draft':
         return 'time';
-      case 'canceled':
-        return 'ban';
       default:
         return 'help-circle';
     }
   };
 
-  const handlePaymentPress = async (payment) => {
-    if (payment.receipt_url) {
-      try {
-        await Linking.openURL(payment.receipt_url);
-      } catch (error) {
-        console.error('Error opening receipt:', error);
-        Alert.alert('Error', 'Unable to open receipt. Please try again later.');
-      }
-    } else if (payment.status === 'failed' && payment.failure_reason) {
-      Alert.alert(
-        'Payment Failed',
-        payment.failure_reason,
-        [{ text: 'OK' }]
-      );
+  const handlePaymentPress = async (invoice) => {
+    const url = invoice.hosted_invoice_url || invoice.pdf_url;
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open invoice. Please try again later.');
     }
   };
 
@@ -180,7 +172,7 @@ const PaymentHistoryScreen = ({ navigation }) => {
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Payment History</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Complete record of all billing transactions
+            Every invoice issued to your organisation
           </Text>
         </View>
 
@@ -208,14 +200,14 @@ const PaymentHistoryScreen = ({ navigation }) => {
         {paymentHistory.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="card-outline" size={60} color="#CCC" />
-            <Text style={styles.emptyText}>No payment history found</Text>
+            <Text style={styles.emptyText}>No invoices yet</Text>
             <Text style={styles.emptySubtext}>
-              Payments will appear here once billing begins
+              Invoices will appear here once billing begins
             </Text>
           </View>
         ) : (
           <View style={styles.paymentsContainer}>
-            <Text style={styles.sectionTitle}>Payment Transactions</Text>
+            <Text style={styles.sectionTitle}>Invoices</Text>
             {paymentHistory.map((payment) => (
               <TouchableOpacity
                 key={payment.id}
@@ -232,10 +224,10 @@ const PaymentHistoryScreen = ({ navigation }) => {
                     />
                     <View style={styles.paymentDetails}>
                       <Text style={styles.paymentAmount}>
-                        {formatCurrency(payment.amount, payment.currency)}
+                        {formatCurrency(payment.amount)}
                       </Text>
                       <Text style={styles.paymentDate}>
-                        {formatDate(payment.created)}
+                        {formatDate(payment.created_at)}
                       </Text>
                     </View>
                   </View>
@@ -246,41 +238,19 @@ const PaymentHistoryScreen = ({ navigation }) => {
                     ]}
                   >
                     <Text style={styles.statusBadgeText}>
-                      {payment.status.toUpperCase()}
+                      {(payment.status || 'unknown').toUpperCase()}
                     </Text>
                   </View>
                 </View>
 
-                {payment.description && (
-                  <Text style={styles.paymentDescription}>
-                    {payment.description}
-                  </Text>
+                {payment.number && (
+                  <Text style={styles.paymentDescription}>Invoice {payment.number}</Text>
                 )}
 
-                {payment.payment_method && (
-                  <View style={styles.paymentMethodInfo}>
-                    <Ionicons name="card" size={16} color="#666" />
-                    <Text style={styles.paymentMethodText}>
-                      {payment.payment_method.card
-                        ? `${payment.payment_method.card.brand.toUpperCase()} •••• ${payment.payment_method.card.last4}`
-                        : payment.payment_method.type}
-                    </Text>
-                  </View>
-                )}
-
-                {payment.failure_reason && (
-                  <View style={styles.failureReasonContainer}>
-                    <Ionicons name="warning" size={16} color="#F44336" />
-                    <Text style={styles.failureReasonText}>
-                      {payment.failure_reason}
-                    </Text>
-                  </View>
-                )}
-
-                {payment.receipt_url && (
+                {(payment.hosted_invoice_url || payment.pdf_url) && (
                   <View style={styles.receiptContainer}>
                     <Ionicons name="receipt" size={16} color={colors.primary} />
-                    <Text style={styles.receiptText}>Tap to view receipt</Text>
+                    <Text style={styles.receiptText}>Tap to view invoice</Text>
                   </View>
                 )}
               </TouchableOpacity>
