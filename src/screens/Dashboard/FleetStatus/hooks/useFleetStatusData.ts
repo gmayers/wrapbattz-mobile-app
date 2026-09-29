@@ -141,7 +141,6 @@ export function useFleetStatusData(): FleetStatusData {
     return {
       organizationName: orgName,
       userInitials: initials,
-      hasUnreadAlerts: null,
       inventory: {
         total,
         available,

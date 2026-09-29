@@ -13,3 +13,4 @@ export * as vans from './vans';
 export * as incidents from './incidents';
 export * as feedback from './feedback';
 export * as billing from './billing';
+export * as notifications from './notifications';

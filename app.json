@@ -3,7 +3,7 @@
     "name": "TOOLTRAQ",
     "slug": "battwrapz",
     "owner": "garanmayers7262",
-    "version": "1.0.0",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -78,6 +78,14 @@
             "uploadSourceMaps": false
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FFC72C",
+          "defaultChannel": "default"
+        }
       ]
     ],
     "scheme": "tooltraq",
@@ -120,8 +128,10 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.NFC",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
+      "googleServicesFile": "./google-services.json",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",

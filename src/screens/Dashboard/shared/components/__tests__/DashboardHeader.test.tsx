@@ -1,34 +1,42 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import DashboardHeader from '../DashboardHeader';
 
-const baseProps = {
-  tagline: 'YOUR ORGANIZATION',
-  title: 'Dashboard',
-  subtitle: '0 devices',
-  initials: 'AB',
-  hasUnreadAlerts: false,
-  onAvatarPress: jest.fn(),
-};
+function renderHeader(hasUnreadAlerts: boolean | null, onAlertsPress = jest.fn()) {
+  render(
+    <DashboardHeader
+      tagline="Acme"
+      title="Control room"
+      subtitle="Today"
+      initials="AB"
+      hasUnreadAlerts={hasUnreadAlerts}
+      onAlertsPress={onAlertsPress}
+      onAvatarPress={jest.fn()}
+    />
+  );
+  return onAlertsPress;
+}
 
-describe('DashboardHeader alerts bell', () => {
-  // Neither dashboard screen has anywhere for the bell to go
-  // (NotificationPreferences was removed) — a tappable icon that does
-  // nothing on press is a dead affordance, so it must not render at all
-  // when no handler is supplied.
-  it('does not render the bell when onAlertsPress is not provided', () => {
-    render(<DashboardHeader {...baseProps} />);
-    expect(screen.queryByLabelText('View alerts')).toBeNull();
+describe('DashboardHeader bell', () => {
+  // The bell always has a destination now (the Notifications inbox), so it is
+  // always rendered; onAlertsPress is a required prop.
+  it('renders the bell and calls the handler once when pressed', () => {
+    const onPress = renderHeader(false);
+    const bell = screen.getByLabelText('View alerts');
+    expect(bell.props.accessibilityRole).toBe('button');
+    fireEvent.press(bell);
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the bell and calls the handler when onAlertsPress is provided', () => {
-    const onAlertsPress = jest.fn();
-    render(<DashboardHeader {...baseProps} onAlertsPress={onAlertsPress} />);
+  it('announces unread alerts to screen readers', () => {
+    const onPress = renderHeader(true);
+    fireEvent.press(screen.getByLabelText('View alerts, unread'));
+    expect(onPress).toHaveBeenCalled();
+  });
 
-    const bell = screen.getByLabelText('View alerts');
-    expect(bell).toBeTruthy();
-
-    fireEvent.press(bell);
-    expect(onAlertsPress).toHaveBeenCalledTimes(1);
+  it('uses the plain label when nothing is unread', () => {
+    renderHeader(false);
+    expect(screen.getByLabelText('View alerts')).toBeTruthy();
+    expect(screen.queryByLabelText('View alerts, unread')).toBeNull();
   });
 });

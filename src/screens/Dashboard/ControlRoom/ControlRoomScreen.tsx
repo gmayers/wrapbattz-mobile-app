@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useControlRoomData } from './hooks/useControlRoomData';
+import { useUnreadCount } from '../../../notifications/queries';
 import DashboardHeader from '../shared/components/DashboardHeader';
 import QuickActions, { QuickActionItem } from '../shared/components/QuickActions';
 import InventoryCard from './components/InventoryCard';
@@ -18,6 +19,7 @@ import { palette, PLACEHOLDER_DASH } from '../shared/palette';
 const ControlRoomScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const data = useControlRoomData();
+  const { count: unread } = useUnreadCount();
 
   const quickActions: QuickActionItem[] = useMemo(
     () => [
@@ -40,6 +42,12 @@ const ControlRoomScreen: React.FC = () => {
         icon: 'document-text-outline',
         // BACKEND_GAP: no audit feature yet — routes to Reports screen for now.
         onPress: () => navigation.navigate('AllReports'),
+      },
+      {
+        key: 'alerts',
+        label: 'Alerts',
+        icon: 'notifications-outline',
+        onPress: () => navigation.navigate('Notifications'),
       },
       {
         key: 'report',
@@ -87,7 +95,8 @@ const ControlRoomScreen: React.FC = () => {
           title="Control room"
           subtitle="All systems at a glance"
           initials={data.userInitials}
-          hasUnreadAlerts={data.hasUnreadAlerts}
+          hasUnreadAlerts={unread > 0}
+          onAlertsPress={() => navigation.navigate('Notifications')}
           onAvatarPress={() => navigation.navigate('settings')}
         />
         <QuickActions items={quickActions} />

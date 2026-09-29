@@ -129,7 +129,6 @@ export function useControlRoomData(): ControlRoomData {
     return {
       organizationName: orgName,
       userInitials: initials,
-      hasUnreadAlerts: null,
       inventory: {
         devices,
         tags,
@@ -193,4 +192,3 @@ function computeInitials(first?: string | null, last?: string | null, email?: st
 // BACKEND_GAP: members lack `last_active_at` / scan-event aggregation —
 // cannot compute "scanning today" or "idle" counts.
 // BACKEND_GAP: no compliance endpoint — PAT tests / service / hire data unavailable.
-// BACKEND_GAP: no notifications endpoint feeding the bell badge.

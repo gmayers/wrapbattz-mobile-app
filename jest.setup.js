@@ -234,6 +234,44 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock expo-notifications
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 4 },
+  getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: 'ExponentPushToken[test]' })),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  setNotificationHandler: jest.fn(),
+  setBadgeCountAsync: jest.fn(async () => true),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponse: jest.fn(),
+  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+  dismissAllNotificationsAsync: jest.fn(async () => undefined),
+}));
+
+// Mock expo-device
+jest.mock('expo-device', () => ({ isDevice: true }));
+
+// Mock expo-application
+jest.mock('expo-application', () => ({
+  getAndroidId: jest.fn(() => 'android-id-1'),
+  getIosIdForVendorAsync: jest.fn(async () => 'ios-vendor-1'),
+}));
+
+// Mock expo-constants — NotificationService reads the EAS project id off of
+// this. Not covered by transformIgnorePatterns (it only matches "expo/…", not
+// "expo-constants/…"), so any real import in a test crashes with a raw ESM
+// SyntaxError unless it's mocked here.
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: { extra: { eas: { projectId: 'test-project' } } },
+    easConfig: { projectId: 'test-project' },
+  },
+}));
+
 // Global test helpers
 global.testHelpers = {
   sentry: {

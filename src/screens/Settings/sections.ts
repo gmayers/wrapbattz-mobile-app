@@ -41,7 +41,8 @@ const ALL_SECTIONS: SettingsSection[] = [
     title: 'Preferences',
     requiredRole: 'all',
     rows: [
-      { key: 'theme', label: 'Theme', icon: 'color-palette-outline', kind: 'themePicker' },
+      { key: 'notifications', label: 'Notifications', icon: 'notifications-outline', kind: 'nav', destination: 'NotificationSettings' },
+      { key: 'theme',         label: 'Theme',         icon: 'color-palette-outline', kind: 'themePicker' },
     ],
   },
   {
