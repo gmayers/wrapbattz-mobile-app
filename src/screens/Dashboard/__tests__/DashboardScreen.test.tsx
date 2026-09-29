@@ -18,6 +18,8 @@ jest.mock('../../../hooks/useScanTag', () => ({
   useScanTag: () => ({ scan: jest.fn() }),
 }));
 
+jest.mock('../../Transfers/PendingTransfersModal', () => () => null);
+
 let mockUnread = 2;
 jest.mock('../../../notifications/queries', () => ({ useUnreadCount: () => ({ count: mockUnread }) }));
 

@@ -34,6 +34,7 @@ import {
 } from '../api/adapters';
 import { ApiError } from '../api/errors';
 import { conditionLabelFromScore, resolveNextMaintenanceDate } from '../utils/toolMaintenance';
+import TransferToPersonSheet, { memberName } from './Transfers/TransferToPersonSheet';
 
 const ORANGE_COLOR = '#FFC72C';
 
@@ -83,6 +84,12 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
   const [locations, setLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState(null);
   const [transferLoading, setTransferLoading] = useState(false);
+  // The location modal is shared: 'transfer' moves the tool to a site,
+  // 'home' changes the site it's returned to.
+  const [locationModalMode, setLocationModalMode] = useState('transfer');
+
+  // State for transfer to person
+  const [personTransferVisible, setPersonTransferVisible] = useState(false);
   
   // Format the date for display
   const formatDate = (dateString) => {
@@ -246,22 +253,57 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Handle request device (tool held by another user)
+  // Ask the current holder to hand the tool over (a transfer claim). They get
+  // a push notification and confirm or decline from their dashboard.
   const handleRequestDevice = async () => {
     if (!device) return;
     setRequesting(true);
     try {
-      await toolsApi.requestTool(toolId, {});
-      Alert.alert('Request sent', 'The current holder will be notified that you need this device.');
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'not_found') {
-        Alert.alert('Coming soon', "Requesting devices isn't available yet.");
+      const transfer = await toolsApi.requestTool(toolId, { message: '' });
+      if (transfer.status === 'pending') {
+        Alert.alert(
+          'Request sent',
+          `${transfer.from_user_email || 'The current holder'} will be asked to confirm the handover. The tool stays with them until they do.`
+        );
       } else {
-        Alert.alert('Error', (error instanceof ApiError && error.message) || error?.message || 'Failed to send request.');
+        Alert.alert('Tool is yours', `${device.identifier} is now assigned to you.`, [
+          { text: 'OK', onPress: () => {
+            fetchDeviceDetails();
+            fetchDeviceHistory();
+          }}
+        ]);
       }
+    } catch (error) {
+      handleApiError(error, 'Failed to send request.');
     } finally {
       setRequesting(false);
     }
+  };
+
+  // Change where the tool is returned to (owner/admin; the API enforces it).
+  const handleSetHomeSite = async () => {
+    if (!selectedLocationId) {
+      Alert.alert('Error', 'Please select a location.');
+      return;
+    }
+    setTransferLoading(true);
+    try {
+      const tool = await toolsApi.updateTool(toolId, { home_site_id: Number(selectedLocationId) });
+      setDevice(toLegacyDevice(tool));
+      setTransferModalVisible(false);
+      setSelectedLocationId(null);
+      Alert.alert('Home location updated', `${tool.name} now returns to ${tool.home_site_name}.`);
+    } catch (error) {
+      handleApiError(error, 'Failed to update home location');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const openLocationModal = (mode) => {
+    setLocationModalMode(mode);
+    setSelectedLocationId(mode === 'home' ? device?.home_site_id ?? null : null);
+    setTransferModalVisible(true);
   };
 
   // Handle transfer to location
@@ -305,8 +347,10 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
 
   // Navigate to create report screen with device pre-selected
   const handleCreateReport = () => {
-    navigation.navigate('CreateReport', { 
-      selectedDevice: device 
+    // CreateReportScreen reads deviceId (+ identifier as a label fallback).
+    navigation.navigate('CreateReport', {
+      deviceId: toolId,
+      identifier: device?.identifier
     });
   };
 
@@ -374,6 +418,12 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
     activeHolderUserId != null &&
     activeHolderUserId !== currentUserId;
   const canAssign = !heldByOtherUser;
+  // Person-to-person handover: the tool must be held by a person, and the
+  // backend only lets the holder or an owner/admin start it.
+  const canTransferToPerson =
+    activeHolderKind === 'user' &&
+    activeHolderUserId != null &&
+    (activeHolderUserId === currentUserId || isAdminOrOwner);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -430,6 +480,13 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{device.model}</Text>
             </View>
             
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Home Location:</Text>
+              <Text style={[styles.detailValue, { color: device.home_site_id ? colors.textPrimary : colors.textMuted }]} testID="device-home-site">
+                {device.home_site_id ? device.home_site_name : 'Not set'}
+              </Text>
+            </View>
+
             {device.serial_number && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Serial Number:</Text>
@@ -511,11 +568,29 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
               />
             )}
 
+            {canTransferToPerson && (
+              <Button
+                title="Transfer to Person"
+                onPress={() => setPersonTransferVisible(true)}
+                style={styles.transferButton}
+              />
+            )}
+
             {isAdminOrOwner && (
               <Button
                 title="Transfer to Location"
-                onPress={() => setTransferModalVisible(true)}
+                onPress={() => openLocationModal('transfer')}
                 style={styles.transferButton}
+              />
+            )}
+
+            {isAdminOrOwner && (
+              <Button
+                title={device.home_site_id ? 'Change Home Location' : 'Set Home Location'}
+                variant="outlined"
+                onPress={() => openLocationModal('home')}
+                style={styles.transferButton}
+                testID="device-set-home-site"
               />
             )}
 
@@ -686,6 +761,25 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
+      <TransferToPersonSheet
+        visible={personTransferVisible}
+        toolId={toolId}
+        toolName={device?.identifier || device?.name || 'this tool'}
+        holderUserId={activeHolderUserId}
+        onClose={() => setPersonTransferVisible(false)}
+        onDone={(transfer, recipient) => {
+          setPersonTransferVisible(false);
+          const name = memberName(recipient);
+          if (transfer.status === 'pending') {
+            Alert.alert('Transfer sent', `Waiting for ${name} to accept.`);
+          } else {
+            Alert.alert('Transferred', `The tool is now assigned to ${name}.`);
+            fetchDeviceDetails();
+            fetchDeviceHistory();
+          }
+        }}
+      />
+
       {/* Transfer to Location Modal */}
       <Modal
         visible={transferModalVisible}
@@ -701,7 +795,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
           />
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Transfer to Location</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                {locationModalMode === 'home' ? 'Home Location' : 'Transfer to Location'}
+              </Text>
               <TouchableOpacity
                 onPress={() => {
                   setTransferModalVisible(false);
@@ -713,7 +809,9 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
             </View>
 
             <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Select a location to transfer this device to.
+              {locationModalMode === 'home'
+                ? 'Choose where this tool is returned to. Only owners and admins can return it anywhere else.'
+                : 'Select a location to transfer this device to.'}
             </Text>
 
             <FlatList
@@ -744,6 +842,7 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                         ]}
                       >
                         {item.name || `${item.street_number} ${item.street_name}`}
+                        {item.id === device?.home_site_id ? ' (home)' : ''}
                       </Text>
                     </View>
                     {isSelected && (
@@ -769,8 +868,8 @@ const DeviceDetailsScreen = ({ navigation, route }) => {
                 style={styles.modalCancelButton}
               />
               <Button
-                title={transferLoading ? "Transferring..." : "Confirm"}
-                onPress={handleTransferToLocation}
+                title={transferLoading ? (locationModalMode === 'home' ? 'Saving...' : 'Transferring...') : 'Confirm'}
+                onPress={locationModalMode === 'home' ? handleSetHomeSite : handleTransferToLocation}
                 disabled={transferLoading || !selectedLocationId}
                 style={[styles.modalConfirmButton, (!selectedLocationId || transferLoading) && styles.disabledButton]}
               />

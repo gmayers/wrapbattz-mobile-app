@@ -7,6 +7,7 @@ export * as joinRequests from './joinRequests';
 export * as tools from './tools';
 export * as toolPhotos from './toolPhotos';
 export * as assignments from './assignments';
+export * as transfers from './transfers';
 export * as sites from './sites';
 export * as siteAssignments from './siteAssignments';
 export * as vans from './vans';

@@ -12,18 +12,24 @@ import QuickActionsGrid from './components/QuickActionsGrid';
 import DataOverview from './components/DataOverview';
 import ControlRoomScreen from './ControlRoom/ControlRoomScreen';
 import FleetStatusScreen from './FleetStatus/FleetStatusScreen';
+import PendingTransfersModal from '../Transfers/PendingTransfersModal';
 
 const DashboardScreen: React.FC = () => {
   const { userData } = useAuth();
   const role = userData?.role as any;
 
-  if (role === 'owner') {
-    return <ControlRoomScreen />;
-  }
-  if (role === 'admin') {
-    return <FleetStatusScreen />;
-  }
-  return <StandardDashboard role={role} />;
+  const body =
+    role === 'owner' ? <ControlRoomScreen />
+    : role === 'admin' ? <FleetStatusScreen />
+    : <StandardDashboard role={role} />;
+
+  // Tools being handed to this user surface first, over every role's dashboard.
+  return (
+    <>
+      {body}
+      <PendingTransfersModal />
+    </>
+  );
 };
 
 const StandardDashboard: React.FC<{ role: any }> = ({ role }) => {

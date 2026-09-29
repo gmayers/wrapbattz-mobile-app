@@ -130,4 +130,23 @@ describe('AuthContext bootstrap', () => {
     expect(tokenStore.clear).toHaveBeenCalled();
     expect(clearCachedUser).toHaveBeenCalled();
   });
+
+  it.each([
+    ['completed with an organisation', { has_completed_onboarding: true, organization: { id: 1 } }, true],
+    // A Google sign-up the backend created as already onboarded, with no org:
+    // the main app would be empty, so the wizard must run.
+    ['completed but no organisation', { has_completed_onboarding: true, organization: null }, false],
+    ['not completed', { has_completed_onboarding: false, organization: { id: 1 } }, false],
+  ])('onboardingComplete: %s', async (_label, userFields, expected) => {
+    (account.getMeBootstrap as jest.Mock).mockResolvedValue({ email: 'g@example.com', ...userFields });
+    let captured: ReturnType<typeof useAuth> | undefined;
+    render(
+      <AuthProvider>
+        <Probe onAuth={(a) => (captured = a)} />
+      </AuthProvider>
+    );
+    await act(async () => {});
+    expect(captured!.onboardingComplete).toBe(expected);
+  });
 });
+

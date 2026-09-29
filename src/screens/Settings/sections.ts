@@ -52,6 +52,7 @@ const ALL_SECTIONS: SettingsSection[] = [
     rows: [
       { key: 'orgDetails', label: 'Org Details', icon: 'business-outline',  kind: 'nav', destination: 'CreateOrganization', params: { mode: 'edit' } },
       { key: 'members',    label: 'Members',     icon: 'people-outline',    kind: 'nav', destination: 'Members' },
+      { key: 'transfers',  label: 'Transfers',   icon: 'swap-horizontal-outline', kind: 'nav', destination: 'TransferSettings' },
       // Same sample data as the web portal's demo-tools buttons; backend
       // create is idempotent so re-adding after a remove is safe.
       { key: 'addDemoTools',    label: 'Add Demo Tools',    icon: 'construct-outline', kind: 'action', onPressType: 'addDemoData' },

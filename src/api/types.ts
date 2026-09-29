@@ -83,10 +83,21 @@ export type AssignmentUpdate = S['AssignmentUpdate'];
 export type AssignmentReturn = S['AssignmentReturn'];
 export type PagedAssignments = S['PagedAssignments'];
 
+// Person-to-person transfers: the holder (or an owner/admin) proposes, the
+// recipient accepts or declines. See docs/superpowers/specs/
+// 2026-08-12-tool-transfer-confirmation-design.md.
+export type TransferRead = S['TransferRead'];
+export type TransferCreate = S['TransferCreate'];
+export type PagedTransfers = S['PagedTransfers'];
+export type TransferClaimCreate = S['TransferClaimCreate'];
+
 export type SiteRead = S['SiteRead'];
 export type SiteCreate = S['SiteCreate'];
 export type SiteUpdate = S['SiteUpdate'];
 export type PagedSites = S['PagedSites'];
+// Sites a tool can go to, its home site first and flagged is_home.
+export type SiteForToolRead = S['SiteForToolRead'];
+export type PagedSitesForTool = S['PagedSitesForTool'];
 
 export type SiteAssignmentRead = S['SiteAssignmentRead'];
 export type SiteAssignmentCreate = S['SiteAssignmentCreate'];

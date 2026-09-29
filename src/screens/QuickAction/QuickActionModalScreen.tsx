@@ -22,7 +22,6 @@ import {
   assignments as assignmentsApi,
   sites as sitesApi,
   tools as toolsApi,
-  vans as vansApi,
 } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import { pickLastUserHolder } from '../Tools/hooks/lastHeld';
@@ -49,6 +48,9 @@ interface DeviceLike {
   maintenance_interval?: number;
   description?: string;
   is_available?: boolean;
+  /** Where returns go. Null for tools created before home sites existed. */
+  home_site_id?: number | null;
+  home_site_name?: string;
   current_assignment?: {
     id: string;
     user_name?: string;
@@ -72,14 +74,14 @@ const QuickActionModalScreen: React.FC = () => {
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnLoading, setReturnLoading] = useState(false);
-  const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
-  const [vehicleOptions, setVehicleOptions] = useState<LocationOption[]>([]);
+  const [destinations, setDestinations] = useState<LocationOption[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<string>('');
   const [destinationsLoading, setDestinationsLoading] = useState(false);
   const [destinationsError, setDestinationsError] = useState<string | null>(null);
 
   const [upgrading, setUpgrading] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   // Holder info derived from history
   const [holderLine, setHolderLine] = useState<string | null>(null);
@@ -87,6 +89,7 @@ const QuickActionModalScreen: React.FC = () => {
   // Active holder kind/userId for Assign-to-me gate
   const [activeHolderKind, setActiveHolderKind] = useState<'user' | 'site' | null>(null);
   const [activeHolderUserId, setActiveHolderUserId] = useState<number | null>(null);
+  const [activeHolderEmail, setActiveHolderEmail] = useState<string | null>(null);
 
   const loadDevice = useCallback(async (cancelled: { current: boolean }) => {
     if (!tagUID) {
@@ -100,6 +103,7 @@ const QuickActionModalScreen: React.FC = () => {
     setHolderLine(null);
     setActiveHolderKind(null);
     setActiveHolderUserId(null);
+    setActiveHolderEmail(null);
     try {
       // The active-assignment lookup doesn't depend on the tool result — only
       // the match does — so both requests run in parallel (scan-to-card is the
@@ -124,6 +128,8 @@ const QuickActionModalScreen: React.FC = () => {
         serial_number: tool.serial_number,
         maintenance_interval: tool.maintenance_interval_days ?? 0,
         is_available: tool.is_available,
+        home_site_id: tool.home_site_id ?? null,
+        home_site_name: tool.home_site_name ?? '',
         current_assignment: currentAssignmentId ? { id: String(currentAssignmentId) } : null,
       });
 
@@ -146,6 +152,7 @@ const QuickActionModalScreen: React.FC = () => {
           setHolderLine(`👤 ${current.assignee_user_email || 'Unknown user'}`);
           setActiveHolderKind('user');
           setActiveHolderUserId(current.assignee_user_id);
+          setActiveHolderEmail(current.assignee_user_email || null);
         } else if (current.assignee_site_id) {
           const siteName = current.assignee_site_name || 'Unknown location';
           // Also find last user holder
@@ -197,30 +204,25 @@ const QuickActionModalScreen: React.FC = () => {
     };
   }, []);
 
+  const homeSiteId = device?.home_site_id ?? null;
+
+  // Only owners/admins can send a tool somewhere other than its home site,
+  // so only they get a destination picker (home site first, pre-selected).
   const loadDestinations = useCallback(async () => {
+    if (!device) return;
     setDestinationsLoading(true);
     setDestinationsError(null);
     try {
-      const [siteItems, vanPage] = await Promise.all([
-        sitesApi.listAllSites(),
-        vansApi.listVans().catch(() => ({ items: [], page: 1, page_size: 0, total: 0, total_pages: 0 })),
-      ]);
-      const locOpts: LocationOption[] = siteItems.map((l) => ({
-        label: `📍 ${l.name}`,
-        value: String(l.id),
+      const page = await sitesApi.listSitesForTool(Number(device.id));
+      const opts: LocationOption[] = page.items.map((site) => ({
+        label: site.is_home
+          ? `🏠 ${site.name} (home)`
+          : `${site.site_type === 'vehicle' ? '🚐' : '📍'} ${site.name || site.prefix_code}`,
+        value: String(site.id),
       }));
-      const vanOpts: LocationOption[] = vanPage.items
-        .filter((v) => v.status === 'active')
-        .map((v) => ({
-          label: `🚐 ${v.name || v.prefix_code}`,
-          value: String(v.id),
-        }));
-      setLocationOptions(locOpts);
-      setVehicleOptions(vanOpts);
-      const combined = [...locOpts, ...vanOpts];
-      if (combined.length > 0 && !selectedDestination) {
-        setSelectedDestination(combined[0].value);
-      }
+      setDestinations(opts);
+      const home = page.items.find((site) => site.is_home);
+      setSelectedDestination(String(home?.id ?? homeSiteId ?? opts[0]?.value ?? ''));
     } catch (err) {
       if (!(err instanceof ApiError && err.code === 'unauthorized')) {
         setDestinationsError(
@@ -230,7 +232,7 @@ const QuickActionModalScreen: React.FC = () => {
     } finally {
       setDestinationsLoading(false);
     }
-  }, [selectedDestination]);
+  }, [device, homeSiteId]);
 
   const handleOpenReturn = () => {
     if (!device?.current_assignment?.id) {
@@ -241,22 +243,27 @@ const QuickActionModalScreen: React.FC = () => {
       return;
     }
     setReturnOpen(true);
-    if (locationOptions.length === 0 && vehicleOptions.length === 0) {
+    setSelectedDestination(homeSiteId != null ? String(homeSiteId) : '');
+    if (isAdminOrOwner && homeSiteId != null && destinations.length === 0) {
       loadDestinations();
     }
   };
 
   const handleConfirmReturn = async () => {
-    if (!selectedDestination) {
-      Alert.alert('Select a destination', 'Please pick a location or vehicle.');
-      return;
-    }
     const assignmentId = device?.current_assignment?.id;
     if (!assignmentId) return;
+    // Workers always return to the home site; officers may pick another.
+    // A tool with no home site is just closed off — the API ignores a target.
+    const target =
+      homeSiteId == null
+        ? null
+        : isAdminOrOwner && selectedDestination
+          ? Number(selectedDestination)
+          : homeSiteId;
     setReturnLoading(true);
     try {
       await assignmentsApi.returnAssignment(Number(assignmentId), {
-        target_site_id: Number(selectedDestination),
+        target_site_id: target,
         condition: '',
         notes: '',
       });
@@ -272,6 +279,35 @@ const QuickActionModalScreen: React.FC = () => {
       Alert.alert('Return failed', msg);
     } finally {
       setReturnLoading(false);
+    }
+  };
+
+  // Receiver-initiated handover: ask whoever holds the tool to hand it over.
+  // They get a push notification and confirm (or decline) from their app.
+  const handleRequest = async () => {
+    if (!device) return;
+    setRequesting(true);
+    try {
+      const transfer = await toolsApi.requestTool(Number(device.id), { message: '' });
+      if (transfer.status === 'pending') {
+        Alert.alert(
+          'Request sent',
+          `${activeHolderEmail || 'The current holder'} will be asked to confirm the handover. The tool stays with them until they do.`
+        );
+      } else {
+        Alert.alert('Tool is yours', `${device.identifier || 'The tool'} is now assigned to you.`, [
+          { text: 'OK', onPress: () => loadDevice({ current: false }) },
+        ]);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'unauthorized') return;
+      const msg =
+        (err instanceof ApiError && err.message) ||
+        (err instanceof Error && err.message) ||
+        'Could not send the request. Please try again.';
+      Alert.alert('Request failed', msg);
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -317,32 +353,22 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device) return;
     setUpgrading(true);
     try {
-      const result = await Promise.race([
-        nfcService.writeDeviceToNFC(
-          {
-            deviceId: device.identifier || String(device.id),
-            make: device.make || '',
-            model: device.model || '',
-            serialNumber: device.serial_number || '',
-            maintenanceInterval: device.maintenance_interval || 0,
-            description: device.description || '',
-          },
-          // Leading URI record so a tap deep-links straight into the app
-          // (linking path d/:tagUID); JSON payload rides behind it.
-          { uri: `https://app.tooltraq.com/d/${tagUID}` }
-        ),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new Error(
-                  'NFC timed out — hold the tag steady against the device and try again.'
-                )
-              ),
-            20000
-          )
-        ),
-      ]);
+      // The service bounds the wait itself (Android's tag request never times
+      // out on its own) and cancels the pending request on expiry, so a retry
+      // isn't blocked by a request still waiting in the background.
+      const result = await nfcService.writeDeviceToNFC(
+        {
+          deviceId: device.identifier || String(device.id),
+          make: device.make || '',
+          model: device.model || '',
+          serialNumber: device.serial_number || '',
+          maintenanceInterval: device.maintenance_interval || 0,
+          description: device.description || '',
+        },
+        // Leading URI record so a tap deep-links straight into the app
+        // (linking path d/:tagUID); JSON payload rides behind it.
+        { uri: `https://app.tooltraq.com/d/${tagUID}`, timeout: 20000 }
+      );
       if (result.success) {
         const urlOnly = result.data?.writtenJson === false;
         Alert.alert(
@@ -366,10 +392,8 @@ const QuickActionModalScreen: React.FC = () => {
     else navigation.replace('MainTabs');
   };
 
-  const combinedDestinations =
-    vehicleOptions.length > 0
-      ? [...locationOptions, ...vehicleOptions]
-      : locationOptions;
+  const heldByOtherUser =
+    activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -474,6 +498,17 @@ const QuickActionModalScreen: React.FC = () => {
               />
             ) : null}
 
+            {heldByOtherUser ? (
+              <Button
+                title={requesting ? 'Sending request…' : 'Request this tool'}
+                onPress={handleRequest}
+                loading={requesting}
+                disabled={requesting}
+                style={styles.actionBtn}
+                testID="quick-action-request"
+              />
+            ) : null}
+
             <Button
               title="Report an issue"
               onPress={handleReport}
@@ -486,7 +521,7 @@ const QuickActionModalScreen: React.FC = () => {
               <>
                 {/* Show Assign unless tool is held by a different user. Available
                     tools and site-held tools can always be grabbed. */}
-                {!(activeHolderKind === 'user' && activeHolderUserId != null && activeHolderUserId !== (user?.id ?? null)) ? (
+                {!heldByOtherUser ? (
                   <Button
                     title={assigning ? 'Assigning…' : 'Assign tool'}
                     onPress={handleAssign}
@@ -507,7 +542,7 @@ const QuickActionModalScreen: React.FC = () => {
                   testID="quick-action-upgrade"
                 />
                 <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
-                  Refreshes the device data stored on this NFC tag.
+                  Refreshes the device data stored on this NFC tag. Press the button, then tap the tag against the back of your phone.
                 </Text>
               </>
             ) : null}
@@ -521,7 +556,21 @@ const QuickActionModalScreen: React.FC = () => {
               <Text style={[styles.returnTitle, { color: colors.textPrimary }]}>
                 Return tool
               </Text>
-              {destinationsLoading ? (
+              {homeSiteId == null ? (
+                <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left' }]} testID="quick-action-return-no-home">
+                  This tool has no home location yet, so it won't be filed at a site.
+                  {isAdminOrOwner ? ' Set one from the tool\'s details.' : ''}
+                </Text>
+              ) : !isAdminOrOwner ? (
+                <>
+                  <Text style={[styles.holderText, { color: colors.textPrimary }]} testID="quick-action-return-home">
+                    🏠 Returns to {device.home_site_name || 'its home location'}
+                  </Text>
+                  <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left' }]}>
+                    Only an owner or admin can return it anywhere else.
+                  </Text>
+                </>
+              ) : destinationsLoading ? (
                 <ActivityIndicator color={colors.primary} />
               ) : destinationsError ? (
                 <>
@@ -536,15 +585,11 @@ const QuickActionModalScreen: React.FC = () => {
                     testID="quick-action-destinations-retry"
                   />
                 </>
-              ) : combinedDestinations.length === 0 ? (
-                <Text style={[styles.hintText, { color: colors.textSecondary }]}>
-                  No locations or vehicles available.
-                </Text>
               ) : (
                 <Dropdown
                   value={selectedDestination}
                   onValueChange={setSelectedDestination}
-                  items={combinedDestinations}
+                  items={destinations}
                   placeholder="Select destination"
                   disabled={returnLoading}
                   testID="quick-action-return-destination"
@@ -555,7 +600,7 @@ const QuickActionModalScreen: React.FC = () => {
                   title={returnLoading ? 'Returning…' : 'Confirm return'}
                   onPress={handleConfirmReturn}
                   loading={returnLoading}
-                  disabled={returnLoading || combinedDestinations.length === 0}
+                  disabled={returnLoading || (isAdminOrOwner && homeSiteId != null && (destinationsLoading || !selectedDestination))}
                   style={styles.actionBtn}
                   testID="quick-action-confirm-return"
                 />

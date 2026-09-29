@@ -67,6 +67,7 @@ const [formData, setFormData] = useState({
     next_maintenance_date: twoWeeksFromNow,
     location: '', // Will be set when user selects an option
     user: '', // New field for user assignment
+    home_site: '', // Where the tool is returned to — required by the API
   });
   const [loading, setLoading] = useState(false);
   const [nfcModalVisible, setNfcModalVisible] = useState(false);
@@ -162,6 +163,9 @@ const [formData, setFormData] = useState({
       if (options.length > 0 && !formData.location) {
         handleInputChange('location', options[0].value);
         logMessage(`Setting default location to: ${options[0].value}`);
+      }
+      if (options.length > 0 && !formData.home_site) {
+        handleInputChange('home_site', options[0].value);
       }
     }
   }, [locations]);
@@ -348,6 +352,9 @@ const validateForm = () => {
     if (formData.category === ADD_NEW_CATEGORY && !customCategory.trim())
       missingFields.push('New category name');
 
+    if (!formData.home_site)
+      missingFields.push('Home location');
+
     // Check location or user based on assignment toggle
     if (isUserAssignment) {
       if (!formData.user || formData.user === '' || formData.user === 0)
@@ -395,6 +402,7 @@ const validateForm = () => {
             ? { category: categoryLabel }
             : {}),
         nfc_tag_id: preScannedNfcTagId ?? null,
+        home_site_id: Number(formData.home_site),
         // QA round-4 contract — ignored by the backend until it ships the
         // ToolCreate fields, then persisted. Only sent when an interval is set.
         ...(Number(formData.maintenance_interval) > 0
@@ -523,6 +531,7 @@ const formatDate = (date) => {
       maintenance_interval: '',
       next_maintenance_date: twoWeeksFromNow, // Reset to 2 weeks from now
       location: locationOptions.length > 0 ? locationOptions[0].value : '', // Reset to first location
+      home_site: locationOptions.length > 0 ? locationOptions[0].value : '',
       user: userOptions.length > 0 ? userOptions[0].value : '', // Reset to first user
     });
     setOtherMake('');
@@ -881,6 +890,29 @@ return (
               )}
             </View>
 
+            {/* Home location — where the tool is returned to. Required, so a
+                return can't send it anywhere in the country. */}
+            <View style={[styles.formField, { zIndex: 2 }]}>
+              <Text style={styles.label}>Home location *</Text>
+              <Dropdown
+                value={formData.home_site}
+                onValueChange={(value) => handleInputChange('home_site', value)}
+                items={locationOptions}
+                placeholder="Select Home Location (Required)"
+                testID="home-site-dropdown"
+                style={formData.home_site ? {} : styles.requiredField}
+                containerStyle={[
+                  styles.dropdownContainer,
+                  Platform.OS === 'ios' && styles.iosDropdownContainer
+                ]}
+              />
+              <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+                {locationOptions.length === 0
+                  ? 'Add a location first — every tool needs a home location.'
+                  : "Where the tool is returned to. Only owners and admins can return it anywhere else."}
+              </Text>
+            </View>
+
             {/* Assignment Toggle Switch - Updated order to have User first */}
             <View style={styles.toggleContainer}>
               <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Assign to:</Text>
@@ -1023,7 +1055,7 @@ return (
           {preScannedNfcTagId && !nfcWriteSuccess && (
             <View style={styles.writeOptionsContainer}>
               <Text style={styles.writeOptionsHint}>
-                Hold your device close to the NFC tag, select the data to write, then press 'Write Data to Tag'.
+                Select the data to write, press 'Write Data to Tag', then tap the tag against the back of your phone. If the tag is already touching the phone, move it away and tap it again.
               </Text>
               <Text style={styles.writeOptionsTitle}>Select data to write to tag:</Text>
 
@@ -1201,6 +1233,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333'
+},
+  fieldHint: {
+    fontSize: 12,
+    marginTop: 2
 },
   dropdownContainer: {
     marginBottom: 5,

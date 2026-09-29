@@ -332,6 +332,37 @@ export class NFCService {
   }
 
   /**
+   * Wait for a tag. Android's requestTechnology has no timeout of its own and
+   * only resolves when a tag is newly discovered, so a tag already resting on
+   * the phone (e.g. the one just scanned) left the caller spinning forever.
+   * Race it against a timer and cancel the pending request on expiry.
+   */
+  public async requestTechnologyWithTimeout(
+    tech: NfcTech,
+    timeout: number,
+    alertMessage = 'Hold your device near the NFC tag'
+  ): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await NfcManager.requestTechnology(tech, { timeout, alertMessage } as any);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        NfcManager.requestTechnology(tech),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            NfcManager.cancelTechnologyRequest().catch(() => {});
+            reject(new Error('NFC timed out waiting for a tag. Move the tag away, then tap it against the back of the phone.'));
+          }, timeout);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
    * Read NFC tag and return JSON string
    */
   public async readNFC(options: NFCReadOptions = {}): Promise<NFCOperationResult> {
@@ -356,11 +387,7 @@ export class NFCService {
         // Request Technology with platform-specific timeout
         const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
         nfcLogger.logStep(operationId, 'Requesting NFC technology', { timeout });
-        const technologyRequest = Platform.OS === 'ios'
-          ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout, alertMessage: 'Hold your device near the NFC tag' } as any)
-          : NfcManager.requestTechnology(NfcTech.Ndef);
-
-        await technologyRequest;
+        await this.requestTechnologyWithTimeout(NfcTech.Ndef, timeout);
         nfcLogger.logStep(operationId, 'NFC technology acquired');
         
         // Detect and validate tag with enhanced validation
@@ -512,11 +539,7 @@ export class NFCService {
       // Request NFC technology with platform-specific timeout
       const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
       nfcLogger.logStep(operationId, 'Requesting NFC technology', { timeout });
-      const technologyRequest = Platform.OS === 'ios'
-        ? NfcManager.requestTechnology(NfcTech.Ndef, { timeout, alertMessage: 'Hold your device near the NFC tag' } as any)
-        : NfcManager.requestTechnology(NfcTech.Ndef);
-
-      await technologyRequest;
+      await this.requestTechnologyWithTimeout(NfcTech.Ndef, timeout);
       nfcLogger.logStep(operationId, 'NFC technology acquired');
       
       // Detect and validate tag with enhanced validation
@@ -658,7 +681,7 @@ export class NFCService {
 
         // For specific errors with detailed messages, use the original
         const errorMessage = (error as Error).message;
-        if (errorMessage.includes('tag capacity') || errorMessage.includes('connection lost')) {
+        if (errorMessage.includes('tag capacity') || errorMessage.includes('connection lost') || errorMessage.includes('timed out')) {
           userErrorMessage = errorMessage;
         }
 

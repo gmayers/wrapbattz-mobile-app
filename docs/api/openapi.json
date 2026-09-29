@@ -2073,6 +2073,22 @@
               "title": "Status"
             },
             "required": false
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            },
+            "required": false
           }
         ],
         "responses": {
@@ -2198,6 +2214,7 @@
             }
           }
         },
+        "description": "Withdraw a pending transfer.\n\nWhoever started it withdraws it \u2014 the sender of an offer, the claimant\nof a claim \u2014 or an owner/admin. The holder of a claimed tool declines\nrather than cancels.",
         "tags": [
           "transfers"
         ],
@@ -2229,6 +2246,7 @@
             }
           }
         },
+        "description": "Pending, unexpired transfers waiting on the caller's answer: offers\nmade to them, and claims made on tools they hold.",
         "tags": [
           "transfers"
         ],
@@ -2710,6 +2728,61 @@
         ]
       }
     },
+    "/api/v1/tools/{tool_id}/request/": {
+      "post": {
+        "operationId": "api_routers_assignments_transfers_request_tool",
+        "summary": "Request Tool",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tool_id",
+            "schema": {
+              "title": "Tool Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferRead"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ask the person holding a tool to hand it over (a *claim*).\n\nWith transfer confirmation on, this raises a pending claim for the\nholder to accept or decline. With it off, the tool moves immediately\nand the row is recorded as already accepted.",
+        "tags": [
+          "transfers"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TransferClaimCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "required": false
+        },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/sites/": {
       "get": {
         "operationId": "api_routers_sites_sites_list_sites",
@@ -2936,13 +3009,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedSites"
+                  "$ref": "#/components/schemas/PagedSitesForTool"
                 }
               }
             }
           }
         },
-        "description": "Return active sites in the org (all, since Device has no current_site FK).",
+        "description": "Active sites in the org a tool can go to, its home site first and\nflagged ``is_home`` so the app can pre-select it.",
         "tags": [
           "sites"
         ],
@@ -4866,8 +4939,7 @@
             "type": "integer"
           },
           "notification_type": {
-            "title": "Notification Type",
-            "type": "string"
+            "$ref": "#/components/schemas/NotificationType"
           },
           "title": {
             "title": "Title",
@@ -4919,6 +4991,38 @@
         ],
         "title": "NotificationRead",
         "type": "object"
+      },
+      "NotificationType": {
+        "enum": [
+          "assignment_overdue",
+          "maintenance_due",
+          "maintenance_overdue",
+          "warranty_expiring",
+          "report_filed",
+          "report_resolved",
+          "rental_overdue",
+          "hire_overdue",
+          "condition_alert",
+          "replacement_flagged",
+          "approval_required",
+          "invitation_received",
+          "join_request_created",
+          "join_request_approved",
+          "join_request_denied",
+          "role_changed",
+          "transfer_requested",
+          "transfer_accepted",
+          "transfer_declined",
+          "transfer_expired",
+          "transfer_claim_requested",
+          "transfer_claim_accepted",
+          "transfer_claim_declined",
+          "transfer_claim_expired",
+          "transfer_claimed_instant",
+          "system"
+        ],
+        "title": "NotificationType",
+        "type": "string"
       },
       "PagedNotifications": {
         "properties": {
@@ -5034,8 +5138,7 @@
       "TypePreference": {
         "properties": {
           "type": {
-            "title": "Type",
-            "type": "string"
+            "$ref": "#/components/schemas/NotificationType"
           },
           "label": {
             "default": "",
@@ -6356,6 +6459,22 @@
                 "type": "null"
               }
             ]
+          },
+          "home_site_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Site Id"
+          },
+          "home_site_name": {
+            "default": "",
+            "title": "Home Site Name",
+            "type": "string"
           }
         },
         "required": [
@@ -6434,6 +6553,17 @@
               }
             ],
             "title": "Next Maintenance Date"
+          },
+          "home_site_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Site Id"
           }
         },
         "required": [
@@ -6551,6 +6681,17 @@
               }
             ],
             "title": "Next Maintenance Date"
+          },
+          "home_site_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Site Id"
           }
         },
         "title": "ToolUpdate",
@@ -6687,6 +6828,26 @@
               }
             ],
             "title": "Created By Id"
+          },
+          "kind": {
+            "default": "offer",
+            "enum": [
+              "offer",
+              "claim"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "awaiting_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awaiting User Id"
           }
         },
         "required": [
@@ -7028,6 +7189,18 @@
         "title": "AssignmentReturn",
         "type": "object"
       },
+      "TransferClaimCreate": {
+        "properties": {
+          "message": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "TransferClaimCreate",
+        "type": "object"
+      },
       "PagedSites": {
         "properties": {
           "items": {
@@ -7280,6 +7453,110 @@
           }
         },
         "title": "SiteUpdate",
+        "type": "object"
+      },
+      "PagedSitesForTool": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SiteForToolRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "title": "PagedSitesForTool",
+        "type": "object"
+      },
+      "SiteForToolRead": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "uuid": {
+            "title": "Uuid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "site_type": {
+            "title": "Site Type",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "nickname": {
+            "default": "",
+            "title": "Nickname",
+            "type": "string"
+          },
+          "prefix_code": {
+            "default": "",
+            "title": "Prefix Code",
+            "type": "string"
+          },
+          "address_line1": {
+            "default": "",
+            "title": "Address Line1",
+            "type": "string"
+          },
+          "city": {
+            "default": "",
+            "title": "City",
+            "type": "string"
+          },
+          "postcode": {
+            "default": "",
+            "title": "Postcode",
+            "type": "string"
+          },
+          "is_home": {
+            "default": false,
+            "title": "Is Home",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "uuid",
+          "name",
+          "site_type",
+          "status"
+        ],
+        "title": "SiteForToolRead",
         "type": "object"
       },
       "PagedSiteAssignments": {

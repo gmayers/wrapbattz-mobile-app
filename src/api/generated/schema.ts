@@ -818,7 +818,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancel Transfer */
+        /**
+         * Cancel Transfer
+         * @description Withdraw a pending transfer.
+         *
+         *     Whoever started it withdraws it — the sender of an offer, the claimant
+         *     of a claim — or an owner/admin. The holder of a claimed tool declines
+         *     rather than cancels.
+         */
         post: operations["api_routers_assignments_transfers_cancel_transfer"];
         delete?: never;
         options?: never;
@@ -833,7 +840,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Pending For Me */
+        /**
+         * List Pending For Me
+         * @description Pending, unexpired transfers waiting on the caller's answer: offers
+         *     made to them, and claims made on tools they hold.
+         */
         get: operations["api_routers_assignments_transfers_list_pending_for_me"];
         put?: never;
         post?: never;
@@ -1014,6 +1025,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tools/{tool_id}/request/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Tool
+         * @description Ask the person holding a tool to hand it over (a *claim*).
+         *
+         *     With transfer confirmation on, this raises a pending claim for the
+         *     holder to accept or decline. With it off, the tool moves immediately
+         *     and the row is recorded as already accepted.
+         */
+        post: operations["api_routers_assignments_transfers_request_tool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sites/": {
         parameters: {
             query?: never;
@@ -1060,7 +1095,8 @@ export interface paths {
         };
         /**
          * Sites For Tool
-         * @description Return active sites in the org (all, since Device has no current_site FK).
+         * @description Active sites in the org a tool can go to, its home site first and
+         *     flagged ``is_home`` so the app can pre-select it.
          */
         get: operations["api_routers_sites_sites_sites_for_tool"];
         put?: never;
@@ -1924,8 +1960,7 @@ export interface components {
         NotificationRead: {
             /** Id */
             id: number;
-            /** Notification Type */
-            notification_type: string;
+            notification_type: components["schemas"]["NotificationType"];
             /** Title */
             title: string;
             /** Message */
@@ -1941,6 +1976,11 @@ export interface components {
             created_at: string;
             link?: components["schemas"]["NotificationLink"] | null;
         };
+        /**
+         * NotificationType
+         * @enum {string}
+         */
+        NotificationType: "assignment_overdue" | "maintenance_due" | "maintenance_overdue" | "warranty_expiring" | "report_filed" | "report_resolved" | "rental_overdue" | "hire_overdue" | "condition_alert" | "replacement_flagged" | "approval_required" | "invitation_received" | "join_request_created" | "join_request_approved" | "join_request_denied" | "role_changed" | "transfer_requested" | "transfer_accepted" | "transfer_declined" | "transfer_expired" | "transfer_claim_requested" | "transfer_claim_accepted" | "transfer_claim_declined" | "transfer_claim_expired" | "transfer_claimed_instant" | "system";
         /** PagedNotifications */
         PagedNotifications: {
             /** Items */
@@ -1987,8 +2027,7 @@ export interface components {
         };
         /** TypePreference */
         TypePreference: {
-            /** Type */
-            type: string;
+            type: components["schemas"]["NotificationType"];
             /**
              * Label
              * @default
@@ -2539,6 +2578,13 @@ export interface components {
             /** Condition Score */
             condition_score?: number | string | null;
             last_assignment?: components["schemas"]["LastAssignment"] | null;
+            /** Home Site Id */
+            home_site_id?: number | null;
+            /**
+             * Home Site Name
+             * @default
+             */
+            home_site_name: string;
         };
         /** ToolCreate */
         ToolCreate: {
@@ -2567,6 +2613,8 @@ export interface components {
             maintenance_interval_days?: number | null;
             /** Next Maintenance Date */
             next_maintenance_date?: string | null;
+            /** Home Site Id */
+            home_site_id?: number | null;
         };
         /** CategoryRead */
         CategoryRead: {
@@ -2593,6 +2641,8 @@ export interface components {
             maintenance_interval_days?: number | null;
             /** Next Maintenance Date */
             next_maintenance_date?: string | null;
+            /** Home Site Id */
+            home_site_id?: number | null;
         };
         /** ToolPhotoRead */
         ToolPhotoRead: {
@@ -2655,6 +2705,14 @@ export interface components {
             decided_at?: string | null;
             /** Created By Id */
             created_by_id?: number | null;
+            /**
+             * Kind
+             * @default offer
+             * @enum {string}
+             */
+            kind: "offer" | "claim";
+            /** Awaiting User Id */
+            awaiting_user_id?: number | null;
         };
         /** TransferCreate */
         TransferCreate: {
@@ -2785,6 +2843,14 @@ export interface components {
              */
             notes: string;
         };
+        /** TransferClaimCreate */
+        TransferClaimCreate: {
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+        };
         /** PagedSites */
         PagedSites: {
             /** Items */
@@ -2898,6 +2964,67 @@ export interface components {
             city?: string | null;
             /** Postcode */
             postcode?: string | null;
+        };
+        /** PagedSitesForTool */
+        PagedSitesForTool: {
+            /** Items */
+            items: components["schemas"]["SiteForToolRead"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+            /** Total Pages */
+            total_pages: number;
+        };
+        /** SiteForToolRead */
+        SiteForToolRead: {
+            /** Id */
+            id: number;
+            /** Uuid */
+            uuid: string;
+            /** Name */
+            name: string;
+            /** Site Type */
+            site_type: string;
+            /** Status */
+            status: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Nickname
+             * @default
+             */
+            nickname: string;
+            /**
+             * Prefix Code
+             * @default
+             */
+            prefix_code: string;
+            /**
+             * Address Line1
+             * @default
+             */
+            address_line1: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Postcode
+             * @default
+             */
+            postcode: string;
+            /**
+             * Is Home
+             * @default false
+             */
+            is_home: boolean;
         };
         /** PagedSiteAssignments */
         PagedSiteAssignments: {
@@ -4813,6 +4940,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string | null;
+                kind?: string | null;
             };
             header?: never;
             path?: never;
@@ -5192,6 +5320,32 @@ export interface operations {
             };
         };
     };
+    api_routers_assignments_transfers_request_tool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TransferClaimCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+        };
+    };
     api_routers_sites_sites_list_sites: {
         parameters: {
             query?: {
@@ -5324,7 +5478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PagedSites"];
+                    "application/json": components["schemas"]["PagedSitesForTool"];
                 };
             };
         };

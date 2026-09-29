@@ -33,7 +33,8 @@ import { STEP_COMPONENTS, type WizardData } from './steps';
 
 const OnboardingWizardScreen: React.FC = () => {
   const { colors } = useTheme();
-  const { updateOnboarding, logout } = useAuth();
+  const { updateOnboarding, logout, user, refreshUser } = useAuth();
+  const hasOrg = !!user?.organization;
 
   const [state, setState] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,19 @@ const OnboardingWizardScreen: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const next = await account.getOnboarding();
+      let next = await account.getOnboarding();
+      // Here without an organisation but the server says setup is done (e.g.
+      // a Google sign-up created as already onboarded): finishing again would
+      // bounce straight back, so restart the flow from its first step.
+      const firstStep = next?.steps?.[0]?.key;
+      const onKnownStep = next?.steps?.some((s) => s.key === next.current_step);
+      if (!hasOrg && firstStep && (next.completed || !onKnownStep)) {
+        next = await updateOnboarding({
+          has_completed_onboarding: false,
+          has_seen_onboarding_outro: false,
+          onboarding_step: firstStep,
+        });
+      }
       setState(next);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'unauthorized') return;
@@ -59,6 +72,9 @@ const OnboardingWizardScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    // Only on mount: hasOrg flips mid-wizard when the company step creates
+    // the org, and that must not re-run the reset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -79,6 +95,10 @@ const OnboardingWizardScreen: React.FC = () => {
       // onboardingComplete flips and navigation swaps to the main app without
       // another /account/ fetch. The screen unmounts on success.
       await updateOnboarding({ has_completed_onboarding: true, onboarding_step: 'completed' });
+      // The gate also needs the organisation. The company step refreshes the
+      // user after creating it, but that refresh is best-effort — retry once
+      // so a missed refresh can't loop the user back into the wizard.
+      if (!hasOrg) await refreshUser();
     } catch (e) {
       Alert.alert(
         'Error',
@@ -86,7 +106,7 @@ const OnboardingWizardScreen: React.FC = () => {
       );
       setBusyAdvancing(false);
     }
-  }, [updateOnboarding]);
+  }, [updateOnboarding, hasOrg, refreshUser]);
 
   const goToStep = useCallback(
     async (stepKey: string) => {

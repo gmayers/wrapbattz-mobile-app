@@ -10,7 +10,9 @@ jest.mock('../../../api/endpoints', () => ({
 
 const mockUpdateOnboarding = jest.fn();
 const mockRefreshUser = jest.fn();
-const mockAuth = {
+const ORG_USER = { id: 1, organization: { id: 9, name: 'Acme' } };
+const mockAuth: any = {
+  user: ORG_USER,
   updateOnboarding: mockUpdateOnboarding,
   refreshUser: mockRefreshUser,
   logout: jest.fn(),
@@ -53,6 +55,7 @@ const STATE = {
 describe('OnboardingWizardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth.user = ORG_USER;
     mockUpdateOnboarding.mockResolvedValue({ ...STATE, current_step: 'stepB' });
   });
 
@@ -89,5 +92,49 @@ describe('OnboardingWizardScreen', () => {
       onboarding_step: 'completed',
     });
     expect(mockRefreshUser).not.toHaveBeenCalled();
+  });
+
+  describe('user without an organisation (e.g. Google sign-up)', () => {
+    beforeEach(() => {
+      mockAuth.user = { id: 2, organization: null };
+    });
+
+    it('restarts the flow when the server already reports it completed', async () => {
+      (account.getOnboarding as jest.Mock).mockResolvedValue({
+        ...STATE, current_step: 'completed', completed: true,
+      });
+      mockUpdateOnboarding.mockResolvedValue({ ...STATE, current_step: 'stepA', completed: false });
+
+      const screen = render(<OnboardingWizardScreen />);
+      await act(async () => {});
+
+      expect(mockUpdateOnboarding).toHaveBeenCalledWith({
+        has_completed_onboarding: false,
+        has_seen_onboarding_outro: false,
+        onboarding_step: 'stepA',
+      });
+      expect(screen.getByText('on:stepA')).toBeTruthy();
+    });
+
+    it('leaves an in-progress flow alone', async () => {
+      (account.getOnboarding as jest.Mock).mockResolvedValue({ ...STATE, current_step: 'stepB', completed: false });
+
+      const screen = render(<OnboardingWizardScreen />);
+      await act(async () => {});
+
+      expect(mockUpdateOnboarding).not.toHaveBeenCalled();
+      expect(screen.getByText('on:stepB')).toBeTruthy();
+    });
+
+    it('refreshes the user on completion so the new organisation reaches the gate', async () => {
+      (account.getOnboarding as jest.Mock).mockResolvedValue({ ...STATE, current_step: 'stepB', completed: false });
+
+      const screen = render(<OnboardingWizardScreen />);
+      await act(async () => {});
+      fireEvent.press(screen.getByTestId('advance'));
+      await act(async () => {});
+
+      expect(mockRefreshUser).toHaveBeenCalledTimes(1);
+    });
   });
 });

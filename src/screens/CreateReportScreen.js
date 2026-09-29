@@ -23,7 +23,8 @@ import RNFS from 'react-native-fs';
 import {
   assignments as assignmentsApi,
   incidents as incidentsApi,
-  toolPhotos as toolPhotosApi
+  toolPhotos as toolPhotosApi,
+  tools as toolsApi
 } from '../api/endpoints';
 import { toLegacyAssignment } from '../api/adapters';
 import { ApiError } from '../api/errors';
@@ -80,21 +81,35 @@ const CreateReportScreen = ({ navigation, route }) => {
         value: item.device.id
 }));
 
+      // Preselect the tool the user came from (QuickActionModal / DeviceDetails
+      // pass deviceId). A scanned tool is often not one of the user's own
+      // assignments — it's at a site or with someone else — so add it to the
+      // list rather than silently falling back to the first tool.
+      const requestedId = route?.params?.deviceId;
+      const requested = activeDevices.find(
+        (a) => requestedId != null && String(a.device?.id) === String(requestedId)
+      );
+      let initialId = requested?.device?.id ?? activeDevices[0]?.device?.id;
+      if (requestedId != null && !requested) {
+        let label = route?.params?.identifier;
+        try {
+          const tool = await toolsApi.getTool(Number(requestedId));
+          label = `${tool.name}${tool.category_name ? ` - ${tool.category_name}` : ''}`;
+        } catch (toolError) {
+          // Fall back to the name the caller passed; the id is what matters.
+        }
+        formattedDevices.unshift({ label: label || 'Scanned tool', value: Number(requestedId) });
+        initialId = Number(requestedId);
+      }
+
       if (formattedDevices.length === 0) {
         formattedDevices.unshift({ label: 'No active devices', value: '' });
       }
 
       setDeviceItems(formattedDevices);
 
-      // Preselect the tool the user came from (QuickActionModal / DeviceDetails
-      // pass deviceId) when it's one of theirs; otherwise the first one.
-      const requestedId = route?.params?.deviceId;
-      const requested = activeDevices.find(
-        (a) => requestedId != null && String(a.device?.id) === String(requestedId)
-      );
-      const initial = requested ?? activeDevices[0];
-      if (initial?.device?.id) {
-        setFormData((prev) => ({ ...prev, device_id: initial.device.id }));
+      if (initialId) {
+        setFormData((prev) => ({ ...prev, device_id: initialId }));
       }
     } catch (error) {
       if (!(error instanceof ApiError && error.code === 'unauthorized')) {
@@ -104,7 +119,7 @@ const CreateReportScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, [route?.params?.deviceId]);
+  }, [route?.params?.deviceId, route?.params?.identifier]);
 
   useEffect(() => {
     fetchActiveDevices();

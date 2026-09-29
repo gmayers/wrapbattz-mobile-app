@@ -1,5 +1,5 @@
 import { apiClient } from '../client';
-import type { PagedSites, SiteCreate, SiteRead, SiteUpdate } from '../types';
+import type { PagedSites, PagedSitesForTool, SiteCreate, SiteRead, SiteUpdate } from '../types';
 
 export interface ListSitesFilter {
   site_type?: string;
@@ -47,7 +47,11 @@ export async function deleteSite(siteId: number): Promise<void> {
   await apiClient.delete(`/sites/${siteId}/`);
 }
 
-export async function listSitesForTool(toolId: number): Promise<PagedSites> {
-  const { data } = await apiClient.get<PagedSites>(`/sites/for-tool/${toolId}/`);
+// Active sites (vans included) a tool can go to — its home site first,
+// flagged is_home. One page of 100 covers any realistic org.
+export async function listSitesForTool(toolId: number): Promise<PagedSitesForTool> {
+  const { data } = await apiClient.get<PagedSitesForTool>(`/sites/for-tool/${toolId}/`, {
+    params: { page_size: 100 },
+  });
   return data;
 }

@@ -34,6 +34,7 @@ import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
 import NotificationsBridge from '../notifications/NotificationsBridge';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
+import TransferSettingsScreen from '../screens/Transfers/TransferSettingsScreen';
 
 const Stack = createStackNavigator();
 
@@ -277,6 +278,17 @@ const MainStack = () => {
         headerTitle: 'Suggest a Feature',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="TransferSettings"
+      component={TransferSettingsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Transfers',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
         headerTintColor: colors.primary,
       }}
     />
