@@ -60,9 +60,13 @@ const InviteMemberSheet: React.FC<Props> = ({ visible, onClose, onSent, roles })
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      {/* Android needs 'height' too: a Modal is its own dialog window, which
+          adjustResize doesn't resize, so the keyboard covered this
+          bottom-anchored sheet's email field. Where the window does resize,
+          the measured overlap is zero and this is a no-op. */}
       <KeyboardAvoidingView
         style={styles.backdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={handleClose} />
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
