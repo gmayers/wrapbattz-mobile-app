@@ -1,4 +1,5 @@
 // src/types/nfc.ts - NFC Type Definitions
+import type { TagLockKeys } from '../services/NFCSecurityService';
 
 export interface NFCTagData {
   [key: string]: string | number | boolean;
@@ -36,6 +37,14 @@ export interface NFCWriteOptions {
   // deep-links into the app. If the tag is too small for both records, the
   // URI is written alone and the result carries `writtenJson: false`.
   uri?: string;
+  // The org's tag lock keys (owners/admins only — see nfcLockStore). When
+  // set, the write runs in one NfcA session: authenticate, write, re-lock.
+  // `merge` is ignored on that path.
+  lock?: TagLockKeys | null;
+}
+
+export interface NFCFormatOptions {
+  lock?: TagLockKeys | null;
 }
 
 export interface NFCReadOptions {
