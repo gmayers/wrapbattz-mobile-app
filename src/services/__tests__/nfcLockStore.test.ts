@@ -46,7 +46,7 @@ describe('who gets the code', () => {
   it('never fetches the lock code for non-admins', async () => {
     getMyOrganization.mockResolvedValue({ nfc_lock_enabled: true });
     await expect(getNfcLockConfig(worker)).resolves.toBeNull();
-    await expect(resolveTagLockForWrite(worker)).resolves.toEqual({ ok: false, message: ONLY_ADMINS_MESSAGE });
+    await expect(resolveTagLockForWrite(worker)).resolves.toEqual({ ok: false, lock: null, message: ONLY_ADMINS_MESSAGE });
     expect(getNfcLock).not.toHaveBeenCalled();
   });
 
@@ -70,7 +70,7 @@ describe('who gets the code', () => {
 
   it('blocks admin writes when the code cannot be loaded', async () => {
     getNfcLock.mockRejectedValue(new ApiError({ code: 'network', message: 'offline' }));
-    await expect(resolveTagLockForWrite(admin)).resolves.toEqual({ ok: false, message: LOCK_UNAVAILABLE_MESSAGE });
+    await expect(resolveTagLockForWrite(admin)).resolves.toEqual({ ok: false, lock: null, message: LOCK_UNAVAILABLE_MESSAGE });
   });
 
   it('treats a missing endpoint (404) as no lock', async () => {

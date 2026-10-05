@@ -18,6 +18,8 @@ import Button from '../../components/Button';
 import Dropdown from '../../components/Dropdown';
 import NfcManager from 'react-native-nfc-manager';
 import { nfcService } from '../../services/NFCService';
+import { resolveTagLockForWrite } from '../../services/nfcLockStore';
+import { useNfcLock } from '../../hooks/useNfcLock';
 import {
   assignments as assignmentsApi,
   sites as sitesApi,
@@ -58,6 +60,13 @@ interface DeviceLike {
   } | null;
 }
 
+function lockOutcomeNote(outcome: string | undefined, lockEnabled: boolean): string {
+  if (outcome === 'locked' || outcome === 'already-locked') return " It's locked with your organisation's code.";
+  if (outcome === 'unlocked') return ' The old tag lock was removed.';
+  if (outcome === 'unsupported' && lockEnabled) return " This tag type can't be locked.";
+  return '';
+}
+
 const QuickActionModalScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<QuickActionRouteProp>();
@@ -80,6 +89,10 @@ const QuickActionModalScreen: React.FC = () => {
   const [destinationsError, setDestinationsError] = useState<string | null>(null);
 
   const [upgrading, setUpgrading] = useState(false);
+  const [locking, setLocking] = useState(false);
+  // Owner/admin only; never fetched for other roles.
+  const nfcLock = useNfcLock(user?.id, isAdminOrOwner);
+  const lockEnabled = isAdminOrOwner && !!nfcLock.config?.enabled;
   const [assigning, setAssigning] = useState(false);
   const [requesting, setRequesting] = useState(false);
 
@@ -353,6 +366,11 @@ const QuickActionModalScreen: React.FC = () => {
     if (!device) return;
     setUpgrading(true);
     try {
+      const permission = await resolveTagLockForWrite({ userId: user?.id, isAdminOrOwner });
+      if (!permission.ok) {
+        Alert.alert('Re-write failed', permission.message);
+        return;
+      }
       // The service bounds the wait itself (Android's tag request never times
       // out on its own) and cancels the pending request on expiry, so a retry
       // isn't blocked by a request still waiting in the background.
@@ -367,15 +385,16 @@ const QuickActionModalScreen: React.FC = () => {
         },
         // Leading URI record so a tap deep-links straight into the app
         // (linking path d/:tagUID); JSON payload rides behind it.
-        { uri: `https://app.tooltraq.com/d/${tagUID}`, timeout: 20000 }
+        { uri: `https://app.tooltraq.com/d/${tagUID}`, timeout: 20000, lock: permission.lock }
       );
       if (result.success) {
         const urlOnly = result.data?.writtenJson === false;
         Alert.alert(
           'Tag updated',
-          urlOnly
+          (urlOnly
             ? 'Tag updated with the launch link only — it was too small for the full device data. Tapping it will still open this tool in the app.'
-            : 'Tag updated with the latest device data. Tapping it will open this tool in the app.'
+            : 'Tag updated with the latest device data. Tapping it will open this tool in the app.') +
+            lockOutcomeNote(result.data?.lockOutcome, !!permission.lock?.enabled)
         );
       } else {
         Alert.alert('Re-write failed', result.error || 'Could not write to tag.');
@@ -384,6 +403,37 @@ const QuickActionModalScreen: React.FC = () => {
       Alert.alert('Re-write failed', err?.message || 'Unknown error.');
     } finally {
       setUpgrading(false);
+    }
+  };
+
+  // Locks an already-written tag with the org code without rewriting it.
+  const handleLockTag = async () => {
+    setLocking(true);
+    try {
+      const permission = await resolveTagLockForWrite({ userId: user?.id, isAdminOrOwner });
+      if (!permission.ok) {
+        Alert.alert('Lock failed', permission.message);
+        return;
+      }
+      if (!permission.lock?.enabled) {
+        Alert.alert('Lock failed', 'The NFC tag lock is turned off. Set a code in Settings → NFC tag lock.');
+        return;
+      }
+      const result = await nfcService.lockTag(permission.lock, { timeout: 20000 });
+      if (result.success) {
+        Alert.alert(
+          'Tag locked',
+          result.data?.lockOutcome === 'already-locked'
+            ? "This tag was already locked with your organisation's code."
+            : "This tag is now locked with your organisation's code. Anyone can still scan it."
+        );
+      } else {
+        Alert.alert('Lock failed', result.error || 'Could not lock the tag.');
+      }
+    } catch (err: any) {
+      Alert.alert('Lock failed', err?.message || 'Unknown error.');
+    } finally {
+      setLocking(false);
     }
   };
 
@@ -544,6 +594,22 @@ const QuickActionModalScreen: React.FC = () => {
                 <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
                   Refreshes the device data stored on this NFC tag. Press the button, then tap the tag against the back of your phone.
                 </Text>
+                {lockEnabled ? (
+                  <>
+                    <Button
+                      title={locking ? 'Hold tag steady…' : 'Lock this tag'}
+                      onPress={handleLockTag}
+                      variant="outlined"
+                      loading={locking}
+                      disabled={locking || upgrading}
+                      style={styles.actionBtn}
+                      testID="quick-action-lock-tag"
+                    />
+                    <Text style={[styles.hintText, { color: colors.textSecondary, textAlign: 'left', marginTop: -4 }]}>
+                      Protects this tag with your organisation's lock code so only owners and admins can rewrite it. It stays scannable.
+                    </Text>
+                  </>
+                ) : null}
               </>
             ) : null}
           </View>

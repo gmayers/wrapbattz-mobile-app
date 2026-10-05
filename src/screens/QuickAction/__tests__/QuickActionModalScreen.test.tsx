@@ -7,7 +7,15 @@ import {
   tools as toolsApi,
 } from '../../../api/endpoints';
 import { ApiError } from '../../../api/errors';
+import * as organizationsApi from '../../../api/endpoints/organizations';
+import { nfcService } from '../../../services/NFCService';
+import { clearNfcLockCache } from '../../../services/nfcLockStore';
 import QuickActionModalScreen from '../QuickActionModalScreen';
+
+jest.mock('../../../api/endpoints/organizations', () => ({
+  getNfcLock: jest.fn(),
+  getMyOrganization: jest.fn(),
+}));
 
 jest.mock('../../../api/endpoints', () => ({
   assignments: {
@@ -52,7 +60,12 @@ jest.mock('../../../context/ThemeContext', () => ({
 }));
 
 describe('QuickActionModalScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearNfcLockCache();
+    (organizationsApi.getNfcLock as jest.Mock).mockResolvedValue({ enabled: false });
+    (organizationsApi.getMyOrganization as jest.Mock).mockResolvedValue({ nfc_lock_enabled: false });
+  });
 
   it('looks up the tool and my active assignments in parallel on scan', async () => {
     // getToolByNfc never resolves: the assignments lookup must not wait on it.
@@ -213,6 +226,90 @@ describe('QuickActionModalScreen', () => {
       await screen.findByTestId('quick-action-buttons');
       await act(async () => {});
       expect(screen.queryByTestId('quick-action-request')).toBeNull();
+    });
+  });
+  describe('NFC tag lock', () => {
+    const lockConfig = {
+      enabled: true,
+      code_type: 'pin',
+      code: '1234',
+      password_hex: '000004D2',
+      pack_hex: 'A1B2',
+      previous_password_hex: null,
+      previous_pack_hex: null,
+      updated_at: null,
+    };
+    const keys = {
+      enabled: true,
+      current: { password: [0x00, 0x00, 0x04, 0xd2], pack: [0xa1, 0xb2] },
+      previous: null,
+    };
+    let alertSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      (assignmentsApi.listMyActiveAssignments as jest.Mock).mockResolvedValue([]);
+      (toolsApi.getToolHistory as jest.Mock).mockResolvedValue({ items: [] });
+      (toolsApi.getToolByNfc as jest.Mock).mockResolvedValue({ id: 42, name: 'DRILL-1', is_available: true });
+      (organizationsApi.getNfcLock as jest.Mock).mockResolvedValue(lockConfig);
+    });
+    afterEach(() => {
+      mockAuth.isAdminOrOwner = false;
+      alertSpy.mockRestore();
+    });
+
+    it('never fetches the lock code for a worker and offers no lock action', async () => {
+      const screen = render(<QuickActionModalScreen />);
+      await act(async () => {});
+      expect(organizationsApi.getNfcLock).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('quick-action-lock-tag')).toBeNull();
+    });
+
+    it('admin: "Lock this tag" locks with the org keys', async () => {
+      mockAuth.isAdminOrOwner = true;
+      const lockSpy = jest
+        .spyOn(nfcService, 'lockTag')
+        .mockResolvedValue({ success: true, data: { lockOutcome: 'locked' } });
+      const { findByTestId } = render(<QuickActionModalScreen />);
+      const btn = await findByTestId('quick-action-lock-tag');
+      await act(async () => { fireEvent.press(btn); });
+      expect(lockSpy).toHaveBeenCalledWith(keys, expect.anything());
+      expect(alertSpy).toHaveBeenCalledWith('Tag locked', expect.any(String));
+      lockSpy.mockRestore();
+    });
+
+    it('admin: no lock action when the org lock is off', async () => {
+      mockAuth.isAdminOrOwner = true;
+      (organizationsApi.getNfcLock as jest.Mock).mockResolvedValue({ ...lockConfig, enabled: false });
+      const screen = render(<QuickActionModalScreen />);
+      await screen.findByTestId('quick-action-upgrade');
+      await act(async () => {});
+      expect(screen.queryByTestId('quick-action-lock-tag')).toBeNull();
+    });
+
+    it('admin: re-writing passes the lock keys to the write', async () => {
+      mockAuth.isAdminOrOwner = true;
+      const writeSpy = jest
+        .spyOn(nfcService, 'writeDeviceToNFC')
+        .mockResolvedValue({ success: true, data: { lockOutcome: 'locked', writtenJson: true } });
+      const { findByTestId } = render(<QuickActionModalScreen />);
+      const btn = await findByTestId('quick-action-upgrade');
+      await act(async () => { fireEvent.press(btn); });
+      expect(writeSpy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ lock: keys }));
+      expect(alertSpy).toHaveBeenCalledWith('Tag updated', expect.stringContaining('locked'));
+      writeSpy.mockRestore();
+    });
+
+    it('admin: refuses to write when the lock code cannot be loaded', async () => {
+      mockAuth.isAdminOrOwner = true;
+      (organizationsApi.getNfcLock as jest.Mock).mockRejectedValue(new ApiError({ code: 'network', message: 'offline' }));
+      const writeSpy = jest.spyOn(nfcService, 'writeDeviceToNFC');
+      const { findByTestId } = render(<QuickActionModalScreen />);
+      const btn = await findByTestId('quick-action-upgrade');
+      await act(async () => { fireEvent.press(btn); });
+      expect(writeSpy).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith('Re-write failed', expect.stringContaining('lock code'));
+      writeSpy.mockRestore();
     });
   });
 });

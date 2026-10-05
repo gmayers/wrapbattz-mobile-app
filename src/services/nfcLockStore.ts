@@ -148,7 +148,12 @@ export function keysFromConfig(config: NfcLockConfig | null | undefined): TagLoc
   return { enabled: !!current, current, previous };
 }
 
-export type TagWritePermission = { ok: true; lock: TagLockKeys | null } | { ok: false; message: string };
+export interface TagWritePermission {
+  /** False → don't write; show `message`. */
+  ok: boolean;
+  lock: TagLockKeys | null;
+  message?: string;
+}
 
 /**
  * Call before any tag write/erase. Owners/admins get the keys to pass as
@@ -160,11 +165,11 @@ export async function resolveTagLockForWrite(viewer: LockViewer): Promise<TagWri
     try {
       return { ok: true, lock: keysFromConfig(await getNfcLockConfig(viewer)) };
     } catch {
-      return { ok: false, message: LOCK_UNAVAILABLE_MESSAGE };
+      return { ok: false, lock: null, message: LOCK_UNAVAILABLE_MESSAGE };
     }
   }
   try {
-    if (await getOrgLockEnabled(viewer)) return { ok: false, message: ONLY_ADMINS_MESSAGE };
+    if (await getOrgLockEnabled(viewer)) return { ok: false, lock: null, message: ONLY_ADMINS_MESSAGE };
   } catch {
     // Unknown: let the write try. A locked tag rejects it anyway.
   }
