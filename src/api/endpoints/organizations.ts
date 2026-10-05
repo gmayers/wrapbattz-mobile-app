@@ -1,6 +1,8 @@
 import { apiClient } from '../client';
 import type {
   DemoDataStatus,
+  NfcLockConfig,
+  NfcLockUpdate,
   OrganizationCreate,
   OrganizationRead,
   OrganizationUpdate,
@@ -43,5 +45,25 @@ export async function createDemoData(): Promise<DemoDataStatus> {
 
 export async function deleteDemoData(): Promise<DemoDataStatus> {
   const { data } = await apiClient.delete<DemoDataStatus>('/organizations/demo-data/');
+  return data;
+}
+
+// NFC tag lock — owner/admin only (403 for other roles). The response holds
+// the lock code: keep it in memory only (see services/nfcLockStore) and never
+// log it.
+export async function getNfcLock(): Promise<NfcLockConfig> {
+  const { data } = await apiClient.get<NfcLockConfig>('/organizations/me/nfc-lock/');
+  return data;
+}
+
+/** Set a PIN / hex code, or `{ generate: true }`. The old code becomes "previous". */
+export async function setNfcLock(payload: NfcLockUpdate): Promise<NfcLockConfig> {
+  const { data } = await apiClient.put<NfcLockConfig>('/organizations/me/nfc-lock/', payload);
+  return data;
+}
+
+/** Turn the lock off. The current code moves to "previous" so tags can still be unlocked. */
+export async function disableNfcLock(): Promise<NfcLockConfig> {
+  const { data } = await apiClient.delete<NfcLockConfig>('/organizations/me/nfc-lock/');
   return data;
 }

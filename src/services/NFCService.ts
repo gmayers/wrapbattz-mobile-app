@@ -1,8 +1,23 @@
 // src/services/NFCService.ts - Unified NFC Service for iOS and Android
 import { Platform, Alert } from 'react-native';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
-import { NFCTagData, NFCOperationResult, DeviceNFCData, NFCWriteOptions, NFCReadOptions } from '../types/nfc';
+import { NFCTagData, NFCOperationResult, DeviceNFCData, NFCWriteOptions, NFCReadOptions, NFCFormatOptions } from '../types/nfc';
 import { nfcLogger, NFCOperationType, NFCErrorCategory } from '../utils/NFCLogger';
+import {
+  hasLockKeys,
+  runProtected,
+  writeNdef,
+  TagLockError,
+  type LockOutcome,
+  type TagIO,
+  type TagLockKeys,
+} from './NFCSecurityService';
+
+// requestTechnology resolves with the connected tech: 'NfcA' on Android,
+// 'mifare' (NfcTech.MifareIOS) on iOS for Type 2 tags.
+const RAW_TYPE2_TECHS = ['NfcA', 'mifare'];
+const RESELECT_TIMEOUT_MS = 5000;
+const RESELECT_FAILED = 'Lost contact with the tag. Lift it away from the phone, then tap it again.';
 // Temporarily disabled to test if this import causes issues
 // import { nfcSimulator } from './NFCSimulator';
 
@@ -338,18 +353,17 @@ export class NFCService {
    * Race it against a timer and cancel the pending request on expiry.
    */
   public async requestTechnologyWithTimeout(
-    tech: NfcTech,
+    tech: NfcTech | NfcTech[],
     timeout: number,
     alertMessage = 'Hold your device near the NFC tag'
-  ): Promise<void> {
+  ): Promise<NfcTech | null> {
     if (Platform.OS === 'ios') {
-      await NfcManager.requestTechnology(tech, { timeout, alertMessage } as any);
-      return;
+      return (await NfcManager.requestTechnology(tech, { timeout, alertMessage } as any)) ?? null;
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await Promise.race([
-        NfcManager.requestTechnology(tech),
+      return await Promise.race([
+        NfcManager.requestTechnology(tech).then((t) => t ?? null),
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
             NfcManager.cancelTechnologyRequest().catch(() => {});
@@ -504,6 +518,9 @@ export class NFCService {
    * Write JSON string to NFC tag
    */
   public async writeNFC(jsonString: string, options: NFCWriteOptions = {}): Promise<NFCOperationResult> {
+    if (hasLockKeys(options.lock)) {
+      return this.writeNFCProtected(jsonString, options.lock, options);
+    }
     // Simulator check temporarily disabled for testing
     // if (nfcSimulator.shouldUseSimulator()) {
     //   return nfcSimulator.writeNFC(jsonString);
@@ -725,7 +742,14 @@ export class NFCService {
    * Format a non-NDEF tag to NDEF format
    * Supports multiple approaches: NdefFormatable, NfcA with transceive, and NDEF write
    */
-  public async formatTag(): Promise<NFCOperationResult> {
+  public async formatTag(options: NFCFormatOptions = {}): Promise<NFCOperationResult> {
+    if (hasLockKeys(options.lock)) {
+      const erased = await this.eraseProtected(options.lock);
+      // A tag with no NDEF capability container can't be locked yet (it holds
+      // nothing to protect): format it the usual way below. It's locked the
+      // first time the app writes it.
+      if (erased.success || erased.data?.lockError !== 'not-ndef') return erased;
+    }
     // Simulator check temporarily disabled for testing
     // if (nfcSimulator.shouldUseSimulator()) {
     //   return nfcSimulator.formatTag();
@@ -905,6 +929,242 @@ export class NFCService {
         }
       }
     }, maxAttempts);
+  }
+
+  // ── Locked tags (org NFC tag lock) ──────────────────────────────────────
+  //
+  // With lock keys every write/erase runs in ONE tag session on the raw NFC-A
+  // link: detect (GET_VERSION) → PWD_AUTH (current, then previous code) →
+  // NDEF as page writes → lock with the current code (or unlock when the org
+  // lock is off). Android can't keep PWD_AUTH across a switch to the Ndef
+  // technology (closing a TagTechnology re-selects the tag), so the NDEF
+  // message is written with WRITE commands instead of ndefHandler. iOS uses the
+  // same commands through NFCMiFareTag. Erasing leaves the tag locked with the
+  // current code so nobody else can wipe it.
+
+  /** Raw NFC-A I/O for the current session. */
+  private createTagIO(): TagIO {
+    return {
+      transceive: (bytes: number[]) => NfcManager.nfcAHandler.transceive(bytes),
+      reselect: () => this.reselectTag(),
+    };
+  }
+
+  /**
+   * Re-select the tag after a NAK (the chip goes IDLE). Android: closing the
+   * TagTechnology reconnects the tag, then NfcA is connected again on the same
+   * Tag. iOS: restart polling so Core NFC rediscovers and reconnects the tag
+   * still in the field.
+   */
+  private async reselectTag(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          NfcManager.restartTechnologyRequestIOS(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(RESELECT_FAILED)), RESELECT_TIMEOUT_MS);
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      return;
+    }
+    try {
+      await NfcManager.close();
+    } catch {
+      // already closed
+    }
+    try {
+      await NfcManager.connect([NfcTech.NfcA]);
+    } catch {
+      throw new Error(RESELECT_FAILED);
+    }
+  }
+
+  /**
+   * NDEF write through the platform NDEF API, for tags we can't lock (not an
+   * NTAG21x). Tries each candidate message in turn.
+   */
+  private async writeNdefFallback(candidates: number[][], connectedTech: NfcTech | null): Promise<number> {
+    if (Platform.OS === 'android' && connectedTech !== NfcTech.Ndef) {
+      try {
+        await NfcManager.close();
+      } catch {
+        // already closed
+      }
+      await NfcManager.connect([NfcTech.Ndef]);
+    }
+    let lastError: unknown;
+    for (let i = 0; i < candidates.length; i++) {
+      try {
+        await NfcManager.ndefHandler.writeNdefMessage(candidates[i]);
+        return i;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError ?? new Error('Failed to write to the tag.');
+  }
+
+  /** Connect for a protected operation and run it. Always ends the session. */
+  private async withProtectedSession<T>(
+    operationType: NFCOperationType,
+    timeout: number,
+    body: (ctx: { io: TagIO; tech: NfcTech | null; tagId?: string; operationId: string }) => Promise<T>
+  ): Promise<T> {
+    const operationId = nfcLogger.startOperation(operationType, { platform: Platform.OS, protected: true });
+    try {
+      if (!(await this.initialize())) {
+        throw new Error('NFC is not available or could not be initialized');
+      }
+      const tech = await this.requestTechnologyWithTimeout([NfcTech.NfcA, NfcTech.Ndef], timeout);
+      const tag = await NfcManager.getTag();
+      const tagId = this.getTagIdHex(tag?.id);
+      nfcLogger.logStep(operationId, 'Tag connected', { tagId, tech });
+      if (Platform.OS === 'ios') {
+        try { await NfcManager.setAlertMessageIOS('Hold tag steady...'); } catch (e) { /* ignore */ }
+      }
+      const result = await body({ io: this.createTagIO(), tech, tagId, operationId });
+      if (Platform.OS === 'ios') {
+        try { await NfcManager.setAlertMessageIOS('Done!'); } catch (e) { /* ignore */ }
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof TagLockError) {
+        nfcLogger.endOperationWithError(operationId, error, NFCErrorCategory.WRITE_FAILED);
+      } else {
+        nfcLogger.endOperationWithError(operationId, error as Error, nfcLogger.categorizeError(error as Error));
+      }
+      throw error;
+    } finally {
+      try {
+        await NfcManager.cancelTechnologyRequest();
+      } catch {
+        // already cleaned up
+      }
+    }
+  }
+
+  private protectedErrorMessage(error: unknown): string {
+    if (error instanceof TagLockError) return error.message;
+    const message = (error as Error)?.message || '';
+    if (message === RESELECT_FAILED || message.includes('timed out') || message.includes('tag capacity')) {
+      return message;
+    }
+    return nfcLogger.getUserFriendlyMessage(nfcLogger.categorizeError(error as Error));
+  }
+
+  private isRawType2(tech: NfcTech | null): boolean {
+    return !!tech && RAW_TYPE2_TECHS.includes(String(tech));
+  }
+
+  private async writeNFCProtected(
+    jsonString: string,
+    lock: TagLockKeys,
+    options: NFCWriteOptions
+  ): Promise<NFCOperationResult> {
+    let normalized: string;
+    let candidates: number[][];
+    try {
+      JSON.parse(jsonString);
+      normalized = this.normalizeJsonString(jsonString);
+      candidates = options.uri
+        ? [
+            Ndef.encodeMessage([Ndef.uriRecord(options.uri), Ndef.textRecord(normalized)]),
+            Ndef.encodeMessage([Ndef.uriRecord(options.uri)]),
+          ]
+        : [Ndef.encodeMessage([Ndef.textRecord(normalized)])];
+      if (candidates.some((c) => !c)) throw new Error('Failed to create NDEF message.');
+    } catch {
+      return { success: false, error: 'Invalid JSON string provided for writing to NFC tag' };
+    }
+
+    const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
+    try {
+      return await this.withProtectedSession(NFCOperationType.WRITE, timeout, async ({ io, tech, tagId, operationId }) => {
+        let outcome: LockOutcome;
+        let chosen: number;
+        if (this.isRawType2(tech)) {
+          const res = await runProtected(io, lock, {
+            run: (model) => writeNdef(io, model, candidates),
+            fallback: () => this.writeNdefFallback(candidates, tech),
+          });
+          outcome = res.outcome;
+          chosen = res.result as number;
+        } else {
+          outcome = 'unsupported';
+          chosen = await this.writeNdefFallback(candidates, tech);
+        }
+        const writtenJson = !(options.uri && chosen === 1);
+        nfcLogger.endOperation(operationId, { success: true, tagId, lockOutcome: outcome, writtenJson });
+        return { success: true, data: { tagId, jsonString: normalized, writtenJson, lockOutcome: outcome } };
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: this.protectedErrorMessage(error),
+        data: error instanceof TagLockError ? { lockError: error.code } : undefined,
+      };
+    }
+  }
+
+  private async eraseProtected(lock: TagLockKeys): Promise<NFCOperationResult> {
+    const timeout = Platform.OS === 'ios' ? 60000 : 30000;
+    const emptyTextMessage = () => Ndef.encodeMessage([Ndef.textRecord('')]);
+    try {
+      return await this.withProtectedSession(NFCOperationType.FORMAT, timeout, async ({ io, tech, tagId, operationId }) => {
+        let outcome: LockOutcome;
+        if (this.isRawType2(tech)) {
+          outcome = (
+            await runProtected(io, lock, {
+              run: (model) => writeNdef(io, model, [[]]),
+              fallback: () => this.writeNdefFallback([emptyTextMessage()], tech),
+            })
+          ).outcome;
+        } else {
+          outcome = 'unsupported';
+          await this.writeNdefFallback([emptyTextMessage()], tech);
+        }
+        nfcLogger.endOperation(operationId, { success: true, tagId, lockOutcome: outcome, wasCleared: true });
+        return {
+          success: true,
+          data: { tagId, message: 'Existing data has been cleared.', wasFormatted: false, wasCleared: true, lockOutcome: outcome },
+        };
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: this.protectedErrorMessage(error),
+        data: error instanceof TagLockError ? { lockError: error.code } : undefined,
+      };
+    }
+  }
+
+  /**
+   * Lock an already-written tag with the current org code without rewriting
+   * it (authenticating with the current/previous code if it's protected).
+   */
+  public async lockTag(lock: TagLockKeys, options: { timeout?: number } = {}): Promise<NFCOperationResult> {
+    if (!lock?.enabled || !lock.current) {
+      return { success: false, error: 'The NFC tag lock is turned off.' };
+    }
+    const timeout = options.timeout || (Platform.OS === 'ios' ? 60000 : 30000);
+    try {
+      return await this.withProtectedSession(NFCOperationType.WRITE, timeout, async ({ io, tech, tagId, operationId }) => {
+        if (!this.isRawType2(tech)) throw new TagLockError('unsupported');
+        const { outcome } = await runProtected(io, lock, {});
+        nfcLogger.endOperation(operationId, { success: true, tagId, lockOutcome: outcome });
+        return { success: true, data: { tagId, lockOutcome: outcome } };
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: this.protectedErrorMessage(error),
+        data: error instanceof TagLockError ? { lockError: error.code } : undefined,
+      };
+    }
   }
 
   /**

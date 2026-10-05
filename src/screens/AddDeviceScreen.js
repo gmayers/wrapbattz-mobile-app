@@ -20,6 +20,7 @@ import Dropdown from '../components/Dropdown';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { nfcService } from '../services/NFCService';
+import { resolveTagLockForWrite } from '../services/nfcLockStore';
 import {
   assignments as assignmentsApi,
   members as membersApi,
@@ -38,7 +39,7 @@ const ORANGE_COLOR = '#FFC72C';
 
 
 const AddDevicePage = ({ navigation, route }) => {
-  const { userData, user } = useAuth();
+  const { userData, user, isAdminOrOwner } = useAuth();
   const { colors } = useTheme();
 
   // Calculate date 2 weeks from today
@@ -640,7 +641,12 @@ const handlePreScanNfc = async () => {
               try {
                 setIsScanningNfc(true);
                 logMessage('Formatting unformatted NFC tag');
-                const formatResult = await nfcService.formatTag();
+                const permission = await resolveTagLockForWrite({ userId: user?.id, isAdminOrOwner });
+                if (!permission.ok) {
+                  Alert.alert('Format Error', permission.message);
+                  return;
+                }
+                const formatResult = await nfcService.formatTag({ lock: permission.lock });
                 if (!formatResult.success) {
                   Alert.alert('Format Error', formatResult.error || 'Failed to format tag.');
                   return;
@@ -703,11 +709,25 @@ const handleNFCWrite = async () => {
 
     logMessage(`NFC data to write: ${JSON.stringify(nfcData)}`);
 
+    // Owners/admins get the org's tag lock keys (the tag is re-locked after
+    // the write); other roles are stopped here if the org locks its tags.
+    const permission = await resolveTagLockForWrite({ userId: user?.id, isAdminOrOwner });
+    if (!permission.ok) {
+      Alert.alert('Cannot write tag', permission.message);
+      return result;
+    }
+
     // Use the NFCService to write minimal data
-    const writeResult = await nfcService.writeNFC(JSON.stringify(nfcData));
+    const writeResult = await nfcService.writeNFC(JSON.stringify(nfcData), { lock: permission.lock });
 
     if (writeResult.success) {
       logMessage('NFC write operation completed successfully');
+      if (writeResult.data?.lockOutcome === 'unsupported' && permission.lock?.enabled) {
+        Alert.alert(
+          'Tag written but not locked',
+          "This tag type can't be password protected. Use an NTAG213, NTAG215 or NTAG216 tag to lock it."
+        );
+      }
       result = true;
       setNfcWriteSuccess(true);
     } else {

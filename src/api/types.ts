@@ -5,10 +5,30 @@ type S = components['schemas'];
 export type TokenResponse = S['TokenResponse'];
 export type UserMe = S['UserMe'];
 export type OrganizationSummary = S['OrganizationSummary'];
-export type OrganizationRead = S['OrganizationRead'];
+// nfc_lock_enabled: safe for every member; the lock code itself is only on
+// GET /organizations/me/nfc-lock/ (owner/admin). Not in the committed
+// OpenAPI spec yet — drop the intersection after `npm run api:types`.
+export type OrganizationRead = S['OrganizationRead'] & { nfc_lock_enabled?: boolean };
 export type OrganizationCreate = S['OrganizationCreate'];
 export type OrganizationUpdate = S['OrganizationUpdate'];
 export type DemoDataStatus = S['DemoDataStatus'];
+
+// NFC tag lock — GET/PUT/DELETE /organizations/me/nfc-lock/ (owner/admin).
+// Hand-written from the agreed contract until the OpenAPI spec includes it.
+export type NfcLockCodeType = 'pin' | 'hex';
+export interface NfcLockConfig {
+  enabled: boolean;
+  code_type: NfcLockCodeType | null;
+  code: string | null;
+  /** 8 uppercase hex chars: the 4-byte NTAG PWD. */
+  password_hex: string | null;
+  /** 4 uppercase hex chars: the 2-byte NTAG PACK. */
+  pack_hex: string | null;
+  previous_password_hex: string | null;
+  previous_pack_hex: string | null;
+  updated_at: string | null;
+}
+export type NfcLockUpdate = { code_type: NfcLockCodeType; code: string } | { generate: true };
 
 export type LoginRequest = S['LoginRequest'];
 export type RegisterRequest = S['RegisterRequest'];
