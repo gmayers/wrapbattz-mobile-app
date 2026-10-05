@@ -114,3 +114,15 @@ describe('Transfers settings row', () => {
     expect(rowKeys(role)).not.toContain('transfers');
   });
 });
+
+describe('NFC tag lock row', () => {
+  const rowKeys = (role: any) => getSectionsForRole(role).flatMap(s => s.rows.map(r => r.key));
+
+  it.each(['owner', 'admin'] as const)('is shown to %s', (role) => {
+    expect(rowKeys(role)).toContain('nfcLock');
+  });
+
+  it.each(['office_worker', 'site_worker'] as const)('is hidden from %s', (role) => {
+    expect(rowKeys(role)).not.toContain('nfcLock');
+  });
+});

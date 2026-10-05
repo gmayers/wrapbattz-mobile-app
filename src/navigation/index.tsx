@@ -35,6 +35,7 @@ import { WhatsNewProvider } from '../components/WhatsNewModal';
 import NotificationsBridge from '../notifications/NotificationsBridge';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
 import TransferSettingsScreen from '../screens/Transfers/TransferSettingsScreen';
+import NfcLockSettingsScreen from '../screens/Settings/NfcLockSettingsScreen';
 
 const Stack = createStackNavigator();
 
@@ -287,6 +288,17 @@ const MainStack = () => {
       options={{
         headerShown: true,
         headerTitle: 'Transfers',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="NfcLockSettings"
+      component={NfcLockSettingsScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'NFC Tag Lock',
         headerStyle: getHeaderStyle(),
         headerTitleStyle: { fontWeight: 'bold' as const, color: colors.textPrimary },
         headerTintColor: colors.primary,

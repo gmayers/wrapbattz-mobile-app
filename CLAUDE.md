@@ -92,16 +92,14 @@ Defined in `src/navigation/index.js` and `src/navigation/TabNavigation.js`.
 
 ### NFC System
 
-NFC is core functionality. Three service files handle all operations:
+NFC is core functionality. These service files handle all operations:
 
 - **`NFCService.ts`** — Singleton. Read, write, format tags. Platform-specific retry mechanisms (3 attempts iOS, 2 Android). Multiple decoding fallbacks (NDEF → manual → TextDecoder). JSON normalization.
-- **`NFCSecurityService.ts`** — Lock/unlock tags. NTAG detection (213/215/216), hardware-based protection via NfcA transceive commands with software XOR fallback, PWD_AUTH.
+- **`NFCSecurityService.ts`** — Org tag lock (NTAG21x write protection). GET_VERSION model detection (NTAG210/212/213/215/216 only), PWD_AUTH with PACK check, lock (PWD/PACK + read-modify-write of ACCESS/CFG0: AUTH0=0x04, PROT=0), unlock (AUTH0=0xFF), NDEF writes as raw page writes, and `runProtected()` (auth current → previous → write → re-lock). Pure functions over a `TagIO` (transceive + reselect); tested against `src/tests/helpers/fakeNtag.ts`.
+- **`nfcLockStore.ts`** — In-memory, session-only cache of the org lock code (`GET /organizations/me/nfc-lock/`, owners/admins only). Never persisted or logged. `resolveTagLockForWrite()` gives write paths the keys, or a message for non-admins on a locked org.
 - **`NFCSimulator.ts`** — Test simulator with configurable failure rates. Auto-enabled in Jest tests. Simulates all NFC operations without hardware.
 
-**NFC UI** lives in `src/screens/home/components/NFCManager/`:
-- `NFCManagerModal.js` — Main modal container
-- `NFCManagerNav.tsx` — Tab navigation within modal
-- Tabs: ReadTab, EditTab, FormatTab, WriteTab, LockTab, UnlockTab
+Tag writes/erases go through `nfcService.writeNFC/formatTag(…, { lock })`. With lock keys they run in one NfcA session (auth, page writes, lock); without, the plain Ndef path. "Lock this tag" (QuickAction) uses `nfcService.lockTag()`. Lock settings: `src/screens/Settings/NfcLockSettingsScreen.tsx`.
 
 **NFC Utilities:**
 - `src/utils/NFCUtils.ts` — Older NFC utility functions
