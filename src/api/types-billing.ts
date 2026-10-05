@@ -1,9 +1,14 @@
 export interface LimitBlock {
   included: number;
   addon: number;
-  limit: number;
+  /** null when the plan is unlimited (included = 0 on the server). */
+  limit: number | null;
+  /** Seats: includes pending invitations (see `pending`). */
   used: number;
-  remaining: number;
+  remaining: number | null;
+  unlimited?: boolean;
+  /** Seats only: unexpired invitations holding a seat. */
+  pending?: number;
 }
 
 export interface BillingState {
