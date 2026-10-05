@@ -744,7 +744,11 @@ export class NFCService {
    */
   public async formatTag(options: NFCFormatOptions = {}): Promise<NFCOperationResult> {
     if (hasLockKeys(options.lock)) {
-      return this.eraseProtected(options.lock);
+      const erased = await this.eraseProtected(options.lock);
+      // A tag with no NDEF capability container can't be locked yet (it holds
+      // nothing to protect): format it the usual way below. It's locked the
+      // first time the app writes it.
+      if (erased.success || erased.data?.lockError !== 'not-ndef') return erased;
     }
     // Simulator check temporarily disabled for testing
     // if (nfcSimulator.shouldUseSimulator()) {

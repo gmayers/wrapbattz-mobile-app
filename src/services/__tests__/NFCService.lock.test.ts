@@ -161,6 +161,19 @@ describe.each(['android', 'ios'] as const)('locked writes on %s', (os) => {
     expect(mockTag.password).toEqual(CURRENT.password);
   });
 
+  it('erase falls back to the normal formatter for a tag without NDEF formatting', async () => {
+    mockTag = new FakeNtag();
+    mockTag.pages[3] = [0x00, 0x00, 0x00, 0x00]; // blank capability container
+    (NfcManager.requestTechnology as jest.Mock)
+      .mockResolvedValueOnce(os === 'ios' ? 'mifare' : 'NfcA')
+      .mockResolvedValue('Ndef');
+    (NfcManager.getTag as jest.Mock).mockResolvedValue({ id: [1] });
+    (NfcManager as any).ndefFormatableHandlerAndroid = { formatNdef: jest.fn(async () => undefined) };
+    const result = await service.formatTag({ lock: ENABLED });
+    expect(result.success).toBe(true);
+    expect(mockTag.log.filter((c) => c[0] === 0xa2)).toEqual([]);
+  });
+
   it('"Lock this tag" locks an unprotected tag without rewriting it', async () => {
     mockTag = new FakeNtag();
     const before = mockTag.userBytes(16);
