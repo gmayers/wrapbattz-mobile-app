@@ -6,7 +6,7 @@ import {
   listInvoices,
   resumeSubscription,
 } from '../../api/endpoints/billing';
-import type { BillingState, Invoice } from '../../api/types-billing';
+import type { BillingState, Invoice, LimitBlock } from '../../api/types-billing';
 import { useTheme } from '../../context/ThemeContext';
 import { manageCard } from './manageCard';
 
@@ -17,6 +17,16 @@ import { manageCard } from './manageCard';
 const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** "2 of 5", "2 of 5 (1 invite pending)" or "12 (unlimited)". */
+export function usageLine(block: LimitBlock): string {
+  const pending = block.pending ?? 0;
+  const pendingNote = pending > 0 ? ` (${pending} invite${pending === 1 ? '' : 's'} pending)` : '';
+  if (block.unlimited || block.limit == null) {
+    return `${block.used - pending} (unlimited)${pendingNote}`;
+  }
+  return `${block.used} of ${block.limit}${pendingNote}`;
+}
 
 const SubscriptionScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -104,8 +114,8 @@ const SubscriptionScreen: React.FC = () => {
         {isLiveSubscription && periodEnd && (
           <Text style={s.body}>{state.cancel_at_period_end ? `Ends ${periodEnd}` : `Renews ${periodEnd}`}</Text>
         )}
-        <Text style={s.body}>Seats: {state.limits.seats.used} of {state.limits.seats.limit}</Text>
-        <Text style={s.body}>Tools: {state.limits.devices.used} of {state.limits.devices.limit}</Text>
+        <Text style={s.body}>Seats: {usageLine(state.limits.seats)}</Text>
+        <Text style={s.body}>Tools: {usageLine(state.limits.devices)}</Text>
       </View>
 
       {isLiveSubscription ? (

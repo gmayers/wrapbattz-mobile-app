@@ -122,3 +122,26 @@ describe('SubscriptionScreen', () => {
     expect(await findByText('crew-control')).toBeTruthy();
   });
 });
+
+describe('usageLine', () => {
+  const { usageLine } = require('../SubscriptionScreen');
+  const base = { included: 5, addon: 0, limit: 5, used: 2, remaining: 3 };
+
+  it('shows used of limit', () => {
+    expect(usageLine(base)).toBe('2 of 5');
+  });
+
+  it('notes pending invitations, which already count as used', () => {
+    expect(usageLine({ ...base, used: 3, remaining: 2, pending: 1 })).toBe('3 of 5 (1 invite pending)');
+  });
+
+  it('shows unlimited plans without a cap', () => {
+    expect(usageLine({ ...base, included: 0, limit: null, remaining: null, unlimited: true, used: 12 }))
+      .toBe('12 (unlimited)');
+  });
+
+  it('does not count pending invites as members on unlimited plans', () => {
+    expect(usageLine({ included: 0, addon: 0, limit: null, remaining: null, unlimited: true, used: 4, pending: 2 }))
+      .toBe('2 (unlimited) (2 invites pending)');
+  });
+});
