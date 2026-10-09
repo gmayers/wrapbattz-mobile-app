@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import * as billing from '../../../api/endpoints/billing';
 import { manageCard } from '../manageCard';
@@ -89,6 +89,29 @@ describe('SubscriptionScreen', () => {
     expect(await findByText("Your organisation doesn't have an active subscription.")).toBeTruthy();
     expect(queryByText('Manage payment card')).toBeNull();
     expect(queryByText('Cancel subscription')).toBeNull();
+  });
+
+  it('no subscription on Android: links to the read-only plans list', async () => {
+    const os = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
+    try {
+      (billing.getBillingState as jest.Mock).mockResolvedValue({ ...active, status: 'trial', stripe_customer_id: null });
+      (billing.listInvoices as jest.Mock).mockResolvedValue([]);
+      const navigation = { navigate: jest.fn() };
+      const { findByText } = render(<SubscriptionScreen navigation={navigation} />);
+      fireEvent.press(await findByText('View plans'));
+      expect(navigation.navigate).toHaveBeenCalledWith('Plans');
+    } finally {
+      Object.defineProperty(Platform, 'OS', { configurable: true, get: () => os });
+    }
+  });
+
+  it('no subscription on iOS: no plans link', async () => {
+    (billing.getBillingState as jest.Mock).mockResolvedValue({ ...active, status: 'trial', stripe_customer_id: null });
+    (billing.listInvoices as jest.Mock).mockResolvedValue([]);
+    const { findByText, queryByText } = render(<SubscriptionScreen navigation={{ navigate: jest.fn() }} />);
+    await findByText("Your organisation doesn't have an active subscription.");
+    expect(queryByText('View plans')).toBeNull();
   });
 
   it('grace period: subscription ended, no actions shown', async () => {

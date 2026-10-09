@@ -34,6 +34,7 @@ import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
 import NotificationsBridge from '../notifications/NotificationsBridge';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
+import PlansScreen from '../screens/Billing/PlansScreen';
 import TransferSettingsScreen from '../screens/Transfers/TransferSettingsScreen';
 import NfcLockSettingsScreen from '../screens/Settings/NfcLockSettingsScreen';
 
@@ -106,6 +107,17 @@ const AuthStack = () => {
         options={{
           headerShown: true,
           headerTitle: 'Verify Email',
+          headerStyle: themedHeaderStyle,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
+          headerTintColor: colors.primary,
+        }}
+      />
+      <Stack.Screen
+        name="Plans"
+        component={PlansScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Plans',
           headerStyle: themedHeaderStyle,
           headerTitleStyle: { fontWeight: 'bold', color: colors.textPrimary },
           headerTintColor: colors.primary,
@@ -325,6 +337,17 @@ const MainStack = () => {
       options={{
         headerShown: true,
         headerTitle: 'Subscription',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    <Stack.Screen
+      name="Plans"
+      component={PlansScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Plans',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,

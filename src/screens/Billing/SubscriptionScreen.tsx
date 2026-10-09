@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   cancelSubscription,
   getBillingState,
@@ -18,7 +18,7 @@ const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
-const SubscriptionScreen: React.FC = () => {
+const SubscriptionScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const { colors } = useTheme();
   const [state, setState] = useState<BillingState | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -132,6 +132,12 @@ const SubscriptionScreen: React.FC = () => {
         <View style={s.card}>
           {/* Plain text only: no link or button to a purchase flow. */}
           <Text style={s.body}>Your organisation doesn't have an active subscription.</Text>
+          {/* Read-only plan list, no purchase path. Android only (App Store 3.1.1). */}
+          {Platform.OS === 'android' && navigation && (
+            <Pressable onPress={() => navigation.navigate('Plans')}>
+              <Text style={s.link}>View plans</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -164,6 +170,7 @@ const styles = (c: any) =>
     label: { color: c.textMuted, fontSize: 12, textTransform: 'uppercase' },
     title: { color: c.textPrimary, fontSize: 20, fontWeight: '600' },
     body: { color: c.textSecondary, fontSize: 14 },
+    link: { color: c.primary, fontSize: 14, fontWeight: '600' },
     row: { paddingVertical: 8, borderTopColor: c.border, borderTopWidth: StyleSheet.hairlineWidth },
     button: { backgroundColor: c.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
     danger: { backgroundColor: c.error ?? '#D32F2F' },
