@@ -10,6 +10,10 @@ import { nfcService } from '../services/NFCService';
 // drilling or a Context provider (Context would force a navigator-tree shape we
 // don't want).
 let scanInFlight = false;
+// Bumped on every scan and on Cancel. A read whose id is stale was cancelled
+// (or superseded by a newer scan), so it must not alert, navigate, or clear the
+// newer scan's overlay.
+let scanId = 0;
 const listeners = new Set<(scanning: boolean) => void>();
 
 function setInFlight(v: boolean): void {
@@ -32,12 +36,15 @@ export function useScanState(): boolean {
 
 /** Cancel any in-flight scan. Safe when nothing is scanning. */
 export async function cancelScan(): Promise<void> {
+  scanId += 1;
+  // Hide the overlay first: on Android cancelTechnologyRequest() sleeps ~1s
+  // before unregistering the tag listener, which made Cancel feel stuck.
+  setInFlight(false);
   try {
     await NfcManager.cancelTechnologyRequest();
   } catch {
     /* no-op */
   }
-  setInFlight(false);
 }
 
 export interface UseScanTagResult {
@@ -55,6 +62,7 @@ export function useScanTag(): UseScanTagResult {
 
   const scan = useCallback(async () => {
     if (scanInFlight) return;
+    const id = ++scanId;
     setInFlight(true);
     // Defensive: clear any prior hung tech request before issuing the next one.
     try {
@@ -64,6 +72,7 @@ export function useScanTag(): UseScanTagResult {
     }
     try {
       const result = await nfcService.readNFC();
+      if (id !== scanId) return;
       if (result.success && (result.data as any)?.tagId) {
         const tagUID = String((result.data as any).tagId).toUpperCase();
         navigation.navigate('QuickActionModal', { tagUID });
@@ -71,11 +80,12 @@ export function useScanTag(): UseScanTagResult {
       }
       Alert.alert('NFC read failed', result.error || 'No tag detected. Please try again.');
     } catch (err: any) {
+      if (id !== scanId) return;
       const msg = err?.message || 'Please try again.';
       if (/cancelled|not available|disabled/i.test(msg)) return;
       Alert.alert('NFC read failed', msg);
     } finally {
-      setInFlight(false);
+      if (id === scanId) setInFlight(false);
     }
   }, [navigation]);
 
