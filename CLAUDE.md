@@ -36,7 +36,7 @@ eas build --platform ios --profile production
 - React Native 0.81.5 with Expo SDK 54
 - Mixed JavaScript/TypeScript codebase (gradual TS adoption, `strict: false`)
 - React Navigation v7 (stack + bottom tabs)
-- REST API backend at `webportal.battwrapz.com/api`
+- REST API backend at `https://app.tooltraq.com/api/v1` (override with `EXPO_PUBLIC_API_BASE_URL`; see `src/api/config.ts`)
 - Axios for HTTP — a single instance in `src/api/client.ts`; bearer tokens live in SecureStore (`src/api/tokenStore.ts`) with single-flight refresh on 401
 - SQLite for optional offline storage
 - Stripe for payments, Sentry for error tracking
@@ -44,7 +44,7 @@ eas build --platform ios --profile production
 
 ### API Layer
 
-The REST API lives at `https://api.tooltraq.com/api/v1/`. The OpenAPI spec is
+The REST API lives at `https://app.tooltraq.com/api/v1/`. The OpenAPI spec is
 committed at `docs/api/openapi.json`; run `npm run api:types` to regenerate
 TypeScript types into `src/api/generated/schema.ts`.
 
