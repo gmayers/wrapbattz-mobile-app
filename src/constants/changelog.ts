@@ -1,4 +1,4 @@
-export const CHANGELOG_VERSION = '1.5.0';
+export const CHANGELOG_VERSION = '1.4.10';
 
 export interface ChangelogEntry {
   version: string;
@@ -8,12 +8,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.5.0',
-    date: '2026-09-24',
+    version: '1.4.10',
+    date: '2026-10-13',
     highlights: [
-      'Get alerts on your phone for tool transfers, approvals, overdue rentals and more.',
-      'A notification inbox behind the bell on every dashboard, with an unread dot.',
-      'Choose which notifications reach you by push or email in Settings → Notifications.',
+      'Owners: Settings → Subscription shows your plan, usage and invoices. Update your payment card, or cancel and resume your subscription, without leaving the app.',
+      'Plans shows current prices for every plan and marks the one you are on.',
+      'A notification inbox behind the bell on every dashboard, and Settings → Notifications to choose what reaches you by email.',
+      'Hand a tool straight to a teammate — they confirm when they have it.',
+      'Tools can have a home location, and you can request a tool someone else is holding.',
+      'Admins: lock your NFC tags so only your organisation can rewrite them (Settings → NFC Tag Lock).',
+      'Fixes: Cancel on a tag scan responds straight away, "Write data to tag" no longer spins forever, and Report Issue picks the tool you scanned.',
     ],
   },
   {
