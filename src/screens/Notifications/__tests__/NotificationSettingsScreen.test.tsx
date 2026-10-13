@@ -18,7 +18,7 @@ const prefs = {
     { type: 'transfer_requested', label: 'Transfer Requested', description: '', urgent: false, locked: false,
       push: { enabled: true, editable: true }, email: { enabled: true, editable: false } },
     { type: 'maintenance_due', label: 'Maintenance Due', description: '', urgent: false, locked: true,
-      push: { enabled: true, editable: false }, email: { enabled: true, editable: false } },
+      push: { enabled: true, editable: true }, email: { enabled: true, editable: false } },
     { type: 'transfer_accepted', label: 'Transfer Accepted', description: '', urgent: false, locked: false,
       push: { enabled: true, editable: false }, email: { enabled: false, editable: false } },
   ],
@@ -49,8 +49,25 @@ it('toggling an editable switch saves the whole payload', () => {
 it('disabled rows cannot be toggled and explain why', () => {
   render(<NotificationSettingsScreen />);
   expect(screen.getByLabelText('Transfer Requested email').props.disabled).toBe(true);
-  expect(screen.getByText('Required')).toBeTruthy();
+  expect(screen.getByText('Email required by your organisation')).toBeTruthy();
   expect(screen.getByText('Managed by your organisation')).toBeTruthy();
+});
+
+it('push stays switchable on a locked type', () => {
+  render(<NotificationSettingsScreen />);
+  expect(screen.getByLabelText('Maintenance Due push').props.disabled).toBe(false);
+  expect(screen.getByLabelText('Maintenance Due email').props.disabled).toBe(true);
+});
+
+it('officers get no "members can turn off push" switch', () => {
+  mockOfficer = true;
+  (q.useNotificationPolicy as jest.Mock).mockReturnValue({
+    data: { digest_minutes: 60, members_can_disable_push: true, members_can_disable_email: true, types: [] },
+    isLoading: false,
+  });
+  render(<NotificationSettingsScreen />);
+  expect(screen.getByLabelText('Members can turn off email')).toBeTruthy();
+  expect(screen.queryByLabelText('Members can turn off push')).toBeNull();
 });
 
 it('workers do not see organisation defaults', () => {
@@ -127,7 +144,7 @@ it('disables the organisation defaults controls while a policy save is pending',
   (q.useUpdateNotificationPolicy as jest.Mock).mockReturnValue({ mutate: savePolicy, isPending: true });
   render(<NotificationSettingsScreen />);
   expect(screen.getByLabelText('Digest every 30 minutes').props.accessibilityState.disabled).toBe(true);
-  expect(screen.getByLabelText('Members can turn off push').props.disabled).toBe(true);
+  expect(screen.getByLabelText('Members can turn off email').props.disabled).toBe(true);
 });
 
 it('offers a retry when preferences fail to load', () => {

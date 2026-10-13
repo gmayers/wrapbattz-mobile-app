@@ -87,7 +87,7 @@ const NotificationSettingsScreen: React.FC = () => {
   };
 
   const reason = (row: TypePreference) =>
-    row.locked ? 'Required' : !row.push.editable && !row.email.editable ? 'Managed by your organisation' : null;
+    row.locked ? 'Email required by your organisation' : !row.push.editable && !row.email.editable ? 'Managed by your organisation' : null;
 
   const policy: OrgPolicy | undefined = policyQ.data;
   const setPolicy = (patch: Partial<OrgPolicy>) => {
@@ -168,13 +168,14 @@ const NotificationSettingsScreen: React.FC = () => {
               ))}
             </View>
             <View style={styles.row}>
-              <Text style={[styles.label, { color: colors.textPrimary }]}>Members can turn off push</Text>
-              {sw('Members can turn off push', policy.members_can_disable_push, (v) => setPolicy({ members_can_disable_push: v }), savePolicy.isPending)}
-            </View>
-            <View style={styles.row}>
               <Text style={[styles.label, { color: colors.textPrimary }]}>Members can turn off email</Text>
               {sw('Members can turn off email', policy.members_can_disable_email, (v) => setPolicy({ members_can_disable_email: v }), savePolicy.isPending)}
             </View>
+            {/* Push is always each person's choice (Apple 4.5.4 / Google Play), so
+                there's no "members can turn off push" switch and Lock covers email only. */}
+            <Text style={[styles.note, { color: colors.textSecondary }]}>
+              Everyone can always turn push notifications off for themselves. Lock makes a type always email.
+            </Text>
             {policy.types.map((row) => (
               <View key={row.type} style={styles.policyRow}>
                 <Text style={[styles.label, { color: colors.textPrimary }]}>{row.label}</Text>
@@ -185,8 +186,8 @@ const NotificationSettingsScreen: React.FC = () => {
                   {sw(`${row.label} default email`, row.email_enabled, (v) => setPolicyType(row, { email_enabled: v }), savePolicy.isPending)}
                   <Text style={[styles.note, { color: colors.textSecondary }]}>Urgent</Text>
                   {sw(`${row.label} urgent`, row.urgent, (v) => setPolicyType(row, { urgent: v }), savePolicy.isPending)}
-                  <Text style={[styles.note, { color: colors.textSecondary }]}>Lock</Text>
-                  {sw(`${row.label} locked`, row.locked, (v) => setPolicyType(row, { locked: v }), savePolicy.isPending)}
+                  <Text style={[styles.note, { color: colors.textSecondary }]}>Lock email</Text>
+                  {sw(`${row.label} lock email`, row.locked, (v) => setPolicyType(row, { locked: v }), savePolicy.isPending)}
                 </View>
               </View>
             ))}
