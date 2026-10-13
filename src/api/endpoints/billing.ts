@@ -1,8 +1,13 @@
 import { apiClient } from '../client';
-import type { BillingState, CustomerSheetSession, Invoice, PlansCatalog } from '../types-billing';
+import type { BillingState, CustomerSheetSession, Invoice, PlansCatalog, SubscriptionSource } from '../types-billing';
 
 export async function getBillingState(): Promise<BillingState> {
   const { data } = await apiClient.get<BillingState>('/billing/');
+  return data;
+}
+
+export async function getSubscriptionSource(): Promise<SubscriptionSource> {
+  const { data } = await apiClient.get<SubscriptionSource>('/billing/subscription');
   return data;
 }
 

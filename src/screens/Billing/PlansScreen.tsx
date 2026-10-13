@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { getPlans } from '../../api/endpoints/billing';
-import type { PlanSummary } from '../../api/types-billing';
+import { getBillingState, getPlans } from '../../api/endpoints/billing';
+import type { BillingState, PlanSummary } from '../../api/types-billing';
+import { useAuth } from '../../auth/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
 // Read-only plan catalog from the live /billing/plans/ endpoint. Information
 // only: no purchase, upgrade or external link (App Store 3.1.1 / Play
 // payments policy). One card per row so text stays full-size at phone width.
+// Signed in, it marks the organisation's current plan and owners get a way
+// through to the Subscription screen to manage what they already pay for.
 
 type Interval = 'monthly' | 'annual';
 
@@ -21,20 +24,30 @@ const money = (pence: number) =>
 const allowance = (n: number, one: string, many: string) =>
   n === 0 ? `Unlimited ${many}` : `${n} ${n === 1 ? one : many}`;
 
-const PlansScreen: React.FC = () => {
+const PlansScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { isAuthenticated, isOwner } = useAuth();
   const [plans, setPlans] = useState<PlanSummary[] | null>(null);
+  const [billing, setBilling] = useState<BillingState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [interval, setInterval] = useState<Interval>('monthly');
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setPlans((await getPlans()).plans);
+      const [catalog, state] = await Promise.all([
+        getPlans(),
+        // Reachable from Login too: only ask for billing state when signed in,
+        // and never let it block the catalog.
+        isAuthenticated ? getBillingState().catch(() => null) : Promise.resolve(null),
+      ]);
+      setPlans(catalog.plans);
+      setBilling(state);
+      if (state?.billing_interval) setInterval(state.billing_interval);
     } catch (e: any) {
       setError(e?.message ?? 'Could not load plans.');
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     load();
@@ -65,6 +78,12 @@ const PlansScreen: React.FC = () => {
       <Text style={s.heading}>Plans</Text>
       <Text style={s.body}>Every plan includes NFC tool tracking for your whole team.</Text>
 
+      {isOwner && billing && navigation && (
+        <Pressable style={s.manage} onPress={() => navigation.navigate('Subscription')}>
+          <Text style={s.manageText}>Manage billing</Text>
+        </Pressable>
+      )}
+
       <View style={s.toggle} accessibilityRole="tablist">
         {(['monthly', 'annual'] as const).map((value) => {
           const selected = interval === value;
@@ -86,8 +105,10 @@ const PlansScreen: React.FC = () => {
 
       {plans.map((plan) => {
         const price = interval === 'annual' ? plan.annual_price : plan.monthly_price;
+        const current = billing?.tier === plan.slug;
         return (
-          <View key={plan.slug} style={s.card}>
+          <View key={plan.slug} style={[s.card, current && s.currentCard]}>
+            {current && <Text style={s.currentTag}>Your plan</Text>}
             <Text style={s.name}>{plan.name}</Text>
             {!!plan.subhead && <Text style={s.body}>{plan.subhead}</Text>}
             <View style={s.priceRow}>
@@ -125,6 +146,10 @@ const styles = (c: any) =>
     toggleText: { color: c.textSecondary, fontSize: 15, fontWeight: '600' },
     toggleTextSelected: { color: c.onPrimary ?? '#000' },
     card: { backgroundColor: c.card ?? c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 12, padding: 16, gap: 8 },
+    currentCard: { borderColor: c.primary, borderWidth: 2 },
+    currentTag: { color: c.primary, fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+    manage: { backgroundColor: c.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+    manageText: { color: c.onPrimary ?? '#000', fontSize: 15, fontWeight: '600' },
     name: { color: c.textPrimary, fontSize: 20, fontWeight: '700' },
     priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 },
     price: { color: c.textPrimary, fontSize: 28, fontWeight: '800' },

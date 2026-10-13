@@ -16,7 +16,7 @@ jest.mock('../../../context/ThemeContext', () => ({
   }),
 }));
 
-const limit = { included: 5, addon: 0, limit: 5, used: 2, remaining: 3 };
+const limit = { included: 5, addon: 0, limit: 5, used: 2, remaining: 3, unlimited: false, pending: 0 };
 const active = {
   tier: 'crew-control', status: 'active', trial_ends_at: null,
   current_period_end: '2026-10-16T00:00:00Z', cancel_at_period_end: false,
@@ -31,6 +31,7 @@ describe('SubscriptionScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (billing.getBillingState as jest.Mock).mockResolvedValue(active);
+    (billing.getSubscriptionSource as jest.Mock).mockResolvedValue({ source: 'stripe', status: 'active', managed_in: 'stripe_portal' });
     (billing.listInvoices as jest.Mock).mockResolvedValue([
       { id: 'in_1', number: 'TT-0001', amount: 2900, status: 'paid', hosted_invoice_url: null, pdf_url: 'https://pay.stripe.com/x.pdf', created_at: '2026-09-16T00:00:00Z' },
     ]);
@@ -38,7 +39,8 @@ describe('SubscriptionScreen', () => {
 
   it('shows plan, renewal date and usage', async () => {
     const { findByText, getByText } = render(<SubscriptionScreen />);
-    expect(await findByText('crew-control')).toBeTruthy();
+    expect(await findByText('Crew Control')).toBeTruthy();
+    expect(getByText('Status: Active')).toBeTruthy();
     expect(getByText(/Renews 16 Oct 2026/)).toBeTruthy();
     expect(getByText('Seats: 2 of 5')).toBeTruthy();
     expect(getByText('Tools: 12 of 50')).toBeTruthy();
@@ -106,6 +108,19 @@ describe('SubscriptionScreen', () => {
     }
   });
 
+  it('active subscription on Android: plans are one tap away to compare', async () => {
+    const os = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
+    try {
+      const navigation = { navigate: jest.fn() };
+      const { findByText } = render(<SubscriptionScreen navigation={navigation} />);
+      fireEvent.press(await findByText('View plans'));
+      expect(navigation.navigate).toHaveBeenCalledWith('Plans');
+    } finally {
+      Object.defineProperty(Platform, 'OS', { configurable: true, get: () => os });
+    }
+  });
+
   it('no subscription on iOS: no plans link', async () => {
     (billing.getBillingState as jest.Mock).mockResolvedValue({ ...active, status: 'trial', stripe_customer_id: null });
     (billing.listInvoices as jest.Mock).mockResolvedValue([]);
@@ -114,12 +129,57 @@ describe('SubscriptionScreen', () => {
     expect(queryByText('View plans')).toBeNull();
   });
 
-  it('grace period: subscription ended, no actions shown', async () => {
+  it('unlimited plans say so instead of "of null"', async () => {
     (billing.getBillingState as jest.Mock).mockResolvedValue({
-      ...active, status: 'grace', cancel_at_period_end: true,
+      ...active,
+      limits: { ...active.limits, devices: { ...limit, used: 12, limit: null, remaining: null, unlimited: true } },
     });
     const { findByText, queryByText } = render(<SubscriptionScreen />);
-    expect(await findByText('Your subscription has ended.')).toBeTruthy();
+    expect(await findByText('Tools: 12 (unlimited)')).toBeTruthy();
+    expect(queryByText(/null/)).toBeNull();
+  });
+
+  it('App Store subscription: points to the store, no Stripe actions', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    (billing.getBillingState as jest.Mock).mockResolvedValue({ ...active, stripe_customer_id: null });
+    (billing.getSubscriptionSource as jest.Mock).mockResolvedValue({ source: 'apple_iap', status: 'active', managed_in: 'app_store' });
+    const { findByText, queryByText, getByText } = render(<SubscriptionScreen />);
+    fireEvent.press(await findByText('Manage in the App Store'));
+    expect(openURL).toHaveBeenCalledWith('https://apps.apple.com/account/subscriptions');
+    expect(getByText(/Renews 16 Oct 2026/)).toBeTruthy();
+    expect(queryByText("Your organisation doesn't have an active subscription.")).toBeNull();
+    expect(queryByText('Manage payment card')).toBeNull();
+    expect(queryByText('Cancel subscription')).toBeNull();
+  });
+
+  it('Play subscription with a leftover Stripe customer: no Stripe cancel', async () => {
+    (billing.getSubscriptionSource as jest.Mock).mockResolvedValue({ source: 'google_iap', status: 'active', managed_in: 'play_store' });
+    const { findByText, queryByText } = render(<SubscriptionScreen />);
+    expect(await findByText('Manage in Google Play')).toBeTruthy();
+    expect(queryByText('Cancel subscription')).toBeNull();
+  });
+
+  it('falls back to Stripe when the source lookup fails', async () => {
+    (billing.getSubscriptionSource as jest.Mock).mockRejectedValue(new Error('offline'));
+    const { findByText } = render(<SubscriptionScreen />);
+    expect(await findByText('Manage payment card')).toBeTruthy();
+  });
+
+  it('unfinished checkout is not described as ended', async () => {
+    (billing.getBillingState as jest.Mock).mockResolvedValue({ ...active, status: 'incomplete' });
+    const { findByText, queryByText } = render(<SubscriptionScreen />);
+    expect(await findByText("Your first payment hasn't gone through yet.")).toBeTruthy();
+    expect(queryByText('Your subscription has ended.')).toBeNull();
+    expect(queryByText('Cancel subscription')).toBeNull();
+  });
+
+  it('grace period: lapsed with access date, no actions shown', async () => {
+    (billing.getBillingState as jest.Mock).mockResolvedValue({
+      ...active, status: 'grace', cancel_at_period_end: true, in_grace_period: true,
+      grace_ends_at: '2026-10-30T00:00:00Z',
+    });
+    const { findByText, queryByText } = render(<SubscriptionScreen />);
+    expect(await findByText('Your subscription has lapsed. Full access continues until 30 Oct 2026.')).toBeTruthy();
     expect(queryByText('Manage payment card')).toBeNull();
     expect(queryByText('Cancel subscription')).toBeNull();
     expect(queryByText('Resume subscription')).toBeNull();
@@ -142,6 +202,6 @@ describe('SubscriptionScreen', () => {
     (billing.getBillingState as jest.Mock).mockRejectedValueOnce(new Error('offline'));
     const { findByText } = render(<SubscriptionScreen />);
     fireEvent.press(await findByText('Try again'));
-    expect(await findByText('crew-control')).toBeTruthy();
+    expect(await findByText('Crew Control')).toBeTruthy();
   });
 });

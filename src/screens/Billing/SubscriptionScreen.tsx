@@ -3,10 +3,11 @@ import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, Sty
 import {
   cancelSubscription,
   getBillingState,
+  getSubscriptionSource,
   listInvoices,
   resumeSubscription,
 } from '../../api/endpoints/billing';
-import type { BillingState, Invoice } from '../../api/types-billing';
+import type { BillingState, Invoice, LimitBlock, SubscriptionSource } from '../../api/types-billing';
 import { useTheme } from '../../context/ThemeContext';
 import { manageCard } from './manageCard';
 
@@ -18,9 +19,34 @@ const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Active',
+  past_due: 'Payment overdue',
+  trial: 'Free trial',
+  trial_expired: 'Trial ended',
+  grace: 'Lapsed',
+  canceled: 'Cancelled',
+  incomplete: 'Payment not completed',
+  none: 'No subscription',
+};
+const statusLabel = (status: string) => STATUS_LABELS[status] ?? status.replace(/_/g, ' ');
+
+// Plan slugs ("crew-control") → "Crew Control".
+const planName = (slug: string) =>
+  slug.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+const usage = (b: LimitBlock) => (b.unlimited || b.limit == null ? `${b.used} (unlimited)` : `${b.used} of ${b.limit}`);
+
+// Subscriptions bought through a store are managed there, not with Stripe.
+const STORE: Record<string, { name: string; url: string }> = {
+  app_store: { name: 'the App Store', url: 'https://apps.apple.com/account/subscriptions' },
+  play_store: { name: 'Google Play', url: 'https://play.google.com/store/account/subscriptions' },
+};
+
 const SubscriptionScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const { colors } = useTheme();
   const [state, setState] = useState<BillingState | null>(null);
+  const [source, setSource] = useState<SubscriptionSource | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,9 +54,15 @@ const SubscriptionScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [s, inv] = await Promise.all([getBillingState(), listInvoices()]);
+      const [s, inv, src] = await Promise.all([
+        getBillingState(),
+        listInvoices(),
+        // Only used to spot store-managed subscriptions; Stripe is the fallback.
+        getSubscriptionSource().catch(() => null),
+      ]);
       setState(s);
       setInvoices(inv);
+      setSource(src);
     } catch (e: any) {
       setError(e?.message ?? 'Could not load your subscription.');
     }
@@ -88,27 +120,63 @@ const SubscriptionScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     );
   }
 
-  const hasStripe = Boolean(state.stripe_customer_id);
+  const store = source?.managed_in ? STORE[source.managed_in] : undefined;
+  const hasStripe = Boolean(state.stripe_customer_id) && !store;
+  const isLive = state.status === 'active' || state.status === 'past_due';
   // A Stripe customer can exist with a subscription that has since ended
-  // (GRACE / CANCELED) — the manage/cancel/resume actions only make sense
-  // while there's a live subscription to act on.
-  const isLiveSubscription = hasStripe && (state.status === 'active' || state.status === 'past_due');
+  // (GRACE / CANCELED) or never started (TRIAL / INCOMPLETE) — the
+  // manage/cancel/resume actions only make sense while there's a live
+  // Stripe subscription to act on.
+  const isLiveSubscription = hasStripe && isLive;
   const periodEnd = state.current_period_end ? day(state.current_period_end) : null;
+
+  // What to say when there's a Stripe customer but nothing to manage yet/any more.
+  const stripeNotice = (() => {
+    switch (state.status) {
+      case 'trial':
+        return state.trial_ends_at ? `Your free trial ends ${day(state.trial_ends_at)}.` : 'You are on a free trial.';
+      case 'trial_expired':
+        return 'Your free trial has ended.';
+      case 'incomplete':
+        return "Your first payment hasn't gone through yet.";
+      case 'grace':
+        return state.grace_ends_at
+          ? `Your subscription has lapsed. Full access continues until ${day(state.grace_ends_at)}.`
+          : 'Your subscription has lapsed.';
+      default:
+        return 'Your subscription has ended.';
+    }
+  })();
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content}>
       <View style={s.card}>
         <Text style={s.label}>Plan</Text>
-        <Text style={s.title}>{state.tier ?? 'No plan'}</Text>
-        <Text style={s.body}>Status: {state.status}</Text>
-        {isLiveSubscription && periodEnd && (
+        <Text style={s.title}>{state.tier ? planName(state.tier) : 'No plan'}</Text>
+        <Text style={s.body}>Status: {statusLabel(state.status)}</Text>
+        {(isLiveSubscription || (store && isLive)) && periodEnd && (
           <Text style={s.body}>{state.cancel_at_period_end ? `Ends ${periodEnd}` : `Renews ${periodEnd}`}</Text>
         )}
-        <Text style={s.body}>Seats: {state.limits.seats.used} of {state.limits.seats.limit}</Text>
-        <Text style={s.body}>Tools: {state.limits.devices.used} of {state.limits.devices.limit}</Text>
+        <Text style={s.body}>Seats: {usage(state.limits.seats)}</Text>
+        <Text style={s.body}>Tools: {usage(state.limits.devices)}</Text>
+        {/* Read-only plan list, no purchase path. Android only (App Store 3.1.1). */}
+        {Platform.OS === 'android' && navigation && (
+          <Pressable onPress={() => navigation.navigate('Plans')}>
+            <Text style={s.link}>View plans</Text>
+          </Pressable>
+        )}
       </View>
 
-      {isLiveSubscription ? (
+      {store ? (
+        <View style={s.card}>
+          <Text style={s.body}>
+            This subscription was bought through {store.name}. Change or cancel it there.
+          </Text>
+          <Pressable onPress={() => Linking.openURL(store.url)}>
+            <Text style={s.link}>Manage in {store.name}</Text>
+          </Pressable>
+        </View>
+      ) : isLiveSubscription ? (
         <View style={s.card}>
           <Pressable style={s.button} onPress={onManageCard} disabled={busy}>
             <Text style={s.buttonText}>Manage payment card</Text>
@@ -125,19 +193,13 @@ const SubscriptionScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
         </View>
       ) : hasStripe ? (
         <View style={s.card}>
-          {/* Subscription ended (grace / canceled): no actions left to take. */}
-          <Text style={s.body}>Your subscription has ended.</Text>
+          {/* Trial / incomplete / grace / canceled: no actions to take here. */}
+          <Text style={s.body}>{stripeNotice}</Text>
         </View>
       ) : (
         <View style={s.card}>
           {/* Plain text only: no link or button to a purchase flow. */}
           <Text style={s.body}>Your organisation doesn't have an active subscription.</Text>
-          {/* Read-only plan list, no purchase path. Android only (App Store 3.1.1). */}
-          {Platform.OS === 'android' && navigation && (
-            <Pressable onPress={() => navigation.navigate('Plans')}>
-              <Text style={s.link}>View plans</Text>
-            </Pressable>
-          )}
         </View>
       )}
 

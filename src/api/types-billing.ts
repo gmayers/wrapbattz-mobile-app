@@ -1,9 +1,13 @@
 export interface LimitBlock {
   included: number;
   addon: number;
-  limit: number;
+  // null when unlimited.
+  limit: number | null;
   used: number;
-  remaining: number;
+  remaining: number | null;
+  unlimited: boolean;
+  // Part of `used` that is reserved (seats: pending invitations).
+  pending: number;
 }
 
 export interface BillingState {
@@ -63,4 +67,12 @@ export interface PlanSummary {
 export interface PlansCatalog {
   plans: PlanSummary[];
   addons: Record<string, { unit_price_monthly: number; currency: string }>;
+}
+
+// GET /billing/subscription — where the subscription is managed. Null fields
+// mean no paid subscription (none yet, or still on the free trial).
+export interface SubscriptionSource {
+  source: 'stripe' | 'apple_iap' | 'google_iap' | null;
+  status: string | null;
+  managed_in: 'app_store' | 'play_store' | 'stripe_portal' | null;
 }

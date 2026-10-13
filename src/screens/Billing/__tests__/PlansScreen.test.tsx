@@ -4,6 +4,8 @@ import * as billing from '../../../api/endpoints/billing';
 import PlansScreen from '../PlansScreen';
 
 jest.mock('../../../api/endpoints/billing');
+const mockAuth = { isAuthenticated: false, isOwner: false };
+jest.mock('../../../auth/AuthContext', () => ({ useAuth: () => mockAuth }));
 jest.mock('../../../context/ThemeContext', () => ({
   useTheme: () => ({
     colors: {
@@ -36,7 +38,41 @@ const catalog = {
 describe('PlansScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    Object.assign(mockAuth, { isAuthenticated: false, isOwner: false });
     (billing.getPlans as jest.Mock).mockResolvedValue(catalog);
+    (billing.getBillingState as jest.Mock).mockResolvedValue({ tier: 'solo-control', billing_interval: 'annual' });
+  });
+
+  it('does not ask for billing state when signed out', async () => {
+    const { findByText, queryByText } = render(<PlansScreen />);
+    await findByText('Solo Control');
+    expect(billing.getBillingState).not.toHaveBeenCalled();
+    expect(queryByText('Your plan')).toBeNull();
+  });
+
+  it('marks the current plan and its billing interval when signed in', async () => {
+    mockAuth.isAuthenticated = true;
+    const { findByText, getByText, queryByText } = render(<PlansScreen navigation={{ navigate: jest.fn() }} />);
+    expect(await findByText('Your plan')).toBeTruthy();
+    expect(getByText('£79.99')).toBeTruthy();
+    // Members see their plan but billing is the owner's to manage.
+    expect(queryByText('Manage billing')).toBeNull();
+  });
+
+  it('takes owners to the Subscription screen to manage billing', async () => {
+    Object.assign(mockAuth, { isAuthenticated: true, isOwner: true });
+    const navigate = jest.fn();
+    const { findByText } = render(<PlansScreen navigation={{ navigate }} />);
+    fireEvent.press(await findByText('Manage billing'));
+    expect(navigate).toHaveBeenCalledWith('Subscription');
+  });
+
+  it('still shows plans when billing state fails', async () => {
+    mockAuth.isAuthenticated = true;
+    (billing.getBillingState as jest.Mock).mockRejectedValue(new Error('Forbidden'));
+    const { findByText, queryByText } = render(<PlansScreen />);
+    expect(await findByText('Solo Control')).toBeTruthy();
+    expect(queryByText('Your plan')).toBeNull();
   });
 
   it('shows live plans with monthly prices and what is included', async () => {
