@@ -20,6 +20,7 @@ import { ApiError } from '../api/errors';
 
 const SuggestFeatureScreen = ({ navigation }) => {
   const { colors } = useTheme();
+  const styles = getStyles(colors);
   const [featureSuggestion, setFeatureSuggestion] = useState('');
   const [feedbackText, setFeedbackText] = useState('');
   const [name, setName] = useState('');
@@ -108,8 +109,8 @@ const SuggestFeatureScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={colors.statusBar} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidView}
@@ -120,7 +121,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
+          <View style={styles.headerContainer}>
             <Text style={styles.headerTitle}>Suggest a Feature</Text>
             <Text style={styles.headerSubtitle}>
               Help us improve TOOLTRAQ by suggesting new features or providing feedback on existing ones.
@@ -129,11 +130,11 @@ const SuggestFeatureScreen = ({ navigation }) => {
 
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Feature Suggestion*</Text>
+              <Text style={styles.inputLabel}>Feature Suggestion*</Text>
               <TextInput
                 style={styles.textArea}
                 placeholder="Describe the feature you would like to see..."
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={5}
                 value={featureSuggestion}
@@ -147,7 +148,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
               <TextInput
                 style={styles.textArea}
                 placeholder="Any other feedback or suggestions?"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={4}
                 value={feedbackText}
@@ -157,7 +158,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.contactSection}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Contact Information (Optional)</Text>
+              <Text style={styles.sectionTitle}>Contact Information (Optional)</Text>
               <Text style={styles.sectionSubtitle}>
                 Include your contact details if you'd like us to follow up with you about your suggestion.
               </Text>
@@ -167,7 +168,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Your name"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSecondary}
                   value={name}
                   onChangeText={setName}
                 />
@@ -178,7 +179,7 @@ const SuggestFeatureScreen = ({ navigation }) => {
                 <TextInput
                   style={styles.textInput}
                   placeholder="Your email address"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -198,14 +199,14 @@ const SuggestFeatureScreen = ({ navigation }) => {
               
               <TouchableOpacity 
                 style={[
-                  styles.submitButton, { backgroundColor: colors.primary },
+                  styles.submitButton,
                   isSubmitting && styles.submitButtonDisabled
                 ]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
                   <Text style={styles.submitButtonText}>Submit Feedback</Text>
                 )}
@@ -218,86 +219,80 @@ const SuggestFeatureScreen = ({ navigation }) => {
   );
 };
 
-// Existing styles...
-const styles = StyleSheet.create({
+// Built from theme tokens so text keeps WCAG AA contrast in light and dark mode
+// (text on the yellow primary must use onPrimary, never white).
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF'
-},
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center'
-},
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666'
-},
+    backgroundColor: colors.surface
+  },
   keyboardAvoidView: {
     flex: 1
-},
+  },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 100, // Extra padding at the bottom to ensure buttons stay visible
   },
   headerContainer: {
-    backgroundColor: '#FFC72C',
+    backgroundColor: colors.primary,
     padding: 20,
     paddingTop: 30,
     paddingBottom: 30,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2
-},
+    },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3
-},
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     marginBottom: 8,
     textAlign: 'center'
-},
+  },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: colors.onPrimary,
     textAlign: 'center',
     lineHeight: 20
-},
+  },
   formContainer: {
     padding: 20
-},
+  },
   inputGroup: {
     marginBottom: 20
-},
+  },
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 8
-},
+  },
   textInput: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.surfaceAlt,
+    color: colors.textPrimary,
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.borderInput,
     height: 50, // Fixed height for text inputs
   },
   textArea: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.surfaceAlt,
+    color: colors.textPrimary,
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
     minHeight: 120,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.borderInput,
     textAlignVertical: 'top', // Ensure text starts from the top
   },
   contactSection: {
@@ -305,20 +300,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE'
-},
+    borderTopColor: colors.border
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     marginBottom: 8
-},
+  },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#777',
+    color: colors.textSecondary,
     marginBottom: 15,
     lineHeight: 20
-},
+  },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -326,7 +321,7 @@ const styles = StyleSheet.create({
     marginBottom: 30, // Add more bottom margin
   },
   submitButton: {
-    backgroundColor: '#FFC72C',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -336,13 +331,13 @@ const styles = StyleSheet.create({
     height: 50, // Fixed height for consistent appearance
   },
   submitButtonDisabled: {
-    backgroundColor: '#FFAA66'
-},
+    opacity: 0.6
+  },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '600'
-},
+  },
   cancelButton: {
     borderRadius: 8,
     paddingVertical: 12,
@@ -352,13 +347,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#DDDDDD',
+    borderColor: colors.borderInput,
     height: 50, // Fixed height for consistent appearance
   },
   cancelButtonText: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 16
-}
+  }
 });
 
 export default SuggestFeatureScreen;
