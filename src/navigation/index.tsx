@@ -34,6 +34,7 @@ import MembersScreen from '../screens/Members/MembersScreen';
 import { WhatsNewProvider } from '../components/WhatsNewModal';
 import NotificationsBridge from '../notifications/NotificationsBridge';
 import SubscriptionScreen from '../screens/Billing/SubscriptionScreen';
+import ShopCreditScreen from '../screens/Billing/ShopCreditScreen';
 import TransferSettingsScreen from '../screens/Transfers/TransferSettingsScreen';
 import NfcLockSettingsScreen from '../screens/Settings/NfcLockSettingsScreen';
 
@@ -325,6 +326,18 @@ const MainStack = () => {
       options={{
         headerShown: true,
         headerTitle: 'Subscription',
+        headerStyle: getHeaderStyle(),
+        headerTitleStyle,
+        headerTintColor: colors.primary,
+      }}
+    />
+    {/* Shop credit: the plan's monthly credit, spent at the BattWrapz shop. */}
+    <Stack.Screen
+      name="ShopCredit"
+      component={ShopCreditScreen}
+      options={{
+        headerShown: true,
+        headerTitle: 'Shop Credit',
         headerStyle: getHeaderStyle(),
         headerTitleStyle,
         headerTintColor: colors.primary,
