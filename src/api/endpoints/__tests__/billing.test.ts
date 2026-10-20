@@ -49,4 +49,18 @@ describe('billing endpoints', () => {
     await billing.resumeSubscription();
     expect(apiClient.post).toHaveBeenCalledWith('/billing/subscription/resume/');
   });
+
+  it('GET /billing/credits/', async () => {
+    const credit = { wallet_enabled: true, balance_pence: 450, history: [] };
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: credit });
+    await expect(billing.getStoreCredit()).resolves.toEqual(credit);
+    expect(apiClient.get).toHaveBeenCalledWith('/billing/credits/');
+  });
+
+  it('POST /billing/credits/store-link/', async () => {
+    const link = { url: 'https://battwrapz.com/?tooltraq_login=abc', signs_in: true };
+    (apiClient.post as jest.Mock).mockResolvedValueOnce({ data: link });
+    await expect(billing.createStoreLink()).resolves.toEqual(link);
+    expect(apiClient.post).toHaveBeenCalledWith('/billing/credits/store-link/');
+  });
 });

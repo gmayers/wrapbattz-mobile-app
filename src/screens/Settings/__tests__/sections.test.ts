@@ -51,16 +51,17 @@ describe('getSectionsForRole', () => {
   });
 });
 
-const billingRows = (role: any) =>
-  getSectionsForRole(role).find((s) => s.key === 'billing')?.rows.map((r) => r.key);
+const billingRows = (role: any, shopCredit = false) =>
+  getSectionsForRole(role, { shopCredit }).find((s) => s.key === 'billing')?.rows.map((r) => r.key);
 
 describe.each(['ios', 'android'])('billing section on %s', (os) => {
   beforeEach(() => {
     Platform.OS = os as any;
   });
 
-  it('owner sees a single Subscription row', () => {
+  it('owner sees Subscription, and Shop Credit once it is switched on', () => {
     expect(billingRows('owner')).toEqual(['subscription']);
+    expect(billingRows('owner', true)).toEqual(['subscription', 'shopCredit']);
   });
 
   it('admin and workers do not see billing', () => {

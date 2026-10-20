@@ -67,6 +67,8 @@ const ALL_SECTIONS: SettingsSection[] = [
     requiredRole: 'owner',
     rows: [
       { key: 'subscription', label: 'Subscription', icon: 'card-outline', kind: 'nav', destination: 'Subscription' },
+      // Monthly credit for the BattWrapz shop, held in the owner's shop account.
+      { key: 'shopCredit',   label: 'Shop Credit',  icon: 'wallet-outline', kind: 'nav', destination: 'ShopCredit' },
     ],
   },
   {
@@ -89,10 +91,17 @@ const ALL_SECTIONS: SettingsSection[] = [
   },
 ];
 
-export function getSectionsForRole(role: Role | undefined): SettingsSection[] {
+export interface SectionOptions {
+  /** Shop credit is switched on (billing state's credits.wallet_enabled). */
+  shopCredit?: boolean;
+}
+
+export function getSectionsForRole(role: Role | undefined, options: SectionOptions = {}): SettingsSection[] {
   const isAdminOrOwner = role === 'admin' || role === 'owner';
-  return ALL_SECTIONS.filter(s => {
-    if (s.requiredRole === 'owner') return role === 'owner';
-    return s.requiredRole === 'all' || isAdminOrOwner;
-  });
+  return ALL_SECTIONS
+    .filter(s => {
+      if (s.requiredRole === 'owner') return role === 'owner';
+      return s.requiredRole === 'all' || isAdminOrOwner;
+    })
+    .map(s => (options.shopCredit ? s : { ...s, rows: s.rows.filter(r => r.key !== 'shopCredit') }));
 }
