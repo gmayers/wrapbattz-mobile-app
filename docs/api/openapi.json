@@ -877,6 +877,93 @@
         ]
       }
     },
+    "/api/v1/organizations/me/nfc-lock/": {
+      "get": {
+        "operationId": "api_routers_organization_nfc_lock_get_nfc_lock",
+        "summary": "Get Nfc Lock",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfcLockRead"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "api_routers_organization_nfc_lock_put_nfc_lock",
+        "summary": "Put Nfc Lock",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfcLockRead"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NfcLockUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "api_routers_organization_nfc_lock_delete_nfc_lock",
+        "summary": "Delete Nfc Lock",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfcLockRead"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "organizations"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/organizations/": {
       "post": {
         "operationId": "api_routers_organization_organizations_create_organization",
@@ -3991,6 +4078,34 @@
         ]
       }
     },
+    "/api/v1/billing/credits/": {
+      "get": {
+        "operationId": "api_routers_billing_credits_store_credit",
+        "summary": "Store Credit",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreCreditOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "The org's shop credit. History is empty while the wallet is off.",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/billing/credits/redeem/": {
       "post": {
         "operationId": "api_routers_billing_credits_redeem_credits",
@@ -4002,6 +4117,34 @@
           }
         },
         "description": "Attempt to redeem credits (stub).\n\nStore integration is not yet implemented, so this endpoint returns\na 501 Not Implemented error.",
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "AuthBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/billing/credits/store-link/": {
+      "post": {
+        "operationId": "api_routers_billing_credits_store_link",
+        "summary": "Store Link",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreLinkOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Open the shop. The link is single-use and expires in two minutes,\nso fetch it when the user taps the button, not ahead of time.",
         "tags": [
           "billing"
         ],
@@ -5014,11 +5157,19 @@
           "transfer_accepted",
           "transfer_declined",
           "transfer_expired",
+          "tool_assigned",
+          "tool_lost_stolen",
+          "report_updated",
+          "repeated_incidents",
+          "rental_due_soon",
+          "procurement_alert",
           "transfer_claim_requested",
           "transfer_claim_accepted",
           "transfer_claim_declined",
           "transfer_claim_expired",
           "transfer_claimed_instant",
+          "status_change_approved",
+          "status_change_rejected",
           "system"
         ],
         "title": "NotificationType",
@@ -5321,6 +5472,137 @@
         "title": "OrgPolicyUpdate",
         "type": "object"
       },
+      "NfcLockRead": {
+        "description": "Owner/admin only. Hex fields are uppercase: password 4 bytes, pack 2.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "code_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pin",
+                  "hex"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Type"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "password_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Hex"
+          },
+          "pack_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pack Hex"
+          },
+          "previous_password_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Password Hex"
+          },
+          "previous_pack_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Pack Hex"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "NfcLockRead",
+        "type": "object"
+      },
+      "NfcLockUpdate": {
+        "description": "Send either {\"code_type\": \"pin\"|\"hex\", \"code\": \"...\"} or {\"generate\": true}.",
+        "properties": {
+          "code_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "\"pin\" or \"hex\"",
+            "title": "Code Type"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "generate": {
+            "default": false,
+            "title": "Generate",
+            "type": "boolean"
+          }
+        },
+        "title": "NfcLockUpdate",
+        "type": "object"
+      },
       "OrganizationRead": {
         "properties": {
           "id": {
@@ -5409,6 +5691,11 @@
             "format": "time",
             "title": "Workday End Time",
             "type": "string"
+          },
+          "nfc_lock_enabled": {
+            "default": false,
+            "title": "Nfc Lock Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -8804,6 +9091,33 @@
               }
             ],
             "title": "Next Expiry"
+          },
+          "wallet_enabled": {
+            "default": false,
+            "title": "Wallet Enabled",
+            "type": "boolean"
+          },
+          "wallet_balance_pence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet Balance Pence"
+          },
+          "store_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Url"
           }
         },
         "required": [
@@ -8823,24 +9137,46 @@
             "type": "integer"
           },
           "limit": {
-            "title": "Limit",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
           },
           "used": {
             "title": "Used",
             "type": "integer"
           },
           "remaining": {
-            "title": "Remaining",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "unlimited": {
+            "default": false,
+            "title": "Unlimited",
+            "type": "boolean"
+          },
+          "pending": {
+            "default": 0,
+            "title": "Pending",
             "type": "integer"
           }
         },
         "required": [
           "included",
           "addon",
-          "limit",
-          "used",
-          "remaining"
+          "used"
         ],
         "title": "LimitBlock",
         "type": "object"
@@ -8999,6 +9335,156 @@
         "title": "InvoiceOut",
         "type": "object"
       },
+      "CreditHistoryRow": {
+        "properties": {
+          "date": {
+            "format": "date-time",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "added",
+              "expired",
+              "adjusted"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "credits": {
+            "title": "Credits",
+            "type": "integer"
+          },
+          "amount_pence": {
+            "title": "Amount Pence",
+            "type": "integer"
+          },
+          "amount_display": {
+            "title": "Amount Display",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "kind",
+          "credits",
+          "amount_pence",
+          "amount_display",
+          "pending"
+        ],
+        "title": "CreditHistoryRow",
+        "type": "object"
+      },
+      "StoreCreditOut": {
+        "properties": {
+          "wallet_enabled": {
+            "title": "Wallet Enabled",
+            "type": "boolean"
+          },
+          "balance_pence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Pence"
+          },
+          "balance_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Display"
+          },
+          "next_expiry": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Expiry"
+          },
+          "store_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Url"
+          },
+          "held_by_you": {
+            "title": "Held By You",
+            "type": "boolean"
+          },
+          "holder_name": {
+            "title": "Holder Name",
+            "type": "string"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/CreditHistoryRow"
+            },
+            "title": "History",
+            "type": "array"
+          }
+        },
+        "required": [
+          "wallet_enabled",
+          "held_by_you",
+          "holder_name",
+          "history"
+        ],
+        "title": "StoreCreditOut",
+        "type": "object"
+      },
+      "StoreLinkOut": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "signs_in": {
+            "title": "Signs In",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "url",
+          "signs_in"
+        ],
+        "title": "StoreLinkOut",
+        "type": "object"
+      },
       "AddonResultOut": {
         "properties": {
           "ok": {
@@ -9021,8 +9507,15 @@
             "type": "integer"
           },
           "new_limit": {
-            "title": "New Limit",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Limit"
           },
           "prorated_charge": {
             "anyOf": [
@@ -9065,8 +9558,7 @@
         },
         "required": [
           "ok",
-          "granted",
-          "new_limit"
+          "granted"
         ],
         "title": "AddonResultOut",
         "type": "object"

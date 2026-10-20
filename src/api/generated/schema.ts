@@ -376,6 +376,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/me/nfc-lock/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Nfc Lock */
+        get: operations["api_routers_organization_nfc_lock_get_nfc_lock"];
+        /** Put Nfc Lock */
+        put: operations["api_routers_organization_nfc_lock_put_nfc_lock"];
+        post?: never;
+        /** Delete Nfc Lock */
+        delete: operations["api_routers_organization_nfc_lock_delete_nfc_lock"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/": {
         parameters: {
             query?: never;
@@ -1510,6 +1529,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing/credits/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Store Credit
+         * @description The org's shop credit. History is empty while the wallet is off.
+         */
+        get: operations["api_routers_billing_credits_store_credit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/credits/redeem/": {
         parameters: {
             query?: never;
@@ -1527,6 +1566,27 @@ export interface paths {
          *     a 501 Not Implemented error.
          */
         post: operations["api_routers_billing_credits_redeem_credits"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/credits/store-link/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store Link
+         * @description Open the shop. The link is single-use and expires in two minutes,
+         *     so fetch it when the user taps the button, not ahead of time.
+         */
+        post: operations["api_routers_billing_credits_store_link"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1980,7 +2040,7 @@ export interface components {
          * NotificationType
          * @enum {string}
          */
-        NotificationType: "assignment_overdue" | "maintenance_due" | "maintenance_overdue" | "warranty_expiring" | "report_filed" | "report_resolved" | "rental_overdue" | "hire_overdue" | "condition_alert" | "replacement_flagged" | "approval_required" | "invitation_received" | "join_request_created" | "join_request_approved" | "join_request_denied" | "role_changed" | "transfer_requested" | "transfer_accepted" | "transfer_declined" | "transfer_expired" | "transfer_claim_requested" | "transfer_claim_accepted" | "transfer_claim_declined" | "transfer_claim_expired" | "transfer_claimed_instant" | "system";
+        NotificationType: "assignment_overdue" | "maintenance_due" | "maintenance_overdue" | "warranty_expiring" | "report_filed" | "report_resolved" | "rental_overdue" | "hire_overdue" | "condition_alert" | "replacement_flagged" | "approval_required" | "invitation_received" | "join_request_created" | "join_request_approved" | "join_request_denied" | "role_changed" | "transfer_requested" | "transfer_accepted" | "transfer_declined" | "transfer_expired" | "tool_assigned" | "tool_lost_stolen" | "report_updated" | "repeated_incidents" | "rental_due_soon" | "procurement_alert" | "transfer_claim_requested" | "transfer_claim_accepted" | "transfer_claim_declined" | "transfer_claim_expired" | "transfer_claimed_instant" | "status_change_approved" | "status_change_rejected" | "system";
         /** PagedNotifications */
         PagedNotifications: {
             /** Items */
@@ -2110,6 +2170,46 @@ export interface components {
              */
             types: components["schemas"]["TypePolicy"][];
         };
+        /**
+         * NfcLockRead
+         * @description Owner/admin only. Hex fields are uppercase: password 4 bytes, pack 2.
+         */
+        NfcLockRead: {
+            /** Enabled */
+            enabled: boolean;
+            /** Code Type */
+            code_type?: ("pin" | "hex") | null;
+            /** Code */
+            code?: string | null;
+            /** Password Hex */
+            password_hex?: string | null;
+            /** Pack Hex */
+            pack_hex?: string | null;
+            /** Previous Password Hex */
+            previous_password_hex?: string | null;
+            /** Previous Pack Hex */
+            previous_pack_hex?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * NfcLockUpdate
+         * @description Send either {"code_type": "pin"|"hex", "code": "..."} or {"generate": true}.
+         */
+        NfcLockUpdate: {
+            /**
+             * Code Type
+             * @description "pin" or "hex"
+             */
+            code_type?: string | null;
+            /** Code */
+            code?: string | null;
+            /**
+             * Generate
+             * @default false
+             */
+            generate: boolean;
+        };
         /** OrganizationRead */
         OrganizationRead: {
             /** Id */
@@ -2191,6 +2291,11 @@ export interface components {
              * @default 18:00:00
              */
             workday_end_time: string;
+            /**
+             * Nfc Lock Enabled
+             * @default false
+             */
+            nfc_lock_enabled: boolean;
         };
         /** OrganizationCreate */
         OrganizationCreate: {
@@ -3479,6 +3584,15 @@ export interface components {
             balance: number;
             /** Next Expiry */
             next_expiry?: string | null;
+            /**
+             * Wallet Enabled
+             * @default false
+             */
+            wallet_enabled: boolean;
+            /** Wallet Balance Pence */
+            wallet_balance_pence?: number | null;
+            /** Store Url */
+            store_url?: string | null;
         };
         /** LimitBlock */
         LimitBlock: {
@@ -3487,11 +3601,21 @@ export interface components {
             /** Addon */
             addon: number;
             /** Limit */
-            limit: number;
+            limit?: number | null;
             /** Used */
             used: number;
             /** Remaining */
-            remaining: number;
+            remaining?: number | null;
+            /**
+             * Unlimited
+             * @default false
+             */
+            unlimited: boolean;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
         };
         /** CheckoutOut */
         CheckoutOut: {
@@ -3544,6 +3668,55 @@ export interface components {
              */
             created_at: string;
         };
+        /** CreditHistoryRow */
+        CreditHistoryRow: {
+            /**
+             * Date
+             * Format: date-time
+             */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "added" | "expired" | "adjusted";
+            /** Credits */
+            credits: number;
+            /** Amount Pence */
+            amount_pence: number;
+            /** Amount Display */
+            amount_display: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Pending */
+            pending: boolean;
+        };
+        /** StoreCreditOut */
+        StoreCreditOut: {
+            /** Wallet Enabled */
+            wallet_enabled: boolean;
+            /** Balance Pence */
+            balance_pence?: number | null;
+            /** Balance Display */
+            balance_display?: string | null;
+            /** Next Expiry */
+            next_expiry?: string | null;
+            /** Store Url */
+            store_url?: string | null;
+            /** Held By You */
+            held_by_you: boolean;
+            /** Holder Name */
+            holder_name: string;
+            /** History */
+            history: components["schemas"]["CreditHistoryRow"][];
+        };
+        /** StoreLinkOut */
+        StoreLinkOut: {
+            /** Url */
+            url: string;
+            /** Signs In */
+            signs_in: boolean;
+        };
         /** AddonResultOut */
         AddonResultOut: {
             /** Ok */
@@ -3553,7 +3726,7 @@ export interface components {
             /** Granted */
             granted: number;
             /** New Limit */
-            new_limit: number;
+            new_limit?: number | null;
             /** Prorated Charge */
             prorated_charge?: number | null;
             /** Next Invoice Amount */
@@ -4189,6 +4362,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrgPolicy"];
+                };
+            };
+        };
+    };
+    api_routers_organization_nfc_lock_get_nfc_lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NfcLockRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_nfc_lock_put_nfc_lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NfcLockUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NfcLockRead"];
+                };
+            };
+        };
+    };
+    api_routers_organization_nfc_lock_delete_nfc_lock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NfcLockRead"];
                 };
             };
         };
@@ -6097,6 +6334,26 @@ export interface operations {
             };
         };
     };
+    api_routers_billing_credits_store_credit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreCreditOut"];
+                };
+            };
+        };
+    };
     api_routers_billing_credits_redeem_credits: {
         parameters: {
             query?: never;
@@ -6112,6 +6369,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_routers_billing_credits_store_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreLinkOut"];
+                };
             };
         };
     };

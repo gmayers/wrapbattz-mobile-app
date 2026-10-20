@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SectionList, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -9,13 +9,26 @@ import SettingsSectionHeader from './components/SettingsSectionHeader';
 import ThemePickerRow from './components/ThemePickerRow';
 import { useWhatsNewPrompt } from '../../components/WhatsNewModal';
 import { account, organizations } from '../../api/endpoints';
+import { getBillingState } from '../../api/endpoints/billing';
 
 const SettingsScreen: React.FC = () => {
   const { userData, logout, deleteAccount, updateOnboarding } = useAuth();
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { openManually: openWhatsNew } = useWhatsNewPrompt();
-  const sections = getSectionsForRole(userData?.role as any);
+  const role = userData?.role as any;
+  // Shop Credit only once the backend has it switched on, so the row never
+  // leads to a screen that can't load.
+  const [shopCredit, setShopCredit] = useState(false);
+  useEffect(() => {
+    if (role !== 'owner') return;
+    let live = true;
+    getBillingState()
+      .then(state => { if (live) setShopCredit(Boolean(state.credits?.wallet_enabled)); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [role]);
+  const sections = getSectionsForRole(role, { shopCredit });
 
   const handleRowPress = (row: SettingsRowConfig) => {
     if (row.kind === 'nav' && row.destination) {
